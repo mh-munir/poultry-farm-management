@@ -1,0 +1,97 @@
+import Link from 'next/link';
+import { Building2, Camera, CircleDollarSign, DatabaseBackup, FileText, ShieldCheck, UserCog, Users2 } from 'lucide-react';
+import { requireUser } from '@/lib/auth';
+import { Button } from '@/components/ui/button';
+
+const settingsSections = [
+  {
+    title: 'Company Profile',
+    description: 'Manage the farm name, address, contact details, and business identity.',
+    icon: Building2
+  },
+  {
+    title: 'Logo',
+    description: 'Upload and manage branding assets used on invoices and reports.',
+    icon: Camera
+  },
+  {
+    title: 'Invoice Settings',
+    description: 'Configure invoice numbering, footer notes, and document formatting.',
+    icon: FileText
+  },
+  {
+    title: 'Tax',
+    description: 'Set tax rules, rates, and tax-inclusive or exclusive pricing options.',
+    icon: CircleDollarSign
+  },
+  {
+    title: 'Currency',
+    description: 'Choose the base currency and decimal display preferences.',
+    icon: CircleDollarSign
+  },
+  {
+    title: 'Backup',
+    description: 'Create scheduled or manual backups for your farm data.',
+    icon: DatabaseBackup
+  },
+  {
+    title: 'Restore',
+    description: 'Restore previous data snapshots safely when needed.',
+    icon: DatabaseBackup
+  },
+  {
+    title: 'Users',
+    description: 'Manage staff accounts and their access to the system.',
+    icon: Users2
+  },
+  {
+    title: 'Roles',
+    description: 'Create role-based access groups for different responsibilities.',
+    icon: ShieldCheck
+  },
+  {
+    title: 'Permissions',
+    description: 'Fine-tune what each role can create, edit, view, or approve.',
+    icon: UserCog
+  }
+];
+
+export default async function SettingsPage() {
+  const session = await requireUser();
+
+  return (
+    <main className="mx-auto flex min-h-[70vh] max-w-6xl flex-col gap-6 px-6 py-10">
+      <div className="rounded-xl border bg-card p-8 shadow-sm">
+        <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Settings</p>
+        <h1 className="mt-2 text-3xl font-semibold">System Settings</h1>
+        <p className="mt-3 max-w-2xl text-muted-foreground">
+          Welcome back, {session.user.name ?? session.user.email}. Configure the core preferences and access controls for your farm operations.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {settingsSections.map((section) => {
+          const Icon = section.icon;
+          return (
+            <div key={section.title} className="rounded-xl border bg-card p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold">{section.title}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
+                </div>
+                <div className="rounded-full border bg-background p-2 text-primary">
+                  <Icon className="h-4 w-4" />
+                </div>
+              </div>
+              <div className="mt-5">
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/dashboard/settings">Configure</Link>
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </main>
+  );
+}
