@@ -90,9 +90,9 @@ export async function getCategoryPageData({
   const where: Prisma.ProductCategoryWhereInput = search?.trim()
     ? {
         OR: [
-          { name: { contains: search.trim(), mode: 'insensitive' as Prisma.QueryMode } },
-          { slug: { contains: search.trim(), mode: 'insensitive' as Prisma.QueryMode } },
-          { description: { contains: search.trim(), mode: 'insensitive' as Prisma.QueryMode } }
+          { name: { contains: search.trim() } },
+          { slug: { contains: search.trim() } },
+          { description: { contains: search.trim() } }
         ]
       }
     : {};

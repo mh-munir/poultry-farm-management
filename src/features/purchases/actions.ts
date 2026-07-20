@@ -249,10 +249,10 @@ export async function getPurchasesPageData({ page, search }: { page: number; sea
   if (search?.trim()) {
     const term = search.trim();
     where.OR = [
-      { invoiceNumber: { contains: term, mode: 'insensitive' } },
-      { party: { name: { contains: term, mode: 'insensitive' } } },
-      { party: { phone: { contains: term, mode: 'insensitive' } } },
-      { party: { email: { contains: term, mode: 'insensitive' } } }
+      { invoiceNumber: { contains: term } },
+      { party: { name: { contains: term } } },
+      { party: { phone: { contains: term } } },
+      { party: { email: { contains: term } } }
     ] as Prisma.TransactionWhereInput['OR'];
   }
 

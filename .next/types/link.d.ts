@@ -29,12 +29,12 @@ declare namespace __next_route_internal_types__ {
     S extends `${string}${SearchOrHash}` ? never : S
 
   type StaticRoutes = 
-    | `/dashboard/parties/delete`
     | `/dashboard/product-categories/delete`
+    | `/dashboard/parties/delete`
     | `/dashboard/products/delete`
-    | `/auth/sign-in`
     | `/admin`
     | `/dashboard`
+    | `/auth/sign-in`
     | `/dashboard/parties/new`
     | `/dashboard/product-categories/new`
     | `/dashboard/product-categories`
@@ -48,16 +48,16 @@ declare namespace __next_route_internal_types__ {
     | `/dashboard/stock`
     | `/dashboard/stock/reports`
     | `/`
-    | `/staff`
     | `/unauthorized`
+    | `/staff`
     | `/dashboard/parties`
     | `/dashboard/products`
   type DynamicRoutes<T extends string = string> = 
     | `/api/stock/${SafeSlug<T>}`
     | `/api/auth/${CatchAllSlug<T>}`
     | `/dashboard/parties/${SafeSlug<T>}/edit`
-    | `/dashboard/parties/${SafeSlug<T>}`
     | `/dashboard/product-categories/${SafeSlug<T>}/edit`
+    | `/dashboard/parties/${SafeSlug<T>}`
     | `/dashboard/products/${SafeSlug<T>}/edit`
     | `/dashboard/purchases/${SafeSlug<T>}`
     | `/dashboard/sales/${SafeSlug<T>}`

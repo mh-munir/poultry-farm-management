@@ -13,6 +13,7 @@ export type PartyMemoryRecord = {
   feedQuantity: number | null;
   feedPrice: number | null;
   feedName: string | null;
+  medicineName: string | null;
   medicineQuantity: number | null;
   medicinePrice: number | null;
   imageUrl: string | null;

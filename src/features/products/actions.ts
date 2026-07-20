@@ -127,9 +127,9 @@ export async function getProductPageData({
   if (search?.trim()) {
     const term = search.trim();
     where.OR = [
-      { name: { contains: term, mode: 'insensitive' as Prisma.QueryMode } },
-      { code: { contains: term, mode: 'insensitive' as Prisma.QueryMode } },
-      { barcode: { contains: term, mode: 'insensitive' as Prisma.QueryMode } }
+      { name: { contains: term } },
+      { code: { contains: term } },
+      { barcode: { contains: term } }
     ] as Prisma.ProductWhereInput['OR'];
   }
 

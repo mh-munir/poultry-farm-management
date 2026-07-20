@@ -88,7 +88,7 @@ export async function createOrUpdateParty(formData: FormData) {
   }
 
   const data = parsed.data;
-  const normalizedPhone = data.phone?.trim() || null;
+  const normalizedPhone = data.phone.trim();
   const existingImageUrl = formData.get('existingImageUrl')?.toString() || null;
 
   if (await isPhoneTaken(normalizedPhone, data.id)) {
@@ -113,18 +113,35 @@ export async function createOrUpdateParty(formData: FormData) {
     creditLimit: data.creditLimit !== undefined ? new Prisma.Decimal(data.creditLimit) : null,
     openingBalance: new Prisma.Decimal(data.openingBalance),
     imageUrl,
-    isActive: data.isActive,
-    createdById: session.user.id
+    isActive: data.isActive
+  };
+
+  const createPartyPayload = {
+    ...partyPayload,
+    createdById: session.user.id ?? null
+  };
+
+  const updatePartyPayload: Prisma.PartyUpdateInput = {
+    name: partyPayload.name,
+    phone: partyPayload.phone,
+    email: partyPayload.email,
+    address: partyPayload.address,
+    partyType: partyPayload.partyType,
+    taxNumber: partyPayload.taxNumber,
+    creditLimit: partyPayload.creditLimit,
+    openingBalance: partyPayload.openingBalance,
+    imageUrl: partyPayload.imageUrl,
+    isActive: partyPayload.isActive
   };
 
   try {
     if (data.id) {
       await prisma.party.update({
         where: { id: data.id },
-        data: partyPayload
+        data: updatePartyPayload
       });
     } else {
-      await prisma.party.create({ data: partyPayload });
+      await prisma.party.create({ data: createPartyPayload });
     }
   } catch (error) {
     try {
@@ -154,13 +171,14 @@ export async function createOrUpdateParty(formData: FormData) {
           feedQuantity: null,
           feedPrice: null,
           feedName: null,
+          medicineName: null,
           medicineQuantity: null,
           medicinePrice: null,
           imageUrl: partyPayload.imageUrl,
           mediaName: null,
           farmName: null,
           isActive: partyPayload.isActive,
-          createdById: partyPayload.createdById ?? null
+          createdById: createPartyPayload.createdById ?? null
         });
       }
 
@@ -223,17 +241,19 @@ export async function recordSaleForParty(formData: FormData) {
   const data = parsed.data;
 
   try {
+    const salesUpdatePayload: Prisma.PartyUpdateInput = {
+      feedName: data.feedName?.trim() || null,
+      feedQuantity: data.feedQuantity != null ? new Prisma.Decimal(data.feedQuantity) : null,
+      feedPrice: data.feedPrice != null ? new Prisma.Decimal(data.feedPrice) : null,
+      medicineName: data.medicineName?.trim() || null,
+      medicineQuantity: data.medicineQuantity != null ? new Prisma.Decimal(data.medicineQuantity) : null,
+      medicinePrice: data.medicinePrice != null ? new Prisma.Decimal(data.medicinePrice) : null,
+      mediaName: data.mediaName?.trim() || null
+    };
+
     await prisma.party.update({
       where: { id: data.partyId },
-      data: {
-        feedName: data.feedName?.trim() || null,
-        feedQuantity: data.feedQuantity != null ? new Prisma.Decimal(data.feedQuantity) : null,
-        feedPrice: data.feedPrice != null ? new Prisma.Decimal(data.feedPrice) : null,
-        medicineName: data.medicineName?.trim() || null,
-        medicineQuantity: data.medicineQuantity != null ? new Prisma.Decimal(data.medicineQuantity) : null,
-        medicinePrice: data.medicinePrice != null ? new Prisma.Decimal(data.medicinePrice) : null,
-        mediaName: data.mediaName?.trim() || null
-      }
+      data: salesUpdatePayload
     });
   } catch (error) {
     const updatedMemoryParty = updateMemoryParty(data.partyId, {
@@ -423,15 +443,15 @@ function buildPartyWhere({
   if (search?.trim()) {
     const term = search.trim();
     where.OR = [
-      { name: { contains: term, mode: 'insensitive' } },
-      { phone: { contains: term, mode: 'insensitive' } },
-      { email: { contains: term, mode: 'insensitive' } },
-      { taxNumber: { contains: term, mode: 'insensitive' } }
+      { name: { contains: term } },
+      { phone: { contains: term } },
+      { email: { contains: term } },
+      { taxNumber: { contains: term } }
     ];
   }
 
   if (partyType && partyType !== 'ALL') {
-    where.partyType = partyType as PartyType;
+    where.partyType = partyType as PartyTypeValue;
   }
 
   if (status && status !== 'ALL') {
