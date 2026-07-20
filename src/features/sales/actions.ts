@@ -70,7 +70,10 @@ export async function createSaleTransaction(formData: FormData) {
   const parsed = saleSchema.safeParse(normalizeSaleInput(formData));
   if (!parsed.success) {
     const message = parsed.error.issues[0]?.message ?? 'Sale validation failed.';
-    redirect(`/dashboard/sales?error=${encodeURIComponent(message)}`);
+    const url = new URL('/dashboard/sales', 'http://localhost');
+    url.searchParams.set('error', message);
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   const data = parsed.data;
@@ -79,11 +82,17 @@ export async function createSaleTransaction(formData: FormData) {
   const totalAmount = subtotal - data.discount;
 
   if (totalAmount < 0) {
-    redirect(`/dashboard/sales?error=${encodeURIComponent('Total amount cannot be negative.')}`);
+    const url = new URL('/dashboard/sales', 'http://localhost');
+    url.searchParams.set('error', 'Total amount cannot be negative.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   if (Number(data.paymentAmount) > totalAmount) {
-    redirect(`/dashboard/sales?error=${encodeURIComponent('Payment cannot exceed the invoice total.')}`);
+    const url = new URL('/dashboard/sales', 'http://localhost');
+    url.searchParams.set('error', 'Payment cannot exceed the invoice total.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   try {
@@ -214,11 +223,17 @@ export async function createSaleTransaction(formData: FormData) {
       }
     });
   } catch (error) {
-    redirect('/dashboard/sales?error=' + encodeURIComponent(error instanceof Error ? error.message : 'Sale creation failed.'));
+    const url = new URL('/dashboard/sales', 'http://localhost');
+    url.searchParams.set('error', error instanceof Error ? error.message : 'Sale creation failed.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   revalidatePath('/dashboard/sales');
-  redirect('/dashboard/sales?success=' + encodeURIComponent('Sale invoice created successfully.'));
+  const url = new URL('/dashboard/sales', 'http://localhost');
+  url.searchParams.set('success', 'Sale invoice created successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 export async function getSalesPageData({
