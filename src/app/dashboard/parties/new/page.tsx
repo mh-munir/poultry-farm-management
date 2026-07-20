@@ -8,7 +8,7 @@ export default async function NewPartyPage() {
   await requireUser();
 
   return (
-    <main className="mx-auto flex min-h-[70vh] max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
+    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="flex items-center justify-between rounded-2xl border bg-card p-6 shadow-sm">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Create Party</p>
@@ -22,7 +22,7 @@ export default async function NewPartyPage() {
         </Button>
       </div>
 
-      <form action={createOrUpdateParty} autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
+      <form action={createOrUpdateParty} encType="multipart/form-data" autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium">Party name</label>
@@ -87,6 +87,10 @@ export default async function NewPartyPage() {
           <div>
             <label className="mb-2 block text-sm font-medium">Medicine price</label>
             <input type="number" step="0.01" min="0" name="medicinePrice" className="w-full rounded-md border bg-background px-3 py-2" placeholder="0.00" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">Party image</label>
+            <input type="file" name="image" accept="image/*" className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Media name</label>

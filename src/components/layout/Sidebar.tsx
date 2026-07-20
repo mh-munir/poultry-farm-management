@@ -23,7 +23,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
         </div>
       </div>
 
-      <nav className="text-sm text-muted-foreground">
+      <nav className="text-base text-foreground">
         <ul className="space-y-1">
           <li>
             <Link href="/dashboard" onClick={() => onClose?.()} className={linkClass('/dashboard')}>

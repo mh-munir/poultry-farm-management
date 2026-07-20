@@ -1,12 +1,17 @@
 'use server';
 
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { Prisma, PartyType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
 import { createMemoryParty, deleteMemoryParty, getFilteredMemoryParties, getMemoryParties, getMemoryPartyPageData, getMemoryPartyStats, updateMemoryParty } from './store';
+
+type PartyTypeValue = 'CUSTOMER' | 'SUPPLIER' | 'BOTH';
 
 const partySchema = z.object({
   id: z.coerce.number().int().positive().optional(),
@@ -18,25 +23,6 @@ const partySchema = z.object({
   taxNumber: z.string().trim().max(40).optional().or(z.literal('')),
   creditLimit: z.coerce.number().min(0, 'Credit limit cannot be negative.').default(0),
   openingBalance: z.coerce.number().min(-1000000000).max(1000000000).default(0),
-  feedQuantity: z.preprocess((value) => {
-    if (value === '' || value === null || value === undefined) return undefined;
-    return Number(value);
-  }, z.number().min(0).optional()),
-  feedPrice: z.preprocess((value) => {
-    if (value === '' || value === null || value === undefined) return undefined;
-    return Number(value);
-  }, z.number().min(0).optional()),
-  feedName: z.string().trim().max(100).optional().or(z.literal('')),
-  medicineQuantity: z.preprocess((value) => {
-    if (value === '' || value === null || value === undefined) return undefined;
-    return Number(value);
-  }, z.number().min(0).optional()),
-  medicinePrice: z.preprocess((value) => {
-    if (value === '' || value === null || value === undefined) return undefined;
-    return Number(value);
-  }, z.number().min(0).optional()),
-  mediaName: z.string().trim().max(100).optional().or(z.literal('')),
-  farmName: z.string().trim().max(100).optional().or(z.literal('')),
   isActive: z.boolean().default(true)
 });
 
@@ -51,15 +37,31 @@ function normalizePartyInput(formData: FormData) {
     taxNumber: formData.get('taxNumber')?.toString() ?? '',
     creditLimit: formData.get('creditLimit')?.toString() ?? '0',
     openingBalance: formData.get('openingBalance')?.toString() ?? '0',
-    feedQuantity: formData.get('feedQuantity')?.toString() ?? '',
-    feedPrice: formData.get('feedPrice')?.toString() ?? '',
-    feedName: formData.get('feedName')?.toString() ?? '',
-    medicineQuantity: formData.get('medicineQuantity')?.toString() ?? '',
-    medicinePrice: formData.get('medicinePrice')?.toString() ?? '',
-    mediaName: formData.get('mediaName')?.toString() ?? '',
-    farmName: formData.get('farmName')?.toString() ?? '',
     isActive: formData.get('isActive') === 'on'
   };
+}
+
+async function savePartyImage(formData: FormData, existingImageUrl?: string | null) {
+  const imageFile = formData.get('image');
+
+  if (!(imageFile instanceof File) || imageFile.size === 0) {
+    return existingImageUrl ?? null;
+  }
+
+  if (!imageFile.type.startsWith('image/')) {
+    throw new Error('Please upload a valid image file.');
+  }
+
+  const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'party-images');
+  await mkdir(uploadDir, { recursive: true });
+
+  const extension = path.extname(imageFile.name) || '.png';
+  const fileName = `${randomUUID()}${extension}`;
+  const filePath = path.join(uploadDir, fileName);
+  const fileBuffer = Buffer.from(await imageFile.arrayBuffer());
+
+  await writeFile(filePath, fileBuffer);
+  return `/uploads/party-images/${fileName}`;
 }
 
 async function isPhoneTaken(phone: string | null, excludeId?: number) {
@@ -87,9 +89,18 @@ export async function createOrUpdateParty(formData: FormData) {
 
   const data = parsed.data;
   const normalizedPhone = data.phone?.trim() || null;
+  const existingImageUrl = formData.get('existingImageUrl')?.toString() || null;
 
   if (await isPhoneTaken(normalizedPhone, data.id)) {
     redirect('/dashboard/parties?error=' + encodeURIComponent('This mobile number is already used by another party.'));
+  }
+
+  let imageUrl: string | null = null;
+
+  try {
+    imageUrl = await savePartyImage(formData, existingImageUrl);
+  } catch (error) {
+    redirect('/dashboard/parties?error=' + encodeURIComponent(error instanceof Error ? error.message : 'Failed to upload party image.'));
   }
 
   const partyPayload = {
@@ -97,17 +108,11 @@ export async function createOrUpdateParty(formData: FormData) {
     phone: normalizedPhone,
     email: data.email?.trim() || null,
     address: data.address?.trim() || null,
-    partyType: data.partyType as PartyType,
+    partyType: data.partyType as PartyTypeValue,
     taxNumber: data.taxNumber?.trim() || null,
     creditLimit: data.creditLimit !== undefined ? new Prisma.Decimal(data.creditLimit) : null,
     openingBalance: new Prisma.Decimal(data.openingBalance),
-    feedQuantity: data.feedQuantity != null ? new Prisma.Decimal(data.feedQuantity) : null,
-    feedPrice: data.feedPrice != null ? new Prisma.Decimal(data.feedPrice) : null,
-    feedName: data.feedName?.trim() || null,
-    medicineQuantity: data.medicineQuantity != null ? new Prisma.Decimal(data.medicineQuantity) : null,
-    medicinePrice: data.medicinePrice != null ? new Prisma.Decimal(data.medicinePrice) : null,
-    mediaName: data.mediaName?.trim() || null,
-    farmName: data.farmName?.trim() || null,
+    imageUrl,
     isActive: data.isActive,
     createdById: session.user.id
   };
@@ -122,50 +127,48 @@ export async function createOrUpdateParty(formData: FormData) {
       await prisma.party.create({ data: partyPayload });
     }
   } catch (error) {
-    if (data.id) {
-      updateMemoryParty(data.id, {
-        name: partyPayload.name,
-        phone: partyPayload.phone,
-        email: partyPayload.email,
-        address: partyPayload.address,
-        partyType: partyPayload.partyType,
-        taxNumber: partyPayload.taxNumber,
-        creditLimit: partyPayload.creditLimit != null ? Number(partyPayload.creditLimit) : null,
-        openingBalance: Number(partyPayload.openingBalance),
-        feedQuantity: partyPayload.feedQuantity != null ? Number(partyPayload.feedQuantity) : null,
-        feedPrice: partyPayload.feedPrice != null ? Number(partyPayload.feedPrice) : null,
-        feedName: partyPayload.feedName,
-        medicineQuantity: partyPayload.medicineQuantity != null ? Number(partyPayload.medicineQuantity) : null,
-        medicinePrice: partyPayload.medicinePrice != null ? Number(partyPayload.medicinePrice) : null,
-        mediaName: partyPayload.mediaName,
-        farmName: partyPayload.farmName,
-        isActive: partyPayload.isActive,
-        createdById: partyPayload.createdById ?? null
-      });
-    } else {
-      createMemoryParty({
-        name: partyPayload.name,
-        phone: partyPayload.phone,
-        email: partyPayload.email,
-        address: partyPayload.address,
-        partyType: partyPayload.partyType,
-        taxNumber: partyPayload.taxNumber,
-        creditLimit: partyPayload.creditLimit != null ? Number(partyPayload.creditLimit) : null,
-        openingBalance: Number(partyPayload.openingBalance),
-        feedQuantity: partyPayload.feedQuantity != null ? Number(partyPayload.feedQuantity) : null,
-        feedPrice: partyPayload.feedPrice != null ? Number(partyPayload.feedPrice) : null,
-        feedName: partyPayload.feedName,
-        medicineQuantity: partyPayload.medicineQuantity != null ? Number(partyPayload.medicineQuantity) : null,
-        medicinePrice: partyPayload.medicinePrice != null ? Number(partyPayload.medicinePrice) : null,
-        mediaName: partyPayload.mediaName,
-        farmName: partyPayload.farmName,
-        isActive: partyPayload.isActive,
-        createdById: partyPayload.createdById ?? null
-      });
-    }
+    try {
+      if (data.id) {
+        updateMemoryParty(data.id, {
+          name: partyPayload.name,
+          phone: partyPayload.phone,
+          email: partyPayload.email,
+          address: partyPayload.address,
+          partyType: partyPayload.partyType,
+          taxNumber: partyPayload.taxNumber,
+          creditLimit: partyPayload.creditLimit != null ? Number(partyPayload.creditLimit) : null,
+          openingBalance: Number(partyPayload.openingBalance),
+          imageUrl: partyPayload.imageUrl,
+          isActive: partyPayload.isActive
+        });
+      } else {
+        createMemoryParty({
+          name: partyPayload.name,
+          phone: partyPayload.phone,
+          email: partyPayload.email,
+          address: partyPayload.address,
+          partyType: partyPayload.partyType,
+          taxNumber: partyPayload.taxNumber,
+          creditLimit: partyPayload.creditLimit != null ? Number(partyPayload.creditLimit) : null,
+          openingBalance: Number(partyPayload.openingBalance),
+          feedQuantity: null,
+          feedPrice: null,
+          feedName: null,
+          medicineQuantity: null,
+          medicinePrice: null,
+          imageUrl: partyPayload.imageUrl,
+          mediaName: null,
+          farmName: null,
+          isActive: partyPayload.isActive,
+          createdById: partyPayload.createdById ?? null
+        });
+      }
 
-    revalidatePath('/dashboard/parties');
-    redirect('/dashboard/parties?success=' + encodeURIComponent(data.id ? 'Party updated locally.' : 'Party created locally.'));
+      revalidatePath('/dashboard/parties');
+      redirect('/dashboard/parties?success=' + encodeURIComponent(data.id ? 'Party updated locally.' : 'Party created locally.'));
+    } catch (memoryError) {
+      redirect('/dashboard/parties?error=' + encodeURIComponent('Failed to save party. Please try again.'));
+    }
   }
 
   revalidatePath('/dashboard/parties');
@@ -444,7 +447,7 @@ type PartyPageParty = {
   phone: string | null;
   email: string | null;
   address: string | null;
-  partyType: PartyType;
+  partyType: PartyTypeValue;
   taxNumber: string | null;
   creditLimit: Prisma.Decimal | null;
   openingBalance: Prisma.Decimal;

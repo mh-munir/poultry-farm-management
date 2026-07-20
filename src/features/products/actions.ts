@@ -3,9 +3,11 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { Prisma, ProductType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
+
+type ProductTypeValue = 'FEED' | 'MEDICINE' | 'EGG' | 'CHICKEN';
 
 const productSchema = z.object({
   id: z.coerce.number().int().positive().optional(),
@@ -54,7 +56,7 @@ export async function createOrUpdateProduct(formData: FormData) {
   const payload = {
     code: data.code.trim(),
     name: data.name.trim(),
-    productType: data.productType as ProductType,
+    productType: data.productType as ProductTypeValue,
     unit: data.unit.trim(),
     categoryId: data.categoryId ?? null,
     defaultPurchasePrice: data.defaultPurchasePrice ? new Prisma.Decimal(data.defaultPurchasePrice) : null,
@@ -136,7 +138,7 @@ export async function getProductPageData({
   }
 
   if (productType && productType !== 'ALL') {
-    where.productType = productType as ProductType;
+    where.productType = productType as ProductTypeValue;
   }
 
   try {

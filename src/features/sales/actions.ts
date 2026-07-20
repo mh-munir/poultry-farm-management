@@ -3,17 +3,18 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import {
-  LedgerEntryType,
-  PaymentMethod,
-  PaymentStatus,
-  Prisma,
-  StockMovementType,
-  TransactionStatus,
-  TransactionType
-} from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
+
+const SALE_TRANSACTION_TYPE = 'SALE' as const;
+const PENDING_TRANSACTION_STATUS = 'PENDING' as const;
+const COMPLETED_TRANSACTION_STATUS = 'COMPLETED' as const;
+const SALE_LEDGER_ENTRY_TYPE = 'SALE' as const;
+const PAYMENT_RECEIVED_LEDGER_ENTRY_TYPE = 'PAYMENT_RECEIVED' as const;
+const PARTIAL_PAYMENT_STATUS = 'PARTIAL' as const;
+const COMPLETED_PAYMENT_STATUS = 'COMPLETED' as const;
+const SALE_STOCK_MOVEMENT_TYPE = 'SALE' as const;
 
 const saleItemSchema = z.object({
   productId: z.coerce.number().int().positive(),
@@ -94,11 +95,11 @@ export async function createSaleTransaction(formData: FormData) {
 
       const invoiceNumber = generateInvoiceNumber();
       const dueAmount = totalAmount - data.paymentAmount;
-      const status = dueAmount > 0 ? TransactionStatus.PENDING : TransactionStatus.COMPLETED;
+      const status = dueAmount > 0 ? PENDING_TRANSACTION_STATUS : COMPLETED_TRANSACTION_STATUS;
 
       const sale = await tx.transaction.create({
         data: {
-          transactionType: TransactionType.SALE,
+          transactionType: SALE_TRANSACTION_TYPE,
           partyId: data.partyId,
           transactionDate: new Date(),
           invoiceNumber,
@@ -137,7 +138,7 @@ export async function createSaleTransaction(formData: FormData) {
         data: {
           partyId: data.partyId,
           transactionId: sale.id,
-          entryType: LedgerEntryType.SALE,
+          entryType: SALE_LEDGER_ENTRY_TYPE,
           amount: new Prisma.Decimal(totalAmount),
           runningBalance: saleBalance,
           description: `Sale invoice ${invoiceNumber}`,
@@ -149,10 +150,10 @@ export async function createSaleTransaction(formData: FormData) {
         const paymentRecord = await tx.payment.create({
           data: {
             partyId: data.partyId,
-            paymentMethod: data.paymentMethod as PaymentMethod,
+            paymentMethod: data.paymentMethod,
             amount: new Prisma.Decimal(data.paymentAmount),
             referenceNumber: data.referenceNumber || null,
-            status: data.paymentAmount < totalAmount ? PaymentStatus.PARTIAL : PaymentStatus.COMPLETED,
+            status: data.paymentAmount < totalAmount ? PARTIAL_PAYMENT_STATUS : COMPLETED_PAYMENT_STATUS,
             notes: data.notes || null
           }
         });
@@ -170,7 +171,7 @@ export async function createSaleTransaction(formData: FormData) {
             partyId: data.partyId,
             transactionId: sale.id,
             paymentId: paymentRecord.id,
-            entryType: LedgerEntryType.PAYMENT_RECEIVED,
+            entryType: PAYMENT_RECEIVED_LEDGER_ENTRY_TYPE,
             amount: new Prisma.Decimal(-data.paymentAmount),
             runningBalance: saleBalance.minus(new Prisma.Decimal(data.paymentAmount)),
             description: `Payment for invoice ${invoiceNumber}`,
@@ -199,7 +200,7 @@ export async function createSaleTransaction(formData: FormData) {
         await tx.stockMovement.create({
           data: {
             productId,
-            movementType: StockMovementType.SALE,
+            movementType: SALE_STOCK_MOVEMENT_TYPE,
             quantity,
             unitCost: new Prisma.Decimal(items.find((item) => item.productId === productId)?.unitPrice ?? 0),
             notes: `Sale invoice ${invoiceNumber}`
@@ -231,16 +232,16 @@ export async function getSalesPageData({
   const skip = (Math.max(page, 1) - 1) * take;
 
   const where: Prisma.TransactionWhereInput = {
-    transactionType: TransactionType.SALE
+    transactionType: SALE_TRANSACTION_TYPE
   };
 
   if (search?.trim()) {
     const term = search.trim();
     where.OR = [
-      { invoiceNumber: { contains: term, mode: 'insensitive' as Prisma.QueryMode } },
-      { party: { name: { contains: term, mode: 'insensitive' as Prisma.QueryMode } } },
-      { party: { phone: { contains: term, mode: 'insensitive' as Prisma.QueryMode } } },
-      { party: { email: { contains: term, mode: 'insensitive' as Prisma.QueryMode } } }
+      { invoiceNumber: { contains: term, mode: 'insensitive' } },
+      { party: { name: { contains: term, mode: 'insensitive' } } },
+      { party: { phone: { contains: term, mode: 'insensitive' } } },
+      { party: { email: { contains: term, mode: 'insensitive' } } }
     ] as Prisma.TransactionWhereInput['OR'];
   }
 
@@ -283,7 +284,7 @@ type SaleDetail = Prisma.TransactionGetPayload<{
 
 export async function getSaleById(id: number): Promise<SaleDetail | null> {
   return prisma.transaction.findFirst({
-    where: { id, transactionType: TransactionType.SALE },
+    where: { id, transactionType: SALE_TRANSACTION_TYPE },
     include: {
       party: { select: { id: true, name: true, phone: true, email: true, address: true } },
       transactionItems: {

@@ -29,34 +29,34 @@ declare namespace __next_route_internal_types__ {
     S extends `${string}${SearchOrHash}` ? never : S
 
   type StaticRoutes = 
-    | `/`
-    | `/admin`
-    | `/auth/sign-in`
-    | `/dashboard`
-    | `/dashboard/parties`
     | `/dashboard/parties/delete`
-    | `/dashboard/parties/new`
-    | `/dashboard/product-categories`
     | `/dashboard/product-categories/delete`
-    | `/dashboard/product-categories/new`
-    | `/dashboard/products`
     | `/dashboard/products/delete`
+    | `/auth/sign-in`
+    | `/admin`
+    | `/dashboard`
+    | `/dashboard/parties/new`
+    | `/dashboard/product-categories/new`
+    | `/dashboard/product-categories`
     | `/dashboard/products/new`
     | `/dashboard/purchases`
     | `/dashboard/reports`
     | `/dashboard/sales`
     | `/dashboard/settings`
-    | `/dashboard/stock`
     | `/dashboard/stock/Medicine`
     | `/dashboard/stock/feed`
+    | `/dashboard/stock`
     | `/dashboard/stock/reports`
+    | `/`
     | `/staff`
     | `/unauthorized`
+    | `/dashboard/parties`
+    | `/dashboard/products`
   type DynamicRoutes<T extends string = string> = 
-    | `/api/auth/${CatchAllSlug<T>}`
     | `/api/stock/${SafeSlug<T>}`
-    | `/dashboard/parties/${SafeSlug<T>}`
+    | `/api/auth/${CatchAllSlug<T>}`
     | `/dashboard/parties/${SafeSlug<T>}/edit`
+    | `/dashboard/parties/${SafeSlug<T>}`
     | `/dashboard/product-categories/${SafeSlug<T>}/edit`
     | `/dashboard/products/${SafeSlug<T>}/edit`
     | `/dashboard/purchases/${SafeSlug<T>}`

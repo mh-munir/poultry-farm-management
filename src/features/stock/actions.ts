@@ -3,9 +3,11 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { Prisma, StockMovementType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
+
+const STOCK_MOVEMENT_TYPE_PREFIX = 'STOCK_MOVEMENT' as const;
 
 const movementSchema = z.object({
   productId: z.coerce.number().int().positive(),
@@ -82,7 +84,7 @@ export async function createStockMovement(formData: FormData) {
       await tx.stockMovement.create({
         data: {
           productId: data.productId,
-          movementType: data.movementType as StockMovementType,
+          movementType: data.movementType,
           quantity: new Prisma.Decimal(quantity),
           unitCost: new Prisma.Decimal(unitCost),
           notes: (data.notes ?? '').trim() || null
@@ -143,9 +145,9 @@ export async function getStockPageData({
   if (search?.trim()) {
     const term = search.trim();
     where.OR = [
-      { name: { contains: term, mode: 'insensitive' as Prisma.QueryMode } },
-      { code: { contains: term, mode: 'insensitive' as Prisma.QueryMode } },
-      { barcode: { contains: term, mode: 'insensitive' as Prisma.QueryMode } }
+      { name: { contains: term, mode: 'insensitive' } },
+      { code: { contains: term, mode: 'insensitive' } },
+      { barcode: { contains: term, mode: 'insensitive' } }
     ] as Prisma.ProductWhereInput['OR'];
   }
 

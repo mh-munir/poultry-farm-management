@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import imageCompression from 'browser-image-compression';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { createOrUpdateParty, recordSaleForParty } from '@/features/parties/actions';
@@ -24,10 +25,11 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
   const [addFormValues, setAddFormValues] = useState({
     name: '',
     phone: '',
-    farmName: '',
     address: '',
     partyType: 'BOTH'
   });
+  const [compressedImageFile, setCompressedImageFile] = useState<File | null>(null);
+  const [imageCompressionStatus, setImageCompressionStatus] = useState('');
   const [salesFormValues, setSalesFormValues] = useState({
     name: '',
     feedName: '',
@@ -45,6 +47,44 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
       : value;
 
     setAddFormValues((current) => ({ ...current, [field]: normalizedValue }));
+  };
+
+  const handleImageCompress = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setCompressedImageFile(null);
+      setImageCompressionStatus('');
+      return;
+    }
+
+    try {
+      setImageCompressionStatus('Compressing image...');
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1024,
+        useWebWorker: true
+      };
+      const compressedFile = await imageCompression(file, options);
+      setCompressedImageFile(compressedFile);
+      const originalSize = (file.size / 1024 / 1024).toFixed(2);
+      const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2);
+      setImageCompressionStatus(`Compressed: ${originalSize}MB → ${compressedSize}MB`);
+    } catch (error) {
+      setImageCompressionStatus('Error compressing image');
+      console.error('Image compression error:', error);
+    }
+  };
+
+  const handleAddFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    if (compressedImageFile) {
+      formData.set('image', compressedImageFile, compressedImageFile.name);
+    }
+
+    await createOrUpdateParty(formData);
   };
 
   const handleSalesChange = (field: string, value: string) => {
@@ -133,8 +173,9 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
       >
         <form
           id="add-party-form"
-          action={createOrUpdateParty}
+          onSubmit={handleAddFormSubmit}
           autoComplete="off"
+          encType="multipart/form-data"
           className="grid gap-4 sm:grid-cols-2"
         >
           <div className="sm:col-span-2">
@@ -183,16 +224,18 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
           </div>
 
           <div className="sm:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Farm name</label>
+            <label className="mb-2 block text-sm font-medium">Party Profile Image</label>
             <input
-              name="farmName"
-              autoComplete="off"
-              value={addFormValues.farmName}
-              onChange={(event) => handleAddChange('farmName', event.target.value)}
-              required
-              className="w-full rounded-md border bg-background px-3 py-2"
-              placeholder="Farm name"
+              type="file"
+              name="image"
+              accept="image/*"
+              onChange={handleImageCompress}
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
             />
+            {imageCompressionStatus && (
+              <p className="mt-1 text-xs text-muted-foreground">{imageCompressionStatus}</p>
+            )}
+            <p className="mt-1 text-xs text-muted-foreground">Upload an image to display on the party profile (will be compressed automatically)</p>
           </div>
 
           <div className="sm:col-span-2">

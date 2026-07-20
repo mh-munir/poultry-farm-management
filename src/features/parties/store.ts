@@ -1,4 +1,4 @@
-import { PartyType } from '@prisma/client';
+type PartyTypeValue = 'CUSTOMER' | 'SUPPLIER' | 'BOTH';
 
 export type PartyMemoryRecord = {
   id: number;
@@ -6,7 +6,7 @@ export type PartyMemoryRecord = {
   phone: string | null;
   email: string | null;
   address: string | null;
-  partyType: PartyType;
+  partyType: PartyTypeValue;
   taxNumber: string | null;
   creditLimit: number | null;
   openingBalance: number;
@@ -15,6 +15,7 @@ export type PartyMemoryRecord = {
   feedName: string | null;
   medicineQuantity: number | null;
   medicinePrice: number | null;
+  imageUrl: string | null;
   mediaName: string | null;
   farmName: string | null;
   isActive: boolean;
