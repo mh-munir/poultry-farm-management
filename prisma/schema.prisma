@@ -79,6 +79,7 @@ model Party {
   feedName      String?
   medicineQuantity Decimal?
   medicinePrice Decimal?
+  imageUrl      String?
   mediaName     String?
   farmName      String?
   isActive      Boolean   @default(true)

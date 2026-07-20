@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { createOrUpdateParty } from '@/features/parties/actions';
+import { EditPartyForm } from './edit-party-form';
 import { prisma } from '@/server/db';
 import type { Prisma } from '@prisma/client';
 
@@ -17,13 +17,7 @@ type PartyEditPayload = {
   taxNumber: string | null;
   creditLimit: Prisma.Decimal | null;
   openingBalance: Prisma.Decimal;
-  feedQuantity: Prisma.Decimal | null;
-  feedPrice: Prisma.Decimal | null;
-  feedName: string | null;
-  medicineQuantity: Prisma.Decimal | null;
-  medicinePrice: Prisma.Decimal | null;
-  mediaName: string | null;
-  farmName: string | null;
+  imageUrl: string | null;
   isActive: boolean;
 };
 
@@ -42,12 +36,7 @@ export default async function EditPartyPage({ params }: { params: Promise<{ id: 
       taxNumber: true,
       creditLimit: true,
       openingBalance: true,
-      feedQuantity: true,
-      feedPrice: true,
-      medicineQuantity: true,
-      medicinePrice: true,
-      mediaName: true,
-      farmName: true,
+      imageUrl: true,
       isActive: true
     }
   }) as PartyEditPayload | null;
@@ -69,94 +58,7 @@ export default async function EditPartyPage({ params }: { params: Promise<{ id: 
         </Button>
       </div>
 
-      <form action={createOrUpdateParty} autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
-        <input type="hidden" name="id" value={party.id} />
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Party name</label>
-            <input name="name" required defaultValue={party.name} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Phone</label>
-            <input
-              name="phone"
-              required
-              inputMode="numeric"
-              pattern="[0-9]{11}"
-              maxLength={11}
-              defaultValue={party.phone ?? ''}
-              className="w-full rounded-md border bg-background px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Email</label>
-            <input type="email" name="email" defaultValue={party.email ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Party type</label>
-            <select name="partyType" defaultValue={party.partyType} className="w-full rounded-md border bg-background px-3 py-2">
-              <option value="CUSTOMER">Customer</option>
-              <option value="SUPPLIER">Supplier</option>
-              <option value="BOTH">Both</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Tax number</label>
-            <input name="taxNumber" defaultValue={party.taxNumber ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Credit limit</label>
-            <input type="number" step="0.01" min="0" name="creditLimit" defaultValue={party.creditLimit?.toString() ?? '0'} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Opening balance</label>
-            <input type="number" step="0.01" name="openingBalance" defaultValue={party.openingBalance.toString()} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Feed quantity</label>
-            <input type="number" step="0.01" min="0" name="feedQuantity" defaultValue={party.feedQuantity?.toString() ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Feed price</label>
-            <input type="number" step="0.01" min="0" name="feedPrice" defaultValue={party.feedPrice?.toString() ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Feed name</label>
-            <input name="feedName" defaultValue={party.feedName ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Medicine quantity</label>
-            <input type="number" step="0.01" min="0" name="medicineQuantity" defaultValue={party.medicineQuantity?.toString() ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Medicine price</label>
-            <input type="number" step="0.01" min="0" name="medicinePrice" defaultValue={party.medicinePrice?.toString() ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Media name</label>
-            <input name="mediaName" defaultValue={party.mediaName ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Farm name</label>
-            <input name="farmName" defaultValue={party.farmName ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-3">
-            <input id="isActive" name="isActive" type="checkbox" defaultChecked={party.isActive} className="h-4 w-4" />
-            <label htmlFor="isActive" className="text-sm">Active party</label>
-          </div>
-          <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Address</label>
-            <textarea name="address" rows={3} defaultValue={party.address ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Button type="submit">Save Changes</Button>
-          <Button asChild variant="outline" type="button">
-            <Link href="/dashboard/parties">Cancel</Link>
-          </Button>
-        </div>
-      </form>
+      <EditPartyForm party={party} />
     </main>
   );
 }

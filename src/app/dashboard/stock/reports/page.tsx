@@ -1,8 +1,8 @@
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
 
-function formatQty(value: number | string | null | undefined) {
-  return Number(value ?? 0).toFixed(2);
+function formatQty(value: number | string | { toString(): string } | null | undefined) {
+  return Number(value?.toString() ?? 0).toFixed(2);
 }
 
 async function getStockWarnings() {

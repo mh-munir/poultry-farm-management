@@ -42,8 +42,8 @@ async function ensureDefaultAdminUser() {
         password: hashedPassword
       }
     });
-  } catch (error) {
-    console.warn('Unable to ensure default admin user:', error);
+  } catch {
+    // Ignore and rely on the existing database state.
   }
 }
 

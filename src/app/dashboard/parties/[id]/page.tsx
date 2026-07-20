@@ -23,6 +23,7 @@ type PartyProfileRecord = {
   feedName: string | null;
   medicineQuantity: { toString(): string } | null;
   medicinePrice: { toString(): string } | null;
+  imageUrl: string | null;
   mediaName: string | null;
   farmName: string | null;
   isActive: boolean;
@@ -100,6 +101,7 @@ export default async function PartyProfilePage({ params }: { params: Promise<{ i
       feedName: true,
       medicineQuantity: true,
       medicinePrice: true,
+      imageUrl: true,
       mediaName: true,
       farmName: true,
       isActive: true,
@@ -197,9 +199,18 @@ export default async function PartyProfilePage({ params }: { params: Promise<{ i
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Party Profile</p>
-          <h1 className="mt-2 text-3xl font-semibold">{party.name}</h1>
+        <div className="flex items-center gap-4">
+          {party.imageUrl ? (
+            <img src={party.imageUrl} alt={party.name} className="h-20 w-20 rounded-2xl border object-cover shadow-sm" />
+          ) : (
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl border bg-muted text-2xl font-semibold text-muted-foreground">
+              {party.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Party Profile</p>
+            <h1 className="mt-2 text-3xl font-semibold">{party.name}</h1>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <PartyProfileActions partyName={party.name} exportData={exportCsv} />

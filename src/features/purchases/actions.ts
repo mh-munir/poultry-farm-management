@@ -3,17 +3,18 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import {
-  LedgerEntryType,
-  PaymentMethod,
-  PaymentStatus,
-  Prisma,
-  StockMovementType,
-  TransactionStatus,
-  TransactionType
-} from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
+
+const PURCHASE_TRANSACTION_TYPE = 'PURCHASE' as const;
+const PENDING_TRANSACTION_STATUS = 'PENDING' as const;
+const COMPLETED_TRANSACTION_STATUS = 'COMPLETED' as const;
+const PURCHASE_LEDGER_ENTRY_TYPE = 'PURCHASE' as const;
+const PAYMENT_PAID_LEDGER_ENTRY_TYPE = 'PAYMENT_PAID' as const;
+const PARTIAL_PAYMENT_STATUS = 'PARTIAL' as const;
+const COMPLETED_PAYMENT_STATUS = 'COMPLETED' as const;
+const PURCHASE_STOCK_MOVEMENT_TYPE = 'PURCHASE' as const;
 
 const purchaseItemSchema = z.object({
   productId: z.coerce.number().int().positive(),
@@ -96,11 +97,11 @@ export async function createPurchaseTransaction(formData: FormData) {
 
       const invoiceNumber = generatePurchaseInvoiceNumber();
       const dueAmount = totalAmount - data.paymentAmount;
-      const status = dueAmount > 0 ? TransactionStatus.PENDING : TransactionStatus.COMPLETED;
+      const status = dueAmount > 0 ? PENDING_TRANSACTION_STATUS : COMPLETED_TRANSACTION_STATUS;
 
       const purchase = await tx.transaction.create({
         data: {
-          transactionType: TransactionType.PURCHASE,
+          transactionType: PURCHASE_TRANSACTION_TYPE,
           partyId: data.partyId,
           transactionDate: new Date(),
           invoiceNumber,
@@ -140,7 +141,7 @@ export async function createPurchaseTransaction(formData: FormData) {
         data: {
           partyId: data.partyId,
           transactionId: purchase.id,
-          entryType: LedgerEntryType.PURCHASE,
+          entryType: PURCHASE_LEDGER_ENTRY_TYPE,
           amount: new Prisma.Decimal(totalAmount),
           runningBalance: purchaseBalance,
           description: `Purchase invoice ${invoiceNumber}`,
@@ -152,10 +153,10 @@ export async function createPurchaseTransaction(formData: FormData) {
         const paymentRecord = await tx.payment.create({
           data: {
             partyId: data.partyId,
-            paymentMethod: data.paymentMethod as PaymentMethod,
+            paymentMethod: data.paymentMethod,
             amount: new Prisma.Decimal(data.paymentAmount),
             referenceNumber: data.referenceNumber || null,
-            status: data.paymentAmount < totalAmount ? PaymentStatus.PARTIAL : PaymentStatus.COMPLETED,
+            status: data.paymentAmount < totalAmount ? PARTIAL_PAYMENT_STATUS : COMPLETED_PAYMENT_STATUS,
             notes: data.notes || null
           }
         });
@@ -173,7 +174,7 @@ export async function createPurchaseTransaction(formData: FormData) {
             partyId: data.partyId,
             transactionId: purchase.id,
             paymentId: paymentRecord.id,
-            entryType: LedgerEntryType.PAYMENT_PAID,
+            entryType: PAYMENT_PAID_LEDGER_ENTRY_TYPE,
             amount: new Prisma.Decimal(-data.paymentAmount),
             runningBalance: purchaseBalance.minus(new Prisma.Decimal(data.paymentAmount)),
             description: `Payment to supplier ${invoiceNumber}`,
@@ -197,7 +198,7 @@ export async function createPurchaseTransaction(formData: FormData) {
           data: {
             productId,
             transactionId: purchase.id,
-            movementType: StockMovementType.PURCHASE,
+            movementType: PURCHASE_STOCK_MOVEMENT_TYPE,
             quantity,
             unitCost: new Prisma.Decimal(items.find((item) => item.productId === productId)?.unitPrice ?? 0),
             notes: `Purchase invoice ${invoiceNumber}`
@@ -242,16 +243,16 @@ export async function getPurchasesPageData({ page, search }: { page: number; sea
   const take = 8;
   const skip = (Math.max(page, 1) - 1) * take;
   const where: Prisma.TransactionWhereInput = {
-    transactionType: TransactionType.PURCHASE
+    transactionType: PURCHASE_TRANSACTION_TYPE
   };
 
   if (search?.trim()) {
     const term = search.trim();
     where.OR = [
-      { invoiceNumber: { contains: term, mode: 'insensitive' as Prisma.QueryMode } },
-      { party: { name: { contains: term, mode: 'insensitive' as Prisma.QueryMode } } },
-      { party: { phone: { contains: term, mode: 'insensitive' as Prisma.QueryMode } } },
-      { party: { email: { contains: term, mode: 'insensitive' as Prisma.QueryMode } } }
+      { invoiceNumber: { contains: term, mode: 'insensitive' } },
+      { party: { name: { contains: term, mode: 'insensitive' } } },
+      { party: { phone: { contains: term, mode: 'insensitive' } } },
+      { party: { email: { contains: term, mode: 'insensitive' } } }
     ] as Prisma.TransactionWhereInput['OR'];
   }
 
@@ -294,7 +295,7 @@ export type PurchaseDetail = Prisma.TransactionGetPayload<{
 
 export async function getPurchaseById(id: number) {
   return prisma.transaction.findFirst({
-    where: { id, transactionType: TransactionType.PURCHASE },
+    where: { id, transactionType: PURCHASE_TRANSACTION_TYPE },
     include: {
       party: { select: { id: true, name: true, phone: true, email: true, address: true } },
       transactionItems: {
