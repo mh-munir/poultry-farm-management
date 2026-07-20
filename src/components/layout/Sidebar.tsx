@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Home, Users, Grid, BarChart2, Settings, Shield, User, LogOut, Cpu, ChevronDown, Box } from 'lucide-react';
+import { Home, Users, BarChart2, Settings, Shield, User, LogOut, ChevronDown, Box } from 'lucide-react';
 
 export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => void }) {
   const pathname = usePathname() || '';
@@ -37,13 +37,6 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               <span>Parties</span>
             </Link>
           </li>
-          <li>
-            <Link href="/dashboard/product-categories" onClick={() => onClose?.()} className={linkClass('/dashboard/product-categories')}>
-              <Grid size={16} />
-              <span>Categories</span>
-            </Link>
-          </li>
-
           {/* Stock parent with submenu */}
           <li>
             <button
@@ -59,8 +52,8 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
             {stockOpen && (
               <ul className="mt-2 space-y-1 pl-8">
                 <li>
-                  <Link href="/dashboard/stock/nedicin" onClick={() => onClose?.()} className={linkClass('/dashboard/stock/nedicin')}>
-                    <span>Nedicin</span>
+                  <Link href="/dashboard/stock" onClick={() => onClose?.()} className={linkClass('/dashboard/stock')}>
+                    <span>Medicine</span>
                   </Link>
                 </li>
                 <li>

@@ -51,6 +51,7 @@ export default async function DashboardPage() {
 
   const { start, end } = getTodayRange();
 
+  // Fetch all data needed for dynamic dashboard
   const [
     dailyFeedSaleAgg,
     dailyMedicineSaleAgg,
@@ -58,7 +59,11 @@ export default async function DashboardPage() {
     totalFeedSaleAgg,
     totalMedicineSaleAgg,
     totalPurchaseCostAgg,
-    totalStockAgg
+    totalStockAgg,
+    recentTransactions,
+    activePartiesCount,
+    lowStockAlerts,
+    openInvoicesCount
   ] = await Promise.all([
     prisma.transactionItem.aggregate({
       _sum: { lineTotal: true },
@@ -111,8 +116,40 @@ export default async function DashboardPage() {
     }),
     prisma.stockBalance.aggregate({
       _sum: { quantityOnHand: true }
+    }),
+    prisma.transaction.findMany({
+      take: 5,
+      orderBy: { transactionDate: 'desc' },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        party: { select: { name: true } },
+        totalAmount: true,
+        status: true,
+        transactionType: true
+      }
+    }),
+    prisma.party.count({ where: { isActive: true } }),
+    prisma.product.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        lowStockThreshold: true,
+        stockBalance: { select: { quantityOnHand: true } }
+      }
+    }).catch(() => []),
+    prisma.transaction.count({
+      where: { transactionType: 'SALE', status: { not: 'COMPLETED' } }
     })
   ]);
+
+  // Filter products with low stock
+  const filteredLowStockAlerts = (lowStockAlerts || []).filter((product: any) => {
+    const quantity = Number(product.stockBalance?.quantityOnHand ?? 0);
+    const threshold = Number(product.lowStockThreshold ?? 0);
+    return threshold > 0 && quantity <= threshold;
+  });
 
   const dailyFeedSale = Number(dailyFeedSaleAgg._sum.lineTotal ?? 0);
   const dailyMedicineSale = Number(dailyMedicineSaleAgg._sum.lineTotal ?? 0);
@@ -122,26 +159,65 @@ export default async function DashboardPage() {
   const totalPurchaseCost = Number(totalPurchaseCostAgg._sum.totalAmount ?? 0);
   const totalStock = Number(totalStockAgg._sum.quantityOnHand ?? 0);
 
-  const revenueData = [
-    { label: 'Jan', value: 65 },
-    { label: 'Feb', value: 72 },
-    { label: 'Mar', value: 80 },
-    { label: 'Apr', value: 95 },
-    { label: 'May', value: 88 },
-    { label: 'Jun', value: 98 }
-  ];
+  // Generate monthly data for last 6 months
+  const getLastSixMonthsData = async () => {
+    const months: string[] = [];
+    const monthLabels: string[] = [];
 
-  const expenseData = [
-    { label: 'Jan', value: 42 },
-    { label: 'Feb', value: 55 },
-    { label: 'Mar', value: 53 },
-    { label: 'Apr', value: 68 },
-    { label: 'May', value: 61 },
-    { label: 'Jun', value: 75 }
-  ];
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const monthKey = date.toISOString().slice(0, 7); // YYYY-MM
+      const monthLabel = date.toLocaleDateString('en-US', { month: 'short' });
+      months.push(monthKey);
+      monthLabels.push(monthLabel);
+    }
 
-  const maxRevenue = Math.max(...revenueData.map((item) => item.value));
-  const maxExpense = Math.max(...expenseData.map((item) => item.value));
+    // Get total sales in the period
+    const salesData = await prisma.transactionItem.aggregate({
+      where: {
+        transaction: {
+          transactionType: 'SALE',
+          transactionDate: {
+            gte: new Date(months[0] + '-01')
+          }
+        }
+      },
+      _sum: { lineTotal: true }
+    });
+
+    // Get total purchases in the period
+    const purchaseData = await prisma.transaction.aggregate({
+      where: {
+        transactionType: 'PURCHASE',
+        transactionDate: {
+          gte: new Date(months[0] + '-01')
+        }
+      },
+      _sum: { totalAmount: true }
+    });
+
+    // Distribute totals across months (simplified approach)
+    const avgMonthlyRevenue = Number(salesData._sum.lineTotal ?? 0) / 6;
+    const avgMonthlyExpense = Number(purchaseData._sum.totalAmount ?? 0) / 6;
+
+    const revenueData = months.map((month, idx) => ({
+      label: monthLabels[idx],
+      value: Math.round(avgMonthlyRevenue / 10000)
+    }));
+
+    const expenseData = months.map((month, idx) => ({
+      label: monthLabels[idx],
+      value: Math.round(avgMonthlyExpense / 10000)
+    }));
+
+    return { revenueData, expenseData };
+  };
+
+  const { revenueData, expenseData } = await getLastSixMonthsData();
+
+  const maxRevenue = Math.max(...revenueData.map((item) => item.value), 1);
+  const maxExpense = Math.max(...expenseData.map((item) => item.value), 1);
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
@@ -159,10 +235,10 @@ export default async function DashboardPage() {
                 </div>
                 <div className="grid gap-4 md:grid-cols-4">
                   {[
-                    { title: 'Daily Feed Sale', value: formatCurrency(dailyFeedSale), metric: '+ 2.3k', metricColor: 'text-emerald-600', icon: ShoppingCart, accent: 'bg-amber-50 text-amber-600' },
-                    { title: 'Daily Medicine Sales', value: formatCurrency(dailyMedicineSale), metric: '+ 1.1k', metricColor: 'text-sky-600', icon: Box, accent: 'bg-violet-50 text-violet-600' },
-                    { title: 'Today Cost', value: formatCurrency(dailyPurchaseCost), metric: '- 450', metricColor: 'text-rose-600', icon: Wallet, accent: 'bg-rose-50 text-rose-600' },
-                    { title: 'Daily Stock', value: `${formatNumber(totalStock)} units`, metric: '+ 4.8%', metricColor: 'text-emerald-600', icon: BarChart3, accent: 'bg-sky-50 text-sky-600' }
+                    { title: 'Daily Feed Sale', value: formatCurrency(dailyFeedSale), metric: dailyFeedSale > 0 ? '+ ' + formatCurrency(dailyFeedSale) : 'No sales', metricColor: 'text-emerald-600', icon: ShoppingCart, accent: 'bg-amber-50 text-amber-600' },
+                    { title: 'Daily Medicine Sales', value: formatCurrency(dailyMedicineSale), metric: dailyMedicineSale > 0 ? '+ ' + formatCurrency(dailyMedicineSale) : 'No sales', metricColor: 'text-sky-600', icon: Box, accent: 'bg-violet-50 text-violet-600' },
+                    { title: 'Today Cost', value: formatCurrency(dailyPurchaseCost), metric: dailyPurchaseCost > 0 ? '- ' + formatCurrency(dailyPurchaseCost) : 'No cost', metricColor: 'text-rose-600', icon: Wallet, accent: 'bg-rose-50 text-rose-600' },
+                    { title: 'Daily Stock', value: `${formatNumber(totalStock)} units`, metric: totalStock > 0 ? '+ ' + formatNumber(totalStock) : '0', metricColor: 'text-emerald-600', icon: BarChart3, accent: 'bg-sky-50 text-sky-600' }
                   ].map((item) => {
                     const Icon = item.icon;
                     return (
@@ -190,10 +266,10 @@ export default async function DashboardPage() {
                 </div>
                 <div className="grid gap-4 md:grid-cols-4">
                   {[
-                    { title: 'Total Feed Sales', value: formatCurrency(totalFeedSale), metric: 'Stable', metricColor: 'text-slate-600', icon: ShoppingCart, accent: 'bg-indigo-50 text-indigo-600' },
-                    { title: 'Total Medicine Sales', value: formatCurrency(totalMedicineSale), metric: '+ 3.2%', metricColor: 'text-emerald-600', icon: Box, accent: 'bg-violet-50 text-violet-600' },
-                    { title: 'Total Cost', value: formatCurrency(totalPurchaseCost), metric: '- 1.7%', metricColor: 'text-rose-600', icon: Wallet, accent: 'bg-orange-50 text-orange-600' },
-                    { title: 'Total Stock', value: `${formatNumber(totalStock)} units`, metric: '+ 8.9%', metricColor: 'text-emerald-600', icon: BarChart3, accent: 'bg-teal-50 text-teal-600' }
+                    { title: 'Total Feed Sales', value: formatCurrency(totalFeedSale), metric: totalFeedSale > 0 ? 'Active' : 'No sales', metricColor: 'text-slate-600', icon: ShoppingCart, accent: 'bg-indigo-50 text-indigo-600' },
+                    { title: 'Total Medicine Sales', value: formatCurrency(totalMedicineSale), metric: totalMedicineSale > 0 ? '+ ' + ((totalMedicineSale / (totalFeedSale + totalMedicineSale)) * 100).toFixed(1) + '%' : '0%', metricColor: 'text-emerald-600', icon: Box, accent: 'bg-violet-50 text-violet-600' },
+                    { title: 'Total Cost', value: formatCurrency(totalPurchaseCost), metric: totalPurchaseCost > 0 ? formatCurrency(totalPurchaseCost) : 'No cost', metricColor: 'text-rose-600', icon: Wallet, accent: 'bg-orange-50 text-orange-600' },
+                    { title: 'Total Stock', value: `${formatNumber(totalStock)} units`, metric: totalStock > 0 ? '+ ' + formatNumber(totalStock) : '0', metricColor: 'text-emerald-600', icon: BarChart3, accent: 'bg-teal-50 text-teal-600' }
                   ].map((item) => {
                     const Icon = item.icon;
                     return (
@@ -301,18 +377,16 @@ export default async function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
-                    {[
-                      { name: 'Adam M', desc: 'Licensing Revenue', amount: '$750.00', status: 'Success' },
-                      { name: 'Alexa Newsome', desc: 'Invoice #1908', amount: '-$90.99', status: 'Success' },
-                      { name: 'Shelly Dorey', desc: 'Custom Software Development', amount: '$500.00', status: 'Success' },
-                      { name: 'Fredrick Arnett', desc: 'Envato Payout - Collaboration', amount: '$1250.95', status: 'On hold' },
-                      { name: 'Barbara Frink', desc: 'Personal Payment', amount: '-$90.99', status: 'Failed' }
-                    ].map((item) => (
-                      <tr key={item.name} className="hover:bg-slate-50">
-                        <td className="px-4 py-4 font-medium text-slate-900">{item.name}</td>
-                        <td className="px-4 py-4 text-slate-600">{item.desc}</td>
-                        <td className="px-4 py-4 text-slate-900">{item.amount}</td>
-                        <td className="px-4 py-4 text-slate-600">{item.status}</td>
+                    {recentTransactions.map((transaction) => (
+                      <tr key={transaction.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-4 font-medium text-slate-900">{transaction.party.name}</td>
+                        <td className="px-4 py-4 text-slate-600">{transaction.transactionType === 'SALE' ? 'Sale Invoice' : 'Purchase Order'} #{transaction.invoiceNumber}</td>
+                        <td className="px-4 py-4 text-slate-900">{formatCurrency(Number(transaction.totalAmount ?? 0))}</td>
+                        <td className="px-4 py-4 text-slate-600">
+                          <span className={transaction.status === 'COMPLETED' ? 'text-emerald-600' : transaction.status === 'PENDING' ? 'text-amber-600' : 'text-rose-600'}>
+                            {transaction.status}
+                          </span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -333,9 +407,9 @@ export default async function DashboardPage() {
                 </div>
                 <div className="mt-6 space-y-4">
                   {[
-                    { label: 'Online', revenue: '$187,232', value: '48.63%' },
-                    { label: 'Offline', revenue: '$126,874', value: '36.08%' },
-                    { label: 'Direct', revenue: '$90,127', value: '23.41%' }
+                    { label: 'Feed Sales', revenue: formatCurrency(totalFeedSale), value: totalFeedSale + totalMedicineSale > 0 ? ((totalFeedSale / (totalFeedSale + totalMedicineSale)) * 100).toFixed(2) + '%' : '0%' },
+                    { label: 'Medicine Sales', revenue: formatCurrency(totalMedicineSale), value: totalFeedSale + totalMedicineSale > 0 ? ((totalMedicineSale / (totalFeedSale + totalMedicineSale)) * 100).toFixed(2) + '%' : '0%' },
+                    { label: 'Purchases', revenue: formatCurrency(totalPurchaseCost), value: totalFeedSale + totalMedicineSale + totalPurchaseCost > 0 ? ((totalPurchaseCost / (totalFeedSale + totalMedicineSale + totalPurchaseCost)) * 100).toFixed(2) + '%' : '0%' }
                   ].map((item) => (
                     <RevenueSourceCard key={item.label} {...item} />
                   ))}
@@ -382,19 +456,19 @@ export default async function DashboardPage() {
             <div className="mt-6 space-y-4 text-sm text-muted-foreground">
               <div className="flex items-center justify-between rounded-lg bg-slate-50 p-4">
                 <span>Monthly revenue</span>
-                <span className="font-semibold text-slate-900">$32.4k</span>
+                <span className="font-semibold text-slate-900">{formatCurrency(totalFeedSale + totalMedicineSale)}</span>
               </div>
               <div className="flex items-center justify-between rounded-lg bg-slate-50 p-4">
                 <span>Active parties</span>
-                <span className="font-semibold text-slate-900">248</span>
+                <span className="font-semibold text-slate-900">{activePartiesCount}</span>
               </div>
               <div className="flex items-center justify-between rounded-lg bg-slate-50 p-4">
                 <span>Open invoices</span>
-                <span className="font-semibold text-slate-900">18</span>
+                <span className="font-semibold text-slate-900">{openInvoicesCount}</span>
               </div>
               <div className="flex items-center justify-between rounded-lg bg-slate-50 p-4">
                 <span>Stock alerts</span>
-                <span className="font-semibold text-slate-900">7 low</span>
+                <span className="font-semibold text-slate-900">{filteredLowStockAlerts.length} low</span>
               </div>
             </div>
           </Card>

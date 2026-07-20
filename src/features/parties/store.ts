@@ -21,6 +21,9 @@ export type PartyMemoryRecord = {
   createdAt: Date;
   updatedAt: Date;
   createdById: string | null;
+  totalInvoiced?: number;
+  totalPaid?: number;
+  totalDue?: number;
 };
 
 type PartyStoreState = {

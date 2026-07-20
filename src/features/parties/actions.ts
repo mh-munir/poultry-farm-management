@@ -255,6 +255,107 @@ export async function recordSaleForParty(formData: FormData) {
   redirect('/dashboard/parties?success=' + encodeURIComponent('Sales entry saved successfully.'));
 }
 
+const paymentEntrySchema = z.object({
+  partyId: z.coerce.number().int().positive('Party is required.'),
+  amount: z.coerce.number().min(0.01, 'Payment amount must be greater than zero.'),
+  paymentMethod: z.string().trim().min(1, 'Payment method is required.'),
+  referenceNumber: z.string().trim().max(50).optional().or(z.literal('')),
+  status: z.string().trim().min(1).default('COMPLETED'),
+  notes: z.string().trim().max(250).optional().or(z.literal(''))
+});
+
+function normalizePaymentInput(formData: FormData) {
+  return {
+    partyId: formData.get('partyId')?.toString() ?? '',
+    amount: formData.get('amount')?.toString() ?? '',
+    paymentMethod: formData.get('paymentMethod')?.toString() ?? '',
+    referenceNumber: formData.get('referenceNumber')?.toString() ?? '',
+    status: formData.get('status')?.toString() ?? 'COMPLETED',
+    notes: formData.get('notes')?.toString() ?? ''
+  };
+}
+
+export async function recordPaymentForParty(formData: FormData) {
+  const session = await requireUser();
+  const parsed = paymentEntrySchema.safeParse(normalizePaymentInput(formData));
+
+  if (!parsed.success) {
+    const partyId = Number(formData.get('partyId') ?? 0);
+    const message = parsed.error.issues[0]?.message ?? 'Payment validation failed.';
+    redirect(`/dashboard/parties/${partyId}?error=${encodeURIComponent(message)}`);
+  }
+
+  const data = parsed.data;
+
+  await prisma.payment.create({
+    data: {
+      partyId: data.partyId,
+      paymentDate: new Date(),
+      paymentMethod: data.paymentMethod.trim(),
+      amount: new Prisma.Decimal(data.amount),
+      referenceNumber: data.referenceNumber?.trim() || null,
+      status: data.status.trim() || 'COMPLETED',
+      notes: data.notes?.trim() || null,
+      createdById: session.user.id
+    }
+  });
+
+  revalidatePath('/dashboard/parties');
+  revalidatePath(`/dashboard/parties/${data.partyId}`);
+  redirect(`/dashboard/parties/${data.partyId}?success=${encodeURIComponent('Payment recorded successfully.')}`);
+}
+
+export async function updatePaymentForParty(formData: FormData) {
+  await requireUser();
+  const paymentId = Number(formData.get('paymentId'));
+  const partyId = Number(formData.get('partyId'));
+
+  if (!paymentId || !partyId) {
+    redirect(`/dashboard/parties/${partyId || 0}?error=${encodeURIComponent('A valid payment is required.')}`);
+  }
+
+  const amount = Number(formData.get('amount'));
+  const paymentMethod = formData.get('paymentMethod')?.toString().trim();
+  const referenceNumber = formData.get('referenceNumber')?.toString().trim() || null;
+  const status = formData.get('status')?.toString().trim() || 'COMPLETED';
+  const notes = formData.get('notes')?.toString().trim() || null;
+
+  if (!paymentMethod || Number.isNaN(amount) || amount <= 0) {
+    redirect(`/dashboard/parties/${partyId}?error=${encodeURIComponent('Payment update is invalid.')}`);
+  }
+
+  await prisma.payment.update({
+    where: { id: paymentId },
+    data: {
+      amount: new Prisma.Decimal(amount),
+      paymentMethod,
+      referenceNumber,
+      status,
+      notes
+    }
+  });
+
+  revalidatePath('/dashboard/parties');
+  revalidatePath(`/dashboard/parties/${partyId}`);
+  redirect(`/dashboard/parties/${partyId}?success=${encodeURIComponent('Payment updated successfully.')}`);
+}
+
+export async function deletePaymentForParty(formData: FormData) {
+  await requireUser();
+  const paymentId = Number(formData.get('paymentId'));
+  const partyId = Number(formData.get('partyId'));
+
+  if (!paymentId || !partyId) {
+    redirect(`/dashboard/parties/${partyId || 0}?error=${encodeURIComponent('A valid payment is required.')}`);
+  }
+
+  await prisma.payment.delete({ where: { id: paymentId } });
+
+  revalidatePath('/dashboard/parties');
+  revalidatePath(`/dashboard/parties/${partyId}`);
+  redirect(`/dashboard/parties/${partyId}?success=${encodeURIComponent('Payment deleted successfully.')}`);
+}
+
 export async function deleteParty(formData: FormData) {
   await requireUser();
   const partyId = Number(formData.get('partyId'));
@@ -337,6 +438,31 @@ function buildPartyWhere({
   return where;
 }
 
+type PartyPageParty = {
+  id: number;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  partyType: PartyType;
+  taxNumber: string | null;
+  creditLimit: Prisma.Decimal | null;
+  openingBalance: Prisma.Decimal;
+  feedQuantity: Prisma.Decimal | null;
+  feedPrice: Prisma.Decimal | null;
+  feedName: string | null;
+  medicineQuantity: Prisma.Decimal | null;
+  medicinePrice: Prisma.Decimal | null;
+  mediaName: string | null;
+  farmName: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  totalInvoiced?: number;
+  totalPaid?: number;
+  totalDue?: number;
+};
+
 export async function getPartyPageData({
   page,
   search,
@@ -395,31 +521,23 @@ export async function getPartyPageData({
         })
       : result;
 
+    const partyIds = mergedParties.map((party) => party.id);
+    const accountSummaries = await getPartyAccountSummaries(partyIds);
+    const partiesWithSummaries = mergedParties.map((party) => {
+      const summary = accountSummaries.get(party.id) ?? { totalInvoiced: 0, totalPaid: 0, totalDue: 0 };
+      return {
+        ...party,
+        totalInvoiced: summary.totalInvoiced,
+        totalPaid: summary.totalPaid,
+        totalDue: summary.totalDue
+      };
+    });
+
     const totalCountWithMemory = totalCount + memoryParties.length;
     const totalPagesWithMemory = Math.max(1, Math.ceil(totalCountWithMemory / take));
 
     return {
-      parties: mergedParties.slice(skip, skip + take) as Array<{
-        id: number;
-        name: string;
-        phone: string | null;
-        email: string | null;
-        address: string | null;
-        partyType: PartyType;
-        taxNumber: string | null;
-        creditLimit: Prisma.Decimal | null;
-        openingBalance: Prisma.Decimal;
-        feedQuantity: Prisma.Decimal | null;
-        feedPrice: Prisma.Decimal | null;
-        feedName: string | null;
-        medicineQuantity: Prisma.Decimal | null;
-        medicinePrice: Prisma.Decimal | null;
-        mediaName: string | null;
-        farmName: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-      }>,
+      parties: partiesWithSummaries.slice(skip, skip + take) as PartyPageParty[],
       total: totalCountWithMemory,
       totalPages: totalPagesWithMemory,
       page: Math.min(page, totalPagesWithMemory)
@@ -427,6 +545,72 @@ export async function getPartyPageData({
   } catch (error) {
     return getMemoryPartyPageData({ page, search, partyType, status });
   }
+}
+
+export async function getPartyAccountSummary(partyId: number) {
+  const [transactions, payments] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { partyId },
+      select: { totalAmount: true }
+    }),
+    prisma.payment.findMany({
+      where: { partyId },
+      select: { amount: true }
+    })
+  ]);
+
+  const totalInvoiced = transactions.reduce((sum, transaction) => sum + Number(transaction.totalAmount ?? 0), 0);
+  const totalPaid = payments.reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
+  const totalDue = Math.max(totalInvoiced - totalPaid, 0);
+
+  return {
+    totalInvoiced,
+    totalPaid,
+    totalDue
+  };
+}
+
+export async function getPartyAccountSummaries(partyIds: number[]) {
+  if (partyIds.length === 0) {
+    return new Map<number, { totalInvoiced: number; totalPaid: number; totalDue: number }>();
+  }
+
+  const [transactions, payments] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { partyId: { in: partyIds } },
+      select: { partyId: true, totalAmount: true }
+    }),
+    prisma.payment.findMany({
+      where: { partyId: { in: partyIds } },
+      select: { partyId: true, amount: true }
+    })
+  ]);
+
+  const summaries = new Map<number, { totalInvoiced: number; totalPaid: number; totalDue: number }>();
+
+  for (const partyId of partyIds) {
+    summaries.set(partyId, { totalInvoiced: 0, totalPaid: 0, totalDue: 0 });
+  }
+
+  for (const transaction of transactions) {
+    const partySummary = summaries.get(transaction.partyId) ?? { totalInvoiced: 0, totalPaid: 0, totalDue: 0 };
+    partySummary.totalInvoiced += Number(transaction.totalAmount ?? 0);
+    summaries.set(transaction.partyId, partySummary);
+  }
+
+  for (const payment of payments) {
+    const partySummary = summaries.get(payment.partyId) ?? { totalInvoiced: 0, totalPaid: 0, totalDue: 0 };
+    partySummary.totalPaid += Number(payment.amount ?? 0);
+    partySummary.totalDue = Math.max(partySummary.totalInvoiced - partySummary.totalPaid, 0);
+    summaries.set(payment.partyId, partySummary);
+  }
+
+  for (const [partyId, summary] of summaries.entries()) {
+    summary.totalDue = Math.max(summary.totalInvoiced - summary.totalPaid, 0);
+    summaries.set(partyId, summary);
+  }
+
+  return summaries;
 }
 
 export async function getPartyNames() {
