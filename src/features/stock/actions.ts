@@ -145,9 +145,9 @@ export async function getStockPageData({
   if (search?.trim()) {
     const term = search.trim();
     where.OR = [
-      { name: { contains: term, mode: 'insensitive' } },
-      { code: { contains: term, mode: 'insensitive' } },
-      { barcode: { contains: term, mode: 'insensitive' } }
+      { name: { contains: term } },
+      { code: { contains: term } },
+      { barcode: { contains: term } }
     ] as Prisma.ProductWhereInput['OR'];
   }
 
