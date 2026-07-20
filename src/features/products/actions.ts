@@ -49,7 +49,10 @@ export async function createOrUpdateProduct(formData: FormData) {
 
   if (!parsed.success) {
     const message = parsed.error.issues[0]?.message ?? 'Validation failed.';
-    redirect(`/dashboard/products?error=${encodeURIComponent(message)}`);
+    const url = new URL('/dashboard/products', 'http://localhost');
+    url.searchParams.set('error', message);
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   const data = parsed.data;
@@ -83,11 +86,17 @@ export async function createOrUpdateProduct(formData: FormData) {
       await prisma.product.create({ data: payload });
     }
   } catch (error) {
-    redirect('/dashboard/products?error=' + encodeURIComponent('Product save failed. Please verify the data and try again.'));
+    const url = new URL('/dashboard/products', 'http://localhost');
+    url.searchParams.set('error', 'Product save failed. Please verify the data and try again.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   revalidatePath('/dashboard/products');
-  redirect('/dashboard/products?success=' + encodeURIComponent(data.id ? 'Product updated successfully.' : 'Product created successfully.'));
+  const url = new URL('/dashboard/products', 'http://localhost');
+  url.searchParams.set('success', data.id ? 'Product updated successfully.' : 'Product created successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 export async function deleteProduct(formData: FormData) {
@@ -95,17 +104,26 @@ export async function deleteProduct(formData: FormData) {
   const productId = Number(formData.get('productId'));
 
   if (!productId) {
-    redirect('/dashboard/products?error=' + encodeURIComponent('A valid product id is required.'));
+    const url = new URL('/dashboard/products', 'http://localhost');
+    url.searchParams.set('error', 'A valid product id is required.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   try {
     await prisma.product.delete({ where: { id: productId } });
   } catch (error) {
-    redirect('/dashboard/products?error=' + encodeURIComponent('Product deletion failed.'));
+    const url = new URL('/dashboard/products', 'http://localhost');
+    url.searchParams.set('error', 'Product deletion failed.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   revalidatePath('/dashboard/products');
-  redirect('/dashboard/products?success=' + encodeURIComponent('Product deleted successfully.'));
+  const url = new URL('/dashboard/products', 'http://localhost');
+  url.searchParams.set('success', 'Product deleted successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 export async function getProductPageData({

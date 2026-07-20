@@ -72,7 +72,10 @@ export async function createPurchaseTransaction(formData: FormData) {
   const parsed = purchaseSchema.safeParse(normalizePurchaseInput(formData));
   if (!parsed.success) {
     const message = parsed.error.issues[0]?.message ?? 'Purchase validation failed.';
-    redirect(`/dashboard/purchases?error=${encodeURIComponent(message)}`);
+    const url = new URL('/dashboard/purchases', 'http://localhost');
+    url.searchParams.set('error', message);
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   const data = parsed.data;
@@ -81,11 +84,17 @@ export async function createPurchaseTransaction(formData: FormData) {
   const totalAmount = subtotal - data.discount;
 
   if (totalAmount < 0) {
-    redirect(`/dashboard/purchases?error=${encodeURIComponent('Total amount cannot be negative.')}`);
+    const url = new URL('/dashboard/purchases', 'http://localhost');
+    url.searchParams.set('error', 'Total amount cannot be negative.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   if (Number(data.paymentAmount) > totalAmount) {
-    redirect(`/dashboard/purchases?error=${encodeURIComponent('Payment cannot exceed the invoice total.')}`);
+    const url = new URL('/dashboard/purchases', 'http://localhost');
+    url.searchParams.set('error', 'Payment cannot exceed the invoice total.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   try {
@@ -232,11 +241,17 @@ export async function createPurchaseTransaction(formData: FormData) {
       }
     });
   } catch (error) {
-    redirect('/dashboard/purchases?error=' + encodeURIComponent(error instanceof Error ? error.message : 'Purchase creation failed.'));
+    const url = new URL('/dashboard/purchases', 'http://localhost');
+    url.searchParams.set('error', error instanceof Error ? error.message : 'Purchase creation failed.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   revalidatePath('/dashboard/purchases');
-  redirect('/dashboard/purchases?success=' + encodeURIComponent('Purchase invoice created successfully.'));
+  const url = new URL('/dashboard/purchases', 'http://localhost');
+  url.searchParams.set('success', 'Purchase invoice created successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 export async function getPurchasesPageData({ page, search }: { page: number; search?: string }) {

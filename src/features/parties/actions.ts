@@ -84,7 +84,10 @@ export async function createOrUpdateParty(formData: FormData) {
 
   if (!parsed.success) {
     const message = parsed.error.issues[0]?.message ?? 'Validation failed.';
-    redirect(`/dashboard/parties?error=${encodeURIComponent(message)}`);
+    const url = new URL('/dashboard/parties', 'http://localhost');
+    url.searchParams.set('error', message);
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   const data = parsed.data;
@@ -92,7 +95,10 @@ export async function createOrUpdateParty(formData: FormData) {
   const existingImageUrl = formData.get('existingImageUrl')?.toString() || null;
 
   if (await isPhoneTaken(normalizedPhone, data.id)) {
-    redirect('/dashboard/parties?error=' + encodeURIComponent('This mobile number is already used by another party.'));
+    const url = new URL('/dashboard/parties', 'http://localhost');
+    url.searchParams.set('error', 'This mobile number is already used by another party.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   let imageUrl: string | null = null;
@@ -100,7 +106,10 @@ export async function createOrUpdateParty(formData: FormData) {
   try {
     imageUrl = await savePartyImage(formData, existingImageUrl);
   } catch (error) {
-    redirect('/dashboard/parties?error=' + encodeURIComponent(error instanceof Error ? error.message : 'Failed to upload party image.'));
+    const url = new URL('/dashboard/parties', 'http://localhost');
+    url.searchParams.set('error', error instanceof Error ? error.message : 'Failed to upload party image.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   const partyPayload = {
@@ -183,14 +192,23 @@ export async function createOrUpdateParty(formData: FormData) {
       }
 
       revalidatePath('/dashboard/parties');
-      redirect('/dashboard/parties?success=' + encodeURIComponent(data.id ? 'Party updated locally.' : 'Party created locally.'));
+      const url = new URL('/dashboard/parties', 'http://localhost');
+      url.searchParams.set('success', data.id ? 'Party updated locally.' : 'Party created locally.');
+      // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+      redirect(url.toString());
     } catch (memoryError) {
-      redirect('/dashboard/parties?error=' + encodeURIComponent('Failed to save party. Please try again.'));
+      const url = new URL('/dashboard/parties', 'http://localhost');
+      url.searchParams.set('error', 'Failed to save party. Please try again.');
+      // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+      redirect(url.toString());
     }
   }
 
   revalidatePath('/dashboard/parties');
-  redirect('/dashboard/parties?success=' + encodeURIComponent(data.id ? 'Party updated successfully.' : 'Party created successfully.'));
+  const url = new URL('/dashboard/parties', 'http://localhost');
+  url.searchParams.set('success', data.id ? 'Party updated successfully.' : 'Party created successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 const salesEntrySchema = z.object({
@@ -234,8 +252,12 @@ export async function recordSaleForParty(formData: FormData) {
   const parsed = salesEntrySchema.safeParse(normalizeSalesEntryInput(formData));
 
   if (!parsed.success) {
+    const partyId = Number(formData.get('partyId') ?? 0);
     const message = parsed.error.issues[0]?.message ?? 'Sales entry validation failed.';
-    redirect(`/dashboard/parties?error=${encodeURIComponent(message)}`);
+    const url = new URL('/dashboard/parties', 'http://localhost');
+    url.searchParams.set('error', message);
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   const data = parsed.data;
@@ -268,14 +290,23 @@ export async function recordSaleForParty(formData: FormData) {
 
     if (updatedMemoryParty) {
       revalidatePath('/dashboard/parties');
-      redirect('/dashboard/parties?success=' + encodeURIComponent('Sales entry saved locally.'));
+      const url = new URL('/dashboard/parties', 'http://localhost');
+      url.searchParams.set('success', 'Sales entry saved locally.');
+      // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+      redirect(url.toString());
     }
 
-    redirect('/dashboard/parties?error=' + encodeURIComponent('Failed to save sales entry.'));
+    const url = new URL('/dashboard/parties', 'http://localhost');
+    url.searchParams.set('error', 'Failed to save sales entry.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   revalidatePath('/dashboard/parties');
-  redirect('/dashboard/parties?success=' + encodeURIComponent('Sales entry saved successfully.'));
+  const url = new URL('/dashboard/parties', 'http://localhost');
+  url.searchParams.set('success', 'Sales entry saved successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 const paymentEntrySchema = z.object({
@@ -305,7 +336,10 @@ export async function recordPaymentForParty(formData: FormData) {
   if (!parsed.success) {
     const partyId = Number(formData.get('partyId') ?? 0);
     const message = parsed.error.issues[0]?.message ?? 'Payment validation failed.';
-    redirect(`/dashboard/parties/${partyId}?error=${encodeURIComponent(message)}`);
+    const url = new URL(`/dashboard/parties/${partyId}`, 'http://localhost');
+    url.searchParams.set('error', message);
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   const data = parsed.data;
@@ -325,7 +359,10 @@ export async function recordPaymentForParty(formData: FormData) {
 
   revalidatePath('/dashboard/parties');
   revalidatePath(`/dashboard/parties/${data.partyId}`);
-  redirect(`/dashboard/parties/${data.partyId}?success=${encodeURIComponent('Payment recorded successfully.')}`);
+  const url = new URL(`/dashboard/parties/${data.partyId}`, 'http://localhost');
+  url.searchParams.set('success', 'Payment recorded successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 export async function updatePaymentForParty(formData: FormData) {
@@ -334,7 +371,10 @@ export async function updatePaymentForParty(formData: FormData) {
   const partyId = Number(formData.get('partyId'));
 
   if (!paymentId || !partyId) {
-    redirect(`/dashboard/parties/${partyId || 0}?error=${encodeURIComponent('A valid payment is required.')}`);
+    const url = new URL(`/dashboard/parties/${partyId || 0}`, 'http://localhost');
+    url.searchParams.set('error', 'A valid payment is required.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   const amount = Number(formData.get('amount'));
@@ -344,7 +384,10 @@ export async function updatePaymentForParty(formData: FormData) {
   const notes = formData.get('notes')?.toString().trim() || null;
 
   if (!paymentMethod || Number.isNaN(amount) || amount <= 0) {
-    redirect(`/dashboard/parties/${partyId}?error=${encodeURIComponent('Payment update is invalid.')}`);
+    const url = new URL(`/dashboard/parties/${partyId}`, 'http://localhost');
+    url.searchParams.set('error', 'Payment update is invalid.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   await prisma.payment.update({
@@ -360,7 +403,10 @@ export async function updatePaymentForParty(formData: FormData) {
 
   revalidatePath('/dashboard/parties');
   revalidatePath(`/dashboard/parties/${partyId}`);
-  redirect(`/dashboard/parties/${partyId}?success=${encodeURIComponent('Payment updated successfully.')}`);
+  const url = new URL(`/dashboard/parties/${partyId}`, 'http://localhost');
+  url.searchParams.set('success', 'Payment updated successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 export async function deletePaymentForParty(formData: FormData) {
@@ -369,14 +415,20 @@ export async function deletePaymentForParty(formData: FormData) {
   const partyId = Number(formData.get('partyId'));
 
   if (!paymentId || !partyId) {
-    redirect(`/dashboard/parties/${partyId || 0}?error=${encodeURIComponent('A valid payment is required.')}`);
+    const url = new URL(`/dashboard/parties/${partyId || 0}`, 'http://localhost');
+    url.searchParams.set('error', 'A valid payment is required.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   await prisma.payment.delete({ where: { id: paymentId } });
 
   revalidatePath('/dashboard/parties');
   revalidatePath(`/dashboard/parties/${partyId}`);
-  redirect(`/dashboard/parties/${partyId}?success=${encodeURIComponent('Payment deleted successfully.')}`);
+  const url = new URL(`/dashboard/parties/${partyId}`, 'http://localhost');
+  url.searchParams.set('success', 'Payment deleted successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 export async function deleteParty(formData: FormData) {
@@ -384,7 +436,10 @@ export async function deleteParty(formData: FormData) {
   const partyId = Number(formData.get('partyId'));
 
   if (!partyId) {
-    redirect('/dashboard/parties?error=' + encodeURIComponent('A valid party id is required.'));
+    const url = new URL('/dashboard/parties', 'http://localhost');
+    url.searchParams.set('error', 'A valid party id is required.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   try {
@@ -422,11 +477,17 @@ export async function deleteParty(formData: FormData) {
   } catch (error) {
     deleteMemoryParty(partyId);
     revalidatePath('/dashboard/parties');
-    redirect('/dashboard/parties?success=' + encodeURIComponent('Party deleted locally.'));
+    const url = new URL('/dashboard/parties', 'http://localhost');
+    url.searchParams.set('success', 'Party deleted locally.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+    redirect(url.toString());
   }
 
   revalidatePath('/dashboard/parties');
-  redirect('/dashboard/parties?success=' + encodeURIComponent('Party deleted successfully.'));
+  const url = new URL('/dashboard/parties', 'http://localhost');
+  url.searchParams.set('success', 'Party deleted successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 function buildPartyWhere({

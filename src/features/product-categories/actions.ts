@@ -31,7 +31,10 @@ export async function createOrUpdateCategory(formData: FormData) {
 
   if (!parsed.success) {
     const message = parsed.error.issues[0]?.message ?? 'Validation failed.';
-    redirect(`/dashboard/product-categories?error=${encodeURIComponent(message)}`);
+    const url = new URL('/dashboard/product-categories', 'http://localhost');
+    url.searchParams.set('error', message);
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   const data = parsed.data;
@@ -52,11 +55,17 @@ export async function createOrUpdateCategory(formData: FormData) {
       await prisma.productCategory.create({ data: payload });
     }
   } catch (error) {
-    redirect('/dashboard/product-categories?error=' + encodeURIComponent('Category save failed. Please verify the data and try again.'));
+    const url = new URL('/dashboard/product-categories', 'http://localhost');
+    url.searchParams.set('error', 'Category save failed. Please verify the data and try again.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   revalidatePath('/dashboard/product-categories');
-  redirect('/dashboard/product-categories?success=' + encodeURIComponent(data.id ? 'Category updated successfully.' : 'Category created successfully.'));
+  const url = new URL('/dashboard/product-categories', 'http://localhost');
+  url.searchParams.set('success', data.id ? 'Category updated successfully.' : 'Category created successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 export async function deleteCategory(formData: FormData) {
@@ -64,17 +73,26 @@ export async function deleteCategory(formData: FormData) {
   const categoryId = Number(formData.get('categoryId'));
 
   if (!categoryId) {
-    redirect('/dashboard/product-categories?error=' + encodeURIComponent('A valid category id is required.'));
+    const url = new URL('/dashboard/product-categories', 'http://localhost');
+    url.searchParams.set('error', 'A valid category id is required.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   try {
     await prisma.productCategory.delete({ where: { id: categoryId } });
   } catch (error) {
-    redirect('/dashboard/product-categories?error=' + encodeURIComponent('Category deletion failed.'));
+    const url = new URL('/dashboard/product-categories', 'http://localhost');
+    url.searchParams.set('error', 'Category deletion failed.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   revalidatePath('/dashboard/product-categories');
-  redirect('/dashboard/product-categories?success=' + encodeURIComponent('Category deleted successfully.'));
+  const url = new URL('/dashboard/product-categories', 'http://localhost');
+  url.searchParams.set('success', 'Category deleted successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 export async function getCategoryPageData({

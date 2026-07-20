@@ -43,7 +43,10 @@ export async function createStockMovement(formData: FormData) {
 
   if (!parsed.success) {
     const message = parsed.error.issues[0]?.message ?? 'Validation failed.';
-    redirect(`/dashboard/stock?error=${encodeURIComponent(message)}`);
+    const url = new URL('/dashboard/stock', 'http://localhost');
+    url.searchParams.set('error', message);
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   const data = parsed.data;
@@ -121,11 +124,17 @@ export async function createStockMovement(formData: FormData) {
       }
     });
   } catch (error) {
-    redirect('/dashboard/stock?error=' + encodeURIComponent(error instanceof Error ? error.message : 'Stock movement failed.'));
+    const url = new URL('/dashboard/stock', 'http://localhost');
+    url.searchParams.set('error', error instanceof Error ? error.message : 'Stock movement failed.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
   }
 
   revalidatePath('/dashboard/stock');
-  redirect('/dashboard/stock?success=' + encodeURIComponent('Stock movement recorded successfully.'));
+  const url = new URL('/dashboard/stock', 'http://localhost');
+  url.searchParams.set('success', 'Stock movement recorded successfully.');
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  redirect(url.toString());
 }
 
 export async function getStockPageData({
