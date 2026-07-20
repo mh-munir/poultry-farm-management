@@ -52,13 +52,18 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
             {stockOpen && (
               <ul className="mt-2 space-y-1 pl-8">
                 <li>
-                  <Link href="/dashboard/stock" onClick={() => onClose?.()} className={linkClass('/dashboard/stock')}>
+                  <Link href="/dashboard/stock/Medicine" onClick={() => onClose?.()} className={linkClass('/dashboard/stock/Medicine')}>
                     <span>Medicine</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="/dashboard/stock/feed" onClick={() => onClose?.()} className={linkClass('/dashboard/stock/feed')}>
                     <span>Feed</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/dashboard/stock/reports" onClick={() => onClose?.()} className={linkClass('/dashboard/stock/reports')}>
+                    <span>Stock Reports</span>
                   </Link>
                 </li>
               </ul>

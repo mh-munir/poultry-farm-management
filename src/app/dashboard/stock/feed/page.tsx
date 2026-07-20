@@ -74,7 +74,7 @@ export default function FeedPage() {
               onClick={() => setIsFormOpen(true)}
               className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
             >
-              Add Stock Feed
+              Add Feed Stock
             </button>
           </div>
         </div>
