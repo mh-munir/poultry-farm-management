@@ -84,13 +84,15 @@ export default async function PartiesPage({
                 <th className="px-4 py-3 font-medium">Media name</th>
                 <th className="px-4 py-3 font-medium">Farm name</th>
                 <th className="px-4 py-3 font-medium">Address</th>
+                <th className="px-4 py-3 font-medium">Due</th>
+                <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {data.parties.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={12} className="px-4 py-10 text-center text-muted-foreground">
                     No parties found. Create your first party to get started.
                   </td>
                 </tr>
@@ -98,7 +100,12 @@ export default async function PartiesPage({
                 data.parties.map((party) => (
                   <tr key={party.id} className="border-t">
                     <td className="px-4 py-3">
-                      <div className="font-medium">{party.name}</div>
+                      <Link
+                        href={`/dashboard/parties/${party.id}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {party.name}
+                      </Link>
                     </td>
                     <td className="px-4 py-3">
                       <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">{party.partyType}</span>
@@ -111,6 +118,12 @@ export default async function PartiesPage({
                     <td className="px-4 py-3">{party.mediaName ?? '—'}</td>
                     <td className="px-4 py-3">{party.farmName ?? '—'}</td>
                     <td className="px-4 py-3">{party.address ?? '—'}</td>
+                    <td className="px-4 py-3">{formatCurrency(party.totalDue)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${(party.totalDue ?? 0) <= 0 ? 'bg-emerald-50 text-emerald-700' : (party.totalPaid ?? 0) > 0 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
+                        {(party.totalDue ?? 0) <= 0 ? 'Cleared' : (party.totalPaid ?? 0) > 0 ? 'Partial' : 'Pending'}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <Button asChild variant="outline" size="sm">

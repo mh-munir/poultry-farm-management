@@ -57,6 +57,7 @@ export async function createStockMovement(formData: FormData) {
 
       const balance = await tx.stockBalance.findUnique({ where: { productId: data.productId } });
       const currentQuantity = Number(balance?.quantityOnHand ?? 0);
+      const currentAverageCost = Number(balance?.averageCost ?? 0);
       const inboundTypes = new Set(['OPENING', 'PURCHASE', 'RETURN', 'PRODUCTION']);
       const outboundTypes = new Set(['SALE', 'WASTAGE']);
       const isIncrease = inboundTypes.has(data.movementType) || data.movementType === 'ADJUSTMENT' && data.adjustmentMode === 'INCREASE';
@@ -92,8 +93,13 @@ export async function createStockMovement(formData: FormData) {
         quantityOnHand: new Prisma.Decimal(newQuantity)
       };
 
-      if (unitCost && isIncrease) {
-        stockBalanceData.averageCost = new Prisma.Decimal(unitCost);
+      if (isIncrease) {
+        const previousValue = currentQuantity * (currentAverageCost || 0);
+        const nextValue = previousValue + quantity * unitCost;
+        const nextAverageCost = newQuantity > 0 ? nextValue / newQuantity : 0;
+        stockBalanceData.averageCost = new Prisma.Decimal(nextAverageCost);
+      } else if (balance?.averageCost) {
+        stockBalanceData.averageCost = balance.averageCost;
       }
 
       if (balance) {
@@ -156,6 +162,8 @@ export async function getStockPageData({
         unit: true,
         barcode: true,
         lowStockThreshold: true,
+        defaultPurchasePrice: true,
+        defaultSellingPrice: true,
         stockBalance: { select: { quantityOnHand: true, reservedQuantity: true } },
         category: { select: { id: true, name: true } }
       }
@@ -226,6 +234,7 @@ export async function getProductsForStock() {
       name: true,
       code: true,
       unit: true,
+      productType: true,
       stockBalance: { select: { quantityOnHand: true } }
     }
   });
