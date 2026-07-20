@@ -45,7 +45,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         </Button>
       </div>
 
-      <form action={createOrUpdateProduct} className="rounded-2xl border bg-card p-6 shadow-sm">
+      <form action={createOrUpdateProduct} autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
         <input type="hidden" name="id" value={product.id} />
         <div className="grid gap-4 md:grid-cols-2">
           <div>

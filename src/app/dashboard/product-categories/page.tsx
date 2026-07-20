@@ -61,7 +61,7 @@ export default async function ProductCategoriesPage({
       </div>
 
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
-        <form className="flex flex-col gap-3 md:flex-row md:items-end" method="get">
+        <form autoComplete="off" className="flex flex-col gap-3 md:flex-row md:items-end" method="get">
           <div className="flex-1">
             <label className="mb-2 block text-sm font-medium">Search</label>
             <div className="flex items-center rounded-md border bg-background px-3">

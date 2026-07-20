@@ -9,6 +9,11 @@ export default function SignInPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           Use your credentials to access the farm management workspace.
         </p>
+        <div className="mt-4 rounded-md border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-950">
+          <p className="font-medium">Seeded admin credentials</p>
+          <p className="mt-2">Email: <span className="font-semibold">admin@poultryfarm.test</span></p>
+          <p>Password: <span className="font-semibold">changeme123</span></p>
+        </div>
         <SignInForm />
         <Link href="/" className="mt-4 block text-center text-sm text-muted-foreground hover:text-foreground">
           Back home

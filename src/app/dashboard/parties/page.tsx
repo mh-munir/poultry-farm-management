@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { Plus, Search, Filter, Receipt, Users, Package2, ArrowLeft } from 'lucide-react';
+import { Receipt, Users, Package2 } from 'lucide-react';
 import type { Decimal } from '@prisma/client/runtime/library';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { getPartyPageData, getPartyStats } from '@/features/parties/actions';
+import { StatCard } from '@/components/dashboard/stat-card';
+import { AddPartyDialog } from '@/app/dashboard/parties/add-party-dialog';
+import { getPartyNames, getPartyPageData, getPartyStats } from '@/features/parties/actions';
 
 const PARTY_TYPES = ['ALL', 'CUSTOMER', 'SUPPLIER', 'BOTH'] as const;
 const STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
@@ -37,103 +38,29 @@ export default async function PartiesPage({
   const error = params?.error ?? '';
   const success = params?.success ?? '';
 
-  const [data, stats] = await Promise.all([getPartyPageData({ page, search, partyType, status }), getPartyStats()]);
+  const [data, stats, partyOptions] = await Promise.all([
+    getPartyPageData({ page, search, partyType, status }),
+    getPartyStats({ search, partyType, status }),
+    getPartyNames()
+  ]);
 
   return (
-    <main className="mx-auto flex min-h-[70vh] max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-3 rounded-2xl border bg-card p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Party Module</p>
+    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
+        <div className="mb-6">
           <h1 className="mt-2 text-3xl font-semibold">Manage customers and suppliers</h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Create, update, search, filter, and track opening balances for parties without touching the ledger yet.
-          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Dashboard
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href="/dashboard/parties/new">
-              <Plus className="h-4 w-4" />
-              New Party
-            </Link>
-          </Button>
+
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-4 shadow-sm mb-6">
+        <div className="grid gap-4 md:grid-cols-4 flex-1">
+          <StatCard title="Total Parties" value={stats.total} icon={Users} accent="bg-indigo-50 text-indigo-600" />
+          <StatCard title="Active Parties" value={stats.active} icon={Package2} accent="bg-emerald-50 text-emerald-600" />
+          <StatCard title="Customers" value={stats.customers} icon={Receipt} accent="bg-sky-50 text-sky-600" />
+          <StatCard title="Suppliers" value={stats.suppliers} icon={Receipt} accent="bg-amber-50 text-amber-600" />
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border bg-background p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Users className="h-4 w-4" /> Total Parties
-          </div>
-          <div className="mt-3 text-2xl font-semibold">{stats.total}</div>
-        </div>
-        <div className="rounded-2xl border bg-background p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Package2 className="h-4 w-4" /> Active Parties
-          </div>
-          <div className="mt-3 text-2xl font-semibold">{stats.active}</div>
-        </div>
-        <div className="rounded-2xl border bg-background p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Receipt className="h-4 w-4" /> Customers
-          </div>
-          <div className="mt-3 text-2xl font-semibold">{stats.customers}</div>
-        </div>
-        <div className="rounded-2xl border bg-background p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Receipt className="h-4 w-4" /> Suppliers
-          </div>
-          <div className="mt-3 text-2xl font-semibold">{stats.suppliers}</div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border bg-card p-4 shadow-sm">
-        <form className="flex flex-col gap-3 lg:flex-row lg:items-end" method="get">
-          <div className="flex-1">
-            <label className="mb-2 block text-sm font-medium">Search</label>
-            <div className="flex items-center rounded-md border bg-background px-3">
-              <Search className="mr-2 h-4 w-4 text-muted-foreground" />
-              <input
-                name="search"
-                defaultValue={search}
-                placeholder="Search by name, email, phone or tax number"
-                className="w-full bg-transparent px-2 py-2 text-sm outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="w-full lg:w-48">
-            <label className="mb-2 block text-sm font-medium">Party type</label>
-            <div className="flex items-center rounded-md border bg-background px-3">
-              <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
-              <select name="partyType" defaultValue={partyType} className="w-full bg-transparent px-2 py-2 text-sm outline-none">
-                {PARTY_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type === 'ALL' ? 'All Types' : formatPartyType(type)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="w-full lg:w-48">
-            <label className="mb-2 block text-sm font-medium">Status</label>
-            <select name="status" defaultValue={status} className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none">
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option === 'ALL' ? 'All Status' : option}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <Button type="submit">Apply</Button>
-        </form>
+      <div className="flex items-center gap-2 mb-6">
+          <AddPartyDialog partyOptions={partyOptions} />
       </div>
 
       {(error || success) && (
@@ -147,18 +74,23 @@ export default async function PartiesPage({
           <table className="min-w-full text-sm">
             <thead className="bg-muted/40 text-left">
               <tr>
-                <th className="px-4 py-3 font-medium">Party</th>
+                <th className="px-4 py-3 font-medium">Party Name</th>
                 <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Contact</th>
-                <th className="px-4 py-3 font-medium">Opening Balance</th>
-                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Feed quantity</th>
+                <th className="px-4 py-3 font-medium">Feed price</th>
+                <th className="px-4 py-3 font-medium">Feed name</th>
+                <th className="px-4 py-3 font-medium">Medicine quantity</th>
+                <th className="px-4 py-3 font-medium">Medicine price</th>
+                <th className="px-4 py-3 font-medium">Media name</th>
+                <th className="px-4 py-3 font-medium">Farm name</th>
+                <th className="px-4 py-3 font-medium">Address</th>
                 <th className="px-4 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {data.parties.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
                     No parties found. Create your first party to get started.
                   </td>
                 </tr>
@@ -167,21 +99,18 @@ export default async function PartiesPage({
                   <tr key={party.id} className="border-t">
                     <td className="px-4 py-3">
                       <div className="font-medium">{party.name}</div>
-                      <div className="text-xs text-muted-foreground">{party.address ?? 'No address provided'}</div>
                     </td>
                     <td className="px-4 py-3">
                       <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">{party.partyType}</span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div>{party.phone ?? '—'}</div>
-                      <div className="text-xs text-muted-foreground">{party.email ?? '—'}</div>
-                    </td>
-                    <td className="px-4 py-3">{formatCurrency(party.openingBalance)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${party.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {party.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
+                    <td className="px-4 py-3">{party.feedQuantity != null ? party.feedQuantity.toString() : '—'}</td>
+                    <td className="px-4 py-3">{party.feedPrice != null ? formatCurrency(party.feedPrice) : '—'}</td>
+                    <td className="px-4 py-3">{party.feedName ?? '—'}</td>
+                    <td className="px-4 py-3">{party.medicineQuantity != null ? party.medicineQuantity.toString() : '—'}</td>
+                    <td className="px-4 py-3">{party.medicinePrice != null ? formatCurrency(party.medicinePrice) : '—'}</td>
+                    <td className="px-4 py-3">{party.mediaName ?? '—'}</td>
+                    <td className="px-4 py-3">{party.farmName ?? '—'}</td>
+                    <td className="px-4 py-3">{party.address ?? '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <Button asChild variant="outline" size="sm">

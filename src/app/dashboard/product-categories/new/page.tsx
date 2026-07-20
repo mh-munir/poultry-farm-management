@@ -22,7 +22,7 @@ export default async function NewProductCategoryPage() {
         </Button>
       </div>
 
-      <form action={createOrUpdateCategory} className="rounded-2xl border bg-card p-6 shadow-sm">
+      <form action={createOrUpdateCategory} autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
         <div className="grid gap-4">
           <div>
             <label className="mb-2 block text-sm font-medium">Name</label>

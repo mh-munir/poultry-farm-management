@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { Plus, ArrowLeft, ClipboardList, DollarSign } from 'lucide-react';
+import type { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { createSaleTransaction, getCustomersForSales, getProductsForSales, getSalesPageData } from '@/features/sales/actions';
 
-function formatCurrency(value: number | string | null | undefined) {
-  return `KSh ${Number(value ?? 0).toFixed(2)}`;
+function formatCurrency(value: number | string | Prisma.Decimal | null | undefined) {
+  return `KSh ${Number(value?.toString() ?? 0).toFixed(2)}`;
 }
 
 export default async function SalesPage({
@@ -51,7 +52,7 @@ export default async function SalesPage({
       <div className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><ClipboardList className="h-5 w-5" />New Sale</div>
-          <form action={createSaleTransaction} className="space-y-4">
+          <form action={createSaleTransaction} autoComplete="off" className="space-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium">Customer</label>
               <select name="partyId" required className="w-full rounded-md border bg-background px-3 py-2">

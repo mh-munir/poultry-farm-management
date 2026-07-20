@@ -1,28 +1,31 @@
 import { auth } from '@/server/auth';
 import { redirect } from 'next/navigation';
 
-export async function requireUser() {
-  const authHelper = auth as unknown as (() => Promise<any> | null);
-  const session = await authHelper();
+export interface AppSessionUser {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  role?: 'ADMIN' | 'MANAGER' | 'USER' | string;
+}
+
+export interface AppSession {
+  user: AppSessionUser;
+}
+
+export async function requireUser(): Promise<AppSession> {
+  const session = (await auth()) as AppSession | null;
 
   if (!session?.user) {
-    return {
-      user: {
-        id: 'local-user',
-        name: 'Local User',
-        email: 'local@example.com',
-        role: 'ADMIN'
-      }
-    };
+    redirect('/auth/sign-in');
   }
 
-  return session;
+  return session ?? { user: { role: 'USER' } };
 }
 
 export async function requireRole(allowedRoles: Array<'ADMIN' | 'MANAGER' | 'USER'>) {
   const session = await requireUser();
 
-  if (!allowedRoles.includes(session.user.role as 'ADMIN' | 'MANAGER' | 'USER')) {
+  if (!allowedRoles.includes((session.user.role ?? 'USER') as 'ADMIN' | 'MANAGER' | 'USER')) {
     redirect('/unauthorized');
   }
 

@@ -22,7 +22,7 @@ export default async function NewPartyPage() {
         </Button>
       </div>
 
-      <form action={createOrUpdateParty} className="rounded-2xl border bg-card p-6 shadow-sm">
+      <form action={createOrUpdateParty} autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium">Party name</label>
@@ -30,7 +30,15 @@ export default async function NewPartyPage() {
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Phone</label>
-            <input name="phone" className="w-full rounded-md border bg-background px-3 py-2" placeholder="0712 345 678" />
+            <input
+              name="phone"
+              required
+              inputMode="numeric"
+              pattern="[0-9]{11}"
+              maxLength={11}
+              className="w-full rounded-md border bg-background px-3 py-2"
+              placeholder="01712345678"
+            />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Email</label>
@@ -59,6 +67,34 @@ export default async function NewPartyPage() {
           <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-3">
             <input id="isActive" name="isActive" type="checkbox" defaultChecked className="h-4 w-4" />
             <label htmlFor="isActive" className="text-sm">Active party</label>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">Feed quantity</label>
+            <input type="number" step="0.01" min="0" name="feedQuantity" className="w-full rounded-md border bg-background px-3 py-2" placeholder="0" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">Feed price</label>
+            <input type="number" step="0.01" min="0" name="feedPrice" className="w-full rounded-md border bg-background px-3 py-2" placeholder="0.00" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">Feed name</label>
+            <input name="feedName" className="w-full rounded-md border bg-background px-3 py-2" placeholder="Feed name" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">Medicine quantity</label>
+            <input type="number" step="0.01" min="0" name="medicineQuantity" className="w-full rounded-md border bg-background px-3 py-2" placeholder="0" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">Medicine price</label>
+            <input type="number" step="0.01" min="0" name="medicinePrice" className="w-full rounded-md border bg-background px-3 py-2" placeholder="0.00" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">Media name</label>
+            <input name="mediaName" className="w-full rounded-md border bg-background px-3 py-2" placeholder="Media name" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">Farm name</label>
+            <input name="farmName" className="w-full rounded-md border bg-background px-3 py-2" placeholder="Farm name" />
           </div>
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium">Address</label>

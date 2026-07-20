@@ -20,7 +20,7 @@ export default async function NewProductPage() {
         </Button>
       </div>
 
-      <form action={createOrUpdateProduct} className="rounded-2xl border bg-card p-6 shadow-sm">
+      <form action={createOrUpdateProduct} autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium">Code</label>

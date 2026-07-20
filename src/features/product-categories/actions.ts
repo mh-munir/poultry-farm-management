@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
