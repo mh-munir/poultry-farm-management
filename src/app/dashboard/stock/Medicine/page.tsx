@@ -57,7 +57,7 @@ export default function MedicinePage() {
   };
 
   return (
-    <main className="mx-auto min-h-[60vh] max-w-7xl px-4 py-8">
+    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="rounded-2xl border bg-card p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -74,7 +74,7 @@ export default function MedicinePage() {
               onClick={() => setIsFormOpen(true)}
               className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
             >
-              Add Stock Medicine
+              Add Medicine Stock
             </button>
           </div>
         </div>

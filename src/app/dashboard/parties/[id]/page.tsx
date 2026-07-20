@@ -61,8 +61,8 @@ type PartyPaymentRecord = {
   notes: string | null;
 };
 
-function formatCurrency(value: number | string | null | undefined) {
-  const number = Number(value ?? 0);
+function formatCurrency(value: number | string | { toString(): string } | null | undefined) {
+  const number = Number(value?.toString() ?? 0);
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'BDT',
@@ -195,7 +195,7 @@ export default async function PartyProfilePage({ params }: { params: Promise<{ i
     .join('\n');
 
   return (
-    <main className="mx-auto min-h-[80vh] max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Party Profile</p>

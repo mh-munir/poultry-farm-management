@@ -22,7 +22,7 @@ export default async function StockPage({
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
-      <div className="rounded-2xl border bg-card p-6 shadow-sm">
+      <div className="rounded-lg border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">Stock</h1>

@@ -68,7 +68,7 @@ export default async function ReportsPage() {
   const userName = session.user.name ?? session.user.email ?? 'there';
 
   return (
-    <main className="mx-auto flex min-h-[70vh] max-w-6xl flex-col gap-6 px-6 py-10">
+    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="rounded-xl border bg-card p-8 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
