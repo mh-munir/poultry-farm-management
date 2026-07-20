@@ -31,7 +31,7 @@ export default async function EditProductCategoryPage({ params }: { params: Prom
         </Button>
       </div>
 
-      <form action={createOrUpdateCategory} className="rounded-2xl border bg-card p-6 shadow-sm">
+      <form action={createOrUpdateCategory} autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
         <input type="hidden" name="id" value={category.id} />
         <div className="grid gap-4">
           <div>

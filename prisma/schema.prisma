@@ -3,87 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-}
-
-enum PartyType {
-  CUSTOMER
-  SUPPLIER
-  BOTH
-}
-
-enum ProductType {
-  FEED
-  MEDICINE
-  EGG
-  CHICKEN
-}
-
-enum TransactionType {
-  PURCHASE
-  SALE
-}
-
-enum TransactionStatus {
-  DRAFT
-  PENDING
-  COMPLETED
-  CANCELLED
-}
-
-enum PaymentMethod {
-  CASH
-  BANK_TRANSFER
-  CHEQUE
-  MOBILE_MONEY
-  OTHER
-}
-
-enum PaymentStatus {
-  PENDING
-  PARTIAL
-  COMPLETED
-  CANCELLED
-}
-
-enum StockMovementType {
-  OPENING
-  PURCHASE
-  SALE
-  RETURN
-  ADJUSTMENT
-  WASTAGE
-  PRODUCTION
-}
-
-enum LedgerEntryType {
-  OPENING_BALANCE
-  SALE
-  PURCHASE
-  PAYMENT_RECEIVED
-  PAYMENT_PAID
-  PURCHASE_RETURN
-  SALE_RETURN
-  STOCK_ADJUSTMENT
-  DUE_ADJUSTMENT
-}
-
-enum AdjustmentType {
-  AUTO_DUE_ADJUSTMENT
-  DISCOUNT
-  ROUNDING
-  OVERPAYMENT
-}
-
-enum ReportType {
-  LEDGER
-  PAYMENT
-  STOCK
-  SALES
-  PURCHASES
-  PROFIT_LOSS
 }
 
 model Account {
@@ -145,13 +67,20 @@ model VerificationToken {
 model Party {
   id            Int       @id @default(autoincrement())
   name          String
-  phone         String?
+  phone         String   @unique
   email         String?
   address       String?
-  partyType     PartyType @default(BOTH)
+  partyType     String @default("BOTH")
   taxNumber     String?
-  creditLimit   Decimal?  @db.Decimal(12, 2)
-  openingBalance Decimal  @default(0) @db.Decimal(12, 2)
+  creditLimit   Decimal?
+  openingBalance Decimal @default(0)
+  feedQuantity  Decimal?
+  feedPrice     Decimal?
+  feedName      String?
+  medicineQuantity Decimal?
+  medicinePrice Decimal?
+  mediaName     String?
+  farmName      String?
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -185,15 +114,15 @@ model Product {
   id                    Int        @id @default(autoincrement())
   code                  String     @unique
   name                  String
-  productType           ProductType
+  productType           String
   unit                  String
   categoryId            Int?
   category              ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  defaultPurchasePrice Decimal?   @db.Decimal(12, 2)
-  defaultSellingPrice   Decimal?   @db.Decimal(12, 2)
+  defaultPurchasePrice Decimal?
+  defaultSellingPrice   Decimal?
   barcode               String?
   imageUrl              String?
-  lowStockThreshold     Decimal?   @db.Decimal(12, 2)
+  lowStockThreshold     Decimal?
   isActive              Boolean    @default(true)
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
@@ -211,9 +140,9 @@ model Product {
 model StockBalance {
   id               Int      @id @default(autoincrement())
   productId        Int      @unique
-  quantityOnHand   Decimal  @default(0) @db.Decimal(12, 2)
-  reservedQuantity Decimal  @default(0) @db.Decimal(12, 2)
-  averageCost      Decimal? @db.Decimal(12, 2)
+  quantityOnHand   Decimal @default(0)
+  reservedQuantity Decimal @default(0)
+  averageCost      Decimal?
   lastUpdatedAt    DateTime @updatedAt
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -223,9 +152,9 @@ model StockMovement {
   id            Int               @id @default(autoincrement())
   productId     Int
   transactionId Int?
-  movementType  StockMovementType
-  quantity      Decimal           @db.Decimal(12, 2)
-  unitCost      Decimal?          @db.Decimal(12, 2)
+  movementType  String
+  quantity      Decimal
+  unitCost      Decimal?
   notes         String?
   createdAt     DateTime          @default(now())
 
@@ -237,18 +166,18 @@ model StockMovement {
 
 model Transaction {
   id               Int               @id @default(autoincrement())
-  transactionType  TransactionType
+  transactionType  String
   partyId          Int
   transactionDate  DateTime          @default(now())
   invoiceNumber    String            @unique
   referenceNumber  String?
-  status           TransactionStatus @default(COMPLETED)
-  subtotal         Decimal           @db.Decimal(12, 2)
-  discount         Decimal           @default(0) @db.Decimal(12, 2)
-  tax              Decimal           @default(0) @db.Decimal(12, 2)
-  totalAmount      Decimal           @db.Decimal(12, 2)
-  paidAmount       Decimal           @default(0) @db.Decimal(12, 2)
-  dueAmount        Decimal           @default(0) @db.Decimal(12, 2)
+  status           String @default("COMPLETED")
+  subtotal         Decimal
+  discount         Decimal @default(0)
+  tax              Decimal @default(0)
+  totalAmount      Decimal
+  paidAmount       Decimal @default(0)
+  dueAmount        Decimal @default(0)
   dueDate          DateTime?
   notes            String?
   createdAt        DateTime          @default(now())
@@ -258,7 +187,7 @@ model Transaction {
   createdBy        User?             @relation(fields: [createdById], references: [id])
   party            Party             @relation(fields: [partyId], references: [id], onDelete: Restrict)
 
-  items            TransactionItem[]
+  transactionItems TransactionItem[]
   payments         PaymentAllocation[]
   stockMovements   StockMovement[]
   ledgerEntries    LedgerEntry[]
@@ -271,10 +200,10 @@ model TransactionItem {
   id           Int     @id @default(autoincrement())
   transactionId Int
   productId    Int
-  quantity     Decimal @db.Decimal(12, 2)
-  unitPrice    Decimal @db.Decimal(12, 2)
-  lineTotal    Decimal @db.Decimal(12, 2)
-  taxAmount    Decimal @default(0) @db.Decimal(12, 2)
+  quantity     Decimal
+  unitPrice    Decimal
+  lineTotal    Decimal
+  taxAmount    Decimal @default(0)
   description  String?
 
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
@@ -287,10 +216,10 @@ model Payment {
   id               Int            @id @default(autoincrement())
   partyId          Int
   paymentDate      DateTime       @default(now())
-  paymentMethod    PaymentMethod
-  amount           Decimal        @db.Decimal(12, 2)
+  paymentMethod    String
+  amount           Decimal
   referenceNumber  String?
-  status           PaymentStatus  @default(COMPLETED)
+  status           String @default("COMPLETED")
   notes            String?
   createdAt        DateTime       @default(now())
 
@@ -308,7 +237,7 @@ model PaymentAllocation {
   id              Int      @id @default(autoincrement())
   paymentId       Int
   transactionId   Int
-  amount          Decimal  @db.Decimal(12, 2)
+  amount          Decimal
   allocationDate  DateTime @default(now())
 
   payment     Payment     @relation(fields: [paymentId], references: [id], onDelete: Cascade)
@@ -323,9 +252,9 @@ model LedgerEntry {
   partyId          Int?
   transactionId    Int?
   paymentId        Int?
-  entryType        LedgerEntryType
-  amount           Decimal        @db.Decimal(12, 2)
-  runningBalance   Decimal        @db.Decimal(12, 2)
+  entryType        String
+  amount           Decimal
+  runningBalance   Decimal
   description      String?
   referenceNumber  String?
 
@@ -342,8 +271,8 @@ model DueAdjustment {
   id               Int            @id @default(autoincrement())
   transactionId    Int
   partyId          Int
-  adjustmentType   AdjustmentType
-  amount           Decimal        @db.Decimal(12, 2)
+  adjustmentType   String
+  amount           Decimal
   reason           String?
   isAuto           Boolean        @default(true)
   createdAt        DateTime       @default(now())
@@ -354,14 +283,15 @@ model DueAdjustment {
 
 model Report {
   id            Int       @id @default(autoincrement())
-  reportType    ReportType
+  reportType    String
   title         String
   generatedAt   DateTime  @default(now())
-  filters       Json?
-  summary       Json?
+  filters       String?
+  summary       String?
 
   createdById   String?
   createdBy     User?     @relation(fields: [createdById], references: [id])
 
   @@index([reportType, generatedAt])
 }
+

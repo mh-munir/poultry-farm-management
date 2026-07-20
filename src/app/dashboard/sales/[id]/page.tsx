@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import type { Prisma } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { getSaleById } from '@/features/sales/actions';
 import { PrintButton } from '@/components/print-button';
 
-function formatCurrency(value: number | string | null | undefined) {
-  return `KSh ${Number(value ?? 0).toFixed(2)}`;
+function formatCurrency(value: number | string | Prisma.Decimal | null | undefined) {
+  return `KSh ${Number(value?.toString() ?? 0).toFixed(2)}`;
 }
 
 export default async function SaleDetailPage({ params }: { params: Promise<{ id: string }> }) {

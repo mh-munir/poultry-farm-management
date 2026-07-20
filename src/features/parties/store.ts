@@ -10,6 +10,13 @@ export type PartyMemoryRecord = {
   taxNumber: string | null;
   creditLimit: number | null;
   openingBalance: number;
+  feedQuantity: number | null;
+  feedPrice: number | null;
+  feedName: string | null;
+  medicineQuantity: number | null;
+  medicinePrice: number | null;
+  mediaName: string | null;
+  farmName: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -36,11 +43,37 @@ export function getMemoryParties() {
   return [...getPartyStore().parties].sort((a, b) => Number(b.createdAt.getTime() - a.createdAt.getTime()));
 }
 
+export function hasMemoryPhone(phone: string, excludeId?: number) {
+  const normalizedPhone = phone.trim();
+  return getMemoryParties().some((party) => party.phone?.trim() === normalizedPhone && party.id !== excludeId);
+}
+
+export function getFilteredMemoryParties({
+  search,
+  partyType,
+  status
+}: {
+  search?: string;
+  partyType?: string;
+  status?: string;
+}) {
+  const term = search?.trim().toLowerCase() ?? '';
+
+  return getMemoryParties().filter((party) => {
+    const matchesSearch = !term || [party.name, party.phone, party.email, party.taxNumber].some((value) => value?.toLowerCase().includes(term));
+    const matchesType = !partyType || partyType === 'ALL' || party.partyType === partyType;
+    const matchesStatus = !status || status === 'ALL' || (status === 'ACTIVE' ? party.isActive : !party.isActive);
+
+    return matchesSearch && matchesType && matchesStatus;
+  });
+}
+
 export function createMemoryParty(payload: Omit<PartyMemoryRecord, 'id' | 'createdAt' | 'updatedAt'>) {
   const store = getPartyStore();
   const now = new Date();
+  const minId = store.parties.length > 0 ? Math.min(...store.parties.map((item) => item.id)) : 0;
   const party: PartyMemoryRecord = {
-    id: store.parties.length > 0 ? Math.max(...store.parties.map((item) => item.id)) + 1 : 1,
+    id: minId <= 0 ? minId - 1 : -1,
     createdAt: now,
     updatedAt: now,
     ...payload
@@ -111,8 +144,16 @@ export function getMemoryPartyPageData({
   };
 }
 
-export function getMemoryPartyStats() {
-  const parties = getMemoryParties();
+export function getMemoryPartyStats({
+  search,
+  partyType,
+  status
+}: {
+  search?: string;
+  partyType?: string;
+  status?: string;
+} = {}) {
+  const parties = getFilteredMemoryParties({ search, partyType, status });
 
   return {
     total: parties.length,

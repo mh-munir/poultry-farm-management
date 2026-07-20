@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
-import { logoutAction } from '@/features/auth/actions';
+import { useSession, signOut } from 'next-auth/react';
 
 export function UserNav() {
   const { data: session, status } = useSession();
@@ -36,11 +35,13 @@ export function UserNav() {
           Staff
         </Link>
       ) : null}
-      <form action={logoutAction}>
-        <button type="submit" className="rounded-md border px-3 py-1.5 hover:bg-accent">
-          Logout
-        </button>
-      </form>
+      <button
+        type="button"
+        onClick={() => signOut({ callbackUrl: '/auth/sign-in' })}
+        className="rounded-md border px-3 py-1.5 hover:bg-accent"
+      >
+        Logout
+      </button>
     </div>
   );
 }

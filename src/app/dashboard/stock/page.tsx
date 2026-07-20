@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { Plus, ArrowLeft, Package2, AlertTriangle, History, Boxes } from 'lucide-react';
+import type { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { createStockMovement, getLowStockAlerts, getProductsForStock, getStockHistory, getStockPageData } from '@/features/stock/actions';
 
-function formatQty(value: number | string | null | undefined) {
-  return Number(value ?? 0).toFixed(2);
+function formatQty(value: number | string | Prisma.Decimal | null | undefined) {
+  return Number(value?.toString() ?? 0).toFixed(2);
 }
 
 export default async function StockPage({
@@ -48,7 +49,7 @@ export default async function StockPage({
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><Boxes className="h-5 w-5" />Current Stock</div>
-          <form className="flex flex-col gap-3 md:flex-row md:items-end" method="get">
+          <form autoComplete="off" className="flex flex-col gap-3 md:flex-row md:items-end" method="get">
             <div className="flex-1">
               <label className="mb-2 block text-sm font-medium">Search</label>
               <input name="search" defaultValue={search} placeholder="Search by product name or code" className="w-full rounded-md border bg-background px-3 py-2" />
@@ -88,7 +89,7 @@ export default async function StockPage({
 
         <div className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><Plus className="h-5 w-5" />Record Stock Movement</div>
-          <form action={createStockMovement} className="space-y-4">
+          <form action={createStockMovement} autoComplete="off" className="space-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium">Product</label>
               <select name="productId" className="w-full rounded-md border bg-background px-3 py-2">
