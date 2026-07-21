@@ -7,8 +7,8 @@ import type { JWT } from 'next-auth/jwt';
 
 const { compare, hash } = bcrypt;
 
-const DEFAULT_ADMIN_EMAIL = 'admin@poultryfarm.test';
-const DEFAULT_ADMIN_PASSWORD = 'changeme123';
+const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@poultryfarm.test';
+const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'changeme123';
 
 async function ensureDefaultAdminUser() {
   try {

@@ -7,7 +7,9 @@ const envSchema = z.object({
   AUTH_SECRET: z.string().min(1),
   AUTH_URL: z.string().url().optional(),
   NEXTAUTH_URL: z.string().url().optional(),
-  NEXT_PUBLIC_APP_URL: z.string().url().optional()
+  NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+  ADMIN_EMAIL: z.string().email().optional(),
+  ADMIN_PASSWORD: z.string().min(1).optional()
 }).transform((env) => ({
   ...env,
   DIRECT_URL: env.DIRECT_URL ?? env.DATABASE_URL,
