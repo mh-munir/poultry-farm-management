@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -21,8 +21,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -36,24 +35,23 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?       @unique
   emailVerified DateTime?
   image         String?
   password      String?
-  role          String    @default("USER")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  accounts        Account[]
-  sessions        Session[]
-  parties         Party[]
-  products        Product[]
-  transactions    Transaction[]
-  payments        Payment[]
-  ledgerEntries   LedgerEntry[]
-  reports         Report[]
+  role          String        @default("USER")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  accounts      Account[]
+  ledgerEntries LedgerEntry[]
+  parties       Party[]
+  payments      Payment[]
+  products      Product[]
+  reports       Report[]
+  sessions      Session[]
+  transactions  Transaction[]
 }
 
 model VerificationToken {
@@ -65,76 +63,71 @@ model VerificationToken {
 }
 
 model Party {
-  id            Int       @id @default(autoincrement())
-  name          String
-  phone         String   @unique
-  email         String?
-  address       String?
-  partyType     String @default("BOTH")
-  taxNumber     String?
-  creditLimit   Decimal?
-  openingBalance Decimal @default(0)
-  feedQuantity  Decimal?
-  feedPrice     Decimal?
-  feedName      String?
-  medicineName  String?
+  id               Int             @id @default(autoincrement())
+  name             String
+  phone            String          @unique
+  email            String?
+  address          String?
+  partyType        String          @default("BOTH")
+  taxNumber        String?
+  creditLimit      Decimal?
+  openingBalance   Decimal         @default(0)
+  feedQuantity     Decimal?
+  feedPrice        Decimal?
+  feedName         String?
+  medicineName     String?
   medicineQuantity Decimal?
-  medicinePrice Decimal?
-  imageUrl      String?
-  mediaName     String?
-  farmName      String?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  createdById   String?
-  createdBy     User?     @relation(fields: [createdById], references: [id])
-
-  transactions  Transaction[]
-  payments      Payment[]
-  ledgerEntries LedgerEntry[]
-  dueAdjustments DueAdjustment[]
+  medicinePrice    Decimal?
+  imageUrl         String?
+  mediaName        String?
+  farmName         String?
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  createdById      String?
+  dueAdjustments   DueAdjustment[]
+  ledgerEntries    LedgerEntry[]
+  createdBy        User?           @relation(fields: [createdById], references: [id])
+  payments         Payment[]
+  transactions     Transaction[]
 
   @@index([name])
 }
 
 model ProductCategory {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  slug      String   @unique
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  slug        String    @unique
   description String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  products  Product[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
 
   @@index([name])
 }
 
 model Product {
-  id                    Int        @id @default(autoincrement())
-  code                  String     @unique
-  name                  String
-  productType           String
-  unit                  String
-  categoryId            Int?
-  category              ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  id                   Int               @id @default(autoincrement())
+  code                 String            @unique
+  name                 String
+  productType          String
+  unit                 String
+  categoryId           Int?
   defaultPurchasePrice Decimal?
-  defaultSellingPrice   Decimal?
-  barcode               String?
-  imageUrl              String?
-  lowStockThreshold     Decimal?
-  isActive              Boolean    @default(true)
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
-
-  createdById           String?
-  createdBy             User?      @relation(fields: [createdById], references: [id])
-
-  transactionItems      TransactionItem[]
-  stockMovements        StockMovement[]
-  stockBalance          StockBalance?
+  defaultSellingPrice  Decimal?
+  barcode              String?
+  imageUrl             String?
+  lowStockThreshold    Decimal?
+  isActive             Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  createdById          String?
+  category             ProductCategory?  @relation(fields: [categoryId], references: [id])
+  createdBy            User?             @relation(fields: [createdById], references: [id])
+  stockBalance         StockBalance?
+  stockMovements       StockMovement[]
+  transactionItems     TransactionItem[]
 
   @@index([productType, name])
 }
@@ -142,158 +135,146 @@ model Product {
 model StockBalance {
   id               Int      @id @default(autoincrement())
   productId        Int      @unique
-  quantityOnHand   Decimal @default(0)
-  reservedQuantity Decimal @default(0)
+  quantityOnHand   Decimal  @default(0)
+  reservedQuantity Decimal  @default(0)
   averageCost      Decimal?
   lastUpdatedAt    DateTime @updatedAt
-
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model StockMovement {
-  id            Int               @id @default(autoincrement())
+  id            Int          @id @default(autoincrement())
   productId     Int
   transactionId Int?
   movementType  String
   quantity      Decimal
   unitCost      Decimal?
   notes         String?
-  createdAt     DateTime          @default(now())
-
-  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+  product       Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
 
   @@index([productId, createdAt])
 }
 
 model Transaction {
-  id               Int               @id @default(autoincrement())
+  id               Int                 @id @default(autoincrement())
   transactionType  String
   partyId          Int
-  transactionDate  DateTime          @default(now())
-  invoiceNumber    String            @unique
+  transactionDate  DateTime            @default(now())
+  invoiceNumber    String              @unique
   referenceNumber  String?
-  status           String @default("COMPLETED")
+  status           String              @default("COMPLETED")
   subtotal         Decimal
-  discount         Decimal @default(0)
-  tax              Decimal @default(0)
+  discount         Decimal             @default(0)
+  tax              Decimal             @default(0)
   totalAmount      Decimal
-  paidAmount       Decimal @default(0)
-  dueAmount        Decimal @default(0)
+  paidAmount       Decimal             @default(0)
+  dueAmount        Decimal             @default(0)
   dueDate          DateTime?
   notes            String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
   createdById      String?
-  createdBy        User?             @relation(fields: [createdById], references: [id])
-  party            Party             @relation(fields: [partyId], references: [id], onDelete: Restrict)
-
-  transactionItems TransactionItem[]
+  dueAdjustments   DueAdjustment[]
+  ledgerEntries    LedgerEntry[]
   payments         PaymentAllocation[]
   stockMovements   StockMovement[]
-  ledgerEntries    LedgerEntry[]
-  dueAdjustments   DueAdjustment[]
+  createdBy        User?               @relation(fields: [createdById], references: [id])
+  party            Party               @relation(fields: [partyId], references: [id])
+  transactionItems TransactionItem[]
 
   @@index([partyId, transactionDate])
 }
 
 model TransactionItem {
-  id           Int     @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   transactionId Int
-  productId    Int
-  quantity     Decimal
-  unitPrice    Decimal
-  lineTotal    Decimal
-  taxAmount    Decimal @default(0)
-  description  String?
-
-  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  product     Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productId     Int
+  quantity      Decimal
+  unitPrice     Decimal
+  lineTotal     Decimal
+  taxAmount     Decimal     @default(0)
+  description   String?
+  product       Product     @relation(fields: [productId], references: [id])
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([transactionId])
 }
 
 model Payment {
-  id               Int            @id @default(autoincrement())
-  partyId          Int
-  paymentDate      DateTime       @default(now())
-  paymentMethod    String
-  amount           Decimal
-  referenceNumber  String?
-  status           String @default("COMPLETED")
-  notes            String?
-  createdAt        DateTime       @default(now())
-
-  createdById      String?
-  createdBy        User?          @relation(fields: [createdById], references: [id])
-  party            Party          @relation(fields: [partyId], references: [id], onDelete: Restrict)
-
-  allocations      PaymentAllocation[]
-  ledgerEntries    LedgerEntry[]
+  id              Int                 @id @default(autoincrement())
+  partyId         Int
+  paymentDate     DateTime            @default(now())
+  paymentMethod   String
+  amount          Decimal
+  referenceNumber String?
+  status          String              @default("COMPLETED")
+  notes           String?
+  createdAt       DateTime            @default(now())
+  createdById     String?
+  ledgerEntries   LedgerEntry[]
+  createdBy       User?               @relation(fields: [createdById], references: [id])
+  party           Party               @relation(fields: [partyId], references: [id])
+  allocations     PaymentAllocation[]
 
   @@index([partyId, paymentDate])
 }
 
 model PaymentAllocation {
-  id              Int      @id @default(autoincrement())
-  paymentId       Int
-  transactionId   Int
-  amount          Decimal
-  allocationDate  DateTime @default(now())
-
-  payment     Payment     @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  id             Int         @id @default(autoincrement())
+  paymentId      Int
+  transactionId  Int
+  amount         Decimal
+  allocationDate DateTime    @default(now())
+  payment        Payment     @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@unique([paymentId, transactionId])
 }
 
 model LedgerEntry {
-  id               Int            @id @default(autoincrement())
-  entryDate        DateTime       @default(now())
-  partyId          Int?
-  transactionId    Int?
-  paymentId        Int?
-  entryType        String
-  amount           Decimal
-  runningBalance   Decimal
-  description      String?
-  referenceNumber  String?
-
-  party         Party?         @relation(fields: [partyId], references: [id], onDelete: SetNull)
-  transaction   Transaction?   @relation(fields: [transactionId], references: [id], onDelete: SetNull)
-  payment       Payment?       @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  createdById   String?
-  createdBy     User?          @relation(fields: [createdById], references: [id])
+  id              Int          @id @default(autoincrement())
+  entryDate       DateTime     @default(now())
+  partyId         Int?
+  transactionId   Int?
+  paymentId       Int?
+  entryType       String
+  amount          Decimal
+  runningBalance  Decimal
+  description     String?
+  referenceNumber String?
+  createdById     String?
+  createdBy       User?        @relation(fields: [createdById], references: [id])
+  party           Party?       @relation(fields: [partyId], references: [id])
+  payment         Payment?     @relation(fields: [paymentId], references: [id])
+  transaction     Transaction? @relation(fields: [transactionId], references: [id])
 
   @@index([partyId, entryDate])
 }
 
 model DueAdjustment {
-  id               Int            @id @default(autoincrement())
-  transactionId    Int
-  partyId          Int
-  adjustmentType   String
-  amount           Decimal
-  reason           String?
-  isAuto           Boolean        @default(true)
-  createdAt        DateTime       @default(now())
-
-  transaction      Transaction    @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  party            Party          @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  id             Int         @id @default(autoincrement())
+  transactionId  Int
+  partyId        Int
+  adjustmentType String
+  amount         Decimal
+  reason         String?
+  isAuto         Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  party          Party       @relation(fields: [partyId], references: [id])
+  transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 }
 
 model Report {
-  id            Int       @id @default(autoincrement())
-  reportType    String
-  title         String
-  generatedAt   DateTime  @default(now())
-  filters       String?
-  summary       String?
-
-  createdById   String?
-  createdBy     User?     @relation(fields: [createdById], references: [id])
+  id          Int      @id @default(autoincrement())
+  reportType  String
+  title       String
+  generatedAt DateTime @default(now())
+  filters     String?
+  summary     String?
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
 
   @@index([reportType, generatedAt])
 }
-
