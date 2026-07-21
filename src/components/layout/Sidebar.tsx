@@ -15,7 +15,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   const [stockOpen, setStockOpen] = useState(false);
 
   return (
-    <aside className={`w-72 border-r border-slate-200 bg-white min-h-screen px-4 py-6 fixed md:fixed z-40 top-0 left-0 h-full max-h-screen overflow-y-auto transform transition-transform shadow-2xl shadow-slate-200/40 duration-300 ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+    <aside className={`w-64 border-r border-slate-200 bg-white min-h-screen px-4 py-6 fixed md:fixed z-40 top-0 left-0 h-full max-h-screen overflow-y-auto transform transition-transform shadow-2xl shadow-slate-200/40 duration-300 ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
       <div className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-5 ring-1 ring-slate-200/70 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="h-12 w-12 rounded-3xl bg-cyan-500/10 ring-1 ring-cyan-200 flex items-center justify-center text-xl font-bold text-cyan-700">P</div>
