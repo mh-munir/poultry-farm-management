@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/clear-next-cache.mjs && next dev",
+    "dev": "next dev",
     "build": "prisma generate && next build",
     "vercel-build": "prisma generate && next build",
+    "clean:next": "node scripts/clear-next-cache.mjs",
     "start": "next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",

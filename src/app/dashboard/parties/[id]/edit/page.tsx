@@ -5,7 +5,6 @@ import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { EditPartyForm } from './edit-party-form';
 import { prisma } from '@/server/db';
-import type { Prisma } from '@prisma/client';
 
 type PartyEditPayload = {
   id: number;
@@ -15,8 +14,8 @@ type PartyEditPayload = {
   address: string | null;
   partyType: string;
   taxNumber: string | null;
-  creditLimit: Prisma.Decimal | null;
-  openingBalance: Prisma.Decimal;
+  creditLimit: string | null;
+  openingBalance: string;
   imageUrl: string | null;
   isActive: boolean;
 };
@@ -39,9 +38,23 @@ export default async function EditPartyPage({ params }: { params: Promise<{ id: 
       imageUrl: true,
       isActive: true
     }
-  }) as PartyEditPayload | null;
+  });
 
   if (!party) notFound();
+
+  const serializedParty: PartyEditPayload = {
+    id: party.id,
+    name: party.name,
+    phone: party.phone,
+    email: party.email,
+    address: party.address,
+    partyType: party.partyType,
+    taxNumber: party.taxNumber,
+    creditLimit: party.creditLimit?.toString() ?? null,
+    openingBalance: party.openingBalance.toString(),
+    imageUrl: party.imageUrl,
+    isActive: party.isActive
+  };
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
@@ -58,7 +71,7 @@ export default async function EditPartyPage({ params }: { params: Promise<{ id: 
         </Button>
       </div>
 
-      <EditPartyForm party={party} />
+      <EditPartyForm party={serializedParty} />
     </main>
   );
 }

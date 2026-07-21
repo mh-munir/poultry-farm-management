@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/server/db';
+import { dbQuery, prisma } from '@/server/db';
 
 function buildResetAdminRoute(searchParams: URLSearchParams): `/auth/reset-admin?${string}` {
   return `/auth/reset-admin?${searchParams.toString()}`;
@@ -63,19 +63,29 @@ export async function resetAdminPassword(formData: FormData) {
 
   try {
     console.log('🔄 Attempting password reset for:', parsed.data.email);
-    await prisma.user.upsert({
-      where: { email: parsed.data.email },
-      create: {
-        email: parsed.data.email,
-        name: 'Admin User',
-        role: 'ADMIN',
-        password: hashedPassword
-      },
-      update: {
-        role: 'ADMIN',
-        password: hashedPassword
-      }
-    });
+
+    const existingUser = await dbQuery(
+      prisma.user.findUnique({ where: { email: parsed.data.email } }),
+      30000
+    );
+
+    if (!existingUser) {
+      const params = new URLSearchParams();
+      params.set('error', 'No admin user exists for that email.');
+      redirect(buildResetAdminRoute(params));
+    }
+
+    await dbQuery(
+      prisma.user.update({
+        where: { email: parsed.data.email },
+        data: {
+          role: 'ADMIN',
+          password: hashedPassword
+        }
+      }),
+      30000
+    );
+
     console.log('✅ Password reset successful for:', parsed.data.email);
   } catch (error) {
     console.error('❌ Password reset failed:', error instanceof Error ? error.message : String(error));

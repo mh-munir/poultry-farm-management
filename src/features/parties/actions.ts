@@ -4,11 +4,23 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
+
+async function setFlashSuccess(message: string) {
+  const cookiesStore = await cookies();
+  cookiesStore.set({
+    name: 'partySuccess',
+    value: message,
+    path: '/dashboard/parties',
+    sameSite: 'lax'
+  });
+}
+
 import { createMemoryParty, deleteMemoryParty, getFilteredMemoryParties, getMemoryParties, getMemoryPartyPageData, getMemoryPartyStats, updateMemoryParty } from './store';
 
 type PartyTypeValue = 'CUSTOMER' | 'SUPPLIER' | 'BOTH';
@@ -192,10 +204,8 @@ export async function createOrUpdateParty(formData: FormData) {
       }
 
       revalidatePath('/dashboard/parties');
-      const url = new URL('/dashboard/parties', 'http://localhost');
-      url.searchParams.set('success', data.id ? 'Party updated locally.' : 'Party created locally.');
-      // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
-      redirect(url.toString());
+      await setFlashSuccess(data.id ? 'Party updated locally.' : 'Party created locally.');
+      redirect('/dashboard/parties');
     } catch (memoryError) {
       const url = new URL('/dashboard/parties', 'http://localhost');
       url.searchParams.set('error', 'Failed to save party. Please try again.');
@@ -205,10 +215,8 @@ export async function createOrUpdateParty(formData: FormData) {
   }
 
   revalidatePath('/dashboard/parties');
-  const url = new URL('/dashboard/parties', 'http://localhost');
-  url.searchParams.set('success', data.id ? 'Party updated successfully.' : 'Party created successfully.');
-  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
-  redirect(url.toString());
+  await setFlashSuccess(data.id ? 'Party updated successfully.' : 'Party created successfully.');
+  redirect('/dashboard/parties');
 }
 
 const salesEntrySchema = z.object({
@@ -443,30 +451,29 @@ export async function deleteParty(formData: FormData) {
   }
 
   try {
-    const partyTransactions = await prisma.transaction.findMany({
-      where: { partyId },
-      select: { id: true }
-    });
-    const transactionIds = partyTransactions.map((transaction) => transaction.id);
-
-    const partyPayments = await prisma.payment.findMany({
-      where: { partyId },
-      select: { id: true }
-    });
-    const paymentIds = partyPayments.map((payment) => payment.id);
-
     await prisma.$transaction([
       prisma.ledgerEntry.deleteMany({
         where: {
           OR: [
             { partyId },
-            { transactionId: { in: transactionIds } },
-            { paymentId: { in: paymentIds } }
+            { transaction: { partyId } },
+            { payment: { partyId } }
           ]
         }
       }),
-      prisma.paymentAllocation.deleteMany({ where: { paymentId: { in: paymentIds } } }),
-      prisma.stockMovement.deleteMany({ where: { transactionId: { in: transactionIds } } }),
+      prisma.paymentAllocation.deleteMany({
+        where: {
+          OR: [
+            { payment: { partyId } },
+            { transaction: { partyId } }
+          ]
+        }
+      }),
+      prisma.stockMovement.deleteMany({
+        where: {
+          transaction: { partyId }
+        }
+      }),
       prisma.dueAdjustment.deleteMany({ where: { partyId } }),
       prisma.payment.deleteMany({ where: { partyId } }),
       prisma.transaction.deleteMany({ where: { partyId } }),
@@ -477,18 +484,15 @@ export async function deleteParty(formData: FormData) {
   } catch (error) {
     deleteMemoryParty(partyId);
     revalidatePath('/dashboard/parties');
-    const url = new URL('/dashboard/parties', 'http://localhost');
-    url.searchParams.set('success', 'Party deleted locally.');
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
-    redirect(url.toString());
+    await setFlashSuccess('Party deleted locally.');
+    redirect('/dashboard/parties');
   }
 
   revalidatePath('/dashboard/parties');
-  const url = new URL('/dashboard/parties', 'http://localhost');
-  url.searchParams.set('success', 'Party deleted successfully.');
-  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
-  redirect(url.toString());
+  await setFlashSuccess('Party deleted successfully.');
+  redirect('/dashboard/parties');
 }
+
 
 function buildPartyWhere({
   search,

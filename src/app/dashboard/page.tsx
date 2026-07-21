@@ -15,7 +15,7 @@ import {
   ClipboardList
 } from 'lucide-react';
 import { requireUser } from '@/lib/auth';
-import { prisma } from '@/server/db';
+import { dbQuery, prisma } from '@/server/db';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { QuickActionItem } from '@/components/dashboard/quick-action-item';
@@ -50,8 +50,13 @@ export default async function DashboardPage() {
   const userName = session?.user?.name ?? session?.user?.email ?? 'there';
 
   const { start, end } = getTodayRange();
+  const sixMonthsAgo = new Date(start);
+  sixMonthsAgo.setMonth(start.getMonth() - 5);
 
-  // Fetch all data needed for dynamic dashboard
+  function query<T>(q: Promise<T>): Promise<T> {
+    return dbQuery(q, 30000);
+  }
+
   const [
     dailyFeedSaleAgg,
     dailyMedicineSaleAgg,
@@ -62,86 +67,127 @@ export default async function DashboardPage() {
     totalStockAgg,
     recentTransactions,
     activePartiesCount,
+    openInvoicesCount,
     lowStockAlerts,
-    openInvoicesCount
+    monthlySalesData,
+    monthlyPurchaseData
   ] = await Promise.all([
-    prisma.transactionItem.aggregate({
-      _sum: { lineTotal: true },
-      where: {
-        transaction: {
-          transactionType: 'SALE',
+    query(
+      prisma.transactionItem.aggregate({
+        _sum: { lineTotal: true },
+        where: {
+          transaction: {
+            transactionType: 'SALE',
+            transactionDate: { gte: start, lt: end }
+          },
+          product: { productType: 'FEED' }
+        }
+      })
+    ),
+    query(
+      prisma.transactionItem.aggregate({
+        _sum: { lineTotal: true },
+        where: {
+          transaction: {
+            transactionType: 'SALE',
+            transactionDate: { gte: start, lt: end }
+          },
+          product: { productType: 'MEDICINE' }
+        }
+      })
+    ),
+    query(
+      prisma.transaction.aggregate({
+        _sum: { totalAmount: true },
+        where: {
+          transactionType: 'PURCHASE',
           transactionDate: { gte: start, lt: end }
+        }
+      })
+    ),
+    query(
+      prisma.transactionItem.aggregate({
+        _sum: { lineTotal: true },
+        where: {
+          transaction: {
+            transactionType: 'SALE'
+          },
+          product: { productType: 'FEED' }
+        }
+      })
+    ),
+    query(
+      prisma.transactionItem.aggregate({
+        _sum: { lineTotal: true },
+        where: {
+          transaction: {
+            transactionType: 'SALE'
+          },
+          product: { productType: 'MEDICINE' }
+        }
+      })
+    ),
+    query(
+      prisma.transaction.aggregate({
+        _sum: { totalAmount: true },
+        where: { transactionType: 'PURCHASE' }
+      })
+    ),
+    query(prisma.stockBalance.aggregate({ _sum: { quantityOnHand: true } })),
+    query(
+      prisma.transaction.findMany({
+        take: 5,
+        orderBy: { transactionDate: 'desc' },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          party: { select: { name: true } },
+          totalAmount: true,
+          status: true,
+          transactionType: true
+        }
+      })
+    ),
+    query(prisma.party.count({ where: { isActive: true } })),
+    query(
+      prisma.transaction.count({
+        where: { transactionType: 'SALE', status: { not: 'COMPLETED' } }
+      })
+    ),
+    query(
+      prisma.product.findMany({
+        where: {
+          isActive: true,
+          lowStockThreshold: { gt: 0 }
         },
-        product: { productType: 'FEED' }
-      }
-    }),
-    prisma.transactionItem.aggregate({
-      _sum: { lineTotal: true },
-      where: {
-        transaction: {
-          transactionType: 'SALE',
-          transactionDate: { gte: start, lt: end }
+        select: {
+          id: true,
+          name: true,
+          lowStockThreshold: true,
+          stockBalance: { select: { quantityOnHand: true } }
+        }
+      })
+    ),
+    query(
+      prisma.transactionItem.aggregate({
+        where: {
+          transaction: {
+            transactionType: 'SALE',
+            transactionDate: { gte: sixMonthsAgo }
+          }
         },
-        product: { productType: 'MEDICINE' }
-      }
-    }),
-    prisma.transaction.aggregate({
-      _sum: { totalAmount: true },
-      where: {
-        transactionType: 'PURCHASE',
-        transactionDate: { gte: start, lt: end }
-      }
-    }),
-    prisma.transactionItem.aggregate({
-      _sum: { lineTotal: true },
-      where: {
-        transaction: {
-          transactionType: 'SALE'
+        _sum: { lineTotal: true }
+      })
+    ),
+    query(
+      prisma.transaction.aggregate({
+        where: {
+          transactionType: 'PURCHASE',
+          transactionDate: { gte: sixMonthsAgo }
         },
-        product: { productType: 'FEED' }
-      }
-    }),
-    prisma.transactionItem.aggregate({
-      _sum: { lineTotal: true },
-      where: {
-        transaction: {
-          transactionType: 'SALE'
-        },
-        product: { productType: 'MEDICINE' }
-      }
-    }),
-    prisma.transaction.aggregate({
-      _sum: { totalAmount: true },
-      where: { transactionType: 'PURCHASE' }
-    }),
-    prisma.stockBalance.aggregate({
-      _sum: { quantityOnHand: true }
-    }),
-    prisma.transaction.findMany({
-      take: 5,
-      orderBy: { transactionDate: 'desc' },
-      select: {
-        id: true,
-        invoiceNumber: true,
-        party: { select: { name: true } },
-        totalAmount: true,
-        status: true,
-        transactionType: true
-      }
-    }),
-    prisma.party.count({ where: { isActive: true } }),
-    prisma.product.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        lowStockThreshold: true,
-        stockBalance: { select: { quantityOnHand: true } }
-      }
-    }).catch(() => []),
-    prisma.transaction.count({
-      where: { transactionType: 'SALE', status: { not: 'COMPLETED' } }
-    })
+        _sum: { totalAmount: true }
+      })
+    )
   ]);
 
   // Filter products with low stock
@@ -159,62 +205,28 @@ export default async function DashboardPage() {
   const totalPurchaseCost = Number(totalPurchaseCostAgg._sum.totalAmount ?? 0);
   const totalStock = Number(totalStockAgg._sum.quantityOnHand ?? 0);
 
-  // Generate monthly data for last 6 months
-  const getLastSixMonthsData = async () => {
-    const months: string[] = [];
-    const monthLabels: string[] = [];
+  const months: string[] = [];
+  const monthLabels: string[] = [];
 
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      const monthKey = date.toISOString().slice(0, 7); // YYYY-MM
-      const monthLabel = date.toLocaleDateString('en-US', { month: 'short' });
-      months.push(monthKey);
-      monthLabels.push(monthLabel);
-    }
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date();
+    date.setMonth(date.getMonth() - i);
+    months.push(date.toISOString().slice(0, 7));
+    monthLabels.push(date.toLocaleDateString('en-US', { month: 'short' }));
+  }
 
-    // Get total sales in the period
-    const salesData = await prisma.transactionItem.aggregate({
-      where: {
-        transaction: {
-          transactionType: 'SALE',
-          transactionDate: {
-            gte: new Date(months[0] + '-01')
-          }
-        }
-      },
-      _sum: { lineTotal: true }
-    });
+  const avgMonthlyRevenue = Number(monthlySalesData._sum.lineTotal ?? 0) / 6;
+  const avgMonthlyExpense = Number(monthlyPurchaseData._sum.totalAmount ?? 0) / 6;
 
-    // Get total purchases in the period
-    const purchaseData = await prisma.transaction.aggregate({
-      where: {
-        transactionType: 'PURCHASE',
-        transactionDate: {
-          gte: new Date(months[0] + '-01')
-        }
-      },
-      _sum: { totalAmount: true }
-    });
+  const revenueData = months.map((month, idx) => ({
+    label: monthLabels[idx],
+    value: Math.round(avgMonthlyRevenue / 10000)
+  }));
 
-    // Distribute totals across months (simplified approach)
-    const avgMonthlyRevenue = Number(salesData._sum.lineTotal ?? 0) / 6;
-    const avgMonthlyExpense = Number(purchaseData._sum.totalAmount ?? 0) / 6;
-
-    const revenueData = months.map((month, idx) => ({
-      label: monthLabels[idx],
-      value: Math.round(avgMonthlyRevenue / 10000)
-    }));
-
-    const expenseData = months.map((month, idx) => ({
-      label: monthLabels[idx],
-      value: Math.round(avgMonthlyExpense / 10000)
-    }));
-
-    return { revenueData, expenseData };
-  };
-
-  const { revenueData, expenseData } = await getLastSixMonthsData();
+  const expenseData = months.map((month, idx) => ({
+    label: monthLabels[idx],
+    value: Math.round(avgMonthlyExpense / 10000)
+  }));
 
   const maxRevenue = Math.max(...revenueData.map((item) => item.value), 1);
   const maxExpense = Math.max(...expenseData.map((item) => item.value), 1);
