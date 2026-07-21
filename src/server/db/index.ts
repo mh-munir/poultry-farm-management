@@ -14,3 +14,8 @@ export const prisma =
 if (!globalForPrisma.prisma) {
   globalForPrisma.prisma = prisma;
 }
+
+// Ensure proper cleanup on process termination
+process.on('exit', async () => {
+  await prisma.$disconnect();
+});
