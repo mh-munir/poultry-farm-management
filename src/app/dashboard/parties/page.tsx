@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { Receipt, Users, Package2 } from 'lucide-react';
 import type { Decimal } from '@prisma/client/runtime/library';
+import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { AddPartyDialog } from '@/app/dashboard/parties/add-party-dialog';
-import { AlertDialogDisplay } from './alert-dialog-display';
+import { PartyToast } from './party-toast';
 import { getPartyNames, getPartyPageData, getPartyStats } from '@/features/parties/actions';
 
 const PARTY_TYPES = ['ALL', 'CUSTOMER', 'SUPPLIER', 'BOTH'] as const;
@@ -31,13 +32,16 @@ export default async function PartiesPage({
 }) {
   await requireUser();
 
+  const cookiesStore = await cookies();
+  const partySuccessCookie = cookiesStore.get('partySuccess');
+  const success = partySuccessCookie?.value ?? '';
+
   const params = await searchParams;
   const page = Number(params?.page ?? '1');
   const search = params?.search ?? '';
   const partyType = params?.partyType ?? 'ALL';
   const status = params?.status ?? 'ALL';
   const error = params?.error ?? '';
-  const success = params?.success ?? '';
 
   const [data, stats, partyOptions] = await Promise.all([
     getPartyPageData({ page, search, partyType, status }),
@@ -64,7 +68,7 @@ export default async function PartiesPage({
           <AddPartyDialog partyOptions={partyOptions} />
       </div>
 
-      <AlertDialogDisplay error={error} success={success} />
+      <PartyToast success={success} error={error} />
 
       <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         <div className="overflow-x-auto">

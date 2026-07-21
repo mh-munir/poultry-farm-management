@@ -5,7 +5,6 @@ import Link from 'next/link';
 import imageCompression from 'browser-image-compression';
 import { Button } from '@/components/ui/button';
 import { createOrUpdateParty } from '@/features/parties/actions';
-import type { Prisma } from '@prisma/client';
 
 type PartyEditPayload = {
   id: number;
@@ -15,8 +14,8 @@ type PartyEditPayload = {
   address: string | null;
   partyType: string;
   taxNumber: string | null;
-  creditLimit: Prisma.Decimal | null;
-  openingBalance: Prisma.Decimal;
+  creditLimit: string | null;
+  openingBalance: string;
   imageUrl: string | null;
   isActive: boolean;
 };
@@ -105,11 +104,11 @@ export function EditPartyForm({ party }: EditPartyFormProps) {
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium">Credit limit</label>
-          <input type="number" step="0.01" min="0" name="creditLimit" defaultValue={party.creditLimit?.toString() ?? '0'} className="w-full rounded-md border bg-background px-3 py-2" />
+          <input type="number" step="0.01" min="0" name="creditLimit" defaultValue={party.creditLimit ?? '0'} className="w-full rounded-md border bg-background px-3 py-2" />
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium">Opening balance</label>
-          <input type="number" step="0.01" name="openingBalance" defaultValue={party.openingBalance.toString()} className="w-full rounded-md border bg-background px-3 py-2" />
+          <input type="number" step="0.01" name="openingBalance" defaultValue={party.openingBalance} className="w-full rounded-md border bg-background px-3 py-2" />
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium">Party image</label>

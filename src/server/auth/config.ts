@@ -1,6 +1,6 @@
 import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/server/db';
+import { dbQuery, prisma } from '@/server/db';
 import { signInSchema } from '@/lib/schemas';
 import type { Session, User } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
@@ -12,36 +12,43 @@ const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'changeme123';
 
 async function ensureDefaultAdminUser() {
   try {
-    const existingUser = await prisma.user.findUnique({
-      where: { email: DEFAULT_ADMIN_EMAIL }
-    });
+    const existingUser = await dbQuery(
+      prisma.user.findUnique({ where: { email: DEFAULT_ADMIN_EMAIL } }),
+      20000
+    );
 
     if (existingUser) {
       const shouldUpdate = existingUser.role !== 'ADMIN' || !existingUser.password;
 
       if (shouldUpdate) {
         const hashedPassword = await hash(DEFAULT_ADMIN_PASSWORD, 10);
-        await prisma.user.update({
-          where: { email: DEFAULT_ADMIN_EMAIL },
-          data: {
-            role: 'ADMIN',
-            password: hashedPassword
-          }
-        });
+        await dbQuery(
+          prisma.user.update({
+            where: { email: DEFAULT_ADMIN_EMAIL },
+            data: {
+              role: 'ADMIN',
+              password: hashedPassword
+            }
+          }),
+          20000
+        );
       }
 
       return;
     }
 
     const hashedPassword = await hash(DEFAULT_ADMIN_PASSWORD, 10);
-    await prisma.user.create({
-      data: {
-        email: DEFAULT_ADMIN_EMAIL,
-        name: 'Admin User',
-        role: 'ADMIN',
-        password: hashedPassword
-      }
-    });
+    await dbQuery(
+      prisma.user.create({
+        data: {
+          email: DEFAULT_ADMIN_EMAIL,
+          name: 'Admin User',
+          role: 'ADMIN',
+          password: hashedPassword
+        }
+      }),
+      20000
+    );
   } catch {
     // Ignore and rely on the existing database state.
   }
@@ -72,7 +79,7 @@ export const authConfig = {
           await ensureDefaultAdminUser();
 
           console.log('🔍 Finding user:', email);
-          const user = await prisma.user.findUnique({ where: { email } });
+          const user = await dbQuery(prisma.user.findUnique({ where: { email } }), 30000);
 
           if (!user) {
             console.log('❌ User not found:', email);

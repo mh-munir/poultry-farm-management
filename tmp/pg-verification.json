@@ -3,21 +3,55 @@
     "status": "OK",
     "errorCategory": null
   },
-  "tables": [],
+  "tables": [
+    "Account",
+    "DueAdjustment",
+    "LedgerEntry",
+    "Party",
+    "Payment",
+    "PaymentAllocation",
+    "Product",
+    "ProductCategory",
+    "Report",
+    "Session",
+    "StockBalance",
+    "StockMovement",
+    "Transaction",
+    "TransactionItem",
+    "User",
+    "VerificationToken"
+  ],
   "migrationTablePresent": false,
-  "rowCounts": {},
+  "rowCounts": {
+    "Account": 0,
+    "DueAdjustment": 0,
+    "LedgerEntry": 0,
+    "Party": 0,
+    "Payment": 0,
+    "PaymentAllocation": 0,
+    "Product": 0,
+    "ProductCategory": 0,
+    "Report": 0,
+    "Session": 0,
+    "StockBalance": 0,
+    "StockMovement": 0,
+    "Transaction": 0,
+    "TransactionItem": 0,
+    "User": 1,
+    "VerificationToken": 0
+  },
   "prismaValidate": {
-    "success": true,
-    "output": "VALID"
+    "success": false,
+    "output": "C:\\Users\\mhmun\\Desktop\\poultry-farm-management\\node_modules\\.bin\\prisma:2\r\nbasedir=$(dirname \"$(echo \"$0\" | sed -e 's,\\\\,/,g')\")\r\n          ^^^^^^^\r\n\r\nSyntaxError: missing ) after argument list\r\n    at wrapSafe (node:internal/modules/cjs/loader:1692:18)\r\n    at Module._compile (node:internal/modules/cjs/loader:1735:20)\r\n    at Object..js (node:internal/modules/cjs/loader:1893:10)\r\n    at Module.load (node:internal/modules/cjs/loader:1481:32)\r\n    at Module._load (node:internal/modules/cjs/loader:1300:12)\r\n    at TracingChannel.traceSync (node:diagnostics_channel:328:14)\r\n    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)\r\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\r\n    at node:internal/main/run_main_module:33:47\r\n\r\nNode.js v24.12.0\r\n"
   },
   "prismaGenerate": {
-    "success": true,
-    "output": "GENERATED"
+    "success": false,
+    "output": "C:\\Users\\mhmun\\Desktop\\poultry-farm-management\\node_modules\\.bin\\prisma:2\r\nbasedir=$(dirname \"$(echo \"$0\" | sed -e 's,\\\\,/,g')\")\r\n          ^^^^^^^\r\n\r\nSyntaxError: missing ) after argument list\r\n    at wrapSafe (node:internal/modules/cjs/loader:1692:18)\r\n    at Module._compile (node:internal/modules/cjs/loader:1735:20)\r\n    at Object..js (node:internal/modules/cjs/loader:1893:10)\r\n    at Module.load (node:internal/modules/cjs/loader:1481:32)\r\n    at Module._load (node:internal/modules/cjs/loader:1300:12)\r\n    at TracingChannel.traceSync (node:diagnostics_channel:328:14)\r\n    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)\r\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\r\n    at node:internal/main/run_main_module:33:47\r\n\r\nNode.js v24.12.0\r\n"
   },
   "schemaDiff": {
     "success": false,
     "sql": null,
-    "error": "Error: P1013\n\nThe provided database string is invalid. The scheme is not recognized in database URL. Please refer to the documentation in https://www.prisma.io/docs/reference/database-reference/connection-urls for constructing a correct connection string. In some cases, certain characters must be escaped. Please check the string for any illegal characters.\n\n"
+    "error": "C:\\Users\\mhmun\\Desktop\\poultry-farm-management\\node_modules\\.bin\\prisma:2\r\nbasedir=$(dirname \"$(echo \"$0\" | sed -e 's,\\\\,/,g')\")\r\n          ^^^^^^^\r\n\r\nSyntaxError: missing ) after argument list\r\n    at wrapSafe (node:internal/modules/cjs/loader:1692:18)\r\n    at Module._compile (node:internal/modules/cjs/loader:1735:20)\r\n    at Object..js (node:internal/modules/cjs/loader:1893:10)\r\n    at Module.load (node:internal/modules/cjs/loader:1481:32)\r\n    at Module._load (node:internal/modules/cjs/loader:1300:12)\r\n    at TracingChannel.traceSync (node:diagnostics_channel:328:14)\r\n    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)\r\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\r\n    at node:internal/main/run_main_module:33:47\r\n\r\nNode.js v24.12.0\r\n"
   },
   "synchronized": null,
   "warnings": []
