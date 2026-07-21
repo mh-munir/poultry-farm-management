@@ -74,35 +74,27 @@ export function UserNav() {
 
           <div className="divide-y divide-slate-200">
             <div className="space-y-1 px-2 py-3">
-              <button type="button" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100">
+              <Link href="/admin" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100">
                 <User size={16} className="text-slate-500" />
                 <span>Profile</span>
-              </button>
+              </Link>
               <button type="button" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100">
                 <Bell size={16} className="text-slate-500" />
                 <span>Notifications</span>
               </button>
-              <button type="button" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100">
+              <Link href="/dashboard/settings" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100">
                 <Settings size={16} className="text-slate-500" />
                 <span>Account Settings</span>
-              </button>
-              <button type="button" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100">
-                <LifeBuoy size={16} className="text-slate-500" />
-                <span>Support Center</span>
-              </button>
+              </Link>
             </div>
 
             <div className="space-y-1 px-2 py-3">
-              <button type="button" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100">
-                <Lock size={16} className="text-slate-500" />
-                <span>Lock Screen</span>
-              </button>
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: '/auth/sign-in' })}
-                className="flex w-full items-center gap-3 rounded-2xl bg-rose-600 px-3 py-3 text-left text-sm font-semibold text-white transition hover:bg-rose-500"
+                className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100"
               >
-                <LogOut size={16} className="text-white" />
+                <LogOut size={16} className="text-slate-500" />
                 <span>Log Out</span>
               </button>
             </div>
