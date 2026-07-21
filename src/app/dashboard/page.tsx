@@ -68,9 +68,7 @@ export default async function DashboardPage() {
     recentTransactions,
     activePartiesCount,
     openInvoicesCount,
-    lowStockAlerts,
-    monthlySalesData,
-    monthlyPurchaseData
+    lowStockAlerts
   ] = await Promise.all([
     query(
       prisma.transactionItem.aggregate({
@@ -207,27 +205,64 @@ export default async function DashboardPage() {
 
   const months: string[] = [];
   const monthLabels: string[] = [];
+  const monthRanges: { start: Date; end: Date }[] = [];
 
   for (let i = 5; i >= 0; i--) {
     const date = new Date();
     date.setMonth(date.getMonth() - i);
-    months.push(date.toISOString().slice(0, 7));
-    monthLabels.push(date.toLocaleDateString('en-US', { month: 'short' }));
+    date.setDate(1);
+    date.setHours(0, 0, 0, 0);
+    const monthStart = new Date(date);
+    const monthEnd = new Date(monthStart);
+    monthEnd.setMonth(monthEnd.getMonth() + 1);
+
+    months.push(monthStart.toISOString().slice(0, 7));
+    monthLabels.push(monthStart.toLocaleDateString('en-US', { month: 'short' }));
+    monthRanges.push({ start: monthStart, end: monthEnd });
   }
 
-  const avgMonthlyRevenue = Number(monthlySalesData._sum.lineTotal ?? 0) / 6;
-  const avgMonthlyExpense = Number(monthlyPurchaseData._sum.totalAmount ?? 0) / 6;
+  const monthlyRevenueResults = await Promise.all(
+    monthRanges.map((range) =>
+      query(
+        prisma.transactionItem.aggregate({
+          _sum: { lineTotal: true },
+          where: {
+            transaction: {
+              transactionType: 'SALE',
+              transactionDate: { gte: range.start, lt: range.end }
+            }
+          }
+        })
+      )
+    )
+  );
 
-  const revenueData = months.map((month, idx) => ({
+  const monthlyExpenseResults = await Promise.all(
+    monthRanges.map((range) =>
+      query(
+        prisma.transaction.aggregate({
+          _sum: { totalAmount: true },
+          where: {
+            transactionType: 'PURCHASE',
+            transactionDate: { gte: range.start, lt: range.end }
+          }
+        })
+      )
+    )
+  );
+
+  const revenueData = monthlyRevenueResults.map((result, idx) => ({
     label: monthLabels[idx],
-    value: Math.round(avgMonthlyRevenue / 10000)
+    value: Number(result._sum.lineTotal ?? 0)
   }));
 
-  const expenseData = months.map((month, idx) => ({
+  const expenseData = monthlyExpenseResults.map((result, idx) => ({
     label: monthLabels[idx],
-    value: Math.round(avgMonthlyExpense / 10000)
+    value: Number(result._sum.totalAmount ?? 0)
   }));
 
+  const totalRevenue = revenueData.reduce((sum, item) => sum + item.value, 0);
+  const totalExpense = expenseData.reduce((sum, item) => sum + item.value, 0);
   const maxRevenue = Math.max(...revenueData.map((item) => item.value), 1);
   const maxExpense = Math.max(...expenseData.map((item) => item.value), 1);
 
@@ -325,12 +360,9 @@ export default async function DashboardPage() {
                   ))}
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>Jan</span>
-                  <span>Feb</span>
-                  <span>Mar</span>
-                  <span>Apr</span>
-                  <span>May</span>
-                  <span>Jun</span>
+                  {revenueData.map((item) => (
+                    <span key={item.label}>{item.label}</span>
+                  ))}
                 </div>
               </div>
             </Card>
@@ -356,12 +388,9 @@ export default async function DashboardPage() {
                   ))}
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>Jan</span>
-                  <span>Feb</span>
-                  <span>Mar</span>
-                  <span>Apr</span>
-                  <span>May</span>
-                  <span>Jun</span>
+                  {expenseData.map((item) => (
+                    <span key={item.label}>{item.label}</span>
+                  ))}
                 </div>
               </div>
             </Card>
