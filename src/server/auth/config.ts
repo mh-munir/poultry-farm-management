@@ -61,25 +61,37 @@ export const authConfig = {
         const parsed = signInSchema.safeParse(credentials);
 
         if (!parsed.success) {
+          console.log('❌ Sign in validation failed');
           return null;
         }
 
         const { email, password } = parsed.data;
 
         try {
+          console.log('🔄 Ensuring default admin user...');
           await ensureDefaultAdminUser();
 
+          console.log('🔍 Finding user:', email);
           const user = await prisma.user.findUnique({ where: { email } });
 
-          if (!user?.password) {
+          if (!user) {
+            console.log('❌ User not found:', email);
             return null;
           }
 
+          if (!user?.password) {
+            console.log('❌ No password set for user:', email);
+            return null;
+          }
+
+          console.log('🔐 Comparing passwords...');
           const isValid = await compare(password, user.password);
           if (!isValid) {
+            console.log('❌ Password mismatch for user:', email);
             return null;
           }
 
+          console.log('✅ Login successful for:', email);
           return {
             id: user.id,
             name: user.name,
