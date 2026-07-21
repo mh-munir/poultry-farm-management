@@ -26,3 +26,17 @@ This project provides a production-ready architectural foundation for a poultry 
 - Validate inputs using Zod and React Hook Form
 - Use Prisma for persistence and Auth.js for sessions
 - Follow consistent naming and colocated folder organization
+
+## Deployment notes
+
+### Vercel
+
+- Set these environment variables in Vercel:
+  - DATABASE_URL
+  - DIRECT_URL
+  - AUTH_SECRET
+  - AUTH_URL (or NEXTAUTH_URL)
+  - NEXT_PUBLIC_APP_URL
+- Use the Vercel build command from [vercel.json](vercel.json) or set it to `npm run vercel-build`.
+- This project uses Prisma with PostgreSQL in production. SQLite is suitable for local development only.
+- The app expects a production database and secure auth configuration before deployment.
