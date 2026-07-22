@@ -1,12 +1,11 @@
 import Link from 'next/link';
-import { ArrowLeft, CalendarDays, MapPin, Package2, Pencil, Phone, ReceiptText, Wallet2 } from 'lucide-react';
+import { CalendarDays, MapPin, Package2, Pencil, Phone, ReceiptText, Wallet2 } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { prisma } from '@/server/db';
-import { PartyProfileActions } from './party-profile-actions';
 import { deletePaymentForParty, getPartyAccountSummary, recordPaymentForParty, updatePaymentForParty } from '@/features/parties/actions';
-import { PartyPaymentsSection } from './party-payments-section';
+import { PaymentHistoryDialog } from './payment-history-dialog';
 
 type PartyProfileRecord = {
   id: number;
@@ -180,7 +179,6 @@ export default async function PartyProfilePage({ params }: { params: Promise<{ i
   const exportCsv = [
     ['Party Profile', party.name],
     ['Phone', party.phone],
-    ['Email', party.email ?? ''],
     ['Address', party.address ?? ''],
     ['Farm Name', party.farmName ?? ''],
     ['Party Type', party.partyType],
@@ -198,8 +196,9 @@ export default async function PartyProfilePage({ params }: { params: Promise<{ i
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-4">
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <section className="rounded-2xl border bg-card p-6 shadow-sm">
+          <div className="flex items-center gap-4 mb-4">
           {party.imageUrl ? (
             <img src={party.imageUrl} alt={party.name} className="h-20 w-20 rounded-2xl border object-cover shadow-sm" />
           ) : (
@@ -212,25 +211,6 @@ export default async function PartyProfilePage({ params }: { params: Promise<{ i
             <h1 className="mt-2 text-3xl font-semibold">{party.name}</h1>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <PartyProfileActions partyName={party.name} exportData={exportCsv} />
-          <Button asChild variant="outline">
-            <Link href="/dashboard/parties">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to parties
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href={`/dashboard/parties/${party.id}/edit`}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit party
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <section className="rounded-2xl border bg-card p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold">Party details</h2>
@@ -248,27 +228,21 @@ export default async function PartyProfilePage({ params }: { params: Promise<{ i
             </div>
             <div className="rounded-xl border bg-background p-4">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <ReceiptText className="h-4 w-4" /> Email
-              </div>
-              <p className="mt-2 text-base font-semibold">{party.email ?? '—'}</p>
-            </div>
-            <div className="rounded-xl border bg-background p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <MapPin className="h-4 w-4" /> Address
               </div>
               <p className="mt-2 text-base font-semibold">{party.address ?? '—'}</p>
             </div>
-            <div className="rounded-xl border bg-background p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Package2 className="h-4 w-4" /> Farm name
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                  <Package2 className="h-4 w-4" />
+                </span>
+                Farm name
               </div>
-              <p className="mt-2 text-base font-semibold">{party.farmName ?? '—'}</p>
-            </div>
-            <div className="rounded-xl border bg-background p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <CalendarDays className="h-4 w-4" /> Registered on
-              </div>
-              <p className="mt-2 text-base font-semibold">{formatDate(party.createdAt)}</p>
+              <p className="mt-4 text-xl font-semibold text-slate-900">{party.farmName ?? 'No farm name provided'}</p>
+              {party.farmName ? null : (
+                <p className="mt-2 text-sm text-slate-500">Add a farm name to make the profile easier to identify.</p>
+              )}
             </div>
             <div className="rounded-xl border bg-background p-4">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -276,6 +250,29 @@ export default async function PartyProfilePage({ params }: { params: Promise<{ i
               </div>
               <p className="mt-2 text-base font-semibold">{formatCurrency(Number(party.openingBalance ?? 0))}</p>
             </div>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <PaymentHistoryDialog
+              partyId={party.id}
+              initialPayments={payments.map((payment) => ({
+                id: payment.id,
+                amount: payment.amount.toString(),
+                paymentDate: payment.paymentDate.toISOString(),
+                paymentMethod: payment.paymentMethod,
+                referenceNumber: payment.referenceNumber,
+                status: payment.status,
+                notes: payment.notes
+              }))}
+              recordPaymentForParty={recordPaymentForParty}
+              updatePaymentForParty={updatePaymentForParty}
+              deletePaymentForParty={deletePaymentForParty}
+            />
+            <Button asChild>
+              <Link href={`/dashboard/parties/${party.id}/edit`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit party
+              </Link>
+            </Button>
           </div>
         </section>
 
@@ -306,30 +303,6 @@ export default async function PartyProfilePage({ params }: { params: Promise<{ i
         </section>
       </div>
 
-      <section className="mt-6 rounded-2xl border bg-card p-6 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold">Payment history</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Recorded payments and settlement details for this party.</p>
-          </div>
-        </div>
-
-        <PartyPaymentsSection
-          partyId={party.id}
-          initialPayments={payments.map((payment) => ({
-            id: payment.id,
-            amount: String(payment.amount),
-            paymentDate: payment.paymentDate.toISOString(),
-            paymentMethod: payment.paymentMethod,
-            referenceNumber: payment.referenceNumber,
-            status: payment.status,
-            notes: payment.notes
-          }))}
-          recordPaymentForParty={recordPaymentForParty}
-          updatePaymentForParty={updatePaymentForParty}
-          deletePaymentForParty={deletePaymentForParty}
-        />
-      </section>
 
       <section className="mt-6 rounded-2xl border bg-card p-6 shadow-sm">
         <div className="flex items-center justify-between gap-3">
