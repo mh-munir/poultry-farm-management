@@ -67,12 +67,29 @@ async function savePartyImage(formData: FormData, existingImageUrl?: string | nu
   const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'party-images');
   await mkdir(uploadDir, { recursive: true });
 
-  const extension = path.extname(imageFile.name) || '.png';
-  const fileName = `${randomUUID()}${extension}`;
-  const filePath = path.join(uploadDir, fileName);
-  const fileBuffer = Buffer.from(await imageFile.arrayBuffer());
+  const originalExt = path.extname(imageFile.name) || '.png';
+  const originalBuffer = Buffer.from(await imageFile.arrayBuffer());
 
-  await writeFile(filePath, fileBuffer);
+  let finalBuffer = originalBuffer;
+  let finalExt = originalExt;
+
+  try {
+    const sharpModule = (await import('sharp')).default ?? (await import('sharp'));
+    const compressedBuffer = await sharpModule(originalBuffer)
+      .resize({ width: 1200, withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+
+    finalBuffer = Buffer.from(compressedBuffer);
+    finalExt = '.webp';
+  } catch (err) {
+    // sharp not available or failed — fall back to original buffer
+  }
+
+  const fileName = `${randomUUID()}${finalExt}`;
+  const filePath = path.join(uploadDir, fileName);
+  await writeFile(filePath, finalBuffer);
+
   return `/uploads/party-images/${fileName}`;
 }
 

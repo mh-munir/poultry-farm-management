@@ -1,0 +1,46 @@
+﻿
+> poultry-farm-management@0.1.0 build
+> prisma generate && next build
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+Γ£ö Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client in 310ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want real-time updates to your database without manual polling? Discover how with Pulse: https://pris.ly/tip-0-pulse
+
+   Γû▓ Next.js 15.5.21
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     ┬╖ serverActions
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully in 7.4s
+   Skipping linting
+   Checking validity of types ...
+node.exe : Failed to compile.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\mhmun\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Failed to compile.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+./src/app/admin/page.tsx:9:37
+Type error: Property 'image' does not exist on type 'AppSessionUser'.
+
+[0m [90m  7 |[39m   [36mconst[39m currentEmail [33m=[39m session[33m.[39muser[33m.[39memail 
+[33m?[39m[33m?[39m [32m''[39m[33m;[39m
+ [90m  8 |[39m   [36mconst[39m currentName [33m=[39m session[33m.[39muser[33m.[39mname [33m?[39m[33m?[39m 
+[32m''[39m[33m;[39m
+[31m[1m>[22m[39m[90m  9 |[39m   [36mconst[39m currentImage [33m=[39m session[33m.[39muser[33m.[39mimage 
+[33m?[39m[33m?[39m [32m''[39m[33m;[39m
+ [90m    |[39m                                     [31m[1m^[22m[39m
+ [90m 10 |[39m   [36mconst[39m sp [33m=[39m [36mawait[39m searchParams[33m;[39m
+ [90m 11 |[39m   [36mconst[39m success [33m=[39m sp[33m?[39m[33m.[39msuccess [33m?[39m[33m?[39m 
+[32m''[39m[33m;[39m
+ [90m 12 |[39m   [36mconst[39m error [33m=[39m sp[33m?[39m[33m.[39merror [33m?[39m[33m?[39m 
+[32m''[39m[33m;[39m[0m
+Next.js build worker exited with code: 1 and signal: null

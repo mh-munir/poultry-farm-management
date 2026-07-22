@@ -1,0 +1,39 @@
+
+> poultry-farm-management@0.1.0 build
+> prisma generate && next build
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client in 304ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Easily identify and fix slow SQL queries in your app. Optimize helps you enhance your visibility: https://pris.ly/--optimize
+
+   ▲ Next.js 15.5.21
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     · serverActions
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 14.8s
+   Skipping linting
+   Checking validity of types ...
+Failed to compile.
+
+./src/app/admin/actions.ts:113:9
+Type error: Type 'Buffer<ArrayBufferLike>' is not assignable to type 'Buffer<ArrayBuffer>'.
+  Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+    Type 'SharedArrayBuffer' is not assignable to type 'ArrayBuffer'.
+      Types of property '[Symbol.toStringTag]' are incompatible.
+        Type '"SharedArrayBuffer"' is not assignable to type '"ArrayBuffer"'.
+
+[0m [90m 111 |[39m         [36mconst[39m sharpModule [33m=[39m ([36mawait[39m [36mimport[39m([32m'sharp'[39m))[33m.[39m[36mdefault[39m [33m?[39m[33m?[39m ([36mawait[39m [36mimport[39m([32m'sharp'[39m))[33m;[39m
+ [90m 112 |[39m         [90m// resize to max width and compress to JPEG for smaller size[39m
+[31m[1m>[22m[39m[90m 113 |[39m         finalBuffer [33m=[39m [36mawait[39m sharpModule(originalBuffer)[33m.[39mresize({ width[33m:[39m [35m1200[39m[33m,[39m withoutEnlargement[33m:[39m [36mtrue[39m })[33m.[39mwebp({ quality[33m:[39m [35m80[39m })[33m.[39mtoBuffer()[33m;[39m
+ [90m     |[39m         [31m[1m^[22m[39m
+ [90m 114 |[39m         finalExt [33m=[39m [32m'.webp'[39m[33m;[39m
+ [90m 115 |[39m       } [36mcatch[39m (sharpErr) {
+ [90m 116 |[39m         [90m// sharp not available or failed — fall back to original buffer[39m[0m
+Next.js build worker exited with code: 1 and signal: null

@@ -20,6 +20,7 @@ type PartyPaymentsSectionProps = {
   recordPaymentForParty: (formData: FormData) => Promise<void>;
   updatePaymentForParty: (formData: FormData) => Promise<void>;
   deletePaymentForParty: (formData: FormData) => Promise<void>;
+  showForm?: boolean;
 };
 
 function formatDate(value: string) {
@@ -44,7 +45,8 @@ export function PartyPaymentsSection({
   initialPayments,
   recordPaymentForParty,
   updatePaymentForParty,
-  deletePaymentForParty
+  deletePaymentForParty,
+  showForm = true
 }: PartyPaymentsSectionProps) {
   const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
   const [drafts, setDrafts] = useState<Record<number, Partial<InitialPayment>>>({});
@@ -75,7 +77,8 @@ export function PartyPaymentsSection({
 
   return (
     <div>
-      <form action={recordPaymentForParty} className="mt-6 grid gap-4 rounded-xl border bg-background p-4 md:grid-cols-2">
+      {showForm && (
+        <form action={recordPaymentForParty} className="mt-6 grid gap-4 rounded-xl border bg-background p-4 md:grid-cols-2">
         <input type="hidden" name="partyId" value={partyId} />
         <div>
           <label className="mb-2 block text-sm font-medium">Amount</label>
@@ -109,7 +112,8 @@ export function PartyPaymentsSection({
         <div className="md:col-span-2">
           <Button type="submit">Save payment</Button>
         </div>
-      </form>
+        </form>
+      )}
 
       <div className="mt-6 overflow-hidden rounded-xl border">
         <div className="bg-muted/40 px-4 py-3 text-sm font-semibold">Payments</div>

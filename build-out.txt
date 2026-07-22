@@ -1,29 +1,76 @@
-
+﻿
 > poultry-farm-management@0.1.0 build
 > prisma generate && next build
 
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client in 536ms
+Γ£ö Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client in 626ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Want real-time updates to your database without manual polling? Discover how with Pulse: https://pris.ly/tip-0-pulse
+Tip: Want to react to database changes in your app as they happen? Discover how with Pulse: https://pris.ly/tip-1-pulse
 
-   ▲ Next.js 15.5.20
+   Γû▓ Next.js 15.5.21
    - Environments: .env.local, .env
+   - Experiments (use with caution):
+     ┬╖ serverActions
 
    Creating an optimized production build ...
- ✓ Compiled successfully in 7.0s
+ Γ£ô Compiled successfully in 7.7s
    Skipping linting
    Checking validity of types ...
    Collecting page data ...
-   Generating static pages (0/26) ...
-   Generating static pages (6/26) 
-   Generating static pages (12/26) 
-   Generating static pages (19/26) 
- ✓ Generating static pages (26/26)
+   Generating static pages (0/28) ...
+   Generating static pages (7/28) 
+   Generating static pages (14/28) 
+   Generating static pages (21/28) 
+ Γ£ô Generating static pages (28/28)
    Finalizing page optimization ...
    Collecting build traces ...
-Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? 
+
+Route (app)                                     Size  First Load JS
+Γöî ╞Æ /                                          151 B         103 kB
+Γö£ ╞Æ /_not-found                                993 B         104 kB
+Γö£ ╞Æ /admin                                   2.98 kB         114 kB
+Γö£ ╞Æ /api/auth/[...nextauth]                    151 B         103 kB
+Γö£ ╞Æ /api/stock/[stockType]                     151 B         103 kB
+Γö£ ╞Æ /auth/reset-admin                          193 B         106 kB
+Γö£ ╞Æ /auth/sign-in                            1.35 kB         124 kB
+Γö£ ╞Æ /dashboard                                 151 B         103 kB
+Γö£ ╞Æ /dashboard/parties                        4.3 kB         138 kB
+Γö£ ╞Æ /dashboard/parties/[id]                  4.29 kB         118 kB
+Γö£ ╞Æ /dashboard/parties/[id]/edit             2.11 kB         136 kB
+Γö£ ╞Æ /dashboard/parties/clear-party-success     151 B         103 kB
+Γö£ ╞Æ /dashboard/parties/delete                  151 B         103 kB
+Γö£ ╞Æ /dashboard/parties/new                     193 B         106 kB
+Γö£ ╞Æ /dashboard/product-categories              193 B         106 kB
+Γö£ ╞Æ /dashboard/product-categories/[id]/edit    193 B         106 kB
+Γö£ ╞Æ /dashboard/product-categories/delete       151 B         103 kB
+Γö£ ╞Æ /dashboard/product-categories/new          193 B         106 kB
+Γö£ ╞Æ /dashboard/products                        193 B         106 kB
+Γö£ ╞Æ /dashboard/products/[id]/edit              193 B         106 kB
+Γö£ ╞Æ /dashboard/products/delete                 151 B         103 kB
+Γö£ ╞Æ /dashboard/products/new                    193 B         106 kB
+Γö£ ╞Æ /dashboard/purchases                       193 B         106 kB
+Γö£ ╞Æ /dashboard/purchases/[id]                1.44 kB         115 kB
+Γö£ ╞Æ /dashboard/reports                         193 B         106 kB
+Γö£ ╞Æ /dashboard/sales                           193 B         106 kB
+Γö£ ╞Æ /dashboard/sales/[id]                    1.44 kB         115 kB
+Γö£ ╞Æ /dashboard/settings                        193 B         106 kB
+Γö£ ╞Æ /dashboard/stock                           151 B         103 kB
+Γö£ ╞Æ /dashboard/stock/feed                    2.21 kB         113 kB
+Γö£ ╞Æ /dashboard/stock/Medicine                2.22 kB         113 kB
+Γö£ ╞Æ /dashboard/stock/reports                   151 B         103 kB
+Γö£ ╞Æ /staff                                     151 B         103 kB
+Γöö ╞Æ /unauthorized                              151 B         103 kB
++ First Load JS shared by all                 103 kB
+  Γö£ chunks/255-62902f04efbdd792.js           46.3 kB
+  Γö£ chunks/4bd1b696-c023c6e3521b1417.js      54.2 kB
+  Γöö other shared chunks (total)              1.99 kB
+
+
+╞Æ Middleware                                 34.1 kB
+
+╞Æ  (Dynamic)  server-rendered on demand
+

@@ -5,6 +5,7 @@ export interface AppSessionUser {
   id?: string;
   name?: string | null;
   email?: string | null;
+  image?: string | null;
   role?: 'ADMIN' | 'MANAGER' | 'USER' | string;
 }
 
