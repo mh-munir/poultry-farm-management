@@ -1,0 +1,49 @@
+﻿
+> poultry-farm-management@0.1.0 build
+> prisma generate && next build
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+Γ£ö Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client in 324ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+   Γû▓ Next.js 15.5.21
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     ┬╖ serverActions
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully in 6.9s
+   Skipping linting
+   Checking validity of types ...
+node.exe : Failed to compile.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\mhmun\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Failed to compile.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+./src/features/parties/actions.ts:78:5
+Type error: Type 'Buffer<ArrayBufferLike>' is not assignable to type 'Buffer<ArrayBuffer>'.
+  Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+    Type 'SharedArrayBuffer' is not assignable to type 'ArrayBuffer'.
+      Types of property '[Symbol.toStringTag]' are incompatible.
+        Type '"SharedArrayBuffer"' is not assignable to type '"ArrayBuffer"'.
+
+[0m [90m 76 |[39m     [36mtry[39m {
+ [90m 77 |[39m     [36mconst[39m sharpModule [33m=[39m ([36mawait[39m 
+[36mimport[39m([32m'sharp'[39m))[33m.[39m[36mdefault[39m [33m?[39m[33m?[39m ([36mawait[39m 
+[36mimport[39m([32m'sharp'[39m))[33m;[39m
+[31m[1m>[22m[39m[90m 78 |[39m     finalBuffer [33m=[39m [36mawait[39m sharpModule(originalBuffer)[33m.[39mresize({ 
+width[33m:[39m [35m1200[39m[33m,[39m withoutEnlargement[33m:[39m [36mtrue[39m })[33m.[39mwebp({ quality[33m:[39m 
+[35m80[39m })[33m.[39mtoBuffer()[33m;[39m
+ [90m    |[39m     [31m[1m^[22m[39m
+ [90m 79 |[39m     finalExt [33m=[39m [32m'.webp'[39m[33m;[39m
+ [90m 80 |[39m   } [36mcatch[39m (err) {
+ [90m 81 |[39m     [90m// sharp not available or failed ΓÇö fall back to original buffer[39m[0m
+Next.js build worker exited with code: 1 and signal: null

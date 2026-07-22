@@ -41,6 +41,9 @@
     "tailwind-merge": "^2.4.0",
     "zod": "^3.23.0"
   },
+  "optionalDependencies": {
+    "sharp": "^0.32.6"
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.20.1",

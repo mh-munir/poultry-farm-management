@@ -116,16 +116,20 @@ export const authConfig = {
   callbacks: {
     async jwt({ token, user }: { token: JWT; user?: User }) {
       if (user) {
-        const jwtToken = token as JWT;
+        const jwtToken = token as JWT & { image?: string | null };
         jwtToken.role = user.role ?? 'USER';
+        if (typeof user.image !== 'undefined') {
+          jwtToken.image = user.image ?? null;
+        }
       }
       return token;
     },
     async session({ session, token }: { session: Session; token: JWT }) {
       if (session.user) {
-        const jwtToken = token as JWT;
+        const jwtToken = token as JWT & { image?: string | null };
         session.user.id = token.sub ?? '';
         session.user.role = jwtToken.role ?? 'USER';
+        session.user.image = jwtToken.image ?? session.user.image ?? null;
       }
       return session;
     }

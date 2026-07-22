@@ -1,0 +1,7 @@
+src/app/admin/page.tsx(9,37): error TS2339: Property 'image' does not exist on type 'AppSessionUser'.
+src/app/dashboard/parties/toast-redirect.tsx(27,22): error TS2345: Argument of type 'string' is not assignable to parameter of type 'RouteImpl<string>'.
+src/features/parties/actions.ts(78,5): error TS2322: Type 'Buffer<ArrayBufferLike>' is not assignable to type 'Buffer<ArrayBuffer>'.
+  Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+    Type 'SharedArrayBuffer' is not assignable to type 'ArrayBuffer'.
+      Types of property '[Symbol.toStringTag]' are incompatible.
+        Type '"SharedArrayBuffer"' is not assignable to type '"ArrayBuffer"'.
