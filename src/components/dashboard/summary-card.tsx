@@ -26,8 +26,8 @@ export function SummaryCard({
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-slate-500">{title}</p>
           <p className="mt-3 text-2xl font-semibold text-slate-950">{value}</p>
         </div>
-        <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${accent}`}>
-          <Icon className="h-5 w-5" />
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${accent}`}>
+          <Icon className="h-6 w-6" />
         </div>
       </div>
       <p className={`mt-4 text-sm font-medium ${metricColor}`}>{metric}</p>

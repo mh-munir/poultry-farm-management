@@ -14,15 +14,15 @@ interface StatCardProps {
 
 export function StatCard({ title, value, icon: Icon, accent, description, className }: StatCardProps) {
   return (
-    <Card className={cn('rounded-3xl border border-slate-200 bg-background p-5 shadow-sm transition duration-200 hover:-translate-y-[1px] hover:shadow-lg', className)}>
-      <div className="flex items-start justify-between gap-4">
+    <Card className={cn('p-5', className)}>
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-medium uppercase tracking-[0.24em] text-slate-500">{title}</p>
-          <p className="mt-3 text-3xl font-semibold text-slate-950">{value}</p>
-          {description ? <p className="mt-2 text-sm text-slate-600">{description}</p> : null}
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-slate-500">{title}</p>
+          <p className="mt-3 text-2xl font-semibold text-slate-950">{value}</p>
+          {description ? <p className="mt-4 text-sm font-medium text-slate-600">{description}</p> : null}
         </div>
         <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${accent}`}>
-          <Icon className="h-6 w-6" />
+          <Icon className="h-5 w-5" />
         </div>
       </div>
     </Card>
