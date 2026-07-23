@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Plus, ArrowLeft, ClipboardList } from 'lucide-react';
+import { Plus, ArrowLeft, ClipboardList, Package2 } from 'lucide-react';
 import type { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,10 @@ import { SaleForm } from './sale-form';
 
 function formatCurrency(value: number | string | Prisma.Decimal | null | undefined) {
   return `KSh ${Number(value?.toString() ?? 0).toFixed(2)}`;
+}
+
+function formatStock(value: number | string | Prisma.Decimal | null | undefined) {
+  return `${Number(value?.toString() ?? 0).toFixed(2)}`;
 }
 
 export default async function SalesPage({
@@ -85,6 +89,65 @@ export default async function SalesPage({
             )}
           </div>
         </div>
+      </div>
+
+      {/* Available Products for Sale/Purchase */}
+      <div className="mt-8 rounded-2xl border bg-card p-5 shadow-sm">
+        <div className="mb-6 flex items-center gap-2">
+          <Package2 className="h-6 w-6" />
+          <h2 className="text-xl font-semibold">Available Products Inventory</h2>
+        </div>
+
+        {products.length === 0 ? (
+          <div className="rounded-lg border border-dashed bg-muted/30 p-8 text-center">
+            <Package2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+            <p className="text-sm font-medium text-muted-foreground">No products available yet</p>
+            <p className="mt-1 text-xs text-muted-foreground">Create products from the Products section to display them here</p>
+            <Button asChild className="mt-4">
+              <Link href="/dashboard/products/new">Create Product</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-muted/40 text-left">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Product Name</th>
+                  <th className="px-4 py-3 font-medium">Code</th>
+                  <th className="px-4 py-3 font-medium">Type</th>
+                  <th className="px-4 py-3 font-medium">Stock Available</th>
+                  <th className="px-4 py-3 font-medium">Selling Price</th>
+                  <th className="px-4 py-3 font-medium">Purchase Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product) => {
+                  const stock = Number(product.stockBalance?.quantityOnHand ?? 0);
+                  const stockClass = stock > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium';
+                  
+                  return (
+                    <tr key={product.id} className="border-t hover:bg-muted/50">
+                      <td className="px-4 py-3">
+                        <div className="font-medium">{product.name}</div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{product.code}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                          {product.productType}
+                        </span>
+                      </td>
+                      <td className={`px-4 py-3 ${stockClass}`}>
+                        {formatStock(stock)}
+                      </td>
+                      <td className="px-4 py-3">{formatCurrency(product.defaultSellingPrice)}</td>
+                      <td className="px-4 py-3">{formatCurrency(product.defaultPurchasePrice)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </main>
   );

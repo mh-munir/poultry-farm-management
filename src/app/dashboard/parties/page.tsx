@@ -9,6 +9,7 @@ import { AddPartyDialog } from '@/app/dashboard/parties/add-party-dialog';
 import { PartyToast } from './party-toast';
 import { PartySearchForm } from './search-form';
 import { PartyRowActions } from './party-row-actions';
+import { SupplierProductsDisplay } from './supplier-products-display';
 import { getPartyNames, getPartyPageData, getPartyStats } from '@/features/parties/actions';
 import { getProductsForSales } from '@/features/sales/actions';
 
@@ -17,11 +18,7 @@ const STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
 
 function formatCurrency(value: number | string | Decimal | null | undefined) {
   const number = Number(value ?? 0);
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 2
-  }).format(number);
+  return `৳ ${number.toFixed(2)}`;
 }
 
 function formatPartyType(type: string) {
@@ -85,18 +82,22 @@ export default async function PartiesPage({
 
       <PartyToast success={success} error={error} />
 
+      {/* All Parties Table with Pagination */}
       <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div className="border-b px-4 py-4 bg-muted/20">
+          <h2 className="text-lg font-semibold">All Parties</h2>
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-muted/40 text-left">
               <tr>
                 <th className="px-4 py-3 font-medium">Party Name</th>
+                <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Feed quantity</th>
                 <th className="px-4 py-3 font-medium">Feed price</th>
-                <th className="px-4 py-3 font-medium">Feed name</th>
                 <th className="px-4 py-3 font-medium">Medicine quantity</th>
                 <th className="px-4 py-3 font-medium">Medicine price</th>
-                <th className="px-4 py-3 font-medium">Media name</th>
+                <th className="px-4 py-3 font-medium">Supplier Products</th>
                 <th className="px-4 py-3 font-medium">Due</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Action</th>
@@ -120,12 +121,26 @@ export default async function PartiesPage({
                         {party.name}
                       </Link>
                     </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        party.partyType === 'CUSTOMER' ? 'bg-sky-100 text-sky-800' :
+                        party.partyType === 'SUPPLIER' ? 'bg-amber-100 text-amber-800' :
+                        'bg-purple-100 text-purple-800'
+                      }`}>
+                        {party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'SUPPLIER' ? 'Supplier' : 'Both'}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">{party.feedQuantity != null ? party.feedQuantity.toString() : '—'}</td>
                     <td className="px-4 py-3">{party.feedPrice != null ? formatCurrency(party.feedPrice) : '—'}</td>
-                    <td className="px-4 py-3">{party.feedName ?? '—'}</td>
                     <td className="px-4 py-3">{party.medicineQuantity != null ? party.medicineQuantity.toString() : '—'}</td>
                     <td className="px-4 py-3">{party.medicinePrice != null ? formatCurrency(party.medicinePrice) : '—'}</td>
-                    <td className="px-4 py-3">{party.mediaName ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs">
+                      {party.partyType === 'SUPPLIER' || party.partyType === 'BOTH' ? (
+                        <SupplierProductsDisplay partyId={party.id} />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">{formatCurrency(party.totalDue)}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${(party.totalDue ?? 0) <= 0 ? 'bg-emerald-50 text-emerald-700' : (party.totalPaid ?? 0) > 0 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
@@ -160,7 +175,6 @@ export default async function PartiesPage({
           <p className="text-sm text-muted-foreground">
             Showing {data.parties.length} of {data.total} parties
           </p>
-               {/* Right side: search input above pager */}
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-2">
               {Array.from({ length: data.totalPages }, (_, index) => index + 1).map((pageNumber) => {

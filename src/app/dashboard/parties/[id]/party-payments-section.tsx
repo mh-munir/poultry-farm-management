@@ -21,6 +21,7 @@ type PartyPaymentsSectionProps = {
   updatePaymentForParty: (formData: FormData) => Promise<void>;
   deletePaymentForParty: (formData: FormData) => Promise<void>;
   showForm?: boolean;
+  showDeleteButton?: boolean;
 };
 
 function formatDate(value: string) {
@@ -33,11 +34,10 @@ function formatDate(value: string) {
 
 function formatCurrency(value: string | number | null | undefined) {
   const number = Number(value ?? 0);
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'BDT',
+  return `৳ ${new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2
-  }).format(number);
+  }).format(number)}`;
 }
 
 export function PartyPaymentsSection({
@@ -46,7 +46,8 @@ export function PartyPaymentsSection({
   recordPaymentForParty,
   updatePaymentForParty,
   deletePaymentForParty,
-  showForm = true
+  showForm = true,
+  showDeleteButton = true
 }: PartyPaymentsSectionProps) {
   const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
   const [drafts, setDrafts] = useState<Record<number, Partial<InitialPayment>>>({});
@@ -219,14 +220,16 @@ export function PartyPaymentsSection({
                             <Pencil className="mr-1 h-3.5 w-3.5" />
                             Edit
                           </Button>
-                          <form action={deletePaymentForParty}>
-                            <input type="hidden" name="partyId" value={partyId} />
-                            <input type="hidden" name="paymentId" value={payment.id} />
-                            <Button type="submit" variant="destructive" size="sm">
-                              <Trash2 className="mr-1 h-3.5 w-3.5" />
-                              Delete
-                            </Button>
-                          </form>
+                          {showDeleteButton ? (
+                            <form action={deletePaymentForParty}>
+                              <input type="hidden" name="partyId" value={partyId} />
+                              <input type="hidden" name="paymentId" value={payment.id} />
+                              <Button type="submit" variant="destructive" size="sm">
+                                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                                Delete
+                              </Button>
+                            </form>
+                          ) : null}
                         </div>
                       </td>
                     </>

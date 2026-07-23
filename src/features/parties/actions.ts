@@ -814,56 +814,66 @@ export async function getPartyPageData({
   status?: string;
 }) {
   const take = 5;
-  const skip = (Math.max(page, 1) - 1) * take;
+  const currentPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+  const skip = (currentPage - 1) * take;
   const where = buildPartyWhere({ search, partyType, status });
+  const orderBy: Prisma.PartyOrderByWithRelationInput[] = [{ isActive: 'desc' }, { createdAt: 'desc' }];
+  const partySelect = {
+    id: true,
+    name: true,
+    phone: true,
+    email: true,
+    address: true,
+    partyType: true,
+    taxNumber: true,
+    creditLimit: true,
+    openingBalance: true,
+    feedQuantity: true,
+    feedPrice: true,
+    feedName: true,
+    medicineQuantity: true,
+    medicinePrice: true,
+    imageUrl: true,
+    mediaName: true,
+    farmName: true,
+    isActive: true,
+    createdAt: true,
+    updatedAt: true
+  } satisfies Prisma.PartySelect;
 
   try {
-    const [result, totalCount] = await Promise.all([
+    const [databasePageParties, totalCount] = await Promise.all([
       prisma.party.findMany({
         where,
-        orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+        orderBy,
         skip,
         take,
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-          email: true,
-          address: true,
-          partyType: true,
-          taxNumber: true,
-          creditLimit: true,
-          openingBalance: true,
-          feedQuantity: true,
-          feedPrice: true,
-          feedName: true,
-          medicineQuantity: true,
-          medicinePrice: true,
-          imageUrl: true,
-          mediaName: true,
-          farmName: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true
-        }
+        select: partySelect
       }),
       prisma.party.count({ where })
     ]);
 
     const memoryParties = getFilteredMemoryParties({ search, partyType, status }).filter((party) => party.id < 0);
-    const mergedParties = memoryParties.length > 0
-      ? [...result, ...memoryParties].sort((a, b) => {
+    const pageParties = memoryParties.length > 0
+      ? [
+          ...(await prisma.party.findMany({
+            where,
+            orderBy,
+            select: partySelect
+          })),
+          ...memoryParties
+        ].sort((a, b) => {
           if (a.isActive !== b.isActive) {
             return a.isActive ? -1 : 1;
           }
 
           return b.createdAt.getTime() - a.createdAt.getTime();
-        })
-      : result;
+        }).slice(skip, skip + take)
+      : databasePageParties;
 
-    const partyIds = mergedParties.map((party) => party.id);
+    const partyIds = pageParties.map((party) => party.id);
     const accountSummaries = await getPartyAccountSummaries(partyIds);
-    const partiesWithSummaries = mergedParties.map((party) => {
+    const partiesWithSummaries = pageParties.map((party) => {
       const summary = accountSummaries.get(party.id) ?? createEmptyAccountSummary();
       const visiblePartyType = party.partyType as PartyTypeValue;
       return {
@@ -878,13 +888,13 @@ export async function getPartyPageData({
     const totalPagesWithMemory = Math.max(1, Math.ceil(totalCountWithMemory / take));
 
     return {
-      parties: partiesWithSummaries.slice(skip, skip + take) as PartyPageParty[],
+      parties: partiesWithSummaries as PartyPageParty[],
       total: totalCountWithMemory,
       totalPages: totalPagesWithMemory,
-      page: Math.min(page, totalPagesWithMemory)
+      page: Math.min(currentPage, totalPagesWithMemory)
     };
   } catch (error) {
-    return getMemoryPartyPageData({ page, search, partyType, status });
+    return getMemoryPartyPageData({ page: currentPage, search, partyType, status });
   }
 }
 

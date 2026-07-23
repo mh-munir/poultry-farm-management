@@ -308,6 +308,105 @@ export type PurchaseDetail = Prisma.TransactionGetPayload<{
   };
 }>;
 
+// Record supplier product purchases (eggs/chicken) as PURCHASE transactions
+// This allows the settlement system to offset customer debt with supplier sales
+export async function recordSupplierProductPurchase({
+  partyId,
+  eggQuantity,
+  eggPrice,
+  chickenQuantity,
+  chickenPrice,
+  totalPrice
+}: {
+  partyId: number;
+  eggQuantity: number;
+  eggPrice: number;
+  chickenQuantity: number;
+  chickenPrice: number;
+  totalPrice: number;
+}) {
+  try {
+    await requireUser();
+
+    const party = await prisma.party.findUnique({ where: { id: partyId } });
+    if (!party) {
+      return { success: false, message: 'Supplier not found.' };
+    }
+
+    const invoiceNumber = generatePurchaseInvoiceNumber();
+    const dueAmount = totalPrice; // No payment made, so full amount is due
+
+    await prisma.$transaction(async (tx) => {
+      // Create a PURCHASE transaction for the supplier products
+      const purchase = await tx.transaction.create({
+        data: {
+          transactionType: PURCHASE_TRANSACTION_TYPE,
+          partyId,
+          transactionDate: new Date(),
+          invoiceNumber,
+          status: PENDING_TRANSACTION_STATUS, // Unpaid purchase
+          subtotal: new Prisma.Decimal(totalPrice),
+          discount: new Prisma.Decimal(0),
+          tax: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(totalPrice),
+          paidAmount: new Prisma.Decimal(0),
+          dueAmount: new Prisma.Decimal(dueAmount),
+          dueDate: null,
+          referenceNumber: null,
+          notes: `Supplier Products: ${eggQuantity > 0 ? `Eggs ${eggQuantity}@${eggPrice}` : ''} ${chickenQuantity > 0 ? `Chicken ${chickenQuantity}kg@${chickenPrice}` : ''}`.trim(),
+          transactionItems: {
+            createMany: {
+              data: [
+                ...(eggQuantity > 0 ? [{
+                  productId: 1, // Placeholder - could be fetched or parameterized
+                  quantity: new Prisma.Decimal(eggQuantity),
+                  unitPrice: new Prisma.Decimal(eggPrice),
+                  lineTotal: new Prisma.Decimal(eggQuantity * eggPrice),
+                  taxAmount: new Prisma.Decimal(0),
+                  description: `Eggs (per piece) @ ৳${eggPrice}`
+                }] : []),
+                ...(chickenQuantity > 0 ? [{
+                  productId: 2, // Placeholder - could be fetched or parameterized
+                  quantity: new Prisma.Decimal(chickenQuantity),
+                  unitPrice: new Prisma.Decimal(chickenPrice),
+                  lineTotal: new Prisma.Decimal(chickenQuantity * chickenPrice),
+                  taxAmount: new Prisma.Decimal(0),
+                  description: `Chicken (per kg) @ ৳${chickenPrice}`
+                }] : [])
+              ]
+            }
+          }
+        }
+      });
+
+      // Create ledger entry for the purchase
+      const lastLedger = await tx.ledgerEntry.findFirst({
+        where: { partyId },
+        orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
+      });
+      const previousBalance = new Prisma.Decimal(lastLedger?.runningBalance ?? 0);
+      const purchaseBalance = previousBalance.plus(new Prisma.Decimal(totalPrice));
+
+      await tx.ledgerEntry.create({
+        data: {
+          partyId,
+          transactionId: purchase.id,
+          entryType: PURCHASE_LEDGER_ENTRY_TYPE,
+          amount: new Prisma.Decimal(totalPrice),
+          runningBalance: purchaseBalance,
+          description: `Supplier product purchase ${invoiceNumber}`,
+          referenceNumber: invoiceNumber
+        }
+      });
+    });
+
+    return { success: true, message: 'Supplier products recorded successfully.' };
+  } catch (error) {
+    console.error('Error recording supplier products:', error);
+    return { success: false, message: error instanceof Error ? error.message : 'Failed to record supplier products.' };
+  }
+}
+
 export async function getPurchaseById(id: number) {
   return prisma.transaction.findFirst({
     where: { id, transactionType: PURCHASE_TRANSACTION_TYPE },
@@ -344,8 +443,10 @@ export async function getProductsForPurchases() {
       id: true,
       name: true,
       code: true,
+      productType: true,
       unit: true,
       defaultPurchasePrice: true,
+      defaultSellingPrice: true,
       stockBalance: { select: { quantityOnHand: true } }
     }
   });
