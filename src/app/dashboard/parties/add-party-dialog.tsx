@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import imageCompression from 'browser-image-compression';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { createOrUpdatePartyWithToast, recordSaleForPartyWithToast } from '@/features/parties/actions';
+import { createOrUpdatePartyWithToast } from '@/features/parties/actions';
+import { createSaleTransactionWithToast } from '@/features/sales/actions';
 import { useToast } from '@/hooks/use-toast';
 
 type PartyOption = {
@@ -13,11 +14,38 @@ type PartyOption = {
   name: string;
 };
 
-type AddPartyDialogProps = {
-  partyOptions: PartyOption[];
+type ProductOption = {
+  id: number;
+  name: string;
+  code: string;
+  productType: string;
+  unit: string;
+  defaultSellingPrice: number;
+  stockQuantity: number;
 };
 
-export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
+type SalesProductRow = {
+  rowId: string;
+  productId: string;
+  quantity: string;
+  unitPrice: string;
+};
+
+type AddPartyDialogProps = {
+  partyOptions: PartyOption[];
+  productOptions: ProductOption[];
+};
+
+function createSalesProductRow(): SalesProductRow {
+  return {
+    rowId: `${Date.now()}-${Math.random()}`,
+    productId: '',
+    quantity: '1',
+    unitPrice: ''
+  };
+}
+
+export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogProps) {
   const router = useRouter();
   const { success, error } = useToast();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -29,7 +57,9 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
   const [salesProduct, setSalesProduct] = useState<'feeds' | 'medicin' | 'both'>('feeds');
   const [salesNameError, setSalesNameError] = useState('');
   const [salesPartyId, setSalesPartyId] = useState<number | null>(null);
+  const [salesPaymentAmount, setSalesPaymentAmount] = useState('0');
   const [showPartySuggestions, setShowPartySuggestions] = useState(false);
+  const [salesProductRows, setSalesProductRows] = useState<SalesProductRow[]>(() => [createSalesProductRow()]);
   const [addFormValues, setAddFormValues] = useState({
     name: '',
     phone: '',
@@ -40,12 +70,6 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
   const [imageCompressionStatus, setImageCompressionStatus] = useState('');
   const [salesFormValues, setSalesFormValues] = useState({
     name: '',
-    feedName: '',
-    feedQuantity: '',
-    feedPrice: '',
-    medicineName: '',
-    medicineQuantity: '',
-    medicinePrice: '',
     mediaName: ''
   });
 
@@ -136,6 +160,10 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
     setShowPartySuggestions(true);
   };
 
+  const handlePartyNameClick = () => {
+    setShowPartySuggestions(true);
+  };
+
   const handlePartyNameBlur = () => {
     setTimeout(() => setShowPartySuggestions(false), 150);
   };
@@ -147,13 +175,73 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
     setShowPartySuggestions(false);
   };
 
-  const salesFeedTotal = Number(salesFormValues.feedQuantity || 0) * Number(salesFormValues.feedPrice || 0);
-  const salesMedTotal = Number(salesFormValues.medicineQuantity || 0) * Number(salesFormValues.medicinePrice || 0);
-  const salesTotal = salesFeedTotal + salesMedTotal;
+  const visibleProductOptions = useMemo(() => {
+    return productOptions.filter((product) => {
+      if (salesProduct === 'feeds') {
+        return product.productType === 'FEED';
+      }
 
-  const matchingPartyOptions = salesFormValues.name.trim().length > 0
-    ? partyOptions.filter((party) => party.name.toLowerCase().includes(salesFormValues.name.toLowerCase()))
-    : partyOptions;
+      if (salesProduct === 'medicin') {
+        return product.productType === 'MEDICINE';
+      }
+
+      return ['FEED', 'MEDICINE'].includes(product.productType);
+    });
+  }, [productOptions, salesProduct]);
+
+  const productsById = useMemo(() => {
+    return new Map(productOptions.map((product) => [String(product.id), product]));
+  }, [productOptions]);
+
+  const handleSalesProductTypeChange = (value: 'feeds' | 'medicin' | 'both') => {
+    setSalesProduct(value);
+    setSalesProductRows([createSalesProductRow()]);
+  };
+
+  const handleProductRowChange = (rowId: string, field: keyof Omit<SalesProductRow, 'rowId'>, value: string) => {
+    setSalesProductRows((currentRows) => currentRows.map((row) => {
+      if (row.rowId !== rowId) {
+        return row;
+      }
+
+      if (field === 'productId') {
+        const selectedProduct = productsById.get(value);
+
+        return {
+          ...row,
+          productId: value,
+          unitPrice: selectedProduct ? String(selectedProduct.defaultSellingPrice) : ''
+        };
+      }
+
+      return { ...row, [field]: value };
+    }));
+  };
+
+  const addSalesProductRow = () => {
+    setSalesProductRows((currentRows) => [...currentRows, createSalesProductRow()]);
+  };
+
+  const removeSalesProductRow = (rowId: string) => {
+    setSalesProductRows((currentRows) => (
+      currentRows.length > 1 ? currentRows.filter((row) => row.rowId !== rowId) : currentRows
+    ));
+  };
+
+  const salesTotal = salesProductRows.reduce((total, row) => {
+    return total + Number(row.quantity || 0) * Number(row.unitPrice || 0);
+  }, 0);
+  const salesDueAmount = Math.max(0, salesTotal - Number(salesPaymentAmount || 0));
+
+  const matchingPartyOptions = useMemo(() => {
+    const searchTerm = salesFormValues.name.trim().toLowerCase();
+
+    if (!searchTerm) {
+      return partyOptions;
+    }
+
+    return partyOptions.filter((party) => party.name.toLowerCase().includes(searchTerm));
+  }, [partyOptions, salesFormValues.name]);
 
   const handleSalesNameBlur = () => {
     if (!salesFormValues.name) {
@@ -283,6 +371,8 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
             <p className="mt-1 text-xs text-muted-foreground">Upload an image to display on the party profile (will be compressed automatically)</p>
           </div>
 
+          <input type="hidden" name="isActive" value="on" readOnly />
+
           <div className="sm:col-span-2">
             <label className="mb-2 block text-sm font-medium">Address</label>
             <textarea
@@ -334,7 +424,7 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
             setIsSalesLoading(true);
             const form = e.currentTarget;
             const formData = new FormData(form);
-            const result = await recordSaleForPartyWithToast(formData);
+            const result = await createSaleTransactionWithToast(formData);
             
             if (result.success) {
               success(result.message);
@@ -343,15 +433,11 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
                 setIsSalesOpen(false);
                 setSalesFormValues({
                   name: '',
-                  feedName: '',
-                  feedQuantity: '',
-                  feedPrice: '',
-                  medicineName: '',
-                  medicineQuantity: '',
-                  medicinePrice: '',
                   mediaName: ''
                 });
+                setSalesProductRows([createSalesProductRow()]);
                 setSalesPartyId(null);
+                setSalesPaymentAmount('0');
                 setIsSalesLoading(false);
               }, 500);
             } else {
@@ -376,25 +462,29 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
               value={salesFormValues.name}
               onChange={(event) => handleSalesChange('name', event.target.value)}
               onFocus={handlePartyNameFocus}
+              onClick={handlePartyNameClick}
               onBlur={handlePartyNameBlur}
               required
               className="w-full rounded-md border bg-background px-3 py-2"
-              placeholder="Party name"
+              placeholder="Click or type party name"
             />
             <input type="hidden" name="partyId" value={salesPartyId ?? ''} />
             {showPartySuggestions && (
-              <div className="absolute left-0 right-0 z-10 max-h-64 overflow-y-auto rounded-b-md border border-border bg-card shadow-lg">
-                {(matchingPartyOptions.length > 0 ? matchingPartyOptions : partyOptions).map((party) => (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-white shadow-xl">
+                {matchingPartyOptions.length > 0 ? matchingPartyOptions.map((party) => (
                   <button
                     key={party.id}
                     type="button"
                     onMouseDown={() => selectPartySuggestion(party)}
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                    className="block w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-100"
                   >
                     {party.name}
                   </button>
-                ))}
-                {matchingPartyOptions.length === 0 && partyOptions.length === 0 ? (
+                )) : null}
+                {matchingPartyOptions.length === 0 && partyOptions.length > 0 ? (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">No matching party found.</div>
+                ) : null}
+                {partyOptions.length === 0 ? (
                   <div className="px-3 py-2 text-sm text-muted-foreground">No parties available.</div>
                 ) : null}
               </div>
@@ -420,7 +510,7 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
               name="salesProduct"
               autoComplete="off"
               value={salesProduct}
-              onChange={(event) => setSalesProduct(event.target.value as 'feeds' | 'medicin' | 'both')}
+              onChange={(event) => handleSalesProductTypeChange(event.target.value as 'feeds' | 'medicin' | 'both')}
               className="w-full rounded-md border bg-background px-3 py-2"
             >
               <option value="feeds">Feeds</option>
@@ -429,118 +519,120 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
             </select>
           </div>
 
-          {(salesProduct === 'feeds' || salesProduct === 'both') && (
-            <>
-              <div className="sm:col-span-2">
-                <label className="mb-2 block text-sm font-medium">Feed name</label>
-                <input
-                  name="feedName"
-                  autoComplete="off"
-                  value={salesFormValues.feedName}
-                  onChange={(event) => handleSalesChange('feedName', event.target.value)}
-                  className="w-full rounded-md border bg-background px-3 py-2"
-                  placeholder="Feed name"
-                />
-              </div>
+          <div className="sm:col-span-2 space-y-3 rounded-xl border bg-muted/10 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-sm font-medium">Sale Items</label>
+              <Button type="button" variant="outline" size="sm" onClick={addSalesProductRow}>
+                Add Item
+              </Button>
+            </div>
 
-              <div className="sm:col-span-1">
-                <label className="mb-2 block text-sm font-medium">Feed quantity</label>
-                <input
-                  name="feedQuantity"
-                  autoComplete="off"
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={salesFormValues.feedQuantity}
-                  onChange={(event) => handleSalesChange('feedQuantity', event.target.value)}
-                  className="w-full rounded-md border bg-background px-3 py-2"
-                  placeholder="Feed quantity"
-                />
-              </div>
+            {salesProductRows.map((row, index) => {
+              const selectedProduct = productsById.get(row.productId);
 
-              <div className="sm:col-span-1">
-                <label className="mb-2 block text-sm font-medium">Feed price</label>
-                <input
-                  name="feedPrice"
-                  autoComplete="off"
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={salesFormValues.feedPrice}
-                  onChange={(event) => handleSalesChange('feedPrice', event.target.value)}
-                  className="w-full rounded-md border bg-background px-3 py-2"
-                  placeholder="Feed price"
-                />
-              </div>
-            </>
-          )}
+              return (
+                <div key={row.rowId} className="grid gap-3 rounded-lg border bg-white p-3 md:grid-cols-[1.4fr_0.55fr_0.65fr_auto]">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Product</label>
+                    <select
+                      name="productId"
+                      required={index === 0}
+                      value={row.productId}
+                      onChange={(event) => handleProductRowChange(row.rowId, 'productId', event.target.value)}
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Select stock product</option>
+                      {visibleProductOptions.map((product) => (
+                        <option key={product.id} value={product.id}>
+                          {product.name} - {product.productType} - Stock {product.stockQuantity} {product.unit}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedProduct ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Stock: {selectedProduct.stockQuantity} {selectedProduct.unit}
+                      </p>
+                    ) : null}
+                  </div>
 
-          {(salesProduct === 'medicin' || salesProduct === 'both') && (
-            <>
-              <div className="sm:col-span-2">
-                <label className="mb-2 block text-sm font-medium">Medicine name</label>
-                <input
-                  name="medicineName"
-                  autoComplete="off"
-                  value={salesFormValues.medicineName}
-                  onChange={(event) => handleSalesChange('medicineName', event.target.value)}
-                  className="w-full rounded-md border bg-background px-3 py-2"
-                  placeholder="Medicine name"
-                />
-              </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Quantity</label>
+                    <input
+                      name="quantity"
+                      autoComplete="off"
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={row.quantity}
+                      onChange={(event) => handleProductRowChange(row.rowId, 'quantity', event.target.value)}
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                      placeholder="Qty"
+                    />
+                  </div>
 
-              <div className="sm:col-span-1">
-                <label className="mb-2 block text-sm font-medium">Medicine quantity</label>
-                <input
-                  name="medicineQuantity"
-                  autoComplete="off"
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={salesFormValues.medicineQuantity}
-                  onChange={(event) => handleSalesChange('medicineQuantity', event.target.value)}
-                  className="w-full rounded-md border bg-background px-3 py-2"
-                  placeholder="Medicine quantity"
-                />
-              </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Sale Price</label>
+                    <input
+                      name="unitPrice"
+                      autoComplete="off"
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={row.unitPrice}
+                      onChange={(event) => handleProductRowChange(row.rowId, 'unitPrice', event.target.value)}
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                      placeholder="Price"
+                    />
+                  </div>
 
-              <div className="sm:col-span-1">
-                <label className="mb-2 block text-sm font-medium">Medicine price</label>
-                <input
-                  name="medicinePrice"
-                  autoComplete="off"
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={salesFormValues.medicinePrice}
-                  onChange={(event) => handleSalesChange('medicinePrice', event.target.value)}
-                  className="w-full rounded-md border bg-background px-3 py-2"
-                  placeholder="Medicine price"
-                />
-              </div>
-            </>
-          )}
-
-          
-          <div className="sm:col-span-2 rounded-xl border bg-muted/10 p-4 text-sm">
-            <div className="flex flex-col gap-2">
-              {(salesProduct === 'feeds' || salesProduct === 'both') && (
-                <div>
-                  <span className="font-medium">Feeds total:</span> {salesFeedTotal.toFixed(2)}
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeSalesProductRow(row.rowId)}
+                      disabled={salesProductRows.length === 1}
+                    >
+                      Remove
+                    </Button>
+                  </div>
                 </div>
-              )}
-              {(salesProduct === 'medicin' || salesProduct === 'both') && (
-                <div>
-                  <span className="font-medium">Medicin total:</span> {salesMedTotal.toFixed(2)}
-                </div>
-              )}
-              <div>
-                <span className="font-semibold">Total price:</span> {salesTotal.toFixed(2)}
-              </div>
+              );
+            })}
+
+            {visibleProductOptions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No stock products found for this selection.</p>
+            ) : null}
+          </div>
+
+          <div className="sm:col-span-2 grid gap-4 rounded-xl border bg-muted/10 p-4 text-sm sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Total Amount</label>
+              <input value={salesTotal.toFixed(2)} readOnly className="w-full rounded-md border bg-muted px-3 py-2" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Paid Amount</label>
+              <input
+                name="paymentAmount"
+                autoComplete="off"
+                type="number"
+                min="0"
+                step="any"
+                value={salesPaymentAmount}
+                onChange={(event) => setSalesPaymentAmount(event.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2"
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Due Amount</label>
+              <input value={salesDueAmount.toFixed(2)} readOnly className="w-full rounded-md border bg-muted px-3 py-2" />
             </div>
           </div>
 
-          <input type="hidden" name="partyType" value="BOTH" />
+          <input type="hidden" name="paymentMethod" value="CASH" readOnly />
+          <input type="hidden" name="discount" value="0" readOnly />
+          <input type="hidden" name="notes" value={salesFormValues.mediaName ? `Media: ${salesFormValues.mediaName}` : ''} readOnly />
         </form>
       </Dialog>
     </>

@@ -1,6 +1,17 @@
 import { requireRole } from '@/lib/auth';
+import { prisma } from '@/server/db';
 import AdminCredentialsForm from './admin-credentials-form';
 import AdminToastRedirect from './admin-toast-redirect';
+
+function formatDate(value: Date) {
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(value);
+}
 
 export default async function AdminPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string }> }) {
   const session = await requireRole(['ADMIN']);
@@ -10,9 +21,24 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
   const sp = await searchParams;
   const success = sp?.success ?? '';
   const error = sp?.error ?? '';
+  const smsNotifications = await prisma.smsNotification.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 25,
+    select: {
+      id: true,
+      phoneNumber: true,
+      saleType: true,
+      message: true,
+      status: true,
+      provider: true,
+      errorMessage: true,
+      createdAt: true,
+      party: { select: { name: true } }
+    }
+  });
 
   return (
-    <main className="mx-auto flex min-h-[70vh] max-w-5xl flex-col gap-6 px-6 py-10">
+    <main className="mx-auto flex min-h-[70vh] max-w-7xl flex-col gap-6 px-6 py-10">
       <AdminToastRedirect initialSuccess={success ?? undefined} initialError={error ?? undefined} />
 
       <div className="rounded-xl border bg-card p-8 shadow-sm flex items-center gap-6">
@@ -40,6 +66,50 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
         </div>
 
         <AdminCredentialsForm currentName={currentName} currentEmail={currentEmail} currentImage={currentImage} />
+      </div>
+
+      <div className="rounded-2xl border bg-card p-8 shadow-sm">
+        <div className="mb-6">
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">SMS notifications</p>
+          <h2 className="mt-2 text-2xl font-semibold">Recent SMS logs</h2>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-muted/40 text-left">
+              <tr>
+                <th className="px-3 py-3 font-medium">Party</th>
+                <th className="px-3 py-3 font-medium">Phone</th>
+                <th className="px-3 py-3 font-medium">Sale type</th>
+                <th className="px-3 py-3 font-medium">Message preview</th>
+                <th className="px-3 py-3 font-medium">Status</th>
+                <th className="px-3 py-3 font-medium">Provider</th>
+                <th className="px-3 py-3 font-medium">Created</th>
+                <th className="px-3 py-3 font-medium">Error reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {smsNotifications.length > 0 ? (
+                smsNotifications.map((notification) => (
+                  <tr key={notification.id} className="border-t align-top">
+                    <td className="px-3 py-3">{notification.party.name}</td>
+                    <td className="px-3 py-3">{notification.phoneNumber ?? '-'}</td>
+                    <td className="px-3 py-3">{notification.saleType}</td>
+                    <td className="max-w-xs whitespace-pre-line px-3 py-3">{notification.message.slice(0, 160)}</td>
+                    <td className="px-3 py-3">{notification.status}</td>
+                    <td className="px-3 py-3">{notification.provider}</td>
+                    <td className="px-3 py-3">{formatDate(notification.createdAt)}</td>
+                    <td className="px-3 py-3">{notification.errorMessage ?? '-'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr className="border-t">
+                  <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">No SMS notifications have been logged yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </main>
   );

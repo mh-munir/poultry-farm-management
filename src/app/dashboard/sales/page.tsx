@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { Plus, ArrowLeft, ClipboardList, DollarSign } from 'lucide-react';
+import { Plus, ArrowLeft, ClipboardList } from 'lucide-react';
 import type { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { createSaleTransaction, getCustomersForSales, getProductsForSales, getSalesPageData } from '@/features/sales/actions';
+import { getCustomersForSales, getProductsForSales, getSalesPageData } from '@/features/sales/actions';
+import { SaleForm } from './sale-form';
 
 function formatCurrency(value: number | string | Prisma.Decimal | null | undefined) {
   return `KSh ${Number(value?.toString() ?? 0).toFixed(2)}`;
@@ -27,6 +28,12 @@ export default async function SalesPage({
     getProductsForSales(),
     getCustomersForSales()
   ]);
+  const saleProducts = products.map((product) => ({
+    id: product.id,
+    name: product.name,
+    code: product.code,
+    defaultSellingPrice: Number(product.defaultSellingPrice ?? 0)
+  }));
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
@@ -52,61 +59,7 @@ export default async function SalesPage({
       <div className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><ClipboardList className="h-5 w-5" />New Sale</div>
-          <form action={createSaleTransaction} autoComplete="off" className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium">Customer</label>
-              <select name="partyId" required className="w-full rounded-md border bg-background px-3 py-2">
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>{customer.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium">Discount</label>
-                <input type="number" step="0.01" min="0" name="discount" defaultValue="0" className="w-full rounded-md border bg-background px-3 py-2" />
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium">Payment amount</label>
-                <input type="number" step="0.01" min="0" name="paymentAmount" defaultValue="0" className="w-full rounded-md border bg-background px-3 py-2" />
-              </div>
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium">Payment method</label>
-              <select name="paymentMethod" className="w-full rounded-md border bg-background px-3 py-2">
-                <option value="CASH">Cash</option>
-                <option value="BANK_TRANSFER">Bank transfer</option>
-                <option value="CHEQUE">Cheque</option>
-                <option value="MOBILE_MONEY">Mobile money</option>
-                <option value="OTHER">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium">Reference number</label>
-              <input name="referenceNumber" className="w-full rounded-md border bg-background px-3 py-2" />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium">Notes</label>
-              <textarea name="notes" rows={3} className="w-full rounded-md border bg-background px-3 py-2" placeholder="Invoice notes or remarks" />
-            </div>
-            <div className="rounded-2xl border bg-muted/20 p-4">
-              <div className="mb-3 text-sm font-semibold">Items</div>
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="grid gap-4 md:grid-cols-[1.2fr_0.8fr_0.8fr_1fr]">
-                  <select name="productId" className="rounded-md border bg-background px-3 py-2">
-                    <option value="">Select product</option>
-                    {products.map((product) => (
-                      <option key={product.id} value={product.id}>{product.name} ({product.code})</option>
-                    ))}
-                  </select>
-                  <input type="number" step="0.01" min="0" name="quantity" defaultValue="1" placeholder="Qty" className="rounded-md border bg-background px-3 py-2" />
-                  <input type="number" step="0.01" min="0" name="unitPrice" defaultValue="0" placeholder="Price" className="rounded-md border bg-background px-3 py-2" />
-                  <input name="description" placeholder="Description" className="rounded-md border bg-background px-3 py-2" />
-                </div>
-              ))}
-            </div>
-            <Button type="submit" className="w-full"><DollarSign className="mr-2 h-4 w-4" />Save Sale</Button>
-          </form>
+          <SaleForm customers={customers} products={saleProducts} />
         </div>
 
         <div className="rounded-2xl border bg-card p-5 shadow-sm">
