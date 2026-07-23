@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import Sidebar from './Sidebar';
 import { UserNav } from '@/components/auth/user-nav';
+import { ToastContainer } from '@/components/toast-container';
 
 export default function LayoutShell({ children, theme }: { children: React.ReactNode; theme?: string }) {
   const [open, setOpen] = useState(false);
@@ -19,11 +20,17 @@ export default function LayoutShell({ children, theme }: { children: React.React
   const pageTitle = getTitle(pathname);
 
   if (hideShell) {
-    return <div className="min-h-screen bg-background text-foreground">{children}</div>;
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <ToastContainer />
+        {children}
+      </div>
+    );
   }
 
   return (
     <div className="flex">
+      <ToastContainer />
       <Sidebar open={open} onClose={() => setOpen(false)} />
 
       {open && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setOpen(false)} />}

@@ -217,41 +217,45 @@ export default async function PartyProfilePage({ params, searchParams }: { param
               <div>
                 <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Party Profile</p>
                 <h1 className="mt-2 text-3xl font-semibold leading-tight">{party.name}</h1>
-                <div className="mt-2 flex items-center gap-3 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4" /> {party.phone}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" /> {party.address ?? '—'}
-                  </div>
-                </div>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <PaymentFormDialog partyId={party.id} recordPaymentForParty={recordPaymentForParty} />
-              <Button variant="outline" asChild>
-                <Link href={`/dashboard/parties/${party.id}/edit`}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit
-                </Link>
-              </Button>
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border bg-background p-4">
+            <div className="rounded-xl border bg-background p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Phone className="h-4 w-4" /> Mobile Phone
+              </div>
+              <p className="mt-2 text-base font-semibold">{party.phone ?? '—'}</p>
+            </div>
+            <div className="rounded-xl border bg-background p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Package2 className="h-4 w-4" /> Farm name
               </div>
               <p className="mt-2 text-base font-semibold">{party.farmName ?? '—'}</p>
             </div>
-            <div className="rounded-xl border bg-background p-4">
+            <div className="rounded-xl border bg-background p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <MapPin className="h-4 w-4" /> Address
+              </div>
+              <p className="mt-2 text-base font-semibold">{party.address ?? '—'}</p>
+            </div>
+            <div className="rounded-xl border bg-background p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <ReceiptText className="h-4 w-4" /> Opening balance
               </div>
               <p className="mt-2 text-base font-semibold">{formatCurrency(Number(party.openingBalance ?? 0))}</p>
             </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 mt-6">
+            <PaymentFormDialog partyId={party.id} recordPaymentForParty={recordPaymentForParty} />
+            <Button asChild>
+              <Link href={`/dashboard/parties/${party.id}/edit`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit Party
+              </Link>
+            </Button>
           </div>
         </section>
 

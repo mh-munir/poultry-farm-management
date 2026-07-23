@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import imageCompression from 'browser-image-compression';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { createOrUpdateParty, recordSaleForParty } from '@/features/parties/actions';
+import { createOrUpdatePartyWithToast, recordSaleForPartyWithToast } from '@/features/parties/actions';
+import { useToast } from '@/hooks/use-toast';
 
 type PartyOption = {
   id: number;
@@ -16,8 +18,14 @@ type AddPartyDialogProps = {
 };
 
 export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
+  const router = useRouter();
+  const { success, error } = useToast();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSalesOpen, setIsSalesOpen] = useState(false);
+  const [isAddLoading, setIsAddLoading] = useState(false);
+  const [isSalesLoading, setIsSalesLoading] = useState(false);
+  const [addError, setAddError] = useState('');
+  const [salesError, setSalesError] = useState('');
   const [salesProduct, setSalesProduct] = useState<'feeds' | 'medicin' | 'both'>('feeds');
   const [salesNameError, setSalesNameError] = useState('');
   const [salesPartyId, setSalesPartyId] = useState<number | null>(null);
@@ -69,14 +77,17 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
       const originalSize = (file.size / 1024 / 1024).toFixed(2);
       const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2);
       setImageCompressionStatus(`Compressed: ${originalSize}MB → ${compressedSize}MB`);
-    } catch (error) {
+    } catch (err) {
       setImageCompressionStatus('Error compressing image');
-      console.error('Image compression error:', error);
+      console.error('Image compression error:', err);
     }
   };
 
   const handleAddFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setAddError('');
+    setIsAddLoading(true);
+    
     const form = event.currentTarget;
     const formData = new FormData(form);
 
@@ -84,7 +95,24 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
       formData.set('image', compressedImageFile, compressedImageFile.name);
     }
 
-    await createOrUpdateParty(formData);
+    const result = await createOrUpdatePartyWithToast(formData);
+    
+    if (result.success) {
+      success(result.message);
+      router.refresh();
+      // Auto close dialog after 1 second
+      setTimeout(() => {
+        setIsAddOpen(false);
+        setAddFormValues({ name: '', phone: '', address: '', partyType: 'BOTH' });
+        setCompressedImageFile(null);
+        setImageCompressionStatus('');
+        setIsAddLoading(false);
+      }, 500);
+    } else {
+      setAddError(result.message);
+      error(result.message);
+      setIsAddLoading(false);
+    }
   };
 
   const handleSalesChange = (field: string, value: string) => {
@@ -147,26 +175,36 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
 
   return (
     <>
-      <div className="flex items-center gap-2">
-        <Button type="button" onClick={() => setIsAddOpen(true)}>
-          Add Parties
+      <div className="flex items-center gap-3">
+        <Button type="button" onClick={() => setIsAddOpen(true)} className="px-6 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all">
+          + Add Parties
         </Button>
-        <Button type="button" variant="secondary" onClick={() => setIsSalesOpen(true)}>
-          Sales Entry
+        <Button type="button" variant="secondary" onClick={() => setIsSalesOpen(true)} className="px-6 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all">
+          📊 Sales Entry
         </Button>
       </div>
 
       <Dialog
         open={isAddOpen}
-        onOpenChange={setIsAddOpen}
+        onOpenChange={(open) => {
+          if (!open && !isAddLoading) {
+            setIsAddOpen(false);
+            setAddError('');
+          }
+        }}
         title="Add Party"
         footer={
           <div className="flex flex-wrap gap-3 justify-end">
-            <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
+            <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)} disabled={isAddLoading}>
               Cancel
             </Button>
-            <Button type="submit" form="add-party-form">
-              Save Party
+            <Button 
+              type="submit" 
+              form="add-party-form"
+              disabled={isAddLoading}
+              className={isAddLoading ? 'opacity-75 cursor-not-allowed' : ''}
+            >
+              {isAddLoading ? '⏳ Saving...' : '💾 Save Party'}
             </Button>
           </div>
         }
@@ -178,6 +216,13 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
           encType="multipart/form-data"
           className="grid gap-4 sm:grid-cols-2"
         >
+          {addError && (
+            <div className="sm:col-span-2 rounded-lg border-2 border-rose-300 bg-rose-50 p-4">
+              <p className="text-base font-semibold text-rose-900">⚠️ Error</p>
+              <p className="mt-1 text-sm text-rose-800">{addError}</p>
+            </div>
+          )}
+
           <div className="sm:col-span-2">
             <label className="mb-2 block text-sm font-medium">Party Name</label>
             <input
@@ -186,7 +231,7 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
               value={addFormValues.name}
               onChange={(event) => handleAddChange('name', event.target.value)}
               required
-              className="w-full rounded-md border bg-background px-3 py-2"
+              className="w-full rounded-lg border-2 border-gray-200 px-4 py-3 focus:border-blue-500 focus:outline-none transition-colors bg-white hover:border-gray-300"
               placeholder="Party name"
             />
           </div>
@@ -256,25 +301,73 @@ export function AddPartyDialog({ partyOptions }: AddPartyDialogProps) {
 
       <Dialog
         open={isSalesOpen}
-        onOpenChange={setIsSalesOpen}
+        onOpenChange={(open) => {
+          if (!open && !isSalesLoading) {
+            setIsSalesOpen(false);
+            setSalesError('');
+          }
+        }}
         title="Sales Entry"
         footer={
           <div className="flex flex-wrap gap-3 justify-end">
-            <Button variant="outline" type="button" onClick={() => setIsSalesOpen(false)}>
+            <Button variant="outline" type="button" onClick={() => setIsSalesOpen(false)} disabled={isSalesLoading}>
               Cancel
             </Button>
-            <Button type="submit" form="sales-entry-form">
-              Save Entry
+            <Button 
+              type="submit" 
+              form="sales-entry-form"
+              disabled={isSalesLoading}
+              className={isSalesLoading ? 'opacity-75 cursor-not-allowed' : ''}
+            >
+              {isSalesLoading ? '⏳ Saving...' : '💾 Save Entry'}
             </Button>
           </div>
         }
       >
         <form
           id="sales-entry-form"
-          action={recordSaleForParty}
           autoComplete="off"
           className="grid gap-4 sm:grid-cols-2"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setSalesError('');
+            setIsSalesLoading(true);
+            const form = e.currentTarget;
+            const formData = new FormData(form);
+            const result = await recordSaleForPartyWithToast(formData);
+            
+            if (result.success) {
+              success(result.message);
+              router.refresh();
+              setTimeout(() => {
+                setIsSalesOpen(false);
+                setSalesFormValues({
+                  name: '',
+                  feedName: '',
+                  feedQuantity: '',
+                  feedPrice: '',
+                  medicineName: '',
+                  medicineQuantity: '',
+                  medicinePrice: '',
+                  mediaName: ''
+                });
+                setSalesPartyId(null);
+                setIsSalesLoading(false);
+              }, 500);
+            } else {
+              setSalesError(result.message);
+              error(result.message);
+              setIsSalesLoading(false);
+            }
+          }}
         >
+          {salesError && (
+            <div className="sm:col-span-2 rounded-lg border-2 border-rose-300 bg-rose-50 p-4">
+              <p className="text-base font-semibold text-rose-900">⚠️ Error</p>
+              <p className="mt-1 text-sm text-rose-800">{salesError}</p>
+            </div>
+          )}
+
           <div className="sm:col-span-2 relative">
             <label className="mb-2 block text-sm font-medium">Party Name</label>
             <input

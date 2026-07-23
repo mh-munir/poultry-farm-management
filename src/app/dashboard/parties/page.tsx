@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { AddPartyDialog } from '@/app/dashboard/parties/add-party-dialog';
 import { PartyToast } from './party-toast';
+import { PartySearchForm } from './search-form';
 import { getPartyNames, getPartyPageData, getPartyStats } from '@/features/parties/actions';
 
 const PARTY_TYPES = ['ALL', 'CUSTOMER', 'SUPPLIER', 'BOTH'] as const;
@@ -64,8 +65,9 @@ export default async function PartiesPage({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-6 justify-between">
           <AddPartyDialog partyOptions={partyOptions} />
+          <PartySearchForm search={search} partyType={partyType} status={status} />
       </div>
 
       <PartyToast success={success} error={error} />
@@ -127,25 +129,28 @@ export default async function PartiesPage({
           <p className="text-sm text-muted-foreground">
             Showing {data.parties.length} of {data.total} parties
           </p>
-          <div className="flex items-center gap-2">
-            {Array.from({ length: data.totalPages }, (_, index) => index + 1).map((pageNumber) => {
-              const params = new URLSearchParams({
-                ...(search ? { search } : {}),
-                ...(partyType && partyType !== 'ALL' ? { partyType } : {}),
-                ...(status && status !== 'ALL' ? { status } : {})
-              });
-              params.set('page', String(pageNumber));
+               {/* Right side: search input above pager */}
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+              {Array.from({ length: data.totalPages }, (_, index) => index + 1).map((pageNumber) => {
+                const params = new URLSearchParams({
+                  ...(search ? { search } : {}),
+                  ...(partyType && partyType !== 'ALL' ? { partyType } : {}),
+                  ...(status && status !== 'ALL' ? { status } : {})
+                });
+                params.set('page', String(pageNumber));
 
-              return (
-                <Link
-                  key={pageNumber}
-                  href={`/dashboard/parties?${params.toString()}`}
-                  className={`rounded-md px-3 py-2 text-sm ${page === pageNumber ? 'bg-primary text-primary-foreground' : 'border bg-background'}`}
-                >
-                  {pageNumber}
-                </Link>
-              );
-            })}
+                return (
+                  <Link
+                    key={pageNumber}
+                    href={`/dashboard/parties?${params.toString()}`}
+                    className={`rounded-md px-3 py-2 text-sm ${page === pageNumber ? 'bg-primary text-primary-foreground' : 'border bg-background'}`}
+                  >
+                    {pageNumber}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
