@@ -8,7 +8,9 @@ import { StatCard } from '@/components/dashboard/stat-card';
 import { AddPartyDialog } from '@/app/dashboard/parties/add-party-dialog';
 import { PartyToast } from './party-toast';
 import { PartySearchForm } from './search-form';
+import { PartyRowActions } from './party-row-actions';
 import { getPartyNames, getPartyPageData, getPartyStats } from '@/features/parties/actions';
+import { getProductsForSales } from '@/features/sales/actions';
 
 const PARTY_TYPES = ['ALL', 'CUSTOMER', 'SUPPLIER', 'BOTH'] as const;
 const STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
@@ -44,11 +46,22 @@ export default async function PartiesPage({
   const status = params?.status ?? 'ALL';
   const error = params?.error ?? '';
 
-  const [data, stats, partyOptions] = await Promise.all([
+  const [data, stats, partyOptions, products] = await Promise.all([
     getPartyPageData({ page, search, partyType, status }),
     getPartyStats({ search, partyType, status }),
-    getPartyNames()
+    getPartyNames(),
+    getProductsForSales()
   ]);
+
+  const productOptions = products.map((product) => ({
+    id: product.id,
+    name: product.name,
+    code: product.code,
+    productType: product.productType,
+    unit: product.unit,
+    defaultSellingPrice: Number(product.defaultSellingPrice ?? 0),
+    stockQuantity: Number(product.stockBalance?.quantityOnHand ?? 0)
+  }));
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
@@ -66,7 +79,7 @@ export default async function PartiesPage({
       </div>
 
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-6 justify-between">
-          <AddPartyDialog partyOptions={partyOptions} />
+          <AddPartyDialog partyOptions={partyOptions} productOptions={productOptions} />
           <PartySearchForm search={search} partyType={partyType} status={status} />
       </div>
 
@@ -86,12 +99,13 @@ export default async function PartiesPage({
                 <th className="px-4 py-3 font-medium">Media name</th>
                 <th className="px-4 py-3 font-medium">Due</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 text-right font-medium">Action</th>
               </tr>
             </thead>
             <tbody>
               {data.parties.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
                     No parties found. Create your first party to get started.
                   </td>
                 </tr>
@@ -117,6 +131,23 @@ export default async function PartiesPage({
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${(party.totalDue ?? 0) <= 0 ? 'bg-emerald-50 text-emerald-700' : (party.totalPaid ?? 0) > 0 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
                         {(party.totalDue ?? 0) <= 0 ? 'Cleared' : (party.totalPaid ?? 0) > 0 ? 'Partial' : 'Pending'}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <PartyRowActions
+                        party={{
+                          id: party.id,
+                          name: party.name,
+                          phone: party.phone ?? '',
+                          email: party.email,
+                          address: party.address,
+                          partyType: party.partyType,
+                          taxNumber: party.taxNumber,
+                          creditLimit: party.creditLimit?.toString() ?? null,
+                          openingBalance: party.openingBalance.toString(),
+                          imageUrl: party.imageUrl,
+                          isActive: party.isActive
+                        }}
+                      />
                     </td>
                   </tr>
                 ))

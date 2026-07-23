@@ -10,7 +10,12 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
   ADMIN_EMAIL: z.string().email().optional(),
   ADMIN_PASSWORD: z.string().min(1).optional(),
-  ADMIN_RESET_TOKEN: z.string().min(1).optional()
+  ADMIN_RESET_TOKEN: z.string().min(1).optional(),
+  SMS_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+  SMS_PROVIDER: z.string().trim().min(1).default('mock')
 }).transform((env) => ({
   ...env,
   DIRECT_URL: env.DIRECT_URL ?? env.DATABASE_URL,

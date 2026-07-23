@@ -730,6 +730,7 @@ type PartyPageParty = {
   feedName: string | null;
   medicineQuantity: Prisma.Decimal | null;
   medicinePrice: Prisma.Decimal | null;
+  imageUrl: string | null;
   mediaName: string | null;
   farmName: string | null;
   isActive: boolean;
@@ -739,6 +740,67 @@ type PartyPageParty = {
   totalPaid?: number;
   totalDue?: number;
 };
+
+type PartyAccountSummary = {
+  customerInvoiced: number;
+  customerPaid: number;
+  customerDue: number;
+  supplierInvoiced: number;
+  supplierPaid: number;
+  supplierDue: number;
+  offsetApplied: number;
+  netCustomerDue: number;
+  netSupplierDue: number;
+  totalInvoiced: number;
+  totalPaid: number;
+  totalDue: number;
+};
+
+function createEmptyAccountSummary(): PartyAccountSummary {
+  return {
+    customerInvoiced: 0,
+    customerPaid: 0,
+    customerDue: 0,
+    supplierInvoiced: 0,
+    supplierPaid: 0,
+    supplierDue: 0,
+    offsetApplied: 0,
+    netCustomerDue: 0,
+    netSupplierDue: 0,
+    totalInvoiced: 0,
+    totalPaid: 0,
+    totalDue: 0
+  };
+}
+
+function finalizeAccountSummary(summary: PartyAccountSummary) {
+  summary.customerDue = Math.max(summary.customerInvoiced - summary.customerPaid, 0);
+  summary.supplierDue = Math.max(summary.supplierInvoiced - summary.supplierPaid, 0);
+  summary.offsetApplied = Math.min(summary.customerDue, summary.supplierDue);
+  summary.netCustomerDue = Math.max(summary.customerDue - summary.supplierDue, 0);
+  summary.netSupplierDue = Math.max(summary.supplierDue - summary.customerDue, 0);
+  summary.totalInvoiced = summary.customerInvoiced;
+  summary.totalPaid = summary.customerPaid + summary.offsetApplied;
+  summary.totalDue = summary.netCustomerDue;
+
+  return summary;
+}
+
+function getVisiblePartyDue(partyType: PartyTypeValue, summary: PartyAccountSummary) {
+  if (partyType === 'SUPPLIER') {
+    return summary.supplierDue;
+  }
+
+  return summary.netCustomerDue;
+}
+
+function getVisiblePartyPaid(partyType: PartyTypeValue, summary: PartyAccountSummary) {
+  if (partyType === 'SUPPLIER') {
+    return summary.supplierPaid;
+  }
+
+  return summary.customerPaid + summary.offsetApplied;
+}
 
 export async function getPartyPageData({
   page,
@@ -777,6 +839,7 @@ export async function getPartyPageData({
           feedName: true,
           medicineQuantity: true,
           medicinePrice: true,
+          imageUrl: true,
           mediaName: true,
           farmName: true,
           isActive: true,
@@ -801,12 +864,13 @@ export async function getPartyPageData({
     const partyIds = mergedParties.map((party) => party.id);
     const accountSummaries = await getPartyAccountSummaries(partyIds);
     const partiesWithSummaries = mergedParties.map((party) => {
-      const summary = accountSummaries.get(party.id) ?? { totalInvoiced: 0, totalPaid: 0, totalDue: 0 };
+      const summary = accountSummaries.get(party.id) ?? createEmptyAccountSummary();
+      const visiblePartyType = party.partyType as PartyTypeValue;
       return {
         ...party,
         totalInvoiced: summary.totalInvoiced,
-        totalPaid: summary.totalPaid,
-        totalDue: summary.totalDue
+        totalPaid: getVisiblePartyPaid(visiblePartyType, summary),
+        totalDue: getVisiblePartyDue(visiblePartyType, summary)
       };
     });
 
@@ -825,66 +889,143 @@ export async function getPartyPageData({
 }
 
 export async function getPartyAccountSummary(partyId: number) {
-  const [transactions, payments] = await Promise.all([
+  const [party, transactions, payments] = await Promise.all([
+    prisma.party.findUnique({
+      where: { id: partyId },
+      select: { partyType: true }
+    }),
     prisma.transaction.findMany({
       where: { partyId },
-      select: { totalAmount: true }
+      select: { transactionType: true, totalAmount: true }
     }),
     prisma.payment.findMany({
       where: { partyId },
-      select: { amount: true }
+      select: {
+        amount: true,
+        allocations: {
+          select: {
+            amount: true,
+            transaction: { select: { transactionType: true } }
+          }
+        }
+      }
     })
   ]);
 
-  const totalInvoiced = transactions.reduce((sum, transaction) => sum + Number(transaction.totalAmount ?? 0), 0);
-  const totalPaid = payments.reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
-  const totalDue = Math.max(totalInvoiced - totalPaid, 0);
+  const partyType = (party?.partyType ?? 'BOTH') as PartyTypeValue;
+  const summary = createEmptyAccountSummary();
 
-  return {
-    totalInvoiced,
-    totalPaid,
-    totalDue
-  };
+  for (const transaction of transactions) {
+    const amount = Number(transaction.totalAmount ?? 0);
+
+    if (transaction.transactionType === 'PURCHASE') {
+      summary.supplierInvoiced += amount;
+    } else {
+      summary.customerInvoiced += amount;
+    }
+  }
+
+  for (const payment of payments) {
+    let allocatedAmount = 0;
+
+    for (const allocation of payment.allocations) {
+      const amount = Number(allocation.amount ?? 0);
+      allocatedAmount += amount;
+
+      if (allocation.transaction.transactionType === 'PURCHASE') {
+        summary.supplierPaid += amount;
+      } else {
+        summary.customerPaid += amount;
+      }
+    }
+
+    const unallocatedAmount = Math.max(Number(payment.amount ?? 0) - allocatedAmount, 0);
+    if (partyType === 'SUPPLIER') {
+      summary.supplierPaid += unallocatedAmount;
+    } else {
+      summary.customerPaid += unallocatedAmount;
+    }
+  }
+
+  return finalizeAccountSummary(summary);
 }
 
 export async function getPartyAccountSummaries(partyIds: number[]) {
   if (partyIds.length === 0) {
-    return new Map<number, { totalInvoiced: number; totalPaid: number; totalDue: number }>();
+    return new Map<number, PartyAccountSummary>();
   }
 
-  const [transactions, payments] = await Promise.all([
+  const [parties, transactions, payments] = await Promise.all([
+    prisma.party.findMany({
+      where: { id: { in: partyIds } },
+      select: { id: true, partyType: true }
+    }),
     prisma.transaction.findMany({
       where: { partyId: { in: partyIds } },
-      select: { partyId: true, totalAmount: true }
+      select: { partyId: true, transactionType: true, totalAmount: true }
     }),
     prisma.payment.findMany({
       where: { partyId: { in: partyIds } },
-      select: { partyId: true, amount: true }
+      select: {
+        partyId: true,
+        amount: true,
+        allocations: {
+          select: {
+            amount: true,
+            transaction: { select: { transactionType: true } }
+          }
+        }
+      }
     })
   ]);
 
-  const summaries = new Map<number, { totalInvoiced: number; totalPaid: number; totalDue: number }>();
+  const summaries = new Map<number, PartyAccountSummary>();
+  const partyTypes = new Map(parties.map((party) => [party.id, party.partyType as PartyTypeValue]));
 
   for (const partyId of partyIds) {
-    summaries.set(partyId, { totalInvoiced: 0, totalPaid: 0, totalDue: 0 });
+    summaries.set(partyId, createEmptyAccountSummary());
   }
 
   for (const transaction of transactions) {
-    const partySummary = summaries.get(transaction.partyId) ?? { totalInvoiced: 0, totalPaid: 0, totalDue: 0 };
-    partySummary.totalInvoiced += Number(transaction.totalAmount ?? 0);
+    const partySummary = summaries.get(transaction.partyId) ?? createEmptyAccountSummary();
+    const amount = Number(transaction.totalAmount ?? 0);
+
+    if (transaction.transactionType === 'PURCHASE') {
+      partySummary.supplierInvoiced += amount;
+    } else {
+      partySummary.customerInvoiced += amount;
+    }
+
     summaries.set(transaction.partyId, partySummary);
   }
 
   for (const payment of payments) {
-    const partySummary = summaries.get(payment.partyId) ?? { totalInvoiced: 0, totalPaid: 0, totalDue: 0 };
-    partySummary.totalPaid += Number(payment.amount ?? 0);
-    partySummary.totalDue = Math.max(partySummary.totalInvoiced - partySummary.totalPaid, 0);
+    const partySummary = summaries.get(payment.partyId) ?? createEmptyAccountSummary();
+    let allocatedAmount = 0;
+
+    for (const allocation of payment.allocations) {
+      const amount = Number(allocation.amount ?? 0);
+      allocatedAmount += amount;
+
+      if (allocation.transaction.transactionType === 'PURCHASE') {
+        partySummary.supplierPaid += amount;
+      } else {
+        partySummary.customerPaid += amount;
+      }
+    }
+
+    const unallocatedAmount = Math.max(Number(payment.amount ?? 0) - allocatedAmount, 0);
+    if (partyTypes.get(payment.partyId) === 'SUPPLIER') {
+      partySummary.supplierPaid += unallocatedAmount;
+    } else {
+      partySummary.customerPaid += unallocatedAmount;
+    }
+
     summaries.set(payment.partyId, partySummary);
   }
 
   for (const [partyId, summary] of summaries.entries()) {
-    summary.totalDue = Math.max(summary.totalInvoiced - summary.totalPaid, 0);
-    summaries.set(partyId, summary);
+    summaries.set(partyId, finalizeAccountSummary(summary));
   }
 
   return summaries;
@@ -893,13 +1034,11 @@ export async function getPartyAccountSummaries(partyIds: number[]) {
 export async function getPartyNames() {
   try {
     const parties = await prisma.party.findMany({
-      where: { isActive: true },
       select: { id: true, name: true },
       orderBy: { name: 'asc' }
     });
 
     const memoryParties = getMemoryParties()
-      .filter((party) => party.isActive)
       .map((party) => ({ id: party.id, name: party.name }));
     const mergedParties = [...parties.map((party) => ({ id: party.id, name: party.name })), ...memoryParties];
     const uniqueParties = Array.from(new Map(mergedParties.map((party) => [party.id, party])).values());
@@ -907,7 +1046,6 @@ export async function getPartyNames() {
     return uniqueParties.sort((a, b) => a.name.localeCompare(b.name));
   } catch (error) {
     return getMemoryParties()
-      .filter((party) => party.isActive)
       .map((party) => ({ id: party.id, name: party.name }));
   }
 }

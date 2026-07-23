@@ -63,15 +63,15 @@ model VerificationToken {
 }
 
 model Party {
-  id               Int             @id @default(autoincrement())
+  id               Int               @id @default(autoincrement())
   name             String
-  phone            String          @unique
+  phone            String            @unique
   email            String?
   address          String?
-  partyType        String          @default("BOTH")
+  partyType        String            @default("BOTH")
   taxNumber        String?
   creditLimit      Decimal?
-  openingBalance   Decimal         @default(0)
+  openingBalance   Decimal           @default(0)
   feedQuantity     Decimal?
   feedPrice        Decimal?
   feedName         String?
@@ -81,14 +81,15 @@ model Party {
   imageUrl         String?
   mediaName        String?
   farmName         String?
-  isActive         Boolean         @default(true)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   createdById      String?
   dueAdjustments   DueAdjustment[]
   ledgerEntries    LedgerEntry[]
-  createdBy        User?           @relation(fields: [createdById], references: [id])
+  createdBy        User?             @relation(fields: [createdById], references: [id])
   payments         Payment[]
+  smsNotifications SmsNotification[]
   transactions     Transaction[]
 
   @@index([name])
@@ -179,12 +180,43 @@ model Transaction {
   dueAdjustments   DueAdjustment[]
   ledgerEntries    LedgerEntry[]
   payments         PaymentAllocation[]
+  smsNotifications SmsNotification[]
   stockMovements   StockMovement[]
   createdBy        User?               @relation(fields: [createdById], references: [id])
   party            Party               @relation(fields: [partyId], references: [id])
   transactionItems TransactionItem[]
 
   @@index([partyId, transactionDate])
+}
+
+enum SmsNotificationStatus {
+  PENDING
+  QUEUED
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model SmsNotification {
+  id                Int                   @id @default(autoincrement())
+  partyId           Int
+  transactionId     Int                   @unique
+  phoneNumber       String?
+  saleType          String
+  message           String
+  status            SmsNotificationStatus @default(PENDING)
+  provider          String                @default("mock")
+  providerMessageId String?
+  errorMessage      String?
+  sentAt            DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  party             Party                 @relation(fields: [partyId], references: [id])
+  transaction       Transaction           @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([partyId, createdAt])
+  @@index([status, createdAt])
+  @@index([saleType, createdAt])
 }
 
 model TransactionItem {
