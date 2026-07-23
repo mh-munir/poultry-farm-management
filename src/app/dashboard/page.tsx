@@ -28,12 +28,10 @@ function getTodayRange() {
 }
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'BDT',
+  return `৳ ${new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
-  }).format(value);
+  }).format(value)}`;
 }
 
 function formatNumber(value: number) {

@@ -39,11 +39,13 @@ type PartyTransactionRecord = {
   totalAmount: { toString(): string };
   paidAmount: { toString(): string };
   dueAmount: { toString(): string };
+  notes: string | null;
   transactionItems: Array<{
     id: number;
     quantity: { toString(): string };
     unitPrice: { toString(): string };
     lineTotal: { toString(): string };
+    description: string | null;
     product: {
       name: string;
       unit: string;
@@ -64,11 +66,10 @@ type PartyPaymentRecord = {
 
 function formatCurrency(value: number | string | { toString(): string } | null | undefined) {
   const number = Number(value?.toString() ?? 0);
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'BDT',
+  return `৳ ${new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2
-  }).format(number);
+  }).format(number)}`;
 }
 
 function formatDate(value: Date | string) {
@@ -127,12 +128,14 @@ export default async function PartyProfilePage({ params, searchParams }: { param
         totalAmount: true,
         paidAmount: true,
         dueAmount: true,
+        notes: true,
         transactionItems: {
           select: {
             id: true,
             quantity: true,
             unitPrice: true,
             lineTotal: true,
+            description: true,
             product: {
               select: {
                 name: true,
@@ -166,12 +169,14 @@ export default async function PartyProfilePage({ params, searchParams }: { param
       invoiceNumber: transaction.invoiceNumber,
       transactionDate: transaction.transactionDate,
       transactionType: transaction.transactionType,
+      mediaName: transaction.notes?.startsWith('Media:') ? transaction.notes.slice('Media:'.length).trim() : null,
       productName: item.product?.name ?? 'Unknown product',
       productType: item.product?.productType ?? '—',
       quantity: Number(item.quantity ?? 0),
       unit: item.product?.unit ?? '—',
       unitPrice: Number(item.unitPrice ?? 0),
-      lineTotal: Number(item.lineTotal ?? 0)
+      lineTotal: Number(item.lineTotal ?? 0),
+      details: item.description ?? null
     }))
   );
   const customerProductRows = productRows.filter((row) => row.transactionType === 'SALE');
@@ -227,7 +232,8 @@ export default async function PartyProfilePage({ params, searchParams }: { param
   const renderProductTable = (
     title: string,
     rows: typeof productRows,
-    emptyMessage: string
+    emptyMessage: string,
+    showMedia: boolean
   ) => (
     <div className="mt-6 overflow-hidden rounded-xl border">
       <div className="bg-muted/40 px-4 py-3 text-sm font-semibold">{title}</div>
@@ -235,33 +241,35 @@ export default async function PartyProfilePage({ params, searchParams }: { param
         <table className="min-w-full text-sm">
           <thead className="bg-muted/10 text-left text-muted-foreground">
             <tr>
+              <th className="px-4 py-3 font-medium">Date</th>
               <th className="px-4 py-3 font-medium">Product</th>
               <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 font-medium">Quantity</th>
               <th className="px-4 py-3 font-medium">Unit</th>
               <th className="px-4 py-3 font-medium">Unit price</th>
               <th className="px-4 py-3 font-medium">Line total</th>
-              <th className="px-4 py-3 font-medium">Invoice</th>
-              <th className="px-4 py-3 font-medium">Date</th>
+              <th className="px-4 py-3 font-medium">Details</th>
+              {showMedia ? <th className="px-4 py-3 font-medium">Media</th> : null}
             </tr>
           </thead>
           <tbody>
             {rows.length > 0 ? (
               rows.map((row) => (
                 <tr key={row.id} className="border-t hover:bg-muted/40 transition-colors">
+                  <td className="px-4 py-3">{formatDate(row.transactionDate)}</td>
                   <td className="px-4 py-3">{row.productName}</td>
                   <td className="px-4 py-3">{row.productType}</td>
                   <td className="px-4 py-3">{row.quantity}</td>
                   <td className="px-4 py-3">{row.unit}</td>
                   <td className="px-4 py-3">{formatCurrency(row.unitPrice)}</td>
                   <td className="px-4 py-3">{formatCurrency(row.lineTotal)}</td>
-                  <td className="px-4 py-3">{row.invoiceNumber}</td>
-                  <td className="px-4 py-3">{formatDate(row.transactionDate)}</td>
+                  <td className="px-4 py-3">{row.details ?? '—'}</td>
+                  {showMedia ? <td className="px-4 py-3">{row.mediaName ?? '—'}</td> : null}
                 </tr>
               ))
             ) : (
               <tr className="border-t">
-                <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">{emptyMessage}</td>
+                <td colSpan={showMedia ? 9 : 8} className="px-4 py-6 text-center text-muted-foreground">{emptyMessage}</td>
               </tr>
             )}
           </tbody>
@@ -379,11 +387,11 @@ export default async function PartyProfilePage({ params, searchParams }: { param
       </div>
 
 
-      <section className="mt-6 rounded-2xl border bg-card p-6 shadow-sm">
+      <section className="mt-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold">Product-wise entries</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Each transaction item appears as its own row so multiple entries are visible clearly.</p>
+            <h2 className="text-xl font-semibold">Transaction history</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Separate buy and sale history for this party.</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-2 text-sm font-medium">
@@ -393,9 +401,10 @@ export default async function PartyProfilePage({ params, searchParams }: { param
           </div>
         </div>
 
-        {showCustomerTable ? renderProductTable('Customer table: products taken from me', customerProductRows, 'No customer sale entries available yet.') : null}
-        {showSupplierTable ? renderProductTable('Supplier table: products supplied to us', supplierProductRows, 'No supplier purchase entries available yet.') : null}
-          <div className="mt-6">
+        {showCustomerTable ? renderProductTable('Sale History', customerProductRows, 'No sale history entries available yet.', true) : null}
+        {showSupplierTable ? renderProductTable('Buy History', supplierProductRows, 'No buy history entries available yet.', false) : null}
+
+        <div className="mt-6">
           <PartyPaymentsSection
             partyId={party.id}
             initialPayments={payments.map((payment) => ({
@@ -411,6 +420,7 @@ export default async function PartyProfilePage({ params, searchParams }: { param
             updatePaymentForParty={updatePaymentForParty}
             deletePaymentForParty={deletePaymentForParty}
             showForm={false}
+            showDeleteButton={false}
           />
         </div>
       </section>

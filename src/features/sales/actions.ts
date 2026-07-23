@@ -103,6 +103,61 @@ function formatSmsAmount(value: Prisma.Decimal) {
   return value.toFixed(2);
 }
 
+function getMediaNameFromNotes(notes?: string | null) {
+  const mediaPrefix = 'Media:';
+
+  if (!notes?.startsWith(mediaPrefix)) {
+    return null;
+  }
+
+  return notes.slice(mediaPrefix.length).trim() || null;
+}
+
+function buildPartySaleSummary(
+  items: z.infer<typeof saleItemSchema>[],
+  products: { id: number; name: string; productType: string }[],
+  notes?: string | null
+) {
+  const productsById = new Map(products.map((product) => [product.id, product]));
+
+  const summarizeType = (productType: 'FEED' | 'MEDICINE') => {
+    const matchingItems = items.filter((item) => productsById.get(item.productId)?.productType === productType);
+
+    if (matchingItems.length === 0) {
+      return {
+        name: null,
+        quantity: null,
+        amount: null
+      };
+    }
+
+    const name = Array.from(new Set(
+      matchingItems
+        .map((item) => productsById.get(item.productId)?.name)
+        .filter((value): value is string => Boolean(value))
+    )).join(', ');
+    const quantity = matchingItems.reduce((total, item) => total.plus(item.quantity), new Prisma.Decimal(0));
+    const amount = matchingItems.reduce((total, item) => {
+      return total.plus(new Prisma.Decimal(item.quantity).times(item.unitPrice));
+    }, new Prisma.Decimal(0));
+
+    return { name, quantity, amount };
+  };
+
+  const feed = summarizeType('FEED');
+  const medicine = summarizeType('MEDICINE');
+
+  return {
+    feedName: feed.name,
+    feedQuantity: feed.quantity,
+    feedPrice: feed.amount,
+    medicineName: medicine.name,
+    medicineQuantity: medicine.quantity,
+    medicinePrice: medicine.amount,
+    mediaName: getMediaNameFromNotes(notes)
+  };
+}
+
 async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
   const items = data.items;
   const { subtotal, totalAmount, discount, paymentAmount } = validateSaleAmounts(data);
@@ -115,7 +170,7 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
 
     const products = await tx.product.findMany({
       where: { id: { in: items.map((item) => item.productId) } },
-      select: { id: true, productType: true }
+      select: { id: true, name: true, productType: true }
     });
     const productTypes = new Map(products.map((product) => [product.id, product.productType]));
     const invalidProduct = items.find((item) => !['FEED', 'MEDICINE'].includes(productTypes.get(item.productId) ?? ''));
@@ -245,6 +300,11 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
         data: { quantityOnHand: remaining }
       });
     }
+
+    await tx.party.update({
+      where: { id: data.partyId },
+      data: buildPartySaleSummary(items, products, data.notes)
+    });
 
     return {
       transactionId: sale.id,
@@ -425,6 +485,7 @@ export async function getProductsForSales() {
       productType: true,
       unit: true,
       defaultSellingPrice: true,
+      defaultPurchasePrice: true,
       stockBalance: { select: { quantityOnHand: true } }
     }
   });
