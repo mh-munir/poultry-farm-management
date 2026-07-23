@@ -236,6 +236,127 @@ export async function createOrUpdateParty(formData: FormData) {
   redirect('/dashboard/parties');
 }
 
+export async function createOrUpdatePartyWithToast(formData: FormData): Promise<{ success: boolean; message: string }> {
+  try {
+    const session = await requireUser();
+    const parsed = partySchema.safeParse(normalizePartyInput(formData));
+
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? 'Validation failed.';
+      return { success: false, message };
+    }
+
+    const data = parsed.data;
+    const normalizedPhone = data.phone.trim();
+    const existingImageUrl = formData.get('existingImageUrl')?.toString() || null;
+
+    if (await isPhoneTaken(normalizedPhone, data.id)) {
+      return { success: false, message: 'This mobile number is already used by another party.' };
+    }
+
+    let imageUrl: string | null = null;
+
+    try {
+      imageUrl = await savePartyImage(formData, existingImageUrl);
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to upload party image.'
+      };
+    }
+
+    const partyPayload = {
+      name: data.name.trim(),
+      phone: normalizedPhone,
+      email: data.email?.trim() || null,
+      address: data.address?.trim() || null,
+      partyType: data.partyType as PartyTypeValue,
+      taxNumber: data.taxNumber?.trim() || null,
+      creditLimit: data.creditLimit !== undefined ? new Prisma.Decimal(data.creditLimit) : null,
+      openingBalance: new Prisma.Decimal(data.openingBalance),
+      imageUrl,
+      isActive: data.isActive
+    };
+
+    const createPartyPayload = {
+      ...partyPayload,
+      createdById: session.user.id ?? null
+    };
+
+    const updatePartyPayload: Prisma.PartyUpdateInput = {
+      name: partyPayload.name,
+      phone: partyPayload.phone,
+      email: partyPayload.email,
+      address: partyPayload.address,
+      partyType: partyPayload.partyType,
+      taxNumber: partyPayload.taxNumber,
+      creditLimit: partyPayload.creditLimit,
+      openingBalance: partyPayload.openingBalance,
+      imageUrl: partyPayload.imageUrl,
+      isActive: partyPayload.isActive
+    };
+
+    try {
+      if (data.id) {
+        await prisma.party.update({
+          where: { id: data.id },
+          data: updatePartyPayload
+        });
+        return { success: true, message: 'Party updated successfully!' };
+      } else {
+        await prisma.party.create({ data: createPartyPayload });
+        return { success: true, message: 'Party created successfully!' };
+      }
+    } catch (dbError) {
+      // Fallback to memory storage
+      try {
+        if (data.id) {
+          updateMemoryParty(data.id, {
+            name: partyPayload.name,
+            phone: partyPayload.phone,
+            email: partyPayload.email,
+            address: partyPayload.address,
+            partyType: partyPayload.partyType,
+            taxNumber: partyPayload.taxNumber,
+            creditLimit: partyPayload.creditLimit != null ? Number(partyPayload.creditLimit) : null,
+            openingBalance: Number(partyPayload.openingBalance),
+            imageUrl: partyPayload.imageUrl,
+            isActive: partyPayload.isActive
+          });
+          return { success: true, message: 'Party updated locally.' };
+        } else {
+          createMemoryParty({
+            name: partyPayload.name,
+            phone: partyPayload.phone,
+            email: partyPayload.email,
+            address: partyPayload.address,
+            partyType: partyPayload.partyType,
+            taxNumber: partyPayload.taxNumber,
+            creditLimit: partyPayload.creditLimit != null ? Number(partyPayload.creditLimit) : null,
+            openingBalance: Number(partyPayload.openingBalance),
+            feedQuantity: null,
+            feedPrice: null,
+            feedName: null,
+            medicineName: null,
+            medicineQuantity: null,
+            medicinePrice: null,
+            imageUrl: partyPayload.imageUrl,
+            mediaName: null,
+            farmName: null,
+            isActive: partyPayload.isActive,
+            createdById: createPartyPayload.createdById ?? null
+          });
+          return { success: true, message: 'Party created locally.' };
+        }
+      } catch (memoryError) {
+        return { success: false, message: 'Failed to save party. Please try again.' };
+      }
+    }
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : 'An error occurred.' };
+  }
+}
+
 const salesEntrySchema = z.object({
   partyId: z.coerce.number().int().refine((value) => !Number.isNaN(value) && value !== 0, 'A valid party is required.'),
   feedName: z.string().trim().max(100).optional().or(z.literal('')),
@@ -332,6 +453,57 @@ export async function recordSaleForParty(formData: FormData) {
   url.searchParams.set('success', 'Sales entry saved successfully.');
   // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
   redirect(url.toString());
+}
+
+export async function recordSaleForPartyWithToast(formData: FormData): Promise<{ success: boolean; message: string }> {
+  try {
+    await requireUser();
+    const parsed = salesEntrySchema.safeParse(normalizeSalesEntryInput(formData));
+
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? 'Sales entry validation failed.';
+      return { success: false, message };
+    }
+
+    const data = parsed.data;
+
+    try {
+      const salesUpdatePayload: Prisma.PartyUpdateInput = {
+        feedName: data.feedName?.trim() || null,
+        feedQuantity: data.feedQuantity != null ? new Prisma.Decimal(data.feedQuantity) : null,
+        feedPrice: data.feedPrice != null ? new Prisma.Decimal(data.feedPrice) : null,
+        medicineName: data.medicineName?.trim() || null,
+        medicineQuantity: data.medicineQuantity != null ? new Prisma.Decimal(data.medicineQuantity) : null,
+        medicinePrice: data.medicinePrice != null ? new Prisma.Decimal(data.medicinePrice) : null,
+        mediaName: data.mediaName?.trim() || null
+      };
+
+      await prisma.party.update({
+        where: { id: data.partyId },
+        data: salesUpdatePayload
+      });
+
+      return { success: true, message: 'Sales entry saved successfully!' };
+    } catch (dbError) {
+      const updatedMemoryParty = updateMemoryParty(data.partyId, {
+        feedName: data.feedName?.trim() || null,
+        feedQuantity: data.feedQuantity != null ? Number(data.feedQuantity) : null,
+        feedPrice: data.feedPrice != null ? Number(data.feedPrice) : null,
+        medicineName: data.medicineName?.trim() || null,
+        medicineQuantity: data.medicineQuantity != null ? Number(data.medicineQuantity) : null,
+        medicinePrice: data.medicinePrice != null ? Number(data.medicinePrice) : null,
+        mediaName: data.mediaName?.trim() || null
+      });
+
+      if (updatedMemoryParty) {
+        return { success: true, message: 'Sales entry saved locally.' };
+      }
+
+      return { success: false, message: 'Failed to save sales entry.' };
+    }
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : 'An error occurred.' };
+  }
 }
 
 const paymentEntrySchema = z.object({
@@ -579,7 +751,7 @@ export async function getPartyPageData({
   partyType?: string;
   status?: string;
 }) {
-  const take = 8;
+  const take = 5;
   const skip = (Math.max(page, 1) - 1) * take;
   const where = buildPartyWhere({ search, partyType, status });
 
