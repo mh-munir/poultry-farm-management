@@ -22,4 +22,35 @@ const envSchema = z.object({
   AUTH_URL: env.AUTH_URL ?? env.NEXTAUTH_URL ?? env.NEXT_PUBLIC_APP_URL
 }));
 
-export const env = envSchema.parse(process.env);
+function getEnv() {
+  const parsed = envSchema.safeParse(process.env);
+
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  const issues = parsed.error.issues
+    .map((issue) => `${issue.path.join('.') || 'env'}: ${issue.message}`)
+    .join(', ');
+
+  if (process.env.NODE_ENV !== 'test') {
+    console.warn(`[env] Using fallback values because the following environment variables are missing or invalid: ${issues}`);
+  }
+
+  return {
+    NODE_ENV: process.env.NODE_ENV ?? 'development',
+    DATABASE_URL: process.env.DATABASE_URL ?? '',
+    DIRECT_URL: process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? '',
+    AUTH_SECRET: process.env.AUTH_SECRET ?? 'change-me-in-production',
+    AUTH_URL: process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL,
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+    ADMIN_RESET_TOKEN: process.env.ADMIN_RESET_TOKEN,
+    SMS_ENABLED: process.env.SMS_ENABLED === 'true',
+    SMS_PROVIDER: process.env.SMS_PROVIDER ?? 'mock'
+  } as z.infer<typeof envSchema>;
+}
+
+export const env = getEnv();
