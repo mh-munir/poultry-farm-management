@@ -52,6 +52,17 @@ export default async function DashboardPage() {
     return dbQuery(q, 30000);
   }
 
+  let dbUnavailable = false;
+
+  async function safeQuery<T>(q: Promise<T>, fallback: T): Promise<T> {
+    try {
+      return await query(q);
+    } catch (error) {
+      dbUnavailable = true;
+      return fallback;
+    }
+  }
+
   const [
     dailyFeedSaleAgg,
     dailyMedicineSaleAgg,
@@ -68,7 +79,7 @@ export default async function DashboardPage() {
     openInvoicesCount,
     lowStockAlerts
   ] = await Promise.all([
-    query(
+    safeQuery(
       prisma.transactionItem.aggregate({
         _sum: { lineTotal: true },
         where: {
@@ -78,9 +89,10 @@ export default async function DashboardPage() {
           },
           product: { productType: 'FEED' }
         }
-      })
+      }),
+      { _sum: { lineTotal: null } }
     ),
-    query(
+    safeQuery(
       prisma.transactionItem.aggregate({
         _sum: { lineTotal: true },
         where: {
@@ -90,18 +102,20 @@ export default async function DashboardPage() {
           },
           product: { productType: 'MEDICINE' }
         }
-      })
+      }),
+      { _sum: { lineTotal: null } }
     ),
-    query(
+    safeQuery(
       prisma.transaction.aggregate({
         _sum: { totalAmount: true },
         where: {
           transactionType: 'PURCHASE',
           transactionDate: { gte: start, lt: end }
         }
-      })
+      }),
+      { _sum: { totalAmount: null } }
     ),
-    query(
+    safeQuery(
       prisma.transactionItem.aggregate({
         _sum: { lineTotal: true },
         where: {
@@ -110,9 +124,10 @@ export default async function DashboardPage() {
           },
           product: { productType: 'FEED' }
         }
-      })
+      }),
+      { _sum: { lineTotal: null } }
     ),
-    query(
+    safeQuery(
       prisma.transactionItem.aggregate({
         _sum: { lineTotal: true },
         where: {
@@ -121,24 +136,27 @@ export default async function DashboardPage() {
           },
           product: { productType: 'MEDICINE' }
         }
-      })
+      }),
+      { _sum: { lineTotal: null } }
     ),
-    query(
+    safeQuery(
       prisma.transaction.aggregate({
         _sum: { totalAmount: true },
         where: { transactionType: 'PURCHASE' }
-      })
+      }),
+      { _sum: { totalAmount: null } }
     ),
-    query(
+    safeQuery(
       prisma.transaction.aggregate({
         _sum: { dueAmount: true },
         where: {
           transactionType: 'SALE',
           dueAmount: { gt: 0 }
         }
-      })
+      }),
+      { _sum: { dueAmount: null } }
     ),
-    query(
+    safeQuery(
       prisma.transaction.aggregate({
         _sum: { dueAmount: true },
         where: {
@@ -150,9 +168,10 @@ export default async function DashboardPage() {
             }
           }
         }
-      })
+      }),
+      { _sum: { dueAmount: null } }
     ),
-    query(
+    safeQuery(
       prisma.transaction.aggregate({
         _sum: { dueAmount: true },
         where: {
@@ -164,10 +183,11 @@ export default async function DashboardPage() {
             }
           }
         }
-      })
+      }),
+      { _sum: { dueAmount: null } }
     ),
-    query(prisma.stockBalance.aggregate({ _sum: { quantityOnHand: true } })),
-    query(
+    safeQuery(prisma.stockBalance.aggregate({ _sum: { quantityOnHand: true } }), { _sum: { quantityOnHand: null } }),
+    safeQuery(
       prisma.transaction.findMany({
         take: 5,
         orderBy: { transactionDate: 'desc' },
@@ -179,15 +199,17 @@ export default async function DashboardPage() {
           status: true,
           transactionType: true
         }
-      })
+      }),
+      []
     ),
-    query(prisma.party.count({ where: { isActive: true } })),
-    query(
+    safeQuery(prisma.party.count({ where: { isActive: true } }), 0),
+    safeQuery(
       prisma.transaction.count({
         where: { transactionType: 'SALE', status: { not: 'COMPLETED' } }
-      })
+      }),
+      0
     ),
-    query(
+    safeQuery(
       prisma.product.findMany({
         where: {
           isActive: true,
@@ -199,9 +221,10 @@ export default async function DashboardPage() {
           lowStockThreshold: true,
           stockBalance: { select: { quantityOnHand: true } }
         }
-      })
+      }),
+      []
     ),
-    query(
+    safeQuery(
       prisma.transactionItem.aggregate({
         where: {
           transaction: {
@@ -210,16 +233,18 @@ export default async function DashboardPage() {
           }
         },
         _sum: { lineTotal: true }
-      })
+      }),
+      { _sum: { lineTotal: null } }
     ),
-    query(
+    safeQuery(
       prisma.transaction.aggregate({
         where: {
           transactionType: 'PURCHASE',
           transactionDate: { gte: sixMonthsAgo }
         },
         _sum: { totalAmount: true }
-      })
+      }),
+      { _sum: { totalAmount: null } }
     )
   ]);
 
@@ -355,7 +380,7 @@ export default async function DashboardPage() {
 
   const monthlyRevenueResults = await Promise.all(
     monthRanges.map((range) =>
-      query(
+      safeQuery(
         prisma.transactionItem.aggregate({
           _sum: { lineTotal: true },
           where: {
@@ -364,21 +389,23 @@ export default async function DashboardPage() {
               transactionDate: { gte: range.start, lt: range.end }
             }
           }
-        })
+        }),
+        { _sum: { lineTotal: null } }
       )
     )
   );
 
   const monthlyExpenseResults = await Promise.all(
     monthRanges.map((range) =>
-      query(
+      safeQuery(
         prisma.transaction.aggregate({
           _sum: { totalAmount: true },
           where: {
             transactionType: 'PURCHASE',
             transactionDate: { gte: range.start, lt: range.end }
           }
-        })
+        }),
+        { _sum: { totalAmount: null } }
       )
     )
   );
@@ -401,6 +428,11 @@ export default async function DashboardPage() {
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="">
+        {dbUnavailable && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            Database connection is unavailable right now, so the dashboard is showing safe fallback values.
+          </div>
+        )}
         <section className="space-y-6">
           <div className="">
             <div className="grid gap-4">
