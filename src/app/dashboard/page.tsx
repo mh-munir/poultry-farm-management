@@ -59,6 +59,9 @@ export default async function DashboardPage() {
     totalFeedSaleAgg,
     totalMedicineSaleAgg,
     totalPurchaseCostAgg,
+    totalCustomerDueAgg,
+    totalFeedMedicineDueAgg,
+    totalEggChickenSupplierDueAgg,
     totalStockAgg,
     recentTransactions,
     activePartiesCount,
@@ -124,6 +127,43 @@ export default async function DashboardPage() {
       prisma.transaction.aggregate({
         _sum: { totalAmount: true },
         where: { transactionType: 'PURCHASE' }
+      })
+    ),
+    query(
+      prisma.transaction.aggregate({
+        _sum: { dueAmount: true },
+        where: {
+          transactionType: 'SALE',
+          dueAmount: { gt: 0 }
+        }
+      })
+    ),
+    query(
+      prisma.transaction.aggregate({
+        _sum: { dueAmount: true },
+        where: {
+          transactionType: 'PURCHASE',
+          dueAmount: { gt: 0 },
+          transactionItems: {
+            some: {
+              product: { productType: { in: ['FEED', 'MEDICINE'] } }
+            }
+          }
+        }
+      })
+    ),
+    query(
+      prisma.transaction.aggregate({
+        _sum: { dueAmount: true },
+        where: {
+          transactionType: 'PURCHASE',
+          dueAmount: { gt: 0 },
+          transactionItems: {
+            some: {
+              product: { productType: { in: ['EGG', 'CHICKEN'] } }
+            }
+          }
+        }
       })
     ),
     query(prisma.stockBalance.aggregate({ _sum: { quantityOnHand: true } })),
@@ -196,6 +236,9 @@ export default async function DashboardPage() {
   const totalFeedSale = Number(totalFeedSaleAgg._sum.lineTotal ?? 0);
   const totalMedicineSale = Number(totalMedicineSaleAgg._sum.lineTotal ?? 0);
   const totalPurchaseCost = Number(totalPurchaseCostAgg._sum.totalAmount ?? 0);
+  const totalCustomerDue = Number(totalCustomerDueAgg._sum.dueAmount ?? 0);
+  const totalFeedMedicineDue = Number(totalFeedMedicineDueAgg._sum.dueAmount ?? 0);
+  const totalEggChickenSupplierDue = Number(totalEggChickenSupplierDueAgg._sum.dueAmount ?? 0);
   const totalStock = Number(totalStockAgg._sum.quantityOnHand ?? 0);
 
   const dailySummaryCards = [
@@ -257,6 +300,30 @@ export default async function DashboardPage() {
       metricColor: 'text-rose-600',
       icon: Wallet,
       accent: 'bg-orange-50 text-orange-600'
+    },
+    {
+      title: 'Customer Due',
+      value: formatCurrency(totalCustomerDue),
+      metric: totalCustomerDue > 0 ? 'Customer due outstanding' : 'Customer cleared',
+      metricColor: totalCustomerDue > 0 ? 'text-rose-600' : 'text-emerald-600',
+      icon: DollarSign,
+      accent: 'bg-rose-50 text-rose-600'
+    },
+    {
+      title: 'Feed & Medicine Due',
+      value: formatCurrency(totalFeedMedicineDue),
+      metric: totalFeedMedicineDue > 0 ? 'Feed/Medicine supplier due' : 'Cleared',
+      metricColor: totalFeedMedicineDue > 0 ? 'text-slate-600' : 'text-emerald-600',
+      icon: Layers,
+      accent: 'bg-sky-50 text-sky-600'
+    },
+    {
+      title: 'Eggs & Chicken Supplier Due',
+      value: formatCurrency(totalEggChickenSupplierDue),
+      metric: totalEggChickenSupplierDue > 0 ? 'Supplier due outstanding' : 'Cleared',
+      metricColor: totalEggChickenSupplierDue > 0 ? 'text-slate-600' : 'text-emerald-600',
+      icon: ClipboardList,
+      accent: 'bg-amber-50 text-amber-600'
     },
     {
       title: 'Total Stock',
@@ -370,6 +437,12 @@ export default async function DashboardPage() {
                     <p className="mt-1 text-sm text-slate-500">Overall totals across the farm.</p>
                   </div>
                   <div className="rounded-lg bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">Summary</div>
+                </div>
+                <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  <p className="font-medium text-slate-900">Supplier due breakdown</p>
+                  <p className="mt-1">
+                    Feed and Medicine dues are grouped together for your feed/medicine suppliers. Eggs and Chicken dues are kept separate for poultry suppliers.
+                  </p>
                 </div>
                 <div className="grid gap-4 md:grid-cols-4">
                   {totalSummaryCards.map((item) => {

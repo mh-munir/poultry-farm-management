@@ -64,6 +64,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
   const [salesPartyId, setSalesPartyId] = useState<number | null>(null);
   const [supplierProductsPartyId, setSupplierProductsPartyId] = useState<number | null>(null);
   const [salesPaymentAmount, setSalesPaymentAmount] = useState('0');
+  const [salesDiscount, setSalesDiscount] = useState('0');
   const [showPartySuggestions, setShowPartySuggestions] = useState(false);
   const [showSupplierPartySuggestions, setShowSupplierPartySuggestions] = useState(false);
   const [salesProductRows, setSalesProductRows] = useState<SalesProductRow[]>(() => [createSalesProductRow()]);
@@ -246,7 +247,8 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
   const salesTotal = salesProductRows.reduce((total, row) => {
     return total + Number(row.quantity || 0) * Number(row.unitPrice || 0);
   }, 0);
-  const salesDueAmount = Math.max(0, salesTotal - Number(salesPaymentAmount || 0));
+  const salesNetTotal = Math.max(0, salesTotal - Number(salesDiscount || 0));
+  const salesDueAmount = Math.max(0, salesNetTotal - Number(salesPaymentAmount || 0));
 
   const matchingPartyOptions = useMemo(() => {
     const searchTerm = salesFormValues.name.trim().toLowerCase();
@@ -802,10 +804,24 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
             ) : null}
           </div>
 
-          <div className="sm:col-span-2 grid gap-4 rounded-xl border bg-muted/10 p-4 text-sm sm:grid-cols-3">
+          <div className="sm:col-span-2 grid gap-4 rounded-xl border bg-muted/10 p-4 text-sm sm:grid-cols-4">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Discount</label>
+              <input
+                name="discount"
+                autoComplete="off"
+                type="number"
+                min="0"
+                step="any"
+                value={salesDiscount}
+                onChange={(event) => setSalesDiscount(event.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2"
+                placeholder="0.00"
+              />
+            </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Total Amount</label>
-              <input value={salesTotal.toFixed(2)} readOnly className="w-full rounded-md border bg-muted px-3 py-2" />
+              <input value={salesNetTotal.toFixed(2)} readOnly className="w-full rounded-md border bg-muted px-3 py-2" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Paid Amount</label>
@@ -828,7 +844,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
           </div>
 
           <input type="hidden" name="paymentMethod" value="CASH" readOnly />
-          <input type="hidden" name="discount" value="0" readOnly />
+          <input type="hidden" name="discount" value={salesDiscount} readOnly />
           <input type="hidden" name="notes" value={salesFormValues.mediaName ? `Media: ${salesFormValues.mediaName}` : ''} readOnly />
         </form>
       </Dialog>

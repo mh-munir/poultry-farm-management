@@ -20,41 +20,56 @@ const purchaseItemSchema = z.object({
   productId: z.coerce.number().int().positive(),
   quantity: z.coerce.number().min(0.0001, 'Quantity must be greater than zero.'),
   unitPrice: z.coerce.number().min(0, 'Rate cannot be negative.'),
-  description: z.string().trim().max(250).optional().or(z.literal(''))
+  buyRate: z.coerce.number().min(0, 'Buy rate cannot be negative.').optional().default(0),
+  saleRate: z.coerce.number().min(0, 'Sale rate cannot be negative.').optional().default(0),
+  description: z.string().trim().max(250).optional().or(z.literal('')),
+  unit: z.string().trim().max(20).optional().or(z.literal(''))
 });
 
 const purchaseSchema = z.object({
-  partyId: z.coerce.number().int().positive(),
+  partyId: z.string().optional(),
+  newPartyName: z.string().trim().optional(),
   paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'CHEQUE', 'MOBILE_MONEY', 'OTHER']),
   paymentAmount: z.coerce.number().min(0, 'Payment amount cannot be negative.').optional().default(0),
   discount: z.coerce.number().min(0, 'Discount cannot be negative.').optional().default(0),
   referenceNumber: z.string().trim().max(100).optional().or(z.literal('')),
+  transactionDate: z.string().trim().optional().or(z.literal('')).transform((value) => value ? new Date(value) : undefined),
   dueDate: z.string().trim().optional().or(z.literal('')).transform((value) => value ? new Date(value) : undefined),
   notes: z.string().trim().max(250).optional().or(z.literal('')),
+  redirectPath: z.string().trim().optional().default('/dashboard/purchases'),
   items: z.array(purchaseItemSchema).min(1, 'Add at least one purchase item.')
 });
 
 function normalizePurchaseInput(formData: FormData) {
   const productIds = formData.getAll('productId').map((value) => value?.toString() ?? '');
   const quantities = formData.getAll('quantity').map((value) => value?.toString() ?? '0');
+  const units = formData.getAll('unit').map((value) => value?.toString() ?? '');
+  const buyRates = formData.getAll('buyRate').map((value) => value?.toString() ?? '0');
+  const saleRates = formData.getAll('saleRate').map((value) => value?.toString() ?? '0');
   const unitPrices = formData.getAll('unitPrice').map((value) => value?.toString() ?? '0');
   const descriptions = formData.getAll('description').map((value) => value?.toString() ?? '');
 
   const items = productIds.map((productId, index) => ({
     productId,
     quantity: quantities[index] ?? '0',
-    unitPrice: unitPrices[index] ?? '0',
-    description: descriptions[index] ?? ''
+    unitPrice: unitPrices[index] ?? buyRates[index] ?? '0',
+    buyRate: buyRates[index] ?? '0',
+    saleRate: saleRates[index] ?? '0',
+    description: descriptions[index] ?? '',
+    unit: units[index] ?? ''
   })).filter((item) => item.productId.trim() && Number(item.quantity) > 0);
 
   return {
     partyId: formData.get('partyId')?.toString() ?? '',
+    newPartyName: formData.get('newPartyName')?.toString() ?? '',
     paymentMethod: formData.get('paymentMethod')?.toString() ?? 'CASH',
     paymentAmount: formData.get('paymentAmount')?.toString() ?? '0',
     discount: formData.get('discount')?.toString() ?? '0',
     referenceNumber: formData.get('referenceNumber')?.toString() ?? '',
+    transactionDate: formData.get('transactionDate')?.toString() ?? '',
     dueDate: formData.get('dueDate')?.toString() ?? '',
     notes: formData.get('notes')?.toString() ?? '',
+    redirectPath: formData.get('redirectPath')?.toString() ?? '/dashboard/purchases',
     items
   };
 }
@@ -79,27 +94,41 @@ export async function createPurchaseTransaction(formData: FormData) {
   }
 
   const data = parsed.data;
+  const redirectPath = data.redirectPath || '/dashboard/purchases';
+  // ensure either an existing partyId or a newPartyName is provided
+  if (!data.partyId && !data.newPartyName) {
+    const url = new URL(redirectPath, 'http://localhost');
+    url.searchParams.set('error', 'Supplier is required. Select an existing supplier or type a new company name.');
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+    redirect(url.toString());
+  }
   const items = data.items;
   const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   const totalAmount = subtotal - data.discount;
 
   if (totalAmount < 0) {
-    const url = new URL('/dashboard/purchases', 'http://localhost');
-    url.searchParams.set('error', 'Total amount cannot be negative.');
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
-  }
+      const url = new URL(redirectPath, 'http://localhost');
+      url.searchParams.set('error', 'Total amount cannot be negative.');
+      // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+      redirect(url.toString());
+    }
 
-  if (Number(data.paymentAmount) > totalAmount) {
-    const url = new URL('/dashboard/purchases', 'http://localhost');
-    url.searchParams.set('error', 'Payment cannot exceed the invoice total.');
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
-  }
+    if (Number(data.paymentAmount) > totalAmount) {
+      const url = new URL(redirectPath, 'http://localhost');
+      url.searchParams.set('error', 'Payment amount cannot be greater than total amount.');
+      // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+      redirect(url.toString());
+    }
 
   try {
     await prisma.$transaction(async (tx) => {
-      const party = await tx.party.findUnique({ where: { id: data.partyId } });
+      let partyIdToUse = Number(data.partyId) || undefined;
+      if (!partyIdToUse && data.newPartyName) {
+        const newParty = await tx.party.create({ data: { name: data.newPartyName, partyType: 'SUPPLIER', isActive: true, phone: '' } });
+        partyIdToUse = newParty.id;
+      }
+
+      const party = await tx.party.findUnique({ where: { id: partyIdToUse } });
       if (!party) {
         throw new Error('Supplier not found.');
       }
@@ -111,8 +140,8 @@ export async function createPurchaseTransaction(formData: FormData) {
       const purchase = await tx.transaction.create({
         data: {
           transactionType: PURCHASE_TRANSACTION_TYPE,
-          partyId: data.partyId,
-          transactionDate: new Date(),
+          partyId: party.id,
+          transactionDate: data.transactionDate ?? new Date(),
           invoiceNumber,
           status,
           subtotal: new Prisma.Decimal(subtotal),
@@ -132,7 +161,7 @@ export async function createPurchaseTransaction(formData: FormData) {
                 unitPrice: new Prisma.Decimal(item.unitPrice),
                 lineTotal: new Prisma.Decimal(item.quantity * item.unitPrice),
                 taxAmount: new Prisma.Decimal(0),
-                description: item.description || null
+                description: item.description || (item.unit ? `Unit: ${item.unit}` : null)
               }))
             }
           }
@@ -140,15 +169,16 @@ export async function createPurchaseTransaction(formData: FormData) {
       });
 
       const lastLedger = await tx.ledgerEntry.findFirst({
-        where: { partyId: data.partyId },
+        where: { partyId: party.id },
         orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
       });
       const previousBalance = new Prisma.Decimal(lastLedger?.runningBalance ?? 0);
       const purchaseBalance = previousBalance.plus(new Prisma.Decimal(totalAmount));
+      const partyId = party.id;
 
       await tx.ledgerEntry.create({
         data: {
-          partyId: data.partyId,
+          partyId,
           transactionId: purchase.id,
           entryType: PURCHASE_LEDGER_ENTRY_TYPE,
           amount: new Prisma.Decimal(totalAmount),
@@ -161,7 +191,7 @@ export async function createPurchaseTransaction(formData: FormData) {
       if (data.paymentAmount > 0) {
         const paymentRecord = await tx.payment.create({
           data: {
-            partyId: data.partyId,
+            partyId,
             paymentMethod: data.paymentMethod,
             amount: new Prisma.Decimal(data.paymentAmount),
             referenceNumber: data.referenceNumber || null,
@@ -180,7 +210,7 @@ export async function createPurchaseTransaction(formData: FormData) {
 
         await tx.ledgerEntry.create({
           data: {
-            partyId: data.partyId,
+            partyId,
             transactionId: purchase.id,
             paymentId: paymentRecord.id,
             entryType: PAYMENT_PAID_LEDGER_ENTRY_TYPE,
@@ -202,6 +232,9 @@ export async function createPurchaseTransaction(formData: FormData) {
         const balance = await tx.stockBalance.findUnique({ where: { productId } });
         const currentQuantity = new Prisma.Decimal(balance?.quantityOnHand ?? 0);
         const newQuantity = currentQuantity.plus(quantity);
+        const matchedItem = items.find((item) => item.productId === productId);
+        const unitCost = matchedItem?.buyRate ?? matchedItem?.unitPrice ?? 0;
+        const saleRate = matchedItem?.saleRate ?? 0;
 
         await tx.stockMovement.create({
           data: {
@@ -209,7 +242,7 @@ export async function createPurchaseTransaction(formData: FormData) {
             transactionId: purchase.id,
             movementType: PURCHASE_STOCK_MOVEMENT_TYPE,
             quantity,
-            unitCost: new Prisma.Decimal(items.find((item) => item.productId === productId)?.unitPrice ?? 0),
+            unitCost: new Prisma.Decimal(unitCost),
             notes: `Purchase invoice ${invoiceNumber}`
           }
         });
@@ -218,7 +251,6 @@ export async function createPurchaseTransaction(formData: FormData) {
           quantityOnHand: newQuantity
         };
 
-        const unitCost = items.find((item) => item.productId === productId)?.unitPrice ?? 0;
         if (unitCost) {
           stockBalanceData.averageCost = new Prisma.Decimal(unitCost);
         }
@@ -238,17 +270,25 @@ export async function createPurchaseTransaction(formData: FormData) {
             }
           });
         }
+
+        await tx.product.update({
+          where: { id: productId },
+          data: {
+            defaultPurchasePrice: new Prisma.Decimal(unitCost),
+            defaultSellingPrice: saleRate ? new Prisma.Decimal(saleRate) : undefined
+          }
+        });
       }
     });
   } catch (error) {
-    const url = new URL('/dashboard/purchases', 'http://localhost');
+    const url = new URL(redirectPath, 'http://localhost');
     url.searchParams.set('error', error instanceof Error ? error.message : 'Purchase creation failed.');
     // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
     redirect(url.toString());
   }
 
-  revalidatePath('/dashboard/purchases');
-  const url = new URL('/dashboard/purchases', 'http://localhost');
+  revalidatePath(redirectPath);
+  const url = new URL(redirectPath, 'http://localhost');
   url.searchParams.set('success', 'Purchase invoice created successfully.');
   // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
   redirect(url.toString());
@@ -428,11 +468,20 @@ export async function getPurchaseById(id: number) {
 }
 
 export async function getSuppliersForPurchases() {
-  return prisma.party.findMany({
-    where: { isActive: true, partyType: { in: ['SUPPLIER', 'BOTH'] } },
-    orderBy: { name: 'asc' },
-    select: { id: true, name: true, phone: true, email: true }
+  // Return only parties that have a company/farm name populated so
+  // the supplier suggestions show company names (not personal contacts).
+  const parties = await prisma.party.findMany({
+    where: {
+      isActive: true,
+      partyType: { in: ['SUPPLIER', 'BOTH'] },
+      NOT: [{ farmName: null }, { farmName: '' }]
+    },
+    orderBy: { farmName: 'asc' },
+    select: { id: true, name: true, farmName: true, phone: true, email: true }
   });
+
+  // Prefer farmName as the display name; fall back to name if needed.
+  return parties.map((p) => ({ id: p.id, name: p.farmName ?? p.name, phone: p.phone, email: p.email }));
 }
 
 export async function getProductsForPurchases() {

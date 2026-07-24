@@ -69,6 +69,12 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                     <span>Stock Reports</span>
                   </Link>
                 </li>
+                <li>
+                  <Link href="/dashboard/costs" onClick={() => onClose?.()} className={linkClass('/dashboard/costs')}>
+                    <User size={16} className="text-cyan-500" />
+                    <span>Costs</span>
+                  </Link>
+                </li>
               </ul>
             </li>
           </ul>

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import imageCompression from 'browser-image-compression';
-import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Eye, MoreHorizontal, Pencil, Trash2, Printer } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -27,9 +27,10 @@ export type PartyRowEditPayload = {
 type PartyRowActionsProps = {
   party: PartyRowEditPayload;
   editOnly?: boolean;
+  printHref?: string;
 };
 
-export function PartyRowActions({ party, editOnly = false }: PartyRowActionsProps) {
+export function PartyRowActions({ party, editOnly = false, printHref }: PartyRowActionsProps) {
   const router = useRouter();
   const { success, error } = useToast();
   const [actionOpen, setActionOpen] = useState(false);
@@ -98,10 +99,20 @@ export function PartyRowActions({ party, editOnly = false }: PartyRowActionsProp
   return (
     <div className="inline-flex justify-end">
       {editOnly ? (
-        <Button type="button" onClick={() => setEditOpen(true)}>
-          <Pencil className="mr-2 h-4 w-4" />
-          Edit Party
-        </Button>
+        <div className="inline-flex items-center gap-2">
+          <Button type="button" size="sm" onClick={() => setEditOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit Party
+          </Button>
+          {printHref ? (
+            <Button asChild variant="default" size="sm">
+              <a href={printHref} target="_blank" rel="noreferrer">
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+              </a>
+            </Button>
+          ) : null}
+        </div>
       ) : (
         <Button
           type="button"

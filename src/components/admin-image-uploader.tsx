@@ -4,9 +4,10 @@ import React, { useEffect, useRef, useState } from 'react';
 
 type Props = {
   existingImageUrl?: string | null;
+  onFileSelected?: (file: File | null) => void;
 };
 
-export default function AdminImageUploader({ existingImageUrl }: Props) {
+export default function AdminImageUploader({ existingImageUrl, onFileSelected }: Props) {
   const [preview, setPreview] = useState<string | null>(existingImageUrl ?? null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -24,6 +25,9 @@ export default function AdminImageUploader({ existingImageUrl }: Props) {
     if (!file) return setPreview(existingImageUrl ?? null);
     const url = URL.createObjectURL(file);
     setPreview(url);
+    try {
+      onFileSelected?.(file ?? null);
+    } catch {}
   }
 
   return (

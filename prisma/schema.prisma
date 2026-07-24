@@ -52,6 +52,8 @@ model User {
   reports       Report[]
   sessions      Session[]
   transactions  Transaction[]
+  updatedSettings Setting[]
+  createdCosts    Cost[]
 }
 
 model VerificationToken {
@@ -309,4 +311,28 @@ model Report {
   createdBy   User?    @relation(fields: [createdById], references: [id])
 
   @@index([reportType, generatedAt])
+}
+
+model Setting {
+  id         Int      @id @default(autoincrement())
+  key        String   @unique
+  value      Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  updatedById String?
+  updatedBy  User?    @relation(fields: [updatedById], references: [id])
+
+  @@index([key])
+}
+
+model Cost {
+  id          Int      @id @default(autoincrement())
+  amount      Decimal
+  description String?
+  costDate    DateTime @default(now())
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([costDate])
 }
