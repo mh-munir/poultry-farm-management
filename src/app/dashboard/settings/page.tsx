@@ -42,7 +42,7 @@ const settingsSections = [
   },
   {
     title: 'Users',
-    description: 'Manage staff accounts and their access to the system.',
+    description: 'Manage user accounts and their access to the system.',
     icon: Users2
   },
   {
