@@ -69,13 +69,12 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                     <span>Stock Reports</span>
                   </Link>
                 </li>
-                <li>
-                  <Link href="/dashboard/costs" onClick={() => onClose?.()} className={linkClass('/dashboard/costs')}>
-                    <User size={16} className="text-cyan-500" />
-                    <span>Costs</span>
-                  </Link>
-                </li>
               </ul>
+              <div className="mt-4 border-t border-slate-200 pt-3 pl-7">
+                <Link href="/dashboard/costs" onClick={() => onClose?.()} className={linkClass('/dashboard/costs')}>
+                  <span>Costs</span>
+                </Link>
+              </div>
             </li>
           </ul>
         </div>
@@ -99,12 +98,6 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               <Link href="/admin" onClick={() => onClose?.()} className={linkClass('/admin')}>
                 <Shield size={16} className="text-cyan-500" />
                 <span>Admin</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/staff" onClick={() => onClose?.()} className={linkClass('/staff')}>
-                <User size={16} className="text-cyan-500" />
-                <span>Staff</span>
               </Link>
             </li>
           </ul>

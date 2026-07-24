@@ -9,7 +9,7 @@ const DEFAULT_SECTIONS: Section[] = [
   { key: 'invoice', title: 'Invoice Settings', description: 'Configure invoice numbering, footer notes, and document formatting.' },
   { key: 'backup', title: 'Backup', description: 'Create scheduled or manual backups for your farm data.' },
   { key: 'restore', title: 'Restore', description: 'Restore previous data snapshots safely when needed.' },
-  { key: 'users', title: 'Users', description: 'Manage staff accounts and their access to the system.' },
+  { key: 'users', title: 'Users', description: 'Manage user accounts and their access to the system.' },
   { key: 'roles', title: 'Roles', description: 'Create role-based access groups for different responsibilities.' },
   { key: 'permissions', title: 'Permissions', description: 'Fine-tune what each role can create, edit, view, or approve.' }
 ]
