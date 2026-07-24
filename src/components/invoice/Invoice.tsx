@@ -3,6 +3,7 @@ import React from "react"
 import { useToast } from '@/hooks/use-toast'
 import { PrintButton } from "../print-button"
 import { Button } from '@/components/ui/button'
+import type { Branding } from '@/lib/branding'
 
 async function loadScript(url: string) {
   return new Promise<void>((resolve, reject) => {
@@ -73,7 +74,7 @@ type InvoiceProps = {
   billedTo: string
   address?: string
   items: LineItem[]
-  company?: { name?: string; phone?: string; address?: string; website?: string }
+  company?: Branding & { phone?: string; address?: string; website?: string }
 }
 
 export default function Invoice(props: InvoiceProps) {
