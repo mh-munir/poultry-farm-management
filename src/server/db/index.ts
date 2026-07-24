@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { env } from '@/lib/env';
 
 const globalForPrisma = globalThis as unknown as {
@@ -44,7 +44,20 @@ if (!globalForPrisma.prisma) {
   globalForPrisma.prisma = prisma;
 }
 
-export async function dbQuery<T>(query: Promise<T>, timeoutMs = 30000): Promise<T> {
+function isDatabaseUnavailableError(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return ['P1001', 'P1002', 'P1003', 'P1017', 'P2024'].includes(error.code);
+  }
+
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    return true;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return /Can't reach database server|Server has closed the connection|ECONNRESET|ETIMEDOUT|ConnectionReset|Connection refused|connect ECONN/i.test(message);
+}
+
+export async function dbQuery<T>(query: Promise<T>, timeoutMs = 30000, fallback?: T): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
@@ -53,7 +66,15 @@ export async function dbQuery<T>(query: Promise<T>, timeoutMs = 30000): Promise<
   });
 
   try {
-    return await Promise.race([query, timeout]) as Promise<T>;
+    return await Promise.race([query, timeout]) as T;
+  } catch (error) {
+    if (fallback !== undefined && isDatabaseUnavailableError(error)) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn(`[db] Falling back because the database is unavailable: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      return fallback;
+    }
+    throw error;
   } finally {
     if (timer) {
       clearTimeout(timer);
