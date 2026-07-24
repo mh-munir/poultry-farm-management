@@ -79,7 +79,7 @@ export const authConfig = {
           await ensureDefaultAdminUser();
 
           console.log('🔍 Finding user:', email);
-          const user = await dbQuery(prisma.user.findUnique({ where: { email } }), 30000);
+          const user = await dbQuery(prisma.user.findUnique({ where: { email } }), 30000, null);
 
           if (!user) {
             console.log('❌ User not found:', email);

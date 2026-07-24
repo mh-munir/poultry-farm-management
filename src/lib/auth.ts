@@ -14,21 +14,29 @@ export interface AppSession {
 }
 
 export async function requireUser(): Promise<AppSession> {
-  const session = (await auth()) as AppSession | null;
+  try {
+    const session = (await auth()) as AppSession | null;
 
-  if (!session?.user) {
+    if (!session?.user) {
+      redirect('/auth/sign-in');
+    }
+
+    return session ?? { user: { role: 'USER' } };
+  } catch {
     redirect('/auth/sign-in');
   }
-
-  return session ?? { user: { role: 'USER' } };
 }
 
 export async function requireRole(allowedRoles: Array<'ADMIN' | 'MANAGER' | 'USER'>) {
-  const session = await requireUser();
+  try {
+    const session = await requireUser();
 
-  if (!allowedRoles.includes((session.user.role ?? 'USER') as 'ADMIN' | 'MANAGER' | 'USER')) {
+    if (!allowedRoles.includes((session.user.role ?? 'USER') as 'ADMIN' | 'MANAGER' | 'USER')) {
+      redirect('/unauthorized');
+    }
+
+    return session;
+  } catch {
     redirect('/unauthorized');
   }
-
-  return session;
 }

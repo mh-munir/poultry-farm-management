@@ -18,6 +18,7 @@ import { dbQuery, prisma } from '@/server/db';
 import { Card } from '@/components/ui/card';
 import { QuickActionItem } from '@/components/dashboard/quick-action-item';
 import { SummaryCard } from '@/components/dashboard/summary-card';
+import { ServiceUnavailableCard } from '@/components/ui/service-unavailable-card';
 
 function getTodayRange() {
   const start = new Date();
@@ -428,11 +429,14 @@ export default async function DashboardPage() {
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="">
-        {dbUnavailable && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-            Database connection is unavailable right now, so the dashboard is showing safe fallback values.
+        {dbUnavailable ? (
+          <div className="mb-6">
+            <ServiceUnavailableCard
+              title="Dashboard data is temporarily unavailable"
+              description="The database connection is currently unavailable, so live farm totals are not available right now. You can still browse the workspace while the service recovers."
+            />
           </div>
-        )}
+        ) : null}
         <section className="space-y-6">
           <div className="">
             <div className="grid gap-4">
