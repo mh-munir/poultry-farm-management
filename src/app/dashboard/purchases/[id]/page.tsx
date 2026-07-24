@@ -6,6 +6,7 @@ import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { getPurchaseById, type PurchaseDetail } from '@/features/purchases/actions';
 import { PrintButton } from '@/components/print-button';
+import { getBranding } from '@/lib/branding';
 
 function formatCurrency(value: number | string | Prisma.Decimal | null | undefined) {
   return `KSh ${Number(value?.toString() ?? 0).toFixed(2)}`;
@@ -17,14 +18,21 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
   const purchase = (await getPurchaseById(Number(id))) as PurchaseDetail | null;
 
   if (!purchase) notFound();
+  const branding = (await getBranding()) ?? { name: undefined, logo: undefined };
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="flex items-center justify-between rounded-2xl border bg-card p-6 shadow-sm">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Purchase Invoice</p>
-          <h1 className="mt-2 text-3xl font-semibold">{purchase.invoiceNumber}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{purchase.party.name}</p>
+        <div className="flex items-center gap-4">
+          {branding.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={branding.logo} alt={branding.name ?? 'Brand logo'} className="h-16 w-16 rounded-lg object-contain" />
+          ) : null}
+          <div>
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Purchase Invoice</p>
+            <h1 className="mt-2 text-3xl font-semibold">{purchase.invoiceNumber}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{purchase.party.name}</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">

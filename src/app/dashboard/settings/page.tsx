@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Building2, Camera, CircleDollarSign, DatabaseBackup, FileText, ShieldCheck, UserCog, Users2 } from 'lucide-react';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import SettingsManager from '@/components/dashboard/SettingsManager';
 
 const settingsSections = [
   {
@@ -66,33 +67,12 @@ export default async function SettingsPage() {
       <div className="rounded-xl border bg-card p-8 shadow-sm">
         <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Settings</p>
         <h1 className="mt-2 text-3xl font-semibold">System Settings</h1>
-        <p className="mt-3 max-w-2xl text-muted-foreground">
-          Welcome back, {userName}. Configure the core preferences and access controls for your farm operations.
-        </p>
+        <p className="mt-3 max-w-2xl text-muted-foreground">Welcome back, {userName}. Configure the core preferences and access controls for your farm operations.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {settingsSections.map((section) => {
-          const Icon = section.icon;
-          return (
-            <div key={section.title} className="rounded-xl border bg-card p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold">{section.title}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
-                </div>
-                <div className="rounded-full border bg-background p-2 text-primary">
-                  <Icon className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="mt-5">
-                <Button asChild variant="outline" size="sm">
-                  <Link href="/dashboard/settings">Configure</Link>
-                </Button>
-              </div>
-            </div>
-          );
-        })}
+      {/* Client-managed settings manager: choose which sections are enabled */}
+      <div className="mt-6">
+          <SettingsManager />
       </div>
     </main>
   );

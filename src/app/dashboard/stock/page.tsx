@@ -1,8 +1,28 @@
-import type { Prisma } from '@prisma/client';
+import type { Decimal } from '@prisma/client/runtime/library';
 import { requireUser } from '@/lib/auth';
 import { getStockPageData } from '@/features/stock/actions';
 
-function formatQty(value: number | string | Prisma.Decimal | null | undefined) {
+type StockPageProduct = {
+  id: number;
+  code: string;
+  name: string;
+  unit: string;
+  barcode: string | null;
+  lowStockThreshold: Decimal | null;
+  defaultPurchasePrice: Decimal | null;
+  defaultSellingPrice: Decimal | null;
+  stockBalance: { quantityOnHand: Decimal | null; reservedQuantity: Decimal | null } | null;
+  category: { id: number; name: string } | null;
+};
+
+type StockPageData = {
+  products: StockPageProduct[];
+  total: number;
+  totalPages: number;
+  page: number;
+};
+
+function formatQty(value: number | string | null | undefined) {
   return Number(value?.toString() ?? 0).toFixed(2);
 }
 
@@ -31,7 +51,7 @@ export default async function StockPage({
           <div className="flex items-center gap-3">
             <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
               <div className="font-medium">Total Stock Value</div>
-              <div className="text-primary">{data.products.reduce((total, product) => total + Number(product.stockBalance?.quantityOnHand ?? 0) * Number(product.defaultPurchasePrice ?? 0), 0).toLocaleString()} TK</div>
+              <div className="text-primary">{data.products.reduce((total: number, product: StockPageProduct) => total + Number(product.stockBalance?.quantityOnHand ?? 0) * Number(product.defaultPurchasePrice ?? 0), 0).toLocaleString()} TK</div>
             </div>
           </div>
         </div>
@@ -53,13 +73,13 @@ export default async function StockPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-background">
-              {data.products.length === 0 ? <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">No stock entries found.</td></tr> : data.products.map((product) => (
+              {data.products.length === 0 ? <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">No stock entries found.</td></tr> : data.products.map((product: StockPageProduct) => (
                 <tr key={product.id} className="hover:bg-muted/30">
                   <td className="px-4 py-3">
                     <div className="font-medium">{product.name}</div>
                     <div className="text-xs text-muted-foreground">{product.code}</div>
                   </td>
-                  <td className="px-4 py-3">{formatQty(product.stockBalance?.quantityOnHand ?? 0)} {product.unit}</td>
+                  <td className="px-4 py-3">{formatQty(product.stockBalance?.quantityOnHand?.toString() ?? 0)} {product.unit}</td>
                   <td className="px-4 py-3">{Number(product.defaultPurchasePrice ?? 0).toLocaleString()}</td>
                   <td className="px-4 py-3">{Number(product.defaultSellingPrice ?? 0).toLocaleString()}</td>
                 </tr>

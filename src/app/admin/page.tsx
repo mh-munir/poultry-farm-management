@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { requireRole } from '@/lib/auth';
 import { prisma } from '@/server/db';
 import AdminCredentialsForm from './admin-credentials-form';
@@ -21,21 +22,45 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
   const sp = await searchParams;
   const success = sp?.success ?? '';
   const error = sp?.error ?? '';
-  const smsNotifications = await prisma.smsNotification.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: 25,
-    select: {
-      id: true,
-      phoneNumber: true,
-      saleType: true,
-      message: true,
-      status: true,
-      provider: true,
-      errorMessage: true,
-      createdAt: true,
-      party: { select: { name: true } }
+  let smsNotifications: Array<{
+    id: number;
+    phoneNumber: string | null;
+    saleType: string;
+    message: string;
+    status: string;
+    provider: string;
+    errorMessage: string | null;
+    createdAt: Date;
+    party: { name: string };
+  }> = [];
+  let smsNotificationsUnavailable = false;
+
+  try {
+    smsNotifications = await prisma.smsNotification.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 25,
+      select: {
+        id: true,
+        phoneNumber: true,
+        saleType: true,
+        message: true,
+        status: true,
+        provider: true,
+        errorMessage: true,
+        createdAt: true,
+        party: { select: { name: true } }
+      }
+    });
+  } catch (fetchError) {
+    if (
+      fetchError instanceof Prisma.PrismaClientKnownRequestError &&
+      fetchError.code === 'P2021'
+    ) {
+      smsNotificationsUnavailable = true;
+    } else {
+      throw fetchError;
     }
-  });
+  }
 
   return (
     <main className="mx-auto flex min-h-[70vh] max-w-7xl flex-col gap-6 px-6 py-10">
@@ -73,6 +98,12 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">SMS notifications</p>
           <h2 className="mt-2 text-2xl font-semibold">Recent SMS logs</h2>
         </div>
+
+        {smsNotificationsUnavailable ? (
+          <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            SMS notification logs are unavailable because the underlying database table is missing. Run your Prisma migration to create the table and retry.
+          </div>
+        ) : null}
 
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">

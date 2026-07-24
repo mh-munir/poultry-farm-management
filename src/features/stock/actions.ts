@@ -250,3 +250,38 @@ export async function getProductsForStock() {
     }
   });
 }
+
+export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE') {
+  return prisma.product.findMany({
+    where: { isActive: true, productType },
+    orderBy: { name: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      unit: true,
+      defaultPurchasePrice: true,
+      defaultSellingPrice: true,
+      stockBalance: { select: { quantityOnHand: true } },
+      transactionItems: {
+        select: {
+          transaction: {
+            select: {
+              id: true,
+              transactionDate: true,
+              paidAmount: true,
+              dueAmount: true,
+              party: { select: { name: true } }
+            }
+          }
+        },
+        where: {
+          transaction: { transactionType: 'PURCHASE' }
+        },
+        orderBy: {
+          transaction: { transactionDate: 'desc' }
+        },
+        take: 1
+      }
+    }
+  });
+}

@@ -235,7 +235,7 @@ export default async function PartyProfilePage({ params, searchParams }: { param
     emptyMessage: string,
     showMedia: boolean
   ) => (
-    <div className="mt-6 overflow-hidden rounded-xl border">
+    <div className="mt-6 overflow-hidden rounded-xl border min-w-0">
       <div className="bg-muted/40 px-4 py-3 text-sm font-semibold">{title}</div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
@@ -248,8 +248,8 @@ export default async function PartyProfilePage({ params, searchParams }: { param
               <th className="px-4 py-3 font-medium">Unit</th>
               <th className="px-4 py-3 font-medium">Unit price</th>
               <th className="px-4 py-3 font-medium">Line total</th>
-              <th className="px-4 py-3 font-medium">Details</th>
               {showMedia ? <th className="px-4 py-3 font-medium">Media</th> : null}
+              <th className="px-4 py-3 font-medium">Print</th>
             </tr>
           </thead>
           <tbody>
@@ -263,8 +263,10 @@ export default async function PartyProfilePage({ params, searchParams }: { param
                   <td className="px-4 py-3">{row.unit}</td>
                   <td className="px-4 py-3">{formatCurrency(row.unitPrice)}</td>
                   <td className="px-4 py-3">{formatCurrency(row.lineTotal)}</td>
-                  <td className="px-4 py-3">{row.details ?? '—'}</td>
                   {showMedia ? <td className="px-4 py-3">{row.mediaName ?? '—'}</td> : null}
+                  <td className="px-4 py-3">
+                    <a href={`/dashboard/sales/${row.id.split('-')[0]}`} className="text-sm text-blue-600 hover:underline">Print</a>
+                  </td>
                 </tr>
               ))
             ) : (
@@ -281,8 +283,8 @@ export default async function PartyProfilePage({ params, searchParams }: { param
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <ToastRedirect initialSuccess={success ?? undefined} initialError={error ?? undefined} />
-      <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-        <section className="rounded-2xl border bg-card p-6 shadow-sm">
+      <div className="min-w-0 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+        <section className="min-w-0 rounded-2xl border bg-card p-6 shadow-sm">
           <div className="flex items-start justify-between gap-6 mb-6">
             <div className="flex items-center gap-4">
                 {party.imageUrl ? (
@@ -296,6 +298,7 @@ export default async function PartyProfilePage({ params, searchParams }: { param
               <div>
                 <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Party Profile</p>
                 <h1 className="mt-2 text-3xl font-semibold leading-tight">{party.name}</h1>
+                
               </div>
             </div>
           </div>
@@ -329,7 +332,7 @@ export default async function PartyProfilePage({ params, searchParams }: { param
 
           <div className="flex flex-wrap gap-3 mt-6">
             <PaymentFormDialog partyId={party.id} recordPaymentForParty={recordPaymentForParty} />
-            <PartyRowActions
+              <PartyRowActions
               editOnly
               party={{
                 id: party.id,
@@ -344,6 +347,7 @@ export default async function PartyProfilePage({ params, searchParams }: { param
                 imageUrl: party.imageUrl,
                 isActive: party.isActive
               }}
+              printHref={`/dashboard/parties/${party.id}/print`}
             />
           </div>
         </section>
