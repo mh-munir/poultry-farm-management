@@ -1,25 +1,39 @@
 "use client"
-import React, { useRef } from 'react'
+import React, { useState } from 'react'
+import { saveSetting } from '@/lib/settings'
 
 export default function RestoreSettingsClient() {
-  const inputRef = useRef<HTMLInputElement | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [restoring, setRestoring] = useState(false)
 
-  function onRestore() {
-    const file = inputRef.current?.files?.[0]
+  async function onRestore() {
     if (!file) return alert('Choose a JSON backup file')
+    setRestoring(true)
+
     const reader = new FileReader()
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const obj = JSON.parse(String(reader.result))
-        if (obj.company_profile) localStorage.setItem('company_profile', obj.company_profile)
-        if (obj.branding) localStorage.setItem('branding', obj.branding)
-        if (obj.invoice_settings) localStorage.setItem('invoice_settings', obj.invoice_settings)
-        if (obj.dashboard_costs) localStorage.setItem('dashboard_costs', obj.dashboard_costs)
-        alert('Restore completed (localStorage updated)')
+        const entries = Object.entries(obj)
+        let restored = 0
+
+        for (const [key, value] of entries) {
+          const ok = await saveSetting(key, value).catch(() => false)
+          if (ok) restored += 1
+        }
+
+        if (restored > 0) {
+          alert(`Restore completed for ${restored} settings keys.`)
+        } else {
+          alert('Restore failed. No settings were saved to the server.')
+        }
       } catch (err) {
         alert('Invalid JSON file')
       }
+
+      setRestoring(false)
     }
+
     reader.readAsText(file)
   }
 
@@ -27,14 +41,12 @@ export default function RestoreSettingsClient() {
     <div className="mx-auto max-w-3xl">
       <div className="rounded-xl border bg-card p-6 mb-6">
         <h2 className="text-2xl font-semibold">Restore</h2>
-        <p className="text-sm text-muted-foreground">Upload a previously exported JSON backup to restore settings locally.</p>
+        <p className="text-sm text-muted-foreground">Upload a previously exported JSON backup to restore your server-backed settings.</p>
       </div>
 
-      <div className="rounded-xl border bg-card p-6">
-        <input ref={inputRef} type="file" accept="application/json" />
-        <div className="mt-4">
-          <button onClick={onRestore} className="rounded bg-primary px-4 py-2 text-white">Restore</button>
-        </div>
+      <div className="rounded-xl border bg-card p-6 space-y-4">
+        <input type="file" accept="application/json" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+        <button disabled={restoring} onClick={onRestore} className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{restoring ? 'Restoring...' : 'Restore'}</button>
       </div>
     </div>
   )

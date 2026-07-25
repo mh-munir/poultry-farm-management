@@ -1,24 +1,47 @@
 "use client"
 import React, { useEffect, useState } from 'react'
+import { getSetting, saveSetting } from '@/lib/settings'
 
 export default function InvoiceSettingsClient() {
   const [prefix, setPrefix] = useState('INV')
   const [footer, setFooter] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('invoice_settings')
-      if (raw) {
-        const obj = JSON.parse(raw)
-        setPrefix(obj.prefix ?? 'INV')
-        setFooter(obj.footer ?? '')
-      }
-    } catch {}
+    async function load() {
+      try {
+        const value = await getSetting('invoice_settings')
+        if (value) {
+          setPrefix(value.prefix ?? 'INV')
+          setFooter(value.footer ?? '')
+          return
+        }
+      } catch {}
+
+      try {
+        const raw = localStorage.getItem('invoice_settings')
+        if (raw) {
+          const obj = JSON.parse(raw)
+          setPrefix(obj.prefix ?? 'INV')
+          setFooter(obj.footer ?? '')
+        }
+      } catch {}
+    }
+
+    load()
   }, [])
 
-  function save() {
-    localStorage.setItem('invoice_settings', JSON.stringify({ prefix, footer }))
-    alert('Saved invoice settings')
+  async function save() {
+    setSaving(true)
+    const value = { prefix, footer }
+    const ok = await saveSetting('invoice_settings', value).catch(() => false)
+    if (ok) {
+      alert('Saved invoice settings to server')
+    } else {
+      localStorage.setItem('invoice_settings', JSON.stringify(value))
+      alert('Saved invoice settings to localStorage')
+    }
+    setSaving(false)
   }
 
   return (
@@ -38,7 +61,7 @@ export default function InvoiceSettingsClient() {
           <textarea className="mt-1 w-full rounded border px-3 py-2" value={footer} onChange={(e) => setFooter(e.target.value)} />
         </div>
         <div>
-          <button onClick={save} className="rounded bg-primary px-4 py-2 text-white">Save</button>
+          <button disabled={saving} onClick={save} className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
         </div>
       </div>
     </div>

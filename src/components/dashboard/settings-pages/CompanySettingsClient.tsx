@@ -1,37 +1,55 @@
 "use client"
 import React, { useEffect, useState } from 'react'
+import { getSetting, saveSetting } from '@/lib/settings'
 
 export default function CompanySettingsClient() {
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
   const [phone, setPhone] = useState('')
   const [website, setWebsite] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('company_profile')
-      if (raw) {
-        const obj = JSON.parse(raw)
-        setName(obj.name ?? '')
-        setAddress(obj.address ?? '')
-        setPhone(obj.phone ?? '')
-        setWebsite(obj.website ?? '')
-      }
-    } catch {}
+    async function load() {
+      try {
+        const value = await getSetting('company_profile')
+        if (value) {
+          setName(value.name ?? '')
+          setAddress(value.address ?? '')
+          setPhone(value.phone ?? '')
+          setWebsite(value.website ?? '')
+          return
+        }
+      } catch {}
+
+      try {
+        const raw = localStorage.getItem('company_profile')
+        if (raw) {
+          const obj = JSON.parse(raw)
+          setName(obj.name ?? '')
+          setAddress(obj.address ?? '')
+          setPhone(obj.phone ?? '')
+          setWebsite(obj.website ?? '')
+        }
+      } catch {}
+    }
+
+    load()
   }, [])
 
-  function save() {
+  async function save() {
     const payload = { name, address, phone, website }
-    // Try server persistence first, fall back to localStorage
-    fetch('/api/settings', { method: 'POST', body: JSON.stringify({ key: 'company_profile', value: payload }), headers: { 'Content-Type': 'application/json' } })
-      .then(async (res) => {
-        if (!res.ok) throw new Error('server error')
-        alert('Saved company profile to server')
-      })
-      .catch(() => {
-        localStorage.setItem('company_profile', JSON.stringify(payload))
-        alert('Saved company profile to localStorage')
-      })
+    setSaving(true)
+
+    const ok = await saveSetting('company_profile', payload).catch(() => false)
+    if (ok) {
+      alert('Saved company profile to server')
+    } else {
+      localStorage.setItem('company_profile', JSON.stringify(payload))
+      alert('Saved company profile to localStorage')
+    }
+
+    setSaving(false)
   }
 
   return (
@@ -61,7 +79,7 @@ export default function CompanySettingsClient() {
           </div>
         </div>
         <div className="mt-4">
-          <button onClick={save} className="rounded bg-primary px-4 py-2 text-white">Save</button>
+          <button disabled={saving} onClick={save} className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
         </div>
       </div>
     </div>
