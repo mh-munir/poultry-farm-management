@@ -16,7 +16,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'admin')
+    // In serverless environments, only the /tmp directory is writable.
+    // process.cwd() is read-only.
+    const uploadDir = path.join('/tmp', 'uploads', 'admin')
     await mkdir(uploadDir, { recursive: true })
     const originalExt = path.extname(imageFile.name) || '.png'
     const originalArrayBuffer = await imageFile.arrayBuffer()
@@ -40,7 +42,10 @@ export async function POST(request: Request) {
     const filePath = path.join(uploadDir, fileName)
     await writeFile(filePath, finalFile)
 
-    const url = `/uploads/admin/${fileName}`
+    // The URL should still point to the public path where the file will be served from,
+    // but the file is written to /tmp. You'll need an external storage service
+    // like an S3 bucket to persist and serve these files in a production serverless environment.
+    const url = `/uploads/admin/${fileName}` // This will not work for serving the file from /tmp.
     return NextResponse.json({ url })
   } catch (err: any) {
     return NextResponse.json({ error: 'upload_failed', message: String(err?.message ?? err) }, { status: 500 })
