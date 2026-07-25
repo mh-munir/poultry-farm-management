@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import imageCompression from 'browser-image-compression';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { createOrUpdatePartyWithToast } from '@/features/parties/actions';
+import { createOrUpdateParty } from '@/features/parties/actions';
 import { createSaleTransactionWithToast } from '@/features/sales/actions';
 import { recordSupplierProductPurchase } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -135,7 +135,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
       formData.set('image', compressedImageFile, compressedImageFile.name);
     }
 
-    const result = await createOrUpdatePartyWithToast(formData);
+    const result = await createOrUpdateParty(formData);
     
     if (result.success) {
       success(result.message);

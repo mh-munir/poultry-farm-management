@@ -7,7 +7,7 @@ import { Dialog } from '@/components/ui/dialog';
 
 type Props = {
   partyId: number;
-  recordPaymentForParty: (formData: FormData) => Promise<void> | void;
+  recordPaymentForParty: (formData: FormData) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
 };
 
 export default function PaymentFormDialog({ partyId, recordPaymentForParty }: Props) {

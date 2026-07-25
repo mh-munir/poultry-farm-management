@@ -7,6 +7,11 @@ import { createOrUpdateParty } from '@/features/parties/actions';
 export default async function NewPartyPage() {
   await requireUser();
 
+  async function createParty(formData: FormData) {
+    'use server';
+    await createOrUpdateParty(formData);
+  }
+
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="flex items-center justify-between rounded-2xl border bg-card p-6 shadow-sm">
@@ -22,7 +27,7 @@ export default async function NewPartyPage() {
         </Button>
       </div>
 
-      <form action={createOrUpdateParty} encType="multipart/form-data" autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
+      <form action={createParty} encType="multipart/form-data" autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium">Party name</label>
