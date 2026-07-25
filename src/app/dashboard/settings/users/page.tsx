@@ -4,7 +4,7 @@ import UsersSettingsClient from '@/components/dashboard/settings-pages/UsersSett
 export default async function UsersPage() {
   await requireRole(['ADMIN','MANAGER'])
   return (
-    <main className="mx-auto min-h-[70vh] max-w-6xl px-6 py-10">
+    <main className="mx-auto min-h-[70vh] max-w-screen-3xl px-6 py-10">
       <UsersSettingsClient />
     </main>
   )
