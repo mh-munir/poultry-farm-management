@@ -39,6 +39,25 @@ export function getSupabaseAdmin() {
     throw new Error(`Missing Supabase environment variable(s): ${missingEnv.join(', ')}`);
   }
 
+  // Temporary, server-only diagnostic to help verify deployed Supabase config.
+  // Logs only non-secret values (no service role key or other secrets).
+  try {
+    const debugSupabaseUrl = supabaseUrl?.toString();
+    const containsStorage = !!debugSupabaseUrl && /\/storage(\/|$)/i.test(debugSupabaseUrl);
+    const containsBucketName = !!debugSupabaseUrl && debugSupabaseUrl.includes('party-images');
+
+    console.error('SUPABASE CONFIG DEBUG', {
+      supabaseUrl: debugSupabaseUrl,
+      bucketName: 'party-images',
+      supabaseUrlHost: getSupabaseUrlHost(debugSupabaseUrl),
+      containsStorageSegment: containsStorage,
+      containsBucketName
+    });
+  } catch (e) {
+    // Ensure diagnostics never throw and reveal secrets.
+    console.error('SUPABASE CONFIG DEBUG: failed to evaluate debug info');
+  }
+
   supabaseAdmin ??= createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: {
       autoRefreshToken: false,

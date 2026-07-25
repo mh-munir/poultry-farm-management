@@ -69,22 +69,50 @@ async function uploadPartyImage(
     throw new Error(`Cannot upload party image: invalid partyId (${partyId})`);
   }
 
-  const filePath = `${partyId}/${randomUUID()}.webp`;
+  // Build a safe, relative storage object path (bucket name must NOT be included)
+  const safePartyId = String(partyId).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const fileName = `${randomUUID()}.webp`;
+  const filePath = `${safePartyId}/${fileName}`;
+
+  // Basic runtime config validation (do not log secrets)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const bucketName = BUCKET_NAME.trim();
+
+  console.error("PARTY IMAGE SUPABASE CONFIG DEBUG", {
+    supabaseUrl,
+    bucketName,
+    bucketNameJson: JSON.stringify(bucketName),
+    filePath,
+    filePathJson: JSON.stringify(filePath),
+    filePathType: typeof filePath,
+  });
+
+  if (!supabaseUrl) {
+    throw new Error('Supabase URL is not configured');
+  }
+
+  if (!bucketName || bucketName !== 'party-images') {
+    throw new Error(`Invalid Supabase Storage bucket configuration: ${JSON.stringify(bucketName)}`);
+  }
+
+  if (
+    !filePath ||
+    filePath.startsWith('/') ||
+    filePath.includes('://') ||
+    filePath.includes('undefined') ||
+    filePath.includes('null')
+  ) {
+    throw new Error(`Invalid Supabase Storage object path: ${JSON.stringify(filePath)}`);
+  }
 
   const arrayBuffer = await imageFile.arrayBuffer();
   const inputBuffer = Buffer.from(arrayBuffer);
   const fileData = await sharp(inputBuffer).webp({ quality: 85 }).toBuffer();
 
-  console.error('PARTY IMAGE UPLOAD DEBUG', {
-    bucketName: BUCKET_NAME,
-    filePath,
-    filePathType: typeof filePath,
-  });
-
   const { error: uploadError } = await supabaseAdmin.storage
     .from('party-images')
     .upload(filePath, fileData, {
-      contentType: 'image/webp',
+      contentType: PARTY_IMAGE_CONTENT_TYPE,
       upsert: false,
     });
 
