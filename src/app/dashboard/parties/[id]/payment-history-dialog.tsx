@@ -16,12 +16,14 @@ type InitialPayment = {
   notes: string | null;
 };
 
+type PartyPaymentActionResult = { success: boolean; message: string };
+
 type PaymentHistoryDialogProps = {
   partyId: number;
   initialPayments: InitialPayment[];
-  recordPaymentForParty: (formData: FormData) => Promise<void>;
-  updatePaymentForParty: (formData: FormData) => Promise<void>;
-  deletePaymentForParty: (formData: FormData) => Promise<void>;
+  recordPaymentForParty: (formData: FormData) => Promise<PartyPaymentActionResult> | PartyPaymentActionResult;
+  updatePaymentForParty: (formData: FormData) => Promise<PartyPaymentActionResult> | PartyPaymentActionResult;
+  deletePaymentForParty: (formData: FormData) => Promise<PartyPaymentActionResult> | PartyPaymentActionResult;
 };
 
 export function PaymentHistoryDialog({

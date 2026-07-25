@@ -14,12 +14,14 @@ type InitialPayment = {
   notes: string | null;
 };
 
+type PartyPaymentActionResult = { success: boolean; message: string };
+
 type PartyPaymentsSectionProps = {
   partyId: number;
   initialPayments: InitialPayment[];
-  recordPaymentForParty: (formData: FormData) => Promise<void>;
-  updatePaymentForParty: (formData: FormData) => Promise<void>;
-  deletePaymentForParty: (formData: FormData) => Promise<void>;
+  recordPaymentForParty: (formData: FormData) => Promise<PartyPaymentActionResult> | PartyPaymentActionResult;
+  updatePaymentForParty: (formData: FormData) => Promise<PartyPaymentActionResult> | PartyPaymentActionResult;
+  deletePaymentForParty: (formData: FormData) => Promise<PartyPaymentActionResult> | PartyPaymentActionResult;
   showForm?: boolean;
   showDeleteButton?: boolean;
 };
@@ -79,7 +81,9 @@ export function PartyPaymentsSection({
   return (
     <div>
       {showForm && (
-        <form action={recordPaymentForParty} className="mt-6 grid gap-4 rounded-xl border bg-background p-4 md:grid-cols-2">
+        <form action={async (formData: FormData) => {
+          await recordPaymentForParty(formData);
+        }} className="mt-6 grid gap-4 rounded-xl border bg-background p-4 md:grid-cols-2">
         <input type="hidden" name="partyId" value={partyId} />
         <div>
           <label className="mb-2 block text-sm font-medium">Amount</label>
@@ -137,7 +141,9 @@ export function PartyPaymentsSection({
                   {editingPaymentId === payment.id ? (
                     <>
                       <td colSpan={7} className="px-4 py-4">
-                        <form action={updatePaymentForParty} className="grid gap-3 rounded-lg border bg-background p-3 md:grid-cols-2">
+                        <form action={async (formData: FormData) => {
+                          await updatePaymentForParty(formData);
+                        }} className="grid gap-3 rounded-lg border bg-background p-3 md:grid-cols-2">
                           <input type="hidden" name="partyId" value={partyId} />
                           <input type="hidden" name="paymentId" value={payment.id} />
                           <div>
@@ -221,7 +227,9 @@ export function PartyPaymentsSection({
                             Edit
                           </Button>
                           {showDeleteButton ? (
-                            <form action={deletePaymentForParty}>
+                            <form action={async (formData: FormData) => {
+                              await deletePaymentForParty(formData);
+                            }}>
                               <input type="hidden" name="partyId" value={partyId} />
                               <input type="hidden" name="paymentId" value={payment.id} />
                               <Button type="submit" variant="destructive" size="sm">

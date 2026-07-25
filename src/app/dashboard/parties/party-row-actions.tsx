@@ -7,7 +7,7 @@ import { Eye, MoreHorizontal, Pencil, Trash2, Printer } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { createOrUpdatePartyWithToast, deleteParty } from '@/features/parties/actions';
+import { createOrUpdateParty, deleteParty } from '@/features/parties/actions';
 import { useToast } from '@/hooks/use-toast';
 
 export type PartyRowEditPayload = {
@@ -74,7 +74,7 @@ export function PartyRowActions({ party, editOnly = false, printHref }: PartyRow
       formData.set('image', compressedImageFile, compressedImageFile.name);
     }
 
-    const result = await createOrUpdatePartyWithToast(formData);
+    const result = await createOrUpdateParty(formData);
     setIsSaving(false);
 
     if (result.success) {
@@ -88,11 +88,23 @@ export function PartyRowActions({ party, editOnly = false, printHref }: PartyRow
     error(result.message);
   };
 
-  const handleDeleteSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleDeleteSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     const confirmed = window.confirm(`Delete ${party.name}? This will remove related transactions and payments.`);
 
     if (!confirmed) {
-      event.preventDefault();
+      return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+    const result = await deleteParty(formData);
+
+    if (result.success) {
+      success(result.message);
+      setActionOpen(false);
+      router.refresh();
+    } else {
+      error(result.message);
     }
   };
 
@@ -148,7 +160,7 @@ export function PartyRowActions({ party, editOnly = false, printHref }: PartyRow
               <Pencil className="h-4 w-4" />
               Edit
             </button>
-            <form action={deleteParty} onSubmit={handleDeleteSubmit}>
+            <form onSubmit={handleDeleteSubmit}>
               <input type="hidden" name="partyId" value={party.id} />
               <button
                 type="submit"
