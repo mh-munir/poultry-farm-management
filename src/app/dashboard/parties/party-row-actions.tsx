@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { createOrUpdateParty, deleteParty } from '@/features/parties/actions';
 import { useToast } from '@/hooks/use-toast';
+import { getFriendlyServerActionError, handleStaleServerActionError } from '@/lib/server-action-errors';
 
 export type PartyRowEditPayload = {
   id: number;
@@ -32,7 +33,7 @@ type PartyRowActionsProps = {
 
 export function PartyRowActions({ party, editOnly = false, printHref }: PartyRowActionsProps) {
   const router = useRouter();
-  const { success, error } = useToast();
+  const { success, error: showToastError } = useToast();
   const [actionOpen, setActionOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -74,18 +75,27 @@ export function PartyRowActions({ party, editOnly = false, printHref }: PartyRow
       formData.set('image', compressedImageFile, compressedImageFile.name);
     }
 
-    const result = await createOrUpdateParty(formData);
-    setIsSaving(false);
+    try {
+      const result = await createOrUpdateParty(formData);
+      setIsSaving(false);
 
-    if (result.success) {
-      success(result.message);
-      setEditOpen(false);
-      setActionOpen(false);
-      router.refresh();
-      return;
+      if (result.success) {
+        success(result.message);
+        setEditOpen(false);
+        setActionOpen(false);
+        router.refresh();
+        return;
+      }
+
+      showToastError(result.message);
+    } catch (error) {
+      setIsSaving(false);
+      const staleHandled = handleStaleServerActionError(error, showToastError);
+      if (!staleHandled) {
+        const message = getFriendlyServerActionError(error);
+        showToastError(message);
+      }
     }
-
-    error(result.message);
   };
 
   const handleDeleteSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -97,14 +107,22 @@ export function PartyRowActions({ party, editOnly = false, printHref }: PartyRow
     }
 
     const formData = new FormData(event.currentTarget);
-    const result = await deleteParty(formData);
+    try {
+      const result = await deleteParty(formData);
 
-    if (result.success) {
-      success(result.message);
-      setActionOpen(false);
-      router.refresh();
-    } else {
-      error(result.message);
+      if (result.success) {
+        success(result.message);
+        setActionOpen(false);
+        router.refresh();
+      } else {
+        showToastError(result.message);
+      }
+    } catch (error) {
+      const staleHandled = handleStaleServerActionError(error, showToastError);
+      if (!staleHandled) {
+        const message = getFriendlyServerActionError(error);
+        showToastError(message);
+      }
     }
   };
 
