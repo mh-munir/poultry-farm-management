@@ -35,23 +35,81 @@ const partySchema = z.object({
 
 const BUCKET_NAME = 'party-images';
 
+function getImageContentType(fileName: string, fileType: string) {
+  if (fileType) {
+    return fileType;
+  }
+
+  const extension = fileName.split('.').pop()?.toLowerCase();
+
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
+    case 'avif':
+      return 'image/avif';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
 async function uploadPartyImage(partyId: number, imageFile: File): Promise<string> {
   const supabaseAdmin = getSupabaseAdmin();
-  const fileBuffer = Buffer.from(await imageFile.arrayBuffer());
   const fileExtension = imageFile.name.split('.').pop() || 'webp';
   const fileName = `${randomUUID()}.${fileExtension}`;
   const filePath = `${partyId}/${fileName}`;
+  const contentType = getImageContentType(imageFile.name, imageFile.type);
+  const fileArrayBuffer = await imageFile.arrayBuffer();
+
+  if (!contentType.startsWith('image/')) {
+    console.error('Party image upload rejected: invalid content type', {
+      partyId,
+      bucket: BUCKET_NAME,
+      originalFileName: imageFile.name,
+      fileType: imageFile.type || null,
+      resolvedContentType: contentType,
+      fileSize: imageFile.size,
+      arrayBufferByteLength: fileArrayBuffer.byteLength
+    });
+    throw new Error('Please upload a valid image file.');
+  }
 
   const { error: uploadError } = await supabaseAdmin.storage
     .from(BUCKET_NAME)
-    .upload(filePath, fileBuffer, {
-      contentType: imageFile.type,
+    .upload(filePath, fileArrayBuffer, {
+      contentType,
       upsert: true
     });
 
   if (uploadError) {
-    console.error('Supabase upload error:', uploadError);
-    throw new Error('Failed to upload party image.');
+    const error = uploadError as typeof uploadError & {
+      details?: unknown;
+      status?: number | string;
+      statusCode?: number | string;
+    };
+
+    console.error('Party image upload failed:', {
+      message: error?.message,
+      name: error?.name,
+      statusCode: error?.statusCode,
+      status: error?.status,
+      details: error?.details,
+      bucket: BUCKET_NAME,
+      filePath,
+      contentType,
+      originalFileName: imageFile.name,
+      fileSize: imageFile.size,
+      arrayBufferByteLength: fileArrayBuffer.byteLength,
+      hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+    });
+    throw new Error(`Party image upload failed: ${error.message}`);
   }
 
   const { data } = supabaseAdmin.storage.from(BUCKET_NAME).getPublicUrl(filePath);
