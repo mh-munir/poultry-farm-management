@@ -36,6 +36,8 @@ const partySchema = z.object({
 
 const BUCKET_NAME = 'party-images';
 const PARTY_IMAGE_CONTENT_TYPE = 'image/webp';
+const SUPPORTED_PARTY_IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+const PARTY_IMAGE_ERROR_MESSAGE = 'Please upload a valid JPG, JPEG, PNG, or WebP image.';
 
 function getImageContentType(fileName: string, fileType: string) {
   if (fileType) {
@@ -52,10 +54,6 @@ function getImageContentType(fileName: string, fileType: string) {
       return 'image/png';
     case 'webp':
       return 'image/webp';
-    case 'gif':
-      return 'image/gif';
-    case 'avif':
-      return 'image/avif';
     default:
       return 'application/octet-stream';
   }
@@ -68,7 +66,7 @@ async function uploadPartyImage(partyId: number, imageFile: File): Promise<strin
   const originalContentType = getImageContentType(imageFile.name, imageFile.type);
   const fileArrayBuffer = await imageFile.arrayBuffer();
 
-  if (!originalContentType.startsWith('image/')) {
+  if (!SUPPORTED_PARTY_IMAGE_TYPES.has(originalContentType)) {
     console.error('Party image upload rejected: invalid content type', {
       partyId,
       bucket: BUCKET_NAME,
@@ -78,13 +76,30 @@ async function uploadPartyImage(partyId: number, imageFile: File): Promise<strin
       fileSize: imageFile.size,
       arrayBufferByteLength: fileArrayBuffer.byteLength
     });
-    throw new Error('Please upload a valid image file.');
+    throw new Error(PARTY_IMAGE_ERROR_MESSAGE);
   }
 
-  const fileData = await sharp(Buffer.from(fileArrayBuffer))
-    .rotate()
-    .webp({ quality: 82 })
-    .toBuffer();
+  let fileData: Buffer;
+
+  try {
+    fileData = await sharp(Buffer.from(fileArrayBuffer))
+      .rotate()
+      .webp({ quality: 82 })
+      .toBuffer();
+  } catch (error) {
+    console.error('Party image WebP conversion failed:', {
+      error,
+      partyId,
+      bucket: BUCKET_NAME,
+      filePath,
+      originalContentType,
+      originalFileName: imageFile.name,
+      originalFileSize: imageFile.size,
+      arrayBufferByteLength: fileArrayBuffer.byteLength
+    });
+    throw new Error('Could not process party image. Please upload a valid JPG, JPEG, PNG, or WebP image.');
+  }
+
   const fileSize = fileData.byteLength;
 
   console.log('Party image upload path:', {
