@@ -31,7 +31,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
     provider: string;
     errorMessage: string | null;
     createdAt: Date;
-    party: { name: string };
+    party: { name: string } | null;
   }> = [];
   let smsNotificationsUnavailable = false;
 
@@ -123,7 +123,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
               {smsNotifications.length > 0 ? (
                 smsNotifications.map((notification) => (
                   <tr key={notification.id} className="border-t align-top">
-                    <td className="px-3 py-3">{notification.party.name}</td>
+                    <td className="px-3 py-3">{notification.party?.name ?? '-'}</td>
                     <td className="px-3 py-3">{notification.phoneNumber ?? '-'}</td>
                     <td className="px-3 py-3">{notification.saleType}</td>
                     <td className="max-w-xs whitespace-pre-line px-3 py-3">{notification.message.slice(0, 160)}</td>

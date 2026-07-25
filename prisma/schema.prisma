@@ -52,8 +52,6 @@ model User {
   reports       Report[]
   sessions      Session[]
   transactions  Transaction[]
-  updatedSettings Setting[]
-  createdCosts    Cost[]
 }
 
 model VerificationToken {
@@ -182,43 +180,13 @@ model Transaction {
   dueAdjustments   DueAdjustment[]
   ledgerEntries    LedgerEntry[]
   payments         PaymentAllocation[]
-  smsNotifications SmsNotification[]
+  smsNotifications SmsNotification?
   stockMovements   StockMovement[]
   createdBy        User?               @relation(fields: [createdById], references: [id])
   party            Party               @relation(fields: [partyId], references: [id])
   transactionItems TransactionItem[]
 
   @@index([partyId, transactionDate])
-}
-
-enum SmsNotificationStatus {
-  PENDING
-  QUEUED
-  SENT
-  FAILED
-  SKIPPED
-}
-
-model SmsNotification {
-  id                Int                   @id @default(autoincrement())
-  partyId           Int
-  transactionId     Int                   @unique
-  phoneNumber       String?
-  saleType          String
-  message           String
-  status            SmsNotificationStatus @default(PENDING)
-  provider          String                @default("mock")
-  providerMessageId String?
-  errorMessage      String?
-  sentAt            DateTime?
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  party             Party                 @relation(fields: [partyId], references: [id])
-  transaction       Transaction           @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-
-  @@index([partyId, createdAt])
-  @@index([status, createdAt])
-  @@index([saleType, createdAt])
 }
 
 model TransactionItem {
@@ -234,6 +202,27 @@ model TransactionItem {
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([transactionId])
+}
+
+model SmsNotification {
+  id                Int                   @id @default(autoincrement())
+  partyId           Int?
+  transactionId     Int?                  @unique
+  phoneNumber       String?
+  saleType          String
+  message           String
+  status            SmsNotificationStatus @default(QUEUED)
+  provider          String                @default("mock")
+  providerMessageId String?
+  errorMessage      String?
+  sentAt            DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  party             Party?                @relation(fields: [partyId], references: [id])
+  transaction       Transaction?          @relation(fields: [transactionId], references: [id])
+
+  @@index([partyId, createdAt])
+  @@index([status, createdAt])
 }
 
 model Payment {
@@ -313,26 +302,10 @@ model Report {
   @@index([reportType, generatedAt])
 }
 
-model Setting {
-  id         Int      @id @default(autoincrement())
-  key        String   @unique
-  value      Json
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  updatedById String?
-  updatedBy  User?    @relation(fields: [updatedById], references: [id])
-
-  @@index([key])
-}
-
-model Cost {
-  id          Int      @id @default(autoincrement())
-  amount      Decimal
-  description String?
-  costDate    DateTime @default(now())
-  createdById String?
-  createdBy   User?    @relation(fields: [createdById], references: [id])
-  createdAt   DateTime @default(now())
-
-  @@index([costDate])
+enum SmsNotificationStatus {
+  QUEUED
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
 }

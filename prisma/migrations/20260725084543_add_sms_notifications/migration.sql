@@ -1,15 +1,15 @@
 -- CreateEnum
-CREATE TYPE "SmsNotificationStatus" AS ENUM ('PENDING', 'QUEUED', 'SENT', 'FAILED', 'SKIPPED');
+CREATE TYPE "SmsNotificationStatus" AS ENUM ('QUEUED', 'PENDING', 'SENT', 'FAILED', 'SKIPPED');
 
 -- CreateTable
 CREATE TABLE "SmsNotification" (
     "id" SERIAL NOT NULL,
-    "partyId" INTEGER NOT NULL,
-    "transactionId" INTEGER NOT NULL,
+    "partyId" INTEGER,
+    "transactionId" INTEGER,
     "phoneNumber" TEXT,
     "saleType" TEXT NOT NULL,
     "message" TEXT NOT NULL,
-    "status" "SmsNotificationStatus" NOT NULL DEFAULT 'PENDING',
+    "status" "SmsNotificationStatus" NOT NULL DEFAULT 'QUEUED',
     "provider" TEXT NOT NULL DEFAULT 'mock',
     "providerMessageId" TEXT,
     "errorMessage" TEXT,
@@ -29,11 +29,8 @@ CREATE INDEX "SmsNotification_partyId_createdAt_idx" ON "SmsNotification"("party
 -- CreateIndex
 CREATE INDEX "SmsNotification_status_createdAt_idx" ON "SmsNotification"("status", "createdAt");
 
--- CreateIndex
-CREATE INDEX "SmsNotification_saleType_createdAt_idx" ON "SmsNotification"("saleType", "createdAt");
+-- AddForeignKey
+ALTER TABLE "SmsNotification" ADD CONSTRAINT "SmsNotification_partyId_fkey" FOREIGN KEY ("partyId") REFERENCES "Party"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SmsNotification" ADD CONSTRAINT "SmsNotification_partyId_fkey" FOREIGN KEY ("partyId") REFERENCES "Party"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SmsNotification" ADD CONSTRAINT "SmsNotification_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "Transaction"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SmsNotification" ADD CONSTRAINT "SmsNotification_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "Transaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
