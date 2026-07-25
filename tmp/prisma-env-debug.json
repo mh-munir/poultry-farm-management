@@ -1,0 +1,21 @@
+{
+  "loaded": {
+    ".env.local": {
+      "exists": true,
+      "DATABASE_URL": null,
+      "DIRECT_URL": null
+    }
+  },
+  "cli": {
+    "prismaBin": "./node_modules/.bin/prisma",
+    "command": "node -r dotenv/config ./node_modules/.bin/prisma db push --schema=prisma/schema.prisma --print",
+    "env": {
+      "DOTENV_CONFIG_PATH": ".env.local"
+    }
+  },
+  "prismaPrint": {
+    "success": false,
+    "output": "D:\\poultry-farm-management\\node_modules\\.bin\\prisma:2\r\nbasedir=$(dirname \"$(echo \"$0\" | sed -e 's,\\\\,/,g')\")\r\n          ^^^^^^^\r\n\r\nSyntaxError: missing ) after argument list\r\n    at wrapSafe (node:internal/modules/cjs/loader:1692:18)\r\n    at Module._compile (node:internal/modules/cjs/loader:1735:20)\r\n    at Object..js (node:internal/modules/cjs/loader:1893:10)\r\n    at Module.load (node:internal/modules/cjs/loader:1481:32)\r\n    at Module._load (node:internal/modules/cjs/loader:1300:12)\r\n    at TracingChannel.traceSync (node:diagnostics_channel:328:14)\r\n    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)\r\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\r\n    at node:internal/main/run_main_module:33:47\r\n\r\nNode.js v24.12.0\r\n"
+  },
+  "errors": []
+}
