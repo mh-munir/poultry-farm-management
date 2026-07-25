@@ -109,6 +109,19 @@ async function uploadPartyImage(
   const inputBuffer = Buffer.from(arrayBuffer);
   const fileData = await sharp(inputBuffer).webp({ quality: 85 }).toBuffer();
 
+  // Safe, server-only diagnostic before upload. Never log secrets or keys.
+  try {
+    console.error('SUPABASE ADMIN CONFIG DEBUG', {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      serviceRoleKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length ?? 0,
+      bucketName: 'party-images',
+      filePath
+    });
+  } catch (e) {
+    console.error('SUPABASE ADMIN CONFIG DEBUG: failed to evaluate debug info');
+  }
+
   const { error: uploadError } = await supabaseAdmin.storage
     .from('party-images')
     .upload(filePath, fileData, {
