@@ -65,5 +65,15 @@ export function getSupabaseAdmin() {
     }
   });
 
+  try {
+    console.error('SUPABASE ADMIN CLIENT CREATED', {
+      supabaseUrlHost: getSupabaseUrlHost(supabaseUrl),
+      hasServiceRoleKey: true,
+      bucketName: 'party-images'
+    });
+  } catch (e) {
+    console.error('SUPABASE ADMIN CLIENT CREATED: failed to evaluate debug info');
+  }
+
   return supabaseAdmin;
 }
