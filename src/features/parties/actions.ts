@@ -59,95 +59,43 @@ function getImageContentType(fileName: string, fileType: string) {
   }
 }
 
-async function uploadPartyImage(partyId: number, imageFile: File): Promise<string> {
+async function uploadPartyImage(
+  partyId: number,
+  imageFile: File
+): Promise<string> {
   const supabaseAdmin = getSupabaseAdmin();
-  const fileName = `${randomUUID()}.webp`;
-  const filePath = Number.isFinite(partyId) && partyId > 0 ? `${partyId}/${fileName}` : fileName;
-  const originalContentType = getImageContentType(imageFile.name, imageFile.type);
-  const fileArrayBuffer = await imageFile.arrayBuffer();
 
-  if (!SUPPORTED_PARTY_IMAGE_TYPES.has(originalContentType)) {
-    console.error('Party image upload rejected: invalid content type', {
-      partyId,
-      bucket: BUCKET_NAME,
-      originalFileName: imageFile.name,
-      fileType: imageFile.type || null,
-      resolvedContentType: originalContentType,
-      fileSize: imageFile.size,
-      arrayBufferByteLength: fileArrayBuffer.byteLength
-    });
-    throw new Error(PARTY_IMAGE_ERROR_MESSAGE);
+  if (!Number.isFinite(partyId) || partyId <= 0) {
+    throw new Error(`Cannot upload party image: invalid partyId (${partyId})`);
   }
 
-  let fileData: Buffer;
+  const filePath = `${partyId}/${randomUUID()}.webp`;
 
-  try {
-    fileData = await sharp(Buffer.from(fileArrayBuffer))
-      .rotate()
-      .webp({ quality: 82 })
-      .toBuffer();
-  } catch (error) {
-    console.error('Party image WebP conversion failed:', {
-      error,
-      partyId,
-      bucket: BUCKET_NAME,
-      filePath,
-      originalContentType,
-      originalFileName: imageFile.name,
-      originalFileSize: imageFile.size,
-      arrayBufferByteLength: fileArrayBuffer.byteLength
-    });
-    throw new Error('Could not process party image. Please upload a valid JPG, JPEG, PNG, or WebP image.');
-  }
+  const arrayBuffer = await imageFile.arrayBuffer();
+  const inputBuffer = Buffer.from(arrayBuffer);
+  const fileData = await sharp(inputBuffer).webp({ quality: 85 }).toBuffer();
 
-  const fileSize = fileData.byteLength;
-
-  console.log('Party image upload path:', {
-    bucket: BUCKET_NAME,
+  console.error('PARTY IMAGE UPLOAD DEBUG', {
+    bucketName: BUCKET_NAME,
     filePath,
-    fileSize,
-    contentType: PARTY_IMAGE_CONTENT_TYPE
+    filePathType: typeof filePath,
   });
 
   const { error: uploadError } = await supabaseAdmin.storage
-    .from(BUCKET_NAME)
+    .from('party-images')
     .upload(filePath, fileData, {
-      contentType: PARTY_IMAGE_CONTENT_TYPE,
-      upsert: false
+      contentType: 'image/webp',
+      upsert: false,
     });
 
   if (uploadError) {
-    const error = uploadError as typeof uploadError & {
-      details?: unknown;
-      status?: number | string;
-      statusCode?: number | string;
-    };
-
-    console.error('Party image upload failed:', {
-      message: error?.message,
-      name: error?.name,
-      statusCode: error?.statusCode,
-      status: error?.status,
-      details: error?.details,
-      bucket: BUCKET_NAME,
-      filePath,
-      contentType: PARTY_IMAGE_CONTENT_TYPE,
-      originalContentType,
-      originalFileName: imageFile.name,
-      originalFileSize: imageFile.size,
-      fileSize,
-      arrayBufferByteLength: fileData.byteLength,
-      hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
-    });
-    throw new Error(`Party image upload failed: ${error.message}`);
+    console.error('Party image upload failed:', uploadError);
+    throw new Error(`Party image upload failed: ${uploadError.message}`);
   }
 
-  const { data } = supabaseAdmin.storage.from(BUCKET_NAME).getPublicUrl(filePath);
-
-  if (!data?.publicUrl) {
-    throw new Error('Could not get public URL for uploaded image.');
-  }
+  const { data } = supabaseAdmin.storage
+    .from('party-images')
+    .getPublicUrl(filePath);
 
   return data.publicUrl;
 }
