@@ -8,6 +8,7 @@ import { prisma } from '@/server/db';
 import { requireUser } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { randomUUID } from 'node:crypto';
+import sharp from 'sharp';
 
 type PartyWhereInput = NonNullable<NonNullable<Parameters<typeof prisma.party.findMany>[0]>['where']>;
 type PaymentUpdateData = NonNullable<Parameters<typeof prisma.payment.update>[0]>['data'];
@@ -34,6 +35,7 @@ const partySchema = z.object({
 });
 
 const BUCKET_NAME = 'party-images';
+const PARTY_IMAGE_CONTENT_TYPE = 'image/webp';
 
 function getImageContentType(fileName: string, fileType: string) {
   if (fileType) {
@@ -61,30 +63,42 @@ function getImageContentType(fileName: string, fileType: string) {
 
 async function uploadPartyImage(partyId: number, imageFile: File): Promise<string> {
   const supabaseAdmin = getSupabaseAdmin();
-  const fileExtension = imageFile.name.split('.').pop() || 'webp';
-  const fileName = `${randomUUID()}.${fileExtension}`;
-  const filePath = `${partyId}/${fileName}`;
-  const contentType = getImageContentType(imageFile.name, imageFile.type);
+  const fileName = `${randomUUID()}.webp`;
+  const filePath = Number.isFinite(partyId) && partyId > 0 ? `${partyId}/${fileName}` : fileName;
+  const originalContentType = getImageContentType(imageFile.name, imageFile.type);
   const fileArrayBuffer = await imageFile.arrayBuffer();
 
-  if (!contentType.startsWith('image/')) {
+  if (!originalContentType.startsWith('image/')) {
     console.error('Party image upload rejected: invalid content type', {
       partyId,
       bucket: BUCKET_NAME,
       originalFileName: imageFile.name,
       fileType: imageFile.type || null,
-      resolvedContentType: contentType,
+      resolvedContentType: originalContentType,
       fileSize: imageFile.size,
       arrayBufferByteLength: fileArrayBuffer.byteLength
     });
     throw new Error('Please upload a valid image file.');
   }
 
+  const fileData = await sharp(Buffer.from(fileArrayBuffer))
+    .rotate()
+    .webp({ quality: 82 })
+    .toBuffer();
+  const fileSize = fileData.byteLength;
+
+  console.log('Party image upload path:', {
+    bucket: BUCKET_NAME,
+    filePath,
+    fileSize,
+    contentType: PARTY_IMAGE_CONTENT_TYPE
+  });
+
   const { error: uploadError } = await supabaseAdmin.storage
     .from(BUCKET_NAME)
-    .upload(filePath, fileArrayBuffer, {
-      contentType,
-      upsert: true
+    .upload(filePath, fileData, {
+      contentType: PARTY_IMAGE_CONTENT_TYPE,
+      upsert: false
     });
 
   if (uploadError) {
@@ -102,10 +116,12 @@ async function uploadPartyImage(partyId: number, imageFile: File): Promise<strin
       details: error?.details,
       bucket: BUCKET_NAME,
       filePath,
-      contentType,
+      contentType: PARTY_IMAGE_CONTENT_TYPE,
+      originalContentType,
       originalFileName: imageFile.name,
-      fileSize: imageFile.size,
-      arrayBufferByteLength: fileArrayBuffer.byteLength,
+      originalFileSize: imageFile.size,
+      fileSize,
+      arrayBufferByteLength: fileData.byteLength,
       hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
       hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
     });
