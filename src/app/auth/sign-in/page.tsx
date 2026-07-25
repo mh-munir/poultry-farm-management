@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { SignInForm } from '@/components/auth/sign-in-form';
-import { ServiceUnavailableCard } from '@/components/ui/service-unavailable-card';
 
 export default async function SignInPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string }> }) {
   const params = await searchParams;
@@ -21,17 +20,6 @@ export default async function SignInPage({ searchParams }: { searchParams?: Prom
           </div>
         )}
 
-        <div className="mt-4 rounded-md border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-950">
-          <p className="font-medium">Seeded admin credentials</p>
-          <p className="mt-2">Email: <span className="font-semibold">admin@poultryfarm.test</span></p>
-          <p>Password: <span className="font-semibold">changeme123</span></p>
-        </div>
-        <div className="mt-4">
-          <ServiceUnavailableCard
-            title="Sign-in may be temporarily limited"
-            description="If the database is unavailable, sign-in may fail until the connection is restored. Please try again shortly."
-          />
-        </div>
         <SignInForm />
         <div className="mt-4 flex flex-col gap-2 text-sm text-muted-foreground">
           <Link href="/auth/reset-admin" className="text-primary hover:underline">

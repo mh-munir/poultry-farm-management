@@ -121,6 +121,25 @@ export const authConfig = {
         if (typeof user.image !== 'undefined') {
           jwtToken.image = user.image ?? null;
         }
+      } else if (token.sub) {
+        try {
+          const refreshedUser = await dbQuery(
+            prisma.user.findUnique({
+              where: { id: token.sub },
+              select: { role: true, image: true }
+            }),
+            20000,
+            null
+          );
+
+          if (refreshedUser) {
+            const jwtToken = token as JWT & { image?: string | null };
+            jwtToken.role = refreshedUser.role ?? jwtToken.role;
+            jwtToken.image = refreshedUser.image ?? null;
+          }
+        } catch {
+          // Ignore refresh failures and keep the existing token data.
+        }
       }
       return token;
     },

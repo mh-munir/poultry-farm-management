@@ -5,8 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/server/db';
-import { mkdir, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { getSupabaseAdmin } from '@/lib/supabase';
+import sharp from 'sharp';
 import { randomUUID } from 'node:crypto';
 import { requireRole } from '@/lib/auth';
 
@@ -92,34 +92,57 @@ export async function updateAdminCredentials(formData: FormData) {
     updatePayload.password = await bcrypt.hash(data.password.trim(), 10);
   }
 
-  // If an image file was uploaded, save it to public/uploads/admin and use that URL
+  // If an image file was uploaded, save it to Supabase Storage and use that public URL.
   if (imageFile instanceof File && imageFile.size > 0) {
     if (!imageFile.type.startsWith('image/')) {
       redirect('/admin?error=Please%20upload%20a%20valid%20image%20file.');
     }
 
     try {
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'admin');
-      await mkdir(uploadDir, { recursive: true });
-      const originalExt = path.extname(imageFile.name) || '.png';
       const originalBuffer = Buffer.from(await imageFile.arrayBuffer());
-
-      let finalBuffer: Buffer<ArrayBufferLike> = originalBuffer;
-      let finalExt = originalExt;
+      let finalBuffer: Buffer = originalBuffer;
 
       try {
-        const sharpModule = (await import('sharp')).default ?? (await import('sharp'));
-        // resize to max width and compress to JPEG for smaller size
-        finalBuffer = await sharpModule(originalBuffer).resize({ width: 1200, withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
-        finalExt = '.webp';
-      } catch (sharpErr) {
-        // sharp not available or failed — fall back to original buffer
+        finalBuffer = await sharp(originalBuffer)
+          .resize({ width: 1200, withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toBuffer();
+      } catch {
+        // sharp failed, fall back to the original image buffer
       }
 
-      const fileName = `${randomUUID()}${finalExt}`;
-      const filePath = path.join(uploadDir, fileName);
-      await writeFile(filePath, finalBuffer);
-      updatePayload.image = `/uploads/admin/${fileName}`;
+      const userId = session.user.id ?? 'unknown';
+      const fileName = `${randomUUID()}.webp`;
+      const filePath = `admin/${userId}/${fileName}`;
+
+      console.error('ADMIN IMAGE UPLOAD START DEBUG', {
+        bucketName: 'party-images',
+        filePath,
+        filePathType: typeof filePath,
+        fileSize: finalBuffer.byteLength
+      });
+
+      const supabaseAdmin = getSupabaseAdmin();
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from('party-images')
+        .upload(filePath, finalBuffer, {
+          contentType: 'image/webp',
+          upsert: false
+        });
+
+      console.error('ADMIN IMAGE UPLOAD RESULT DEBUG', {
+        success: !uploadError,
+        errorMessage: uploadError?.message ?? null,
+        errorName: uploadError?.name ?? null,
+        statusCode: uploadError?.statusCode ?? null
+      });
+
+      if (uploadError) {
+        redirect('/admin?error=Unable%20to%20upload%20admin%20image.');
+      }
+
+      const { data } = supabaseAdmin.storage.from('party-images').getPublicUrl(filePath);
+      updatePayload.image = data.publicUrl;
     } catch (err) {
       redirect('/admin?error=Unable%20to%20upload%20admin%20image.');
     }

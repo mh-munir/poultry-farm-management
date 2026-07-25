@@ -63,8 +63,6 @@ async function uploadPartyImage(
   partyId: number,
   imageFile: File
 ): Promise<string> {
-  const supabaseAdmin = getSupabaseAdmin();
-
   if (!Number.isFinite(partyId) || partyId <= 0) {
     throw new Error(`Cannot upload party image: invalid partyId (${partyId})`);
   }
@@ -73,6 +71,18 @@ async function uploadPartyImage(
   const safePartyId = String(partyId).replace(/[^a-zA-Z0-9_-]/g, '_');
   const fileName = `${randomUUID()}.webp`;
   const filePath = `${safePartyId}/${fileName}`;
+
+  console.error('PARTY IMAGE UPLOAD START DEBUG', {
+    partyId,
+    fileName,
+    filePath,
+    imageFileName: imageFile.name,
+    imageFileType: imageFile.type,
+    imageFileSize: imageFile.size,
+    hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+  });
+
+  const supabaseAdmin = getSupabaseAdmin();
 
   // Basic runtime config validation (do not log secrets)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -109,18 +119,12 @@ async function uploadPartyImage(
   const inputBuffer = Buffer.from(arrayBuffer);
   const fileData = await sharp(inputBuffer).webp({ quality: 85 }).toBuffer();
 
-  // Safe, server-only diagnostic before upload. Never log secrets or keys.
-  try {
-    console.error('SUPABASE ADMIN CONFIG DEBUG', {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-      serviceRoleKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length ?? 0,
-      bucketName: 'party-images',
-      filePath
-    });
-  } catch (e) {
-    console.error('SUPABASE ADMIN CONFIG DEBUG: failed to evaluate debug info');
-  }
+  console.error('PARTY IMAGE UPLOAD START DEBUG', {
+    bucketName: 'party-images',
+    filePath,
+    filePathType: typeof filePath,
+    fileSize: fileData.byteLength
+  });
 
   const { error: uploadError } = await supabaseAdmin.storage
     .from('party-images')
@@ -128,6 +132,13 @@ async function uploadPartyImage(
       contentType: PARTY_IMAGE_CONTENT_TYPE,
       upsert: false,
     });
+
+  console.error('PARTY IMAGE UPLOAD RESULT DEBUG', {
+    success: !uploadError,
+    errorMessage: uploadError?.message ?? null,
+    errorName: uploadError?.name ?? null,
+    statusCode: uploadError?.statusCode ?? null
+  });
 
   if (uploadError) {
     console.error('Party image upload failed:', uploadError);
