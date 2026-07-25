@@ -5,6 +5,8 @@ import Link from 'next/link';
 import imageCompression from 'browser-image-compression';
 import { Button } from '@/components/ui/button';
 import { createOrUpdateParty } from '@/features/parties/actions';
+import { useToast } from '@/hooks/use-toast';
+import { getFriendlyServerActionError, handleStaleServerActionError } from '@/lib/server-action-errors';
 
 type PartyEditPayload = {
   id: number;
@@ -53,6 +55,8 @@ export function EditPartyForm({ party }: EditPartyFormProps) {
     }
   };
 
+  const { error: showToastError } = useToast();
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -62,7 +66,15 @@ export function EditPartyForm({ party }: EditPartyFormProps) {
       formData.set('image', compressedImageFile, compressedImageFile.name);
     }
 
-    await createOrUpdateParty(formData);
+    try {
+      await createOrUpdateParty(formData);
+    } catch (error) {
+      const staleHandled = handleStaleServerActionError(error, showToastError);
+      if (!staleHandled) {
+        const message = getFriendlyServerActionError(error);
+        showToastError(message);
+      }
+    }
   };
 
   return (

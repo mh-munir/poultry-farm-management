@@ -9,6 +9,7 @@ import { createOrUpdateParty } from '@/features/parties/actions';
 import { createSaleTransactionWithToast } from '@/features/sales/actions';
 import { recordSupplierProductPurchase } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
+import { getFriendlyServerActionError, handleStaleServerActionError } from '@/lib/server-action-errors';
 
 type PartyOption = {
   id: number;
@@ -48,7 +49,7 @@ function createSalesProductRow(): SalesProductRow {
 
 export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogProps) {
   const router = useRouter();
-  const { success, error } = useToast();
+  const { success, error: showToastError } = useToast();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSalesOpen, setIsSalesOpen] = useState(false);
   const [isSupplierProductsOpen, setIsSupplierProductsOpen] = useState(false);
@@ -135,22 +136,32 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
       formData.set('image', compressedImageFile, compressedImageFile.name);
     }
 
-    const result = await createOrUpdateParty(formData);
-    
-    if (result.success) {
-      success(result.message);
-      router.refresh();
-      // Auto close dialog after 1 second
-      setTimeout(() => {
-        setIsAddOpen(false);
-        setAddFormValues({ name: '', phone: '', address: '', partyType: 'BOTH' });
-        setCompressedImageFile(null);
-        setImageCompressionStatus('');
+    try {
+      const result = await createOrUpdateParty(formData);
+      
+      if (result.success) {
+        success(result.message);
+        router.refresh();
+        // Auto close dialog after 1 second
+        setTimeout(() => {
+          setIsAddOpen(false);
+          setAddFormValues({ name: '', phone: '', address: '', partyType: 'BOTH' });
+          setCompressedImageFile(null);
+          setImageCompressionStatus('');
+          setIsAddLoading(false);
+        }, 500);
+      } else {
+        setAddError(result.message);
+        showToastError(result.message);
         setIsAddLoading(false);
-      }, 500);
-    } else {
-      setAddError(result.message);
-      error(result.message);
+      }
+    } catch (error) {
+      const staleHandled = handleStaleServerActionError(error, showToastError);
+      const message = staleHandled ? 'A new version of the application is available. Please refresh the page and try again.' : getFriendlyServerActionError(error);
+      if (!staleHandled) {
+        setAddError(message);
+        showToastError(message);
+      }
       setIsAddLoading(false);
     }
   };
@@ -452,7 +463,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
       }, 500);
     } catch (err) {
       setSupplierProductsError('Failed to record supplier products.');
-      error('Failed to record supplier products.');
+      showToastError('Failed to record supplier products.');
       setIsSupplierProductsLoading(false);
     }
   };
@@ -641,7 +652,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
               }, 500);
             } else {
               setSalesError(result.message);
-              error(result.message);
+              showToastError(result.message);
               setIsSalesLoading(false);
             }
           }}
