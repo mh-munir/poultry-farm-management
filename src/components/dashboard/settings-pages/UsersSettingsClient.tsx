@@ -1,17 +1,84 @@
 "use client"
-import React from 'react'
+import React, { useState } from 'react'
+import AdminCredentialsForm from './AdminCredentialsForm'
 
-export default function UsersSettingsClient() {
+type Props = {
+  initialName: string;
+  initialEmail: string;
+  initialImage: string;
+  users: Array<{ id: string; name: string | null; email: string | null; role: string }>;
+}
+
+export default function UsersSettingsClient({ initialName, initialEmail, initialImage, users }: Props) {
+  const [activeTab, setActiveTab] = useState<'account' | 'users'>('account')
+
   return (
     <div className="mx-auto max-w-3xl">
       <div className="rounded-xl border bg-card p-6 mb-6">
-        <h2 className="text-2xl font-semibold">Users</h2>
-        <p className="text-sm text-muted-foreground">Manage user accounts. For full account management, use the Admin panel (Admin → Update credentials) or implement server-backed user management here.</p>
+        <h2 className="text-2xl font-semibold">Settings</h2>
+        <p className="text-sm text-muted-foreground mt-1">Manage administrator account and user access.</p>
       </div>
 
-      <div className="rounded-xl border bg-card p-6">
-        <div className="text-sm text-muted-foreground">This page is a placeholder. User creation, role assignment, and password resets are handled in the Admin area or via server APIs.</div>
+      <div className="flex gap-2 mb-6 border-b border-slate-200 pb-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('account')}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${activeTab === 'account' ? 'bg-cyan-50 text-cyan-700 ring-1 ring-cyan-200' : 'text-slate-600 hover:bg-slate-100'}`}
+        >
+          Admin Account
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('users')}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${activeTab === 'users' ? 'bg-cyan-50 text-cyan-700 ring-1 ring-cyan-200' : 'text-slate-600 hover:bg-slate-100'}`}
+        >
+          Users
+        </button>
       </div>
+
+      {activeTab === 'account' ? (
+        <div className="rounded-2xl border bg-card p-6 shadow-sm">
+          <div className="mb-6">
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Admin Account</p>
+            <h2 className="mt-2 text-2xl font-semibold">Administrator account</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Update the admin name, image, email or password below.</p>
+          </div>
+
+          <AdminCredentialsForm currentName={initialName} currentEmail={initialEmail} currentImage={initialImage} />
+        </div>
+      ) : (
+        <div className="rounded-2xl border bg-card p-6 shadow-sm">
+          <div className="mb-4">
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Users</p>
+            <h2 className="mt-2 text-2xl font-semibold">User accounts</h2>
+          </div>
+
+          {users.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-muted/40 text-left">
+                  <tr>
+                    <th className="px-3 py-3 font-medium">Name</th>
+                    <th className="px-3 py-3 font-medium">Email</th>
+                    <th className="px-3 py-3 font-medium">Role</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user.id} className="border-t">
+                      <td className="px-3 py-3">{user.name ?? '-'}</td>
+                      <td className="px-3 py-3">{user.email ?? '-'}</td>
+                      <td className="px-3 py-3">{user.role}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No user accounts found.</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
