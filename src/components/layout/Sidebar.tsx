@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Home, Users, BarChart2, Settings, Shield, User, LogOut, ChevronDown, Box } from 'lucide-react';
 
 export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => void }) {
@@ -13,6 +14,9 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
       ? 'flex items-center gap-3 rounded-2xl px-3 py-3 transition bg-cyan-50 text-cyan-700 font-semibold ring-1 ring-cyan-200'
       : 'flex items-center gap-3 rounded-2xl px-3 py-3 transition text-slate-700 hover:bg-slate-100 hover:text-slate-900';
   const [stockOpen, setStockOpen] = useState(false);
+  const { data: session } = useSession();
+  const userName = session?.user?.name ?? session?.user?.email ?? '';
+  const userRole = session?.user?.role ?? '';
 
   return (
     <aside className={`w-64 border-r border-slate-200 bg-white min-h-screen px-4 py-6 fixed md:fixed z-40 top-0 left-0 h-full max-h-screen overflow-y-auto transform transition-transform shadow-2xl shadow-slate-200/40 duration-300 ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
@@ -102,6 +106,21 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
             </li>
           </ul>
         </div>
+
+        {userName ? (
+          <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-3 ring-1 ring-slate-200/70">
+            <div className="px-3 pb-2 text-[11px] uppercase tracking-[0.32em] text-slate-500">Account</div>
+            <div className="flex items-center gap-3 px-3 py-2">
+              <div className="h-8 w-8 rounded-xl bg-cyan-500/10 ring-1 ring-cyan-200 flex items-center justify-center text-sm font-bold text-cyan-700">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-900">{userName}</p>
+                {userRole ? <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{userRole}</p> : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-3 ring-1 ring-slate-200/70">
           <button
