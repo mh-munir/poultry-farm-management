@@ -5,56 +5,82 @@ import { requireUser } from '@/lib/auth'
 
 const payloadSchema = z.object({ key: z.string().min(1), value: z.any() })
 
+function isMissingSettingsTableError(err: any) {
+  return (
+    err?.code === 'P2021' ||
+    /relation .* does not exist/i.test(String(err?.message ?? '')) ||
+    /table .* does not exist/i.test(String(err?.message ?? ''))
+  );
+}
+
 export async function GET(request: Request) {
-  const url = new URL(request.url)
-  const key = url.searchParams.get('key')
+  const url = new URL(request.url);
+  const key = url.searchParams.get('key');
 
   try {
     if (key) {
-      const record = await (prisma as any).setting.findUnique({ where: { key } })
-      if (!record) return NextResponse.json({ key, value: null })
-      return NextResponse.json({ key: record.key, value: record.value })
+      const record = await (prisma as any).setting.findUnique({ where: { key } });
+      if (!record) return NextResponse.json({ key, value: null });
+      return NextResponse.json({ key: record.key, value: record.value });
     }
 
-    const all = await (prisma as any).setting.findMany()
-    const data: Record<string, any> = {}
-    for (const r of all) data[r.key] = r.value
-    return NextResponse.json(data)
+    const all = await (prisma as any).setting.findMany();
+    const data: Record<string, any> = {};
+    for (const r of all) data[r.key] = r.value;
+    return NextResponse.json(data);
   } catch (err: any) {
-    return NextResponse.json({ error: 'settings_unavailable', message: err?.message ?? String(err) }, { status: 500 })
+    if (isMissingSettingsTableError(err)) {
+      return NextResponse.json(
+        { error: 'settings_table_missing', message: 'The settings table does not exist yet.' },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ error: 'settings_unavailable', message: err?.message ?? String(err) }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
-  const session = await requireUser()
-  const body = await request.json().catch(() => null)
-  const parsed = payloadSchema.safeParse(body)
-  if (!parsed.success) return NextResponse.json({ error: 'invalid_payload' }, { status: 400 })
+  const session = await requireUser();
+  const body = await request.json().catch(() => null);
+  const parsed = payloadSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
 
-  const { key, value } = parsed.data
+  const { key, value } = parsed.data;
 
   try {
     const upserted = await (prisma as any).setting.upsert({
       where: { key },
       update: { value, updatedById: session.user.id ?? null },
       create: { key, value, updatedById: session.user.id ?? null }
-    })
+    });
 
-    return NextResponse.json({ key: upserted.key, value: upserted.value })
+    return NextResponse.json({ key: upserted.key, value: upserted.value });
   } catch (err: any) {
-    return NextResponse.json({ error: 'settings_save_failed', message: err?.message ?? String(err) }, { status: 500 })
+    if (isMissingSettingsTableError(err)) {
+      return NextResponse.json(
+        { error: 'settings_table_missing', message: 'The settings table does not exist yet.' },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ error: 'settings_save_failed', message: err?.message ?? String(err) }, { status: 500 });
   }
 }
 
 export async function DELETE(request: Request) {
-  const url = new URL(request.url)
-  const key = url.searchParams.get('key')
-  if (!key) return NextResponse.json({ error: 'missing_key' }, { status: 400 })
+  const url = new URL(request.url);
+  const key = url.searchParams.get('key');
+  if (!key) return NextResponse.json({ error: 'missing_key' }, { status: 400 });
 
   try {
-    await (prisma as any).setting.delete({ where: { key } })
-    return NextResponse.json({ ok: true })
+    await (prisma as any).setting.delete({ where: { key } });
+    return NextResponse.json({ ok: true });
   } catch (err: any) {
-    return NextResponse.json({ error: 'settings_delete_failed', message: err?.message ?? String(err) }, { status: 500 })
+    if (isMissingSettingsTableError(err)) {
+      return NextResponse.json(
+        { error: 'settings_table_missing', message: 'The settings table does not exist yet.' },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ error: 'settings_delete_failed', message: err?.message ?? String(err) }, { status: 500 });
   }
 }
