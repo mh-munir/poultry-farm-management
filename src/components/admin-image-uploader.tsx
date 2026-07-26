@@ -5,29 +5,59 @@ import React, { useEffect, useRef, useState } from 'react';
 type Props = {
   existingImageUrl?: string | null;
   onFileSelected?: (file: File | null) => void;
+  onImageUploaded?: (url: string) => void;
 };
 
-export default function AdminImageUploader({ existingImageUrl, onFileSelected }: Props) {
+export default function AdminImageUploader({ existingImageUrl, onFileSelected, onImageUploaded }: Props) {
   const [preview, setPreview] = useState<string | null>(existingImageUrl ?? null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     setPreview(existingImageUrl ?? null);
 
     return () => {
-      // revoke object URL when unmounting
       if (preview && preview.startsWith('blob:')) URL.revokeObjectURL(preview);
     };
   }, [existingImageUrl]);
 
-  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileUpload(file: File): Promise<string | null> {
+    try {
+      setUploading(true);
+      const fd = new FormData();
+      fd.append('imageFile', file);
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok && data?.url) {
+        return data.url;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return setPreview(existingImageUrl ?? null);
+    if (!file.type.startsWith('image/')) return;
+
     const url = URL.createObjectURL(file);
     setPreview(url);
     try {
       onFileSelected?.(file ?? null);
     } catch {}
+
+    const uploadedUrl = await handleFileUpload(file);
+    if (uploadedUrl) {
+      setPreview(uploadedUrl);
+      onImageUploaded?.(uploadedUrl);
+      if (inputRef.current) {
+        inputRef.current.value = '';
+      }
+    }
   }
 
   return (

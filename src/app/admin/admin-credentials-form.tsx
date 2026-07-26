@@ -46,7 +46,12 @@ export default function AdminCredentialsForm({ currentName, currentEmail, curren
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">Upload image</label>
-            <AdminImageUploader existingImageUrl={imageUrl} />
+            <AdminImageUploader
+              existingImageUrl={imageUrl}
+              onImageUploaded={(url) => {
+                setImageUrl(url);
+              }}
+            />
           </div>
         </div>
 

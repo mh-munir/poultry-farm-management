@@ -1,53 +1,60 @@
-import { NextResponse } from 'next/server'
-import { requireRole } from '@/lib/auth'
-import { mkdir, writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 export async function POST(request: Request) {
-  const session = await requireRole(['ADMIN'])
+  const session = await requireRole(['ADMIN']);
+  const formData = await request.formData().catch(() => null);
 
-  const formData = await request.formData().catch(() => null)
-  if (!formData) return NextResponse.json({ error: 'invalid_form' }, { status: 400 })
-
-  const imageFile = formData.get('imageFile')
-  if (!(imageFile instanceof File) || imageFile.size === 0) {
-    return NextResponse.json({ error: 'no_file' }, { status: 400 })
+  if (!formData) {
+    return NextResponse.json({ error: 'invalid_form' }, { status: 400 });
   }
+
+  const imageFile = formData.get('imageFile');
+  if (!(imageFile instanceof File) || imageFile.size === 0) {
+    return NextResponse.json({ error: 'no_file' }, { status: 400 });
+  }
+
+  const originalArrayBuffer = await imageFile.arrayBuffer();
+  const originalBuffer = Buffer.from(originalArrayBuffer);
+  let fileBuffer = originalBuffer;
+  let fileExtension = path.extname(imageFile.name).toLowerCase() || '.png';
+  let contentType = imageFile.type || 'image/png';
 
   try {
-    // In serverless environments, only the /tmp directory is writable.
-    // process.cwd() is read-only.
-    const uploadDir = path.join('/tmp', 'uploads', 'admin')
-    await mkdir(uploadDir, { recursive: true })
-    const originalExt = path.extname(imageFile.name) || '.png'
-    const originalArrayBuffer = await imageFile.arrayBuffer()
-    const originalInput = new Uint8Array(originalArrayBuffer)
+    const sharpModule = (await import('sharp')).default ?? (await import('sharp'));
+    fileBuffer = await sharpModule(originalBuffer)
+      .resize({ width: 1200, withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
 
-    let finalFile: Uint8Array = originalInput
-    let finalExt = originalExt
-
-    try {
-      const sharpModule = (await import('sharp')).default ?? (await import('sharp'))
-      const outputBuffer = await sharpModule(originalInput)
-        .resize({ width: 1200, withoutEnlargement: true })
-        .webp({ quality: 80 })
-        .toBuffer()
-
-      finalFile = outputBuffer
-      finalExt = '.webp'
-    } catch {}
-
-    const fileName = `${randomUUID()}${finalExt}`
-    const filePath = path.join(uploadDir, fileName)
-    await writeFile(filePath, finalFile)
-
-    // The URL should still point to the public path where the file will be served from,
-    // but the file is written to /tmp. You'll need an external storage service
-    // like an S3 bucket to persist and serve these files in a production serverless environment.
-    const url = `/uploads/admin/${fileName}` // This will not work for serving the file from /tmp.
-    return NextResponse.json({ url })
-  } catch (err: any) {
-    return NextResponse.json({ error: 'upload_failed', message: String(err?.message ?? err) }, { status: 500 })
+    fileExtension = '.webp';
+    contentType = 'image/webp';
+  } catch {
+    if (!fileExtension) fileExtension = '.png';
   }
+
+  const fileName = `${randomUUID()}${fileExtension}`;
+  const filePath = `admin/${session.user.id ?? 'unknown'}/${fileName}`;
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from('party-images')
+    .upload(filePath, fileBuffer, {
+      contentType,
+      upsert: false
+    });
+
+  if (uploadError) {
+    return NextResponse.json({ error: 'upload_failed', message: uploadError.message }, { status: 500 });
+  }
+
+  const { data } = supabaseAdmin.storage.from('party-images').getPublicUrl(filePath);
+  if (!data?.publicUrl) {
+    return NextResponse.json({ error: 'public_url_failed' }, { status: 500 });
+  }
+
+  return NextResponse.json({ url: data.publicUrl });
 }
