@@ -74,7 +74,7 @@ export function UserNav() {
 
           <div className="divide-y divide-slate-200">
             <div className="space-y-1 px-2 py-3">
-              <Link href="/admin" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100">
+              <Link href="/dashboard/settings/users" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100">
                 <User size={16} className="text-slate-500" />
                 <span>Profile</span>
               </Link>

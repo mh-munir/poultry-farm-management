@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useState, useEffect } from 'react';
+import { getSetting } from '@/lib/settings';
 import { Home, Users, BarChart2, Settings, Shield, User, LogOut, ChevronDown, Box } from 'lucide-react';
 
 export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => void }) {
@@ -14,18 +14,45 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
       ? 'flex items-center gap-3 rounded-2xl px-3 py-3 transition bg-cyan-50 text-cyan-700 font-semibold ring-1 ring-cyan-200'
       : 'flex items-center gap-3 rounded-2xl px-3 py-3 transition text-slate-700 hover:bg-slate-100 hover:text-slate-900';
   const [stockOpen, setStockOpen] = useState(false);
-  const { data: session } = useSession();
-  const userName = session?.user?.name ?? session?.user?.email ?? '';
-  const userRole = session?.user?.role ?? '';
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [brandingName, setBrandingName] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const value = await getSetting('branding');
+        if (value) {
+          setLogoUrl(value.logo ?? null);
+          setBrandingName(value.name ?? null);
+          return;
+        }
+      } catch {}
+      try {
+        const raw = localStorage.getItem('branding');
+        if (raw) {
+          const obj = JSON.parse(raw);
+          setLogoUrl(obj.logo ?? null);
+          setBrandingName(obj.name ?? null);
+        }
+      } catch {}
+    }
+    load();
+  }, []);
 
   return (
     <aside className={`w-64 border-r border-slate-200 bg-white min-h-screen px-4 py-6 fixed md:fixed z-40 top-0 left-0 h-full max-h-screen overflow-y-auto transform transition-transform shadow-2xl shadow-slate-200/40 duration-300 ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
       <div className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-5 ring-1 ring-slate-200/70 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-3xl bg-cyan-500/10 ring-1 ring-cyan-200 flex items-center justify-center text-xl font-bold text-cyan-700">P</div>
-          <div>
-            <div className="text-base font-semibold text-slate-900">PoultryHQ</div>
-            <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Farm management</div>
+        <div className="flex flex-col items-center gap-2">
+          <div className="h-16 w-16 rounded-full bg-cyan-500/10 ring-1 ring-cyan-200 flex items-center justify-center text-xl font-bold text-cyan-700 overflow-hidden">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="Logo" className="h-full w-full object-contain" />
+            ) : (
+              'P'
+            )}
+          </div>
+          <div className="text-center">
+            <div className="text-base font-medium text-slate-700">{brandingName}</div>
           </div>
         </div>
       </div>
@@ -99,28 +126,13 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               </Link>
             </li>
             <li>
-              <Link href="/admin" onClick={() => onClose?.()} className={linkClass('/admin')}>
+              <Link href="/dashboard/settings/users" onClick={() => onClose?.()} className={linkClass('/dashboard/settings/users')}>
                 <Shield size={16} className="text-cyan-500" />
-                <span>Admin</span>
+                <span>Users</span>
               </Link>
             </li>
           </ul>
         </div>
-
-        {userName ? (
-          <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-3 ring-1 ring-slate-200/70">
-            <div className="px-3 pb-2 text-[11px] uppercase tracking-[0.32em] text-slate-500">Account</div>
-            <div className="flex items-center gap-3 px-3 py-2">
-              <div className="h-8 w-8 rounded-xl bg-cyan-500/10 ring-1 ring-cyan-200 flex items-center justify-center text-sm font-bold text-cyan-700">
-                {userName.charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-900">{userName}</p>
-                {userRole ? <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{userRole}</p> : null}
-              </div>
-            </div>
-          </div>
-        ) : null}
 
         <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-3 ring-1 ring-slate-200/70">
           <button

@@ -1,7 +1,5 @@
 'use server';
 
-import { redirect } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/server/db';
@@ -63,7 +61,7 @@ const updateAdminSchema = z
     }
   });
 
-export async function updateAdminCredentials(formData: FormData) {
+export async function updateAdminCredentials(formData: FormData): Promise<UpdateAdminResult> {
   const session = await requireRole(['ADMIN']);
   const email = formData.get('email')?.toString() ?? '';
   const password = formData.get('password')?.toString() ?? '';
@@ -76,7 +74,7 @@ export async function updateAdminCredentials(formData: FormData) {
 
   if (!parsed.success) {
     const message = parsed.error.issues[0]?.message ?? 'Validation failed.';
-    redirect(`/admin?error=${encodeURIComponent(message)}`);
+    return { error: message };
   }
 
   const data = parsed.data;
@@ -92,10 +90,9 @@ export async function updateAdminCredentials(formData: FormData) {
     updatePayload.password = await bcrypt.hash(data.password.trim(), 10);
   }
 
-  // If an image file was uploaded, save it to Supabase Storage and use that public URL.
   if (imageFile instanceof File && imageFile.size > 0) {
     if (!imageFile.type.startsWith('image/')) {
-      redirect('/admin?error=Please%20upload%20a%20valid%20image%20file.');
+      return { error: 'Please upload a valid image file.' };
     }
 
     try {
@@ -115,13 +112,6 @@ export async function updateAdminCredentials(formData: FormData) {
       const fileName = `${randomUUID()}.webp`;
       const filePath = `admin/${userId}/${fileName}`;
 
-      console.error('ADMIN IMAGE UPLOAD START DEBUG', {
-        bucketName: 'party-images',
-        filePath,
-        filePathType: typeof filePath,
-        fileSize: finalBuffer.byteLength
-      });
-
       const supabaseAdmin = getSupabaseAdmin();
       const { error: uploadError } = await supabaseAdmin.storage
         .from('party-images')
@@ -130,21 +120,14 @@ export async function updateAdminCredentials(formData: FormData) {
           upsert: false
         });
 
-      console.error('ADMIN IMAGE UPLOAD RESULT DEBUG', {
-        success: !uploadError,
-        errorMessage: uploadError?.message ?? null,
-        errorName: uploadError?.name ?? null,
-        statusCode: uploadError?.statusCode ?? null
-      });
-
       if (uploadError) {
-        redirect('/admin?error=Unable%20to%20upload%20admin%20image.');
+        return { error: 'Unable to upload admin image.' };
       }
 
-      const { data } = supabaseAdmin.storage.from('party-images').getPublicUrl(filePath);
-      updatePayload.image = data.publicUrl;
+      const { data: urlData } = supabaseAdmin.storage.from('party-images').getPublicUrl(filePath);
+      updatePayload.image = urlData.publicUrl;
     } catch (err) {
-      redirect('/admin?error=Unable%20to%20upload%20admin%20image.');
+      return { error: 'Unable to upload admin image.' };
     }
   } else if (existingImageUrl) {
     updatePayload.image = existingImageUrl;
@@ -158,9 +141,8 @@ export async function updateAdminCredentials(formData: FormData) {
       data: updatePayload
     });
   } catch (error) {
-    redirect('/admin?error=Unable%20to%20update%20admin%20credentials.');
+    return { error: 'Unable to update admin credentials.' };
   }
 
-  revalidatePath('/admin');
-  redirect('/admin?success=Admin%20credentials%20updated%20successfully.');
+  return { success: 'Admin credentials updated successfully.' };
 }
