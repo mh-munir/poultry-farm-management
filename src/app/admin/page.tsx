@@ -16,9 +16,15 @@ function formatDate(value: Date) {
 
 export default async function AdminPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string }> }) {
   const session = await requireRole(['ADMIN']);
-  const currentEmail = session.user.email ?? '';
-  const currentName = session.user.name ?? '';
-  const currentImage = session.user.image ?? '';
+
+  const adminUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { name: true, email: true, image: true }
+  });
+
+  const currentEmail = adminUser?.email ?? '';
+  const currentName = adminUser?.name ?? '';
+  const currentImage = adminUser?.image ?? '';
   const sp = await searchParams;
   const success = sp?.success ?? '';
   const error = sp?.error ?? '';

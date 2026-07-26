@@ -121,25 +121,26 @@ export const authConfig = {
         if (typeof user.image !== 'undefined') {
           jwtToken.image = user.image ?? null;
         }
-      } else if (token.sub) {
-        try {
-          const refreshedUser = await dbQuery(
-            prisma.user.findUnique({
-              where: { id: token.sub },
-              select: { role: true, image: true }
-            }),
-            20000,
-            null
-          );
+        } else if (token.sub) {
+          try {
+            const refreshedUser = await dbQuery(
+              prisma.user.findUnique({
+                where: { id: token.sub },
+                select: { name: true, role: true, image: true }
+              }),
+              20000,
+              null
+            );
 
-          if (refreshedUser) {
-            const jwtToken = token as JWT & { image?: string | null };
-            jwtToken.role = refreshedUser.role ?? jwtToken.role;
-            jwtToken.image = refreshedUser.image ?? null;
+            if (refreshedUser) {
+              const jwtToken = token as JWT & { image?: string | null };
+              jwtToken.name = refreshedUser.name ?? jwtToken.name;
+              jwtToken.role = refreshedUser.role ?? jwtToken.role;
+              jwtToken.image = refreshedUser.image ?? null;
+            }
+          } catch {
+            // Ignore refresh failures and keep the existing token data.
           }
-        } catch {
-          // Ignore refresh failures and keep the existing token data.
-        }
       }
       return token;
     },
@@ -147,6 +148,7 @@ export const authConfig = {
       if (session.user) {
         const jwtToken = token as JWT & { image?: string | null };
         session.user.id = token.sub ?? '';
+        session.user.name = jwtToken.name ?? session.user.name ?? null;
         session.user.role = jwtToken.role ?? 'USER';
         session.user.image = jwtToken.image ?? session.user.image ?? null;
       }
