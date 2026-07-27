@@ -56,19 +56,19 @@ export default async function NewProductPage() {
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Purchase price</label>
-            <input type="number" step="0.01" min="0" name="defaultPurchasePrice" defaultValue="0" className="w-full rounded-md border bg-background px-3 py-2" />
+            <input type="number" step="0.01" min="0" name="defaultPurchasePrice" defaultValue="" className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Selling price</label>
-            <input type="number" step="0.01" min="0" name="defaultSellingPrice" defaultValue="0" className="w-full rounded-md border bg-background px-3 py-2" />
+            <input type="number" step="0.01" min="0" name="defaultSellingPrice" defaultValue="" className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Opening stock</label>
-            <input type="number" step="0.01" min="0" name="openingStock" defaultValue="0" className="w-full rounded-md border bg-background px-3 py-2" />
+            <input type="number" step="0.01" min="0" name="openingStock" defaultValue="" className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Low stock threshold</label>
-            <input type="number" step="0.01" min="0" name="lowStockThreshold" defaultValue="0" className="w-full rounded-md border bg-background px-3 py-2" />
+            <input type="number" step="0.01" min="0" name="lowStockThreshold" defaultValue="" className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Image URL</label>

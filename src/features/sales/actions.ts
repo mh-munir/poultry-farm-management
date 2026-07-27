@@ -335,6 +335,7 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
 
   revalidatePath('/dashboard/sales');
   revalidatePath('/dashboard/parties');
+  revalidatePath('/dashboard');
 
   return { sale: savedSale, sms: smsResult };
 }

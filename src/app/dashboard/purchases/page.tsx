@@ -72,13 +72,13 @@ export default async function PurchasesPage({
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium">Discount</label>
-                <input type="number" step="0.01" min="0" name="discount" defaultValue="0" className="w-full rounded-md border bg-background px-3 py-2" />
+                <input type="number" step="0.01" min="0" name="discount" defaultValue="" className="w-full rounded-md border bg-background px-3 py-2" />
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-medium">Payment amount</label>
-                <input type="number" step="0.01" min="0" name="paymentAmount" defaultValue="0" className="w-full rounded-md border bg-background px-3 py-2" />
+                <input type="number" step="0.01" min="0" name="paymentAmount" defaultValue="" className="w-full rounded-md border bg-background px-3 py-2" />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium">Payment method</label>
@@ -112,8 +112,8 @@ export default async function PurchasesPage({
                       </option>
                     ))}
                   </select>
-                  <input type="number" step="0.01" min="0" name="quantity" defaultValue="1" placeholder="Qty" className="rounded-md border bg-background px-3 py-2" />
-                  <input type="number" step="0.01" min="0" name="unitPrice" defaultValue="0" placeholder="Rate" className="rounded-md border bg-background px-3 py-2" />
+                  <input type="number" step="0.01" min="0" name="quantity" defaultValue="" placeholder="Qty" className="rounded-md border bg-background px-3 py-2" />
+                  <input type="number" step="0.01" min="0" name="unitPrice" defaultValue="" placeholder="Rate" className="rounded-md border bg-background px-3 py-2" />
                   <input name="description" placeholder="Description" className="rounded-md border bg-background px-3 py-2" />
                 </div>
               ))}

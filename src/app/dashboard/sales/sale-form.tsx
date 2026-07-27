@@ -5,12 +5,12 @@ import { DollarSign, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createSaleTransaction } from '@/features/sales/actions';
 
-type CustomerOption = {
+export type CustomerOption = {
   id: number;
   name: string;
 };
 
-type ProductOption = {
+export type ProductOption = {
   id: number;
   name: string;
   code: string;
@@ -28,22 +28,23 @@ type SaleItemRow = {
 type SaleFormProps = {
   customers: CustomerOption[];
   products: ProductOption[];
+  selectedPartyId?: number;
 };
 
 function createRow(): SaleItemRow {
   return {
     rowId: `${Date.now()}-${Math.random()}`,
     productId: '',
-    quantity: '1',
-    unitPrice: '0',
+    quantity: '',
+    unitPrice: '',
     description: ''
   };
 }
 
-export function SaleForm({ customers, products }: SaleFormProps) {
+export function SaleForm({ customers, products, selectedPartyId }: SaleFormProps) {
   const [rows, setRows] = useState<SaleItemRow[]>(() => [createRow()]);
-  const [discount, setDiscount] = useState('0');
-  const [paymentAmount, setPaymentAmount] = useState('0');
+  const [discount, setDiscount] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
 
   const productsById = useMemo(() => {
     return new Map(products.map((product) => [String(product.id), product]));
@@ -78,7 +79,7 @@ export function SaleForm({ customers, products }: SaleFormProps) {
     <form action={createSaleTransaction} autoComplete="off" className="space-y-4">
       <div>
         <label className="mb-2 block text-sm font-medium">Customer</label>
-        <select name="partyId" required className="w-full rounded-md border bg-background px-3 py-2">
+        <select name="partyId" required defaultValue={selectedPartyId ?? ''} className="w-full rounded-md border bg-background px-3 py-2">
           {customers.map((customer) => (
             <option key={customer.id} value={customer.id}>{customer.name}</option>
           ))}

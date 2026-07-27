@@ -116,7 +116,7 @@ export function EditPartyForm({ party }: EditPartyFormProps) {
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium">Credit limit</label>
-          <input type="number" step="0.01" min="0" name="creditLimit" defaultValue={party.creditLimit ?? '0'} className="w-full rounded-md border bg-background px-3 py-2" />
+          <input type="number" step="0.01" min="0" name="creditLimit" defaultValue={party.creditLimit ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium">Opening balance</label>

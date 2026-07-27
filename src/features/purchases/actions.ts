@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
@@ -17,13 +18,21 @@ const COMPLETED_PAYMENT_STATUS = 'COMPLETED' as const;
 const PURCHASE_STOCK_MOVEMENT_TYPE = 'PURCHASE' as const;
 
 const purchaseItemSchema = z.object({
-  productId: z.coerce.number().int().positive(),
+  productId: z.preprocess((val) => {
+    if (!val || val === '' || val === null || val === undefined) return undefined;
+    return Number(val);
+  }, z.number().int().positive('Please select a valid product.').optional()),
+  productName: z.string().trim().optional().or(z.literal('')),
+  productType: z.enum(['FEED', 'MEDICINE', 'EGG', 'CHICKEN']).optional().default('FEED'),
   quantity: z.coerce.number().min(0.0001, 'Quantity must be greater than zero.'),
   unitPrice: z.coerce.number().min(0, 'Rate cannot be negative.'),
   buyRate: z.coerce.number().min(0, 'Buy rate cannot be negative.').optional().default(0),
   saleRate: z.coerce.number().min(0, 'Sale rate cannot be negative.').optional().default(0),
   description: z.string().trim().max(250).optional().or(z.literal('')),
   unit: z.string().trim().max(20).optional().or(z.literal(''))
+}).refine((data) => data.productId || data.productName, {
+  message: 'Product name is required.',
+  path: ['productName']
 });
 
 const purchaseSchema = z.object({
@@ -42,6 +51,8 @@ const purchaseSchema = z.object({
 
 function normalizePurchaseInput(formData: FormData) {
   const productIds = formData.getAll('productId').map((value) => value?.toString() ?? '');
+  const productNames = formData.getAll('productName').map((value) => value?.toString() ?? '');
+  const productTypes = formData.getAll('productType').map((value) => value?.toString() ?? 'FEED');
   const quantities = formData.getAll('quantity').map((value) => value?.toString() ?? '0');
   const units = formData.getAll('unit').map((value) => value?.toString() ?? '');
   const buyRates = formData.getAll('buyRate').map((value) => value?.toString() ?? '0');
@@ -51,13 +62,15 @@ function normalizePurchaseInput(formData: FormData) {
 
   const items = productIds.map((productId, index) => ({
     productId,
+    productName: productNames[index] ?? '',
+    productType: productTypes[index] ?? 'FEED',
     quantity: quantities[index] ?? '0',
     unitPrice: unitPrices[index] ?? buyRates[index] ?? '0',
     buyRate: buyRates[index] ?? '0',
     saleRate: saleRates[index] ?? '0',
     description: descriptions[index] ?? '',
     unit: units[index] ?? ''
-  })).filter((item) => item.productId.trim() && Number(item.quantity) > 0);
+  })).filter((item) => (item.productId.trim() || item.productName.trim()) && Number(item.quantity) > 0);
 
   return {
     partyId: formData.get('partyId')?.toString() ?? '',
@@ -133,6 +146,44 @@ export async function createPurchaseTransaction(formData: FormData) {
         throw new Error('Supplier not found.');
       }
 
+      const resolvedItems = await Promise.all(
+        items.map(async (item) => {
+          let productId = item.productId;
+
+          if (!productId && item.productName && item.productName.trim()) {
+            const existingProduct = await tx.product.findFirst({
+              where: {
+                name: item.productName.trim(),
+                productType: item.productType || 'FEED'
+              }
+            });
+
+            if (existingProduct) {
+              productId = existingProduct.id;
+            } else {
+              const existingCount = await tx.product.count({
+                where: { productType: item.productType || 'FEED' }
+              });
+              const newProduct = await tx.product.create({
+                data: {
+                  code: `${item.productType || 'FEED'}-${String(existingCount + 1).padStart(3, '0')}`,
+                  name: item.productName.trim(),
+                  productType: item.productType || 'FEED',
+                  unit: item.unit || 'pcs',
+                  isActive: true
+                }
+              });
+              productId = newProduct.id;
+            }
+          }
+
+          return {
+            ...item,
+            productId: productId ?? 0
+          };
+        })
+      );
+
       const invoiceNumber = generatePurchaseInvoiceNumber();
       const dueAmount = totalAmount - data.paymentAmount;
       const status = dueAmount > 0 ? PENDING_TRANSACTION_STATUS : COMPLETED_TRANSACTION_STATUS;
@@ -155,7 +206,7 @@ export async function createPurchaseTransaction(formData: FormData) {
           notes: data.notes || null,
           transactionItems: {
             createMany: {
-              data: items.map((item) => ({
+              data: resolvedItems.map((item) => ({
                 productId: item.productId,
                 quantity: new Prisma.Decimal(item.quantity),
                 unitPrice: new Prisma.Decimal(item.unitPrice),
@@ -222,9 +273,9 @@ export async function createPurchaseTransaction(formData: FormData) {
         });
       }
 
-      const productQuantities = items.reduce((map, item) => {
-        const existing = map.get(item.productId) ?? new Prisma.Decimal(0);
-        map.set(item.productId, existing.plus(new Prisma.Decimal(item.quantity)));
+      const productQuantities = resolvedItems.reduce((map, item) => {
+        const existing = map.get(item.productId ?? 0) ?? new Prisma.Decimal(0);
+        map.set(item.productId ?? 0, existing.plus(new Prisma.Decimal(item.quantity)));
         return map;
       }, new Map<number, Prisma.Decimal>());
 
@@ -232,7 +283,7 @@ export async function createPurchaseTransaction(formData: FormData) {
         const balance = await tx.stockBalance.findUnique({ where: { productId } });
         const currentQuantity = new Prisma.Decimal(balance?.quantityOnHand ?? 0);
         const newQuantity = currentQuantity.plus(quantity);
-        const matchedItem = items.find((item) => item.productId === productId);
+        const matchedItem = resolvedItems.find((item) => item.productId === productId);
         const unitCost = matchedItem?.buyRate ?? matchedItem?.unitPrice ?? 0;
         const saleRate = matchedItem?.saleRate ?? 0;
 
@@ -288,6 +339,21 @@ export async function createPurchaseTransaction(formData: FormData) {
   }
 
   revalidatePath(redirectPath);
+  revalidatePath('/dashboard');
+
+  if (redirectPath.startsWith('/dashboard/stock/')) {
+    const cookiesStore = await cookies();
+    cookiesStore.set({
+      name: 'purchaseSuccess',
+      value: 'Purchase invoice created successfully.',
+      path: '/dashboard/stock',
+      maxAge: 5,
+      sameSite: 'lax'
+    });
+    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+    redirect(redirectPath);
+  }
+
   const url = new URL(redirectPath, 'http://localhost');
   url.searchParams.set('success', 'Purchase invoice created successfully.');
   // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages

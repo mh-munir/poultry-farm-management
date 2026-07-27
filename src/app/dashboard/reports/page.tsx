@@ -1,8 +1,9 @@
-import Link from 'next/link';
-import { BarChart3, BookOpen, FileDown, FileText, Printer, Receipt } from 'lucide-react';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { prisma } from '@/server/db';
+import { getReportSummary } from '@/features/reports/actions';
+import { BarChart3 } from 'lucide-react';
 
 const reportConfig = [
   {
@@ -55,52 +56,30 @@ const reportConfig = [
   }
 ] as const;
 
-const exportActions = [
-  { label: 'Export PDF', icon: FileDown },
-  { label: 'Export Excel', icon: FileText },
-  { label: 'Print Reports', icon: Printer }
-];
+function formatCurrency(value: number) {
+  return `৳ ${new Intl.NumberFormat('en-BD', {
+    style: 'currency',
+    currency: 'BDT',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value)}`;
+}
 
 export default async function ReportsPage() {
   const session = await requireUser();
   const userName = session.user.name ?? session.user.email ?? 'there';
 
-  // Fetch report data
-  const [totalSales, totalPurchases, totalStockValue, totalTransactions] = await Promise.all([
-    prisma.transactionItem.aggregate({
-      _sum: { lineTotal: true },
-      where: { transaction: { transactionType: 'SALE' } }
-    }),
-    prisma.transactionItem.aggregate({
-      _sum: { lineTotal: true },
-      where: { transaction: { transactionType: 'PURCHASE' } }
-    }),
-    prisma.stockBalance.aggregate({
-      _sum: {
-        quantityOnHand: true
-      }
-    }),
-    prisma.transaction.count()
-  ]);
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-BD', {
-      style: 'currency',
-      currency: 'BDT',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(value);
-  };
+  const summary = await getReportSummary();
 
   const reportStats = {
-    'Daily': `${totalTransactions} transactions`,
-    'Monthly': `${totalTransactions} transactions`,
-    'Yearly': `${totalTransactions} transactions`,
-    'Sales': formatCurrency(Number(totalSales._sum.lineTotal ?? 0)),
-    'Purchases': formatCurrency(Number(totalPurchases._sum.lineTotal ?? 0)),
-    'Party Statement': `${totalTransactions} transactions`,
-    'Stock': formatCurrency(Number(totalStockValue._sum.quantityOnHand ?? 0)),
-    'Profit & Loss': formatCurrency((Number(totalSales._sum.lineTotal ?? 0) - Number(totalPurchases._sum.lineTotal ?? 0)))
+    'Daily': `${formatCurrency(summary.daily.sales)} sales today`,
+    'Monthly': `${formatCurrency(summary.monthly.sales)} sales this month`,
+    'Yearly': `${formatCurrency(summary.yearly.sales)} sales this year`,
+    'Sales': formatCurrency(summary.yearly.sales),
+    'Purchases': formatCurrency(summary.purchases.total),
+    'Party Statement': `${summary.transactions.total} transactions`,
+    'Stock': `${summary.stock.lowStockCount} low stock`,
+    'Profit & Loss': formatCurrency(summary.yearly.sales - summary.purchases.total)
   };
 
   return (
@@ -161,17 +140,9 @@ export default async function ReportsPage() {
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-3">
-          {exportActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <Button key={action.label} asChild variant="outline">
-                <Link href="/dashboard/reports">
-                  <Icon className="h-4 w-4" />
-                  {action.label}
-                </Link>
-              </Button>
-            );
-          })}
+          <Button variant="outline">Export PDF</Button>
+          <Button variant="outline">Export Excel</Button>
+          <Button variant="outline">Print Reports</Button>
         </div>
       </div>
     </main>

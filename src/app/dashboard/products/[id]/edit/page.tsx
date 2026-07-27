@@ -82,19 +82,19 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Purchase price</label>
-            <input type="number" step="0.01" min="0" name="defaultPurchasePrice" defaultValue={product.defaultPurchasePrice?.toString() ?? '0'} className="w-full rounded-md border bg-background px-3 py-2" />
+            <input type="number" step="0.01" min="0" name="defaultPurchasePrice" defaultValue={product.defaultPurchasePrice?.toString() ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Selling price</label>
-            <input type="number" step="0.01" min="0" name="defaultSellingPrice" defaultValue={product.defaultSellingPrice?.toString() ?? '0'} className="w-full rounded-md border bg-background px-3 py-2" />
+            <input type="number" step="0.01" min="0" name="defaultSellingPrice" defaultValue={product.defaultSellingPrice?.toString() ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Opening stock</label>
-            <input type="number" step="0.01" min="0" name="openingStock" defaultValue={product.stockBalance?.quantityOnHand?.toString() ?? '0'} className="w-full rounded-md border bg-background px-3 py-2" />
+            <input type="number" step="0.01" min="0" name="openingStock" defaultValue={product.stockBalance?.quantityOnHand?.toString() ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Low stock threshold</label>
-            <input type="number" step="0.01" min="0" name="lowStockThreshold" defaultValue={product.lowStockThreshold?.toString() ?? '0'} className="w-full rounded-md border bg-background px-3 py-2" />
+            <input type="number" step="0.01" min="0" name="lowStockThreshold" defaultValue={product.lowStockThreshold?.toString() ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Image URL</label>

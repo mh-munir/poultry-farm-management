@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { createPurchaseTransaction } from '@/features/purchases/actions';
+import { useToast } from '@/hooks/use-toast';
 
 export interface StockItem {
   id?: number;
@@ -55,21 +56,19 @@ export function StockManagement({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
-  const [editBuyRate, setEditBuyRate] = useState('0');
-  const [editSaleRate, setEditSaleRate] = useState('0');
+  const [editBuyRate, setEditBuyRate] = useState('');
+  const [editSaleRate, setEditSaleRate] = useState('');
   const [supplierId, setSupplierId] = useState<number>(0);
   const [supplierName, setSupplierName] = useState<string>('');
-  const [paymentAmount, setPaymentAmount] = useState('0');
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [rows, setRows] = useState<StockRow[]>([{ rowId: 1, productId: '', productName: '', quantity: '1', buyRate: '0', saleRate: '0', unit: '' }]);
-  const [error, setError] = useState<string | null>(null);
+  const [rows, setRows] = useState<StockRow[]>([{ rowId: 1, productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: '' }]);
+  const { error: showToastError } = useToast();
 
   useEffect(() => {
     setItems(initialItems);
   }, [initialItems]);
-
-  // do not auto-select first supplier; user must choose or type a new name
 
   const totalStockValue = items.reduce((total, item) => total + item.quantity * item.buyRate, 0);
 
@@ -91,15 +90,14 @@ export function StockManagement({
   };
 
   const addRow = () => {
-    setRows((prev) => [...prev, { rowId: Date.now(), productId: '', productName: '', quantity: '1', buyRate: '0', saleRate: '0', unit: title === 'Medicine' ? 'gm' : 'bag' }]);
+    setRows((prev) => [...prev, { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: title === 'Medicine' ? 'gm' : 'bag' }]);
   };
 
   const openForm = () => {
-    // when opening for Medicine default unit to gm for the initial row, for Feed default to bag
     if (title === 'Medicine') {
-      setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '1', buyRate: '0', saleRate: '0', unit: 'gm' }]);
+      setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: 'gm' }]);
     } else {
-      setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '1', buyRate: '0', saleRate: '0', unit: 'bag' }]);
+      setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: 'bag' }]);
     }
     setIsFormOpen(true);
   };
@@ -146,53 +144,40 @@ export function StockManagement({
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    // supplier name is required; existing supplier selection is optional because new suppliers are allowed
     if (!supplierName.trim()) {
       event.preventDefault();
-      setError('Please enter a supplier name.');
+      showToastError('Please enter a supplier name.');
       return;
     }
 
-    // check each row for specific issues
     for (const row of rows) {
-      if (!row.productId) {
+      if (!row.productName.trim()) {
         event.preventDefault();
-        setError('Please select a product for each row.');
+        showToastError('Please enter a product name for each row.');
         return;
       }
       if (Number(row.quantity) <= 0) {
         event.preventDefault();
-        setError('Quantity must be greater than 0.');
+        showToastError('Quantity must be greater than 0.');
         return;
       }
       if (Number(row.buyRate) < 0) {
         event.preventDefault();
-        setError('Buy rate cannot be negative.');
+        showToastError('Buy rate cannot be negative.');
         return;
       }
       if (Number(row.saleRate) < 0) {
         event.preventDefault();
-        setError('Sale rate cannot be negative.');
+        showToastError('Sale rate cannot be negative.');
         return;
       }
     }
 
-    // prevent free-text product names that are not matched to an existing product
-    const unmatched = rows.find((row) => (row.productName && !row.productId));
-    if (unmatched) {
-      event.preventDefault();
-      setError('Please choose products from the suggestions (select a suggestion so the product is recognized).');
-      return;
-    }
-
     if (Number(paymentAmount) < 0) {
       event.preventDefault();
-      setError('Payment amount cannot be negative.');
+      showToastError('Payment amount cannot be negative.');
       return;
     }
-
-    setError(null);
-    // allow form submission to proceed to server action
   };
 
   return (
@@ -217,12 +202,6 @@ export function StockManagement({
             </button>
           </div>
         </div>
-
-        {error ? (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
 
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen} title={`Add ${title} Stock`}>
           <form action={createPurchaseTransaction} onSubmit={handleSubmit} className="space-y-4">
@@ -294,7 +273,7 @@ export function StockManagement({
                         <label className="mb-1 block text-sm font-medium">{title === 'Medicine' ? 'Stock Medicine' : 'Product'}</label>
                         <input
                           list={`products-list-${title}`}
-                          name={`productName-${row.rowId}`}
+                          name="productName"
                           value={row.productName}
                           onChange={(event) => handleRowChange(row.rowId, 'productName', event.target.value)}
                           className="w-full h-10 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground"
@@ -307,6 +286,7 @@ export function StockManagement({
                           ))}
                         </datalist>
                         <input type="hidden" name="productId" value={row.productId} />
+                        <input type="hidden" name="productType" value={title === 'Medicine' ? 'MEDICINE' : 'FEED'} />
                       </div>
                       <div className="w-24 ml-4">
                         <label className="mb-1 block text-sm font-medium">{title === 'Medicine' ? 'Gm' : 'Unit'}</label>

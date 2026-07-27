@@ -9,6 +9,16 @@ function todayDateStr() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function formatDate(value: string) {
+  if (!value) return '—'
+  const date = new Date(value + 'T00:00:00')
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+}
+
 export default function CostsManager() {
   const [costs, setCosts] = useState<Cost[]>([])
   const [desc, setDesc] = useState('')
@@ -16,7 +26,6 @@ export default function CostsManager() {
   const [date, setDate] = useState(todayDateStr())
 
   useEffect(() => {
-    // Try server first, fallback to localStorage
     fetch('/api/costs')
       .then((r) => r.json())
       .then((data) => {
@@ -43,7 +52,6 @@ export default function CostsManager() {
     e?.preventDefault()
     if (!desc || !amount) return
     const newItem: Cost = { id: String(Date.now()), description: desc, amount: Number(amount), date }
-    // Try to persist to server, fall back to local state/localStorage
     fetch('/api/costs', { method: 'POST', body: JSON.stringify({ amount: Number(amount), description: desc, date }), headers: { 'Content-Type': 'application/json' } })
       .then(async (res) => {
         if (!res.ok) throw new Error('server error')
@@ -57,10 +65,6 @@ export default function CostsManager() {
     setDesc('')
     setAmount('')
     setDate(todayDateStr())
-  }
-
-  function removeCost(id: string) {
-    setCosts((s) => s.filter((c) => c.id !== id))
   }
 
   const total = costs.reduce((s, c) => s + c.amount, 0)
@@ -95,23 +99,46 @@ export default function CostsManager() {
             </div>
           </form>
 
-          <div className="mt-6 rounded-xl border bg-card p-4 shadow-sm">
-            <h3 className="text-lg font-semibold">All Costs</h3>
-            <div className="mt-3 space-y-3">
-              {costs.length === 0 ? <div className="text-sm text-muted-foreground">No costs recorded yet.</div> : null}
-              {costs.map((c) => (
-                <div key={c.id} className="flex items-center justify-between border-b py-2">
-                  <div>
-                    <div className="font-medium">{c.description}</div>
-                    <div className="text-xs text-muted-foreground">{c.date}</div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="font-semibold">{c.amount.toFixed(2)}</div>
-                    <button onClick={() => removeCost(c.id)} className="text-sm text-rose-600">Delete</button>
-                  </div>
-                </div>
-              ))}
+          <div className="mt-6 rounded-xl border bg-card shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold">All Costs</h3>
             </div>
+            {costs.length === 0 ? (
+              <div className="px-6 py-8 text-sm text-muted-foreground text-center">No costs recorded yet.</div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-muted/40 text-left text-muted-foreground">
+                      <tr>
+                        <th className="px-6 py-3 font-medium">Date</th>
+                        <th className="px-6 py-3 font-medium">Description</th>
+                        <th className="px-6 py-3 font-medium text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {costs.map((c) => (
+                        <tr key={c.id} className="hover:bg-muted/40 transition-colors">
+                          <td className="px-6 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                            {formatDate(c.date)}
+                          </td>
+                          <td className="px-6 py-3">
+                            <div className="font-medium">{c.description}</div>
+                          </td>
+                          <td className="px-6 py-3 text-right">
+                            <div className="font-semibold">৳ {c.amount.toFixed(2)}</div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-6 py-3 border-t bg-muted/20 flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Total</span>
+                  <span className="text-sm font-semibold">৳ {total.toFixed(2)}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
