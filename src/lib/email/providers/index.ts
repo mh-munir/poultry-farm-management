@@ -1,0 +1,1 @@
+export { getEmailProvider } from './mock.provider';

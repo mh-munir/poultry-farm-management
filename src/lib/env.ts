@@ -15,7 +15,8 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((value) => value === 'true'),
-  SMS_PROVIDER: z.string().trim().min(1).default('mock')
+  SMS_PROVIDER: z.string().trim().min(1).default('mock'),
+  EMAIL_PROVIDER: z.string().trim().min(1).default('mock')
 }).transform((env) => ({
   ...env,
   DIRECT_URL: env.DIRECT_URL ?? env.DATABASE_URL,
@@ -49,7 +50,8 @@ function getEnv() {
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     ADMIN_RESET_TOKEN: process.env.ADMIN_RESET_TOKEN,
     SMS_ENABLED: process.env.SMS_ENABLED === 'true',
-    SMS_PROVIDER: process.env.SMS_PROVIDER ?? 'mock'
+    SMS_PROVIDER: process.env.SMS_PROVIDER ?? 'mock',
+  EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? 'mock'
   } as z.infer<typeof envSchema>;
 }
 

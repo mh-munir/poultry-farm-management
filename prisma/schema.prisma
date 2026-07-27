@@ -50,6 +50,7 @@ model User {
   updatedSettings Setting[]     @relation("SettingUpdatedBy")
   name            String?
   email           String?       @unique
+  phone           String?
   emailVerified   DateTime?
   image           String?
   password        String?
@@ -65,6 +66,7 @@ model User {
   costs           Cost[]        @relation("CostCreatedBy")
   sessions        Session[]
   transactions    Transaction[]
+  adminCreationOtps AdminCreationOtp[]
 }
 
 model VerificationToken {
@@ -73,6 +75,24 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model AdminCreationOtp {
+  id             String   @id @default(cuid())
+  superAdminId   String
+  contact        String   @unique
+  deliveryMethod String   @default("EMAIL")
+  otpHash        String
+  attempts       Int      @default(0)
+  maxAttempts    Int      @default(5)
+  resendCooldown DateTime    @default(now())
+  expiresAt      DateTime
+  verifiedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  superAdmin User @relation(fields: [superAdminId], references: [id], onDelete: Cascade)
+
+  @@index([contact])
 }
 
 model Party {
