@@ -1,16 +1,29 @@
 "use client"
 import React, { useState } from 'react'
+import { useRouter } from 'next/navigation';
+import { UserPlus } from 'lucide-react';
 import AdminCredentialsForm from './AdminCredentialsForm'
+import CreateAdminForm from './CreateAdminForm'
+import { Dialog } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 type Props = {
   initialName: string;
   initialEmail: string;
   initialImage: string;
   users: Array<{ id: string; name: string | null; email: string | null; role: string }>;
+  isSuperAdmin?: boolean;
 }
 
-export default function UsersSettingsClient({ initialName, initialEmail, initialImage, users }: Props) {
+export default function UsersSettingsClient({ initialName, initialEmail, initialImage, users, isSuperAdmin }: Props) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'account' | 'users'>('account')
+  const [showCreateAdmin, setShowCreateAdmin] = useState(false)
+
+  function handleAdminCreated() {
+    setShowCreateAdmin(false);
+    router.refresh();
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -48,9 +61,17 @@ export default function UsersSettingsClient({ initialName, initialEmail, initial
         </div>
       ) : (
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
-          <div className="mb-4">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Users</p>
-            <h2 className="mt-2 text-2xl font-semibold">User accounts</h2>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Users</p>
+              <h2 className="mt-2 text-2xl font-semibold">User accounts</h2>
+            </div>
+            {isSuperAdmin && (
+              <Button type="button" onClick={() => setShowCreateAdmin(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Create Admin
+              </Button>
+            )}
           </div>
 
           {users.length > 0 ? (
@@ -78,6 +99,12 @@ export default function UsersSettingsClient({ initialName, initialEmail, initial
             <p className="text-sm text-muted-foreground">No user accounts found.</p>
           )}
         </div>
+      )}
+
+      {isSuperAdmin && (
+        <Dialog open={showCreateAdmin} onOpenChange={setShowCreateAdmin} title="Create New Admin">
+          <CreateAdminForm onAdminCreated={handleAdminCreated} />
+        </Dialog>
       )}
     </div>
   )

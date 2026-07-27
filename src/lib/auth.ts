@@ -27,11 +27,11 @@ export async function requireUser(): Promise<AppSession> {
   }
 }
 
-export async function requireRole(allowedRoles: Array<'ADMIN' | 'MANAGER' | 'USER'>) {
+export async function requireRole(allowedRoles: Array<'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'USER'>) {
   try {
     const session = await requireUser();
 
-    if (!allowedRoles.includes((session.user.role ?? 'USER') as 'ADMIN' | 'MANAGER' | 'USER')) {
+    if (!allowedRoles.includes((session.user.role ?? 'USER') as 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'USER')) {
       redirect('/unauthorized');
     }
 

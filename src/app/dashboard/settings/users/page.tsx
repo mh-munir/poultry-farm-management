@@ -3,7 +3,7 @@ import { prisma } from '@/server/db'
 import UsersSettingsClient from '@/components/dashboard/settings-pages/UsersSettingsClient'
 
 export default async function UsersPage() {
-  const session = await requireRole(['ADMIN', 'MANAGER'])
+  const session = await requireRole(['ADMIN', 'MANAGER', 'SUPER_ADMIN'])
 
   let users: Array<{ id: string; name: string | null; email: string | null; role: string }> = []
   try {
@@ -17,7 +17,7 @@ export default async function UsersPage() {
 
   const adminUser = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { name: true, email: true, image: true }
+    select: { name: true, email: true, image: true, role: true }
   })
 
   return (
@@ -27,6 +27,7 @@ export default async function UsersPage() {
         initialEmail={adminUser?.email ?? ''}
         initialImage={adminUser?.image ?? ''}
         users={users}
+        isSuperAdmin={adminUser?.role === 'SUPER_ADMIN'}
       />
     </main>
   )
