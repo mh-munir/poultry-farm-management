@@ -20,11 +20,30 @@ import { QuickActionItem } from '@/components/dashboard/quick-action-item';
 import { SummaryCard } from '@/components/dashboard/summary-card';
 import { ServiceUnavailableCard } from '@/components/ui/service-unavailable-card';
 
-function getTodayRange() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
+const BANGLADESH_OFFSET = 6 * 60;
+
+function toBangladeshTime(date: Date) {
+  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+  return new Date(utc + BANGLADESH_OFFSET * 60000);
+}
+
+function getStartOfDay(date: Date) {
+  const bd = toBangladeshTime(date);
+  bd.setHours(0, 0, 0, 0);
+  return bd;
+}
+
+function getEndOfDay(date: Date) {
+  const start = getStartOfDay(date);
   const end = new Date(start);
-  end.setDate(start.getDate() + 1);
+  end.setDate(end.getDate() + 1);
+  return end;
+}
+
+function getTodayRange() {
+  const now = new Date();
+  const start = getStartOfDay(now);
+  const end = getEndOfDay(now);
   return { start, end };
 }
 
@@ -49,6 +68,24 @@ export default async function DashboardPage() {
   const sixMonthsAgo = new Date(start);
   sixMonthsAgo.setMonth(start.getMonth() - 5);
 
+  const months: string[] = [];
+  const monthLabels: string[] = [];
+  const monthRanges: { start: Date; end: Date }[] = [];
+
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date();
+    date.setMonth(date.getMonth() - i);
+    date.setDate(1);
+    date.setHours(0, 0, 0, 0);
+    const monthStart = new Date(date);
+    const monthEnd = new Date(monthStart);
+    monthEnd.setMonth(monthEnd.getMonth() + 1);
+
+    months.push(monthStart.toISOString().slice(0, 7));
+    monthLabels.push(monthStart.toLocaleDateString('en-US', { month: 'short' }));
+    monthRanges.push({ start: monthStart, end: monthEnd });
+  }
+
   function query<T>(q: Promise<T>): Promise<T> {
     return dbQuery(q, 30000);
   }
@@ -67,18 +104,25 @@ export default async function DashboardPage() {
   const [
     dailyFeedSaleAgg,
     dailyMedicineSaleAgg,
-    dailyPurchaseCostAgg,
+    dailyFeedPurchaseCostAgg,
+    dailyMedicinePurchaseCostAgg,
+    dailyCostExpenseAgg,
     totalFeedSaleAgg,
     totalMedicineSaleAgg,
-    totalPurchaseCostAgg,
+    totalFeedPurchaseCostAgg,
+    totalMedicinePurchaseCostAgg,
+    totalCostExpenseAgg,
     totalCustomerDueAgg,
     totalFeedMedicineDueAgg,
     totalEggChickenSupplierDueAgg,
     totalStockAgg,
+    totalStockValueAgg,
     recentTransactions,
     activePartiesCount,
     openInvoicesCount,
-    lowStockAlerts
+    lowStockAlerts,
+    sixMonthSalesAgg,
+    sixMonthPurchaseAgg
   ] = await Promise.all([
     safeQuery(
       prisma.transactionItem.aggregate({
@@ -111,10 +155,39 @@ export default async function DashboardPage() {
         _sum: { totalAmount: true },
         where: {
           transactionType: 'PURCHASE',
-          transactionDate: { gte: start, lt: end }
+          transactionDate: { gte: start, lt: end },
+          transactionItems: {
+            some: {
+              product: { productType: 'FEED' }
+            }
+          }
         }
       }),
       { _sum: { totalAmount: null } }
+    ),
+    safeQuery(
+      prisma.transaction.aggregate({
+        _sum: { totalAmount: true },
+        where: {
+          transactionType: 'PURCHASE',
+          transactionDate: { gte: start, lt: end },
+          transactionItems: {
+            some: {
+              product: { productType: 'MEDICINE' }
+            }
+          }
+        }
+      }),
+      { _sum: { totalAmount: null } }
+    ),
+    safeQuery(
+      prisma.cost.aggregate({
+        _sum: { amount: true },
+        where: {
+          costDate: { gte: start, lt: end }
+        }
+      }),
+      { _sum: { amount: null } }
     ),
     safeQuery(
       prisma.transactionItem.aggregate({
@@ -143,9 +216,36 @@ export default async function DashboardPage() {
     safeQuery(
       prisma.transaction.aggregate({
         _sum: { totalAmount: true },
-        where: { transactionType: 'PURCHASE' }
+        where: {
+          transactionType: 'PURCHASE',
+          transactionItems: {
+            some: {
+              product: { productType: 'FEED' }
+            }
+          }
+        }
       }),
       { _sum: { totalAmount: null } }
+    ),
+    safeQuery(
+      prisma.transaction.aggregate({
+        _sum: { totalAmount: true },
+        where: {
+          transactionType: 'PURCHASE',
+          transactionItems: {
+            some: {
+              product: { productType: 'MEDICINE' }
+            }
+          }
+        }
+      }),
+      { _sum: { totalAmount: null } }
+    ),
+    safeQuery(
+      prisma.cost.aggregate({
+        _sum: { amount: true }
+      }),
+      { _sum: { amount: null } }
     ),
     safeQuery(
       prisma.transaction.aggregate({
@@ -188,6 +288,12 @@ export default async function DashboardPage() {
       { _sum: { dueAmount: null } }
     ),
     safeQuery(prisma.stockBalance.aggregate({ _sum: { quantityOnHand: true } }), { _sum: { quantityOnHand: null } }),
+    safeQuery(
+      prisma.stockBalance.findMany({
+        select: { quantityOnHand: true, averageCost: true }
+      }),
+      []
+    ),
     safeQuery(
       prisma.transaction.findMany({
         take: 5,
@@ -249,6 +355,52 @@ export default async function DashboardPage() {
     )
   ]);
 
+  const monthlyRevenueResults = await Promise.all(
+    monthRanges.map((range) =>
+      safeQuery(
+        prisma.transactionItem.aggregate({
+          _sum: { lineTotal: true },
+          where: {
+            transaction: {
+              transactionType: 'SALE',
+              transactionDate: { gte: range.start, lt: range.end }
+            }
+          }
+        }),
+        { _sum: { lineTotal: null } }
+      )
+    )
+  );
+
+  const monthlyExpenseResults = await Promise.all(
+    monthRanges.map((range) =>
+      safeQuery(
+        prisma.transaction.aggregate({
+          _sum: { totalAmount: true },
+          where: {
+            transactionType: 'PURCHASE',
+            transactionDate: { gte: range.start, lt: range.end }
+          }
+        }),
+        { _sum: { totalAmount: null } }
+      )
+    )
+  );
+
+  const monthlyCostResults = await Promise.all(
+    monthRanges.map((range) =>
+      safeQuery(
+        prisma.cost.aggregate({
+          _sum: { amount: true },
+          where: {
+            costDate: { gte: range.start, lt: range.end }
+          }
+        }),
+        { _sum: { amount: null } }
+      )
+    )
+  );
+
   // Filter products with low stock
   const filteredLowStockAlerts = (lowStockAlerts || []).filter((product: any) => {
     const quantity = Number(product.stockBalance?.quantityOnHand ?? 0);
@@ -258,14 +410,28 @@ export default async function DashboardPage() {
 
   const dailyFeedSale = Number(dailyFeedSaleAgg._sum.lineTotal ?? 0);
   const dailyMedicineSale = Number(dailyMedicineSaleAgg._sum.lineTotal ?? 0);
-  const dailyPurchaseCost = Number(dailyPurchaseCostAgg._sum.totalAmount ?? 0);
+  const dailyFeedPurchaseCost = Number(dailyFeedPurchaseCostAgg._sum.totalAmount ?? 0);
+  const dailyMedicinePurchaseCost = Number(dailyMedicinePurchaseCostAgg._sum.totalAmount ?? 0);
+  const dailyCostExpenses = Number(dailyCostExpenseAgg._sum.amount ?? 0);
+  const dailyTotalCost = dailyFeedPurchaseCost + dailyMedicinePurchaseCost + dailyCostExpenses;
   const totalFeedSale = Number(totalFeedSaleAgg._sum.lineTotal ?? 0);
   const totalMedicineSale = Number(totalMedicineSaleAgg._sum.lineTotal ?? 0);
-  const totalPurchaseCost = Number(totalPurchaseCostAgg._sum.totalAmount ?? 0);
+  const totalFeedPurchaseCost = Number(totalFeedPurchaseCostAgg._sum.totalAmount ?? 0);
+  const totalMedicinePurchaseCost = Number(totalMedicinePurchaseCostAgg._sum.totalAmount ?? 0);
+  const totalCostExpenses = Number(totalCostExpenseAgg._sum.amount ?? 0);
+  const totalTotalCost = totalFeedPurchaseCost + totalMedicinePurchaseCost + totalCostExpenses;
   const totalCustomerDue = Number(totalCustomerDueAgg._sum.dueAmount ?? 0);
   const totalFeedMedicineDue = Number(totalFeedMedicineDueAgg._sum.dueAmount ?? 0);
   const totalEggChickenSupplierDue = Number(totalEggChickenSupplierDueAgg._sum.dueAmount ?? 0);
   const totalStock = Number(totalStockAgg._sum.quantityOnHand ?? 0);
+  const totalStockValue = totalStockValueAgg.reduce((sum: number, sb: any) => {
+    const qty = Number(sb.quantityOnHand ?? 0);
+    const cost = Number(sb.averageCost ?? 0);
+    return sum + qty * cost;
+  }, 0);
+
+  const totalSales = totalFeedSale + totalMedicineSale;
+  const netProfit = totalSales - totalTotalCost;
 
   const dailySummaryCards = [
     {
@@ -285,9 +451,9 @@ export default async function DashboardPage() {
       accent: 'bg-violet-50 text-violet-600'
     },
     {
-      title: 'Today Cost',
-      value: formatCurrency(dailyPurchaseCost),
-      metric: dailyPurchaseCost > 0 ? '- ' + formatCurrency(dailyPurchaseCost) : 'No cost',
+      title: 'Daily Cost',
+      value: formatCurrency(dailyTotalCost),
+      metric: dailyTotalCost > 0 ? '- ' + formatCurrency(dailyTotalCost) : 'No cost',
       metricColor: 'text-rose-600',
       icon: Wallet,
       accent: 'bg-rose-50 text-rose-600'
@@ -321,8 +487,8 @@ export default async function DashboardPage() {
     },
     {
       title: 'Total Cost',
-      value: formatCurrency(totalPurchaseCost),
-      metric: totalPurchaseCost > 0 ? formatCurrency(totalPurchaseCost) : 'No cost',
+      value: formatCurrency(totalTotalCost),
+      metric: totalTotalCost > 0 ? formatCurrency(totalTotalCost) : 'No cost',
       metricColor: 'text-rose-600',
       icon: Wallet,
       accent: 'bg-orange-50 text-orange-600'
@@ -352,64 +518,22 @@ export default async function DashboardPage() {
       accent: 'bg-amber-50 text-amber-600'
     },
     {
-      title: 'Total Stock',
-      value: `${formatNumber(totalStock)} units`,
-      metric: totalStock > 0 ? '+ ' + formatNumber(totalStock) : '0',
+      title: 'Total Stock Value',
+      value: formatCurrency(totalStockValue),
+      metric: totalStockValue > 0 ? `${formatNumber(totalStock)} units` : 'No stock',
       metricColor: 'text-emerald-600',
       icon: BarChart3,
       accent: 'bg-teal-50 text-teal-600'
+    },
+    {
+      title: 'Net Profit/Loss',
+      value: formatCurrency(netProfit),
+      metric: netProfit >= 0 ? 'Profitable' : 'Loss incurred',
+      metricColor: netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600',
+      icon: TrendingUp,
+      accent: 'bg-emerald-50 text-emerald-600'
     }
   ];
-
-  const months: string[] = [];
-  const monthLabels: string[] = [];
-  const monthRanges: { start: Date; end: Date }[] = [];
-
-  for (let i = 5; i >= 0; i--) {
-    const date = new Date();
-    date.setMonth(date.getMonth() - i);
-    date.setDate(1);
-    date.setHours(0, 0, 0, 0);
-    const monthStart = new Date(date);
-    const monthEnd = new Date(monthStart);
-    monthEnd.setMonth(monthEnd.getMonth() + 1);
-
-    months.push(monthStart.toISOString().slice(0, 7));
-    monthLabels.push(monthStart.toLocaleDateString('en-US', { month: 'short' }));
-    monthRanges.push({ start: monthStart, end: monthEnd });
-  }
-
-  const monthlyRevenueResults = await Promise.all(
-    monthRanges.map((range) =>
-      safeQuery(
-        prisma.transactionItem.aggregate({
-          _sum: { lineTotal: true },
-          where: {
-            transaction: {
-              transactionType: 'SALE',
-              transactionDate: { gte: range.start, lt: range.end }
-            }
-          }
-        }),
-        { _sum: { lineTotal: null } }
-      )
-    )
-  );
-
-  const monthlyExpenseResults = await Promise.all(
-    monthRanges.map((range) =>
-      safeQuery(
-        prisma.transaction.aggregate({
-          _sum: { totalAmount: true },
-          where: {
-            transactionType: 'PURCHASE',
-            transactionDate: { gte: range.start, lt: range.end }
-          }
-        }),
-        { _sum: { totalAmount: null } }
-      )
-    )
-  );
 
   const revenueData = monthlyRevenueResults.map((result, idx) => ({
     label: monthLabels[idx],
@@ -418,7 +542,7 @@ export default async function DashboardPage() {
 
   const expenseData = monthlyExpenseResults.map((result, idx) => ({
     label: monthLabels[idx],
-    value: Number(result._sum.totalAmount ?? 0)
+    value: Number(result._sum.totalAmount ?? 0) + Number(monthlyCostResults[idx]?._sum.amount ?? 0)
   }));
 
   const totalRevenue = revenueData.reduce((sum, item) => sum + item.value, 0);
@@ -473,12 +597,6 @@ export default async function DashboardPage() {
                     <p className="mt-1 text-sm text-slate-500">Overall totals across the farm.</p>
                   </div>
                   <div className="rounded-lg bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">Summary</div>
-                </div>
-                <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                  <p className="font-medium text-slate-900">Supplier due breakdown</p>
-                  <p className="mt-1">
-                    Feed and Medicine dues are grouped together for your feed/medicine suppliers. Eggs and Chicken dues are kept separate for poultry suppliers.
-                  </p>
                 </div>
                 <div className="grid gap-4 md:grid-cols-4">
                   {totalSummaryCards.map((item) => {

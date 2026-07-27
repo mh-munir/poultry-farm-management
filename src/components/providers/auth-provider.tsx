@@ -2,6 +2,7 @@
 
 import { SessionProvider } from 'next-auth/react';
 import type { Session } from 'next-auth';
+import { InactivityTimer } from '@/components/auth/inactivity-timer';
 
 export function AuthProvider({
   children,
@@ -10,5 +11,10 @@ export function AuthProvider({
   children: React.ReactNode;
   session?: Session | null;
 }) {
-  return <SessionProvider session={session}>{children}</SessionProvider>;
+  return (
+    <SessionProvider session={session}>
+      <InactivityTimer />
+      {children}
+    </SessionProvider>
+  );
 }

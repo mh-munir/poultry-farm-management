@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/server/db'
 import { requireUser } from '@/lib/auth'
+import { revalidatePath } from 'next/cache'
 
 const createSchema = z.object({ amount: z.coerce.number(), description: z.string().optional(), date: z.string().optional() })
 
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
       }
     })
 
+    revalidatePath('/dashboard');
     return NextResponse.json(created)
   } catch (err: any) {
     return NextResponse.json({ error: 'costs_create_failed', message: err?.message ?? String(err) }, { status: 500 })

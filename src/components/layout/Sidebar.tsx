@@ -5,7 +5,7 @@ import { signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { getSetting } from '@/lib/settings';
-import { Home, Users, BarChart2, Settings, Shield, User, LogOut, ChevronDown, Box } from 'lucide-react';
+import { Home, Users, BarChart2, Settings, Shield, User, LogOut, ChevronDown, Box, Wallet } from 'lucide-react';
 
 export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => void }) {
   const pathname = usePathname() || '';
@@ -101,11 +101,12 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                   </Link>
                 </li>
               </ul>
-              <div className="mt-4 border-t border-slate-200 pt-3 pl-7">
-                <Link href="/dashboard/costs" onClick={() => onClose?.()} className={linkClass('/dashboard/costs')}>
-                  <span>Costs</span>
-                </Link>
-              </div>
+            </li>
+            <li>
+              <Link href="/dashboard/costs" onClick={() => onClose?.()} className={linkClass('/dashboard/costs')}>
+                <Wallet size={16} className="text-cyan-500" />
+                <span>Costs</span>
+              </Link>
             </li>
           </ul>
         </div>
@@ -123,12 +124,6 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               <Link href="/dashboard/settings" onClick={() => onClose?.()} className={linkClass('/dashboard/settings')}>
                 <Settings size={16} className="text-cyan-500" />
                 <span>Settings</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/dashboard/settings/users" onClick={() => onClose?.()} className={linkClass('/dashboard/settings/users')}>
-                <Shield size={16} className="text-cyan-500" />
-                <span>Users</span>
               </Link>
             </li>
           </ul>

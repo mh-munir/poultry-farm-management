@@ -29,9 +29,11 @@ type PartyRowActionsProps = {
   party: PartyRowEditPayload;
   editOnly?: boolean;
   printHref?: string;
+  editButtonClassName?: string;
+  printButtonClassName?: string;
 };
 
-export function PartyRowActions({ party, editOnly = false, printHref }: PartyRowActionsProps) {
+export function PartyRowActions({ party, editOnly = false, printHref, editButtonClassName, printButtonClassName }: PartyRowActionsProps) {
   const router = useRouter();
   const { success, error: showToastError } = useToast();
   const [actionOpen, setActionOpen] = useState(false);
@@ -130,12 +132,12 @@ export function PartyRowActions({ party, editOnly = false, printHref }: PartyRow
     <div className="inline-flex justify-end">
       {editOnly ? (
         <div className="inline-flex items-center gap-2">
-          <Button type="button" size="sm" onClick={() => setEditOpen(true)}>
+          <Button type="button" size="sm" onClick={() => setEditOpen(true)} className={editButtonClassName}>
             <Pencil className="mr-2 h-4 w-4" />
             Edit Party
           </Button>
           {printHref ? (
-            <Button asChild variant="default" size="sm">
+            <Button asChild size="sm" className={printButtonClassName}>
               <a href={printHref} target="_blank" rel="noreferrer">
                 <Printer className="mr-2 h-4 w-4" />
                 Print
@@ -230,7 +232,7 @@ export function PartyRowActions({ party, editOnly = false, printHref }: PartyRow
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Credit limit</label>
-            <input type="number" step="0.01" min="0" name="creditLimit" defaultValue={party.creditLimit ?? '0'} className="w-full rounded-md border bg-background px-3 py-2" />
+            <input type="number" step="0.01" min="0" name="creditLimit" defaultValue={party.creditLimit ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Opening balance</label>

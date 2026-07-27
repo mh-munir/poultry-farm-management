@@ -133,7 +133,7 @@ export async function createStockMovement(formData: FormData) {
   revalidatePath('/dashboard/stock');
   const url = new URL('/dashboard/stock', 'http://localhost');
   url.searchParams.set('success', 'Stock movement recorded successfully.');
-  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
+  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
   redirect(url.toString());
 }
 
@@ -216,7 +216,7 @@ export async function getStockHistory() {
 }
 
 export async function getLowStockAlerts() {
-  const products = await prisma.product.findMany({
+  return prisma.product.findMany({
     where: {
       isActive: true
     },
@@ -230,10 +230,6 @@ export async function getLowStockAlerts() {
     },
     orderBy: [{ name: 'asc' }]
   });
-
-  return products.filter((product) =>
-    Number(product.stockBalance?.quantityOnHand ?? 0) <= Number(product.lowStockThreshold ?? 0)
-  );
 }
 
 export async function getProductsForStock() {
@@ -259,6 +255,7 @@ export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE') {
       id: true,
       name: true,
       unit: true,
+      productType: true,
       defaultPurchasePrice: true,
       defaultSellingPrice: true,
       stockBalance: { select: { quantityOnHand: true } },
@@ -284,4 +281,111 @@ export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE') {
       }
     }
   });
+}
+
+const supplierSchema = z.object({
+  name: z.string().min(1, 'Supplier name is required.'),
+  phone: z.string().min(1, 'Phone number is required.'),
+  partyType: z.enum(['SUPPLIER', 'BOTH']).default('SUPPLIER'),
+  email: z.string().optional().or(z.literal('')),
+  address: z.string().optional().or(z.literal('')),
+  farmName: z.string().optional().or(z.literal(''))
+});
+
+export async function createSupplierForStock(formData: FormData) {
+  await requireUser();
+
+  const raw = {
+    name: formData.get('name')?.toString() ?? '',
+    phone: formData.get('phone')?.toString() ?? '',
+    partyType: formData.get('partyType')?.toString() ?? 'SUPPLIER',
+    email: formData.get('email')?.toString() ?? '',
+    address: formData.get('address')?.toString() ?? '',
+    farmName: formData.get('farmName')?.toString() ?? ''
+  };
+
+  const parsed = supplierSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { success: false as const, message: parsed.error.issues[0]?.message ?? 'Invalid supplier data.' };
+  }
+
+  const data = parsed.data;
+
+  try {
+    const party = await prisma.party.create({
+      data: {
+        name: data.name,
+        phone: data.phone,
+        partyType: data.partyType,
+        email: data.email || null,
+        address: data.address || null,
+        farmName: data.farmName || null,
+        isActive: true,
+        openingBalance: 0
+      },
+      select: { id: true, name: true, phone: true, email: true, address: true, farmName: true, partyType: true }
+    });
+
+    revalidatePath('/dashboard/parties');
+    revalidatePath('/dashboard/stock');
+
+    return { success: true as const, message: `Supplier '${party.name}' created successfully.`, party };
+  } catch (error) {
+    return { success: false as const, message: error instanceof Error ? error.message : 'Failed to create supplier.' };
+  }
+}
+
+const stockProductSchema = z.object({
+  name: z.string().min(1, 'Product name is required.'),
+  productType: z.enum(['FEED', 'MEDICINE']),
+  unit: z.string().min(1, 'Unit is required.'),
+  code: z.string().optional().or(z.literal('')),
+  defaultPurchasePrice: z.coerce.number().min(0).optional().default(0),
+  defaultSellingPrice: z.coerce.number().min(0).optional().default(0)
+});
+
+export async function createProductForStock(formData: FormData) {
+  await requireUser();
+
+  const raw = {
+    name: formData.get('name')?.toString() ?? '',
+    productType: formData.get('productType')?.toString() ?? 'FEED',
+    unit: formData.get('unit')?.toString() ?? '',
+    code: formData.get('code')?.toString() ?? '',
+    defaultPurchasePrice: formData.get('defaultPurchasePrice')?.toString() ?? '0',
+    defaultSellingPrice: formData.get('defaultSellingPrice')?.toString() ?? '0'
+  };
+
+  const parsed = stockProductSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { success: false as const, message: parsed.error.issues[0]?.message ?? 'Invalid product data.' };
+  }
+
+  const data = parsed.data;
+
+  try {
+    const existingCount = await prisma.product.count({
+      where: { productType: data.productType, isActive: true }
+    });
+
+    const product = await prisma.product.create({
+      data: {
+        code: data.code || `${data.productType}-${String(existingCount + 1).padStart(3, '0')}`,
+        name: data.name,
+        productType: data.productType,
+        unit: data.unit,
+        defaultPurchasePrice: new Prisma.Decimal(data.defaultPurchasePrice),
+        defaultSellingPrice: new Prisma.Decimal(data.defaultSellingPrice),
+        isActive: true
+      },
+      select: { id: true, name: true, code: true, productType: true, unit: true, defaultPurchasePrice: true, defaultSellingPrice: true }
+    });
+
+    revalidatePath('/dashboard/products');
+    revalidatePath('/dashboard/stock');
+
+    return { success: true as const, message: `Product '${product.name}' created successfully.`, product };
+  } catch (error) {
+    return { success: false as const, message: error instanceof Error ? error.message : 'Failed to create product.' };
+  }
 }
