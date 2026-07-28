@@ -107,10 +107,24 @@ async function main() {
     update: {},
     create: {
       id: 2,
-      name: 'Sample Supplier',
+      name: 'Sample Party Supplier',
       phone: '0723456789',
       email: 'supplier@poultryfarm.test',
-      partyType: 'SUPPLIER',
+      partyType: 'PARTY',
+      openingBalance: 0,
+      createdById: user.id
+    }
+  });
+
+  await prisma.party.upsert({
+    where: { id: 3 },
+    update: {},
+    create: {
+      id: 3,
+      name: 'Sample Company Supplier',
+      phone: '0734567890',
+      email: 'company@poultryfarm.test',
+      partyType: 'COMPANY',
       openingBalance: 0,
       createdById: user.id
     }

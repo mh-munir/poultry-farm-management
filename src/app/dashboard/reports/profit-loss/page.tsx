@@ -62,7 +62,7 @@ export default async function ProfitLossReportPage({
             </div>
           </div>
           <div className="rounded-xl border bg-background p-4">
-            <h3 className="text-lg font-semibold">Costs</h3>
+            <h3 className="text-lg font-semibold">Expenses</h3>
             <div className="mt-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Purchase Costs</span>
@@ -73,7 +73,7 @@ export default async function ProfitLossReportPage({
                 <span className="font-medium">{formatCurrency(data.costs.operating)}</span>
               </div>
               <div className="flex justify-between text-sm font-semibold border-t pt-2">
-                <span>Total Costs</span>
+                <span>Total Expenses</span>
                 <span>{formatCurrency(data.costs.total)}</span>
               </div>
             </div>

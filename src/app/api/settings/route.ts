@@ -67,6 +67,11 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  try {
+    await requireUser()
+  } catch {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
   const url = new URL(request.url);
   const key = url.searchParams.get('key');
   if (!key) return NextResponse.json({ error: 'missing_key' }, { status: 400 });

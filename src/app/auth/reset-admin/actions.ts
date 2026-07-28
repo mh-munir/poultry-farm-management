@@ -62,7 +62,6 @@ export async function resetAdminPassword(formData: FormData) {
   const hashedPassword = await bcrypt.hash(parsed.data.password, 10);
 
   try {
-    console.log('🔄 Attempting password reset for:', parsed.data.email);
 
     const existingUser = await dbQuery(
       prisma.user.findUnique({ where: { email: parsed.data.email } }),
@@ -86,9 +85,7 @@ export async function resetAdminPassword(formData: FormData) {
       30000
     );
 
-    console.log('✅ Password reset successful for:', parsed.data.email);
   } catch (error) {
-    console.error('❌ Password reset failed:', error instanceof Error ? error.message : String(error));
     const params = new URLSearchParams();
     params.set('error', 'Unable to reset admin password. ' + (error instanceof Error ? error.message : 'Unknown error'));
     redirect(buildResetAdminRoute(params));

@@ -30,7 +30,14 @@ export const authConfig = {
         const { email, password } = parsed.data;
 
         try {
-          const user = await dbQuery(prisma.user.findUnique({ where: { email } }), 30000, null);
+          const user = await dbQuery(
+            prisma.user.findUnique({
+              where: { email },
+              select: { id: true, name: true, email: true, password: true, role: true, image: true }
+            }),
+            30000,
+            null
+          );
 
           if (!user) {
             return null;
@@ -66,26 +73,26 @@ export const authConfig = {
         if (typeof user.image !== 'undefined') {
           jwtToken.image = user.image ?? null;
         }
-        } else if (token.sub) {
-          try {
-            const refreshedUser = await dbQuery(
-              prisma.user.findUnique({
-                where: { id: token.sub },
-                select: { name: true, role: true, image: true }
-              }),
-              20000,
-              null
-            );
+      } else if (token.sub) {
+        try {
+          const refreshedUser = await dbQuery(
+            prisma.user.findUnique({
+              where: { id: token.sub },
+              select: { name: true, role: true, image: true }
+            }),
+            20000,
+            null
+          );
 
-            if (refreshedUser) {
-              const jwtToken = token as JWT & { image?: string | null };
-              jwtToken.name = refreshedUser.name ?? jwtToken.name;
-              jwtToken.role = refreshedUser.role ?? jwtToken.role;
-              jwtToken.image = refreshedUser.image ?? null;
-            }
-          } catch {
-            // Ignore refresh failures and keep the existing token data.
+          if (refreshedUser) {
+            const jwtToken = token as JWT & { image?: string | null };
+            jwtToken.name = refreshedUser.name ?? jwtToken.name;
+            jwtToken.role = refreshedUser.role ?? jwtToken.role;
+            jwtToken.image = refreshedUser.image ?? null;
           }
+        } catch {
+          // Ignore refresh failures and keep the existing token data.
+        }
       }
       return token;
     },

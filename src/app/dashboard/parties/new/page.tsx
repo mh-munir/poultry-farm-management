@@ -17,7 +17,7 @@ export default async function NewPartyPage() {
       <div className="flex items-center justify-between rounded-2xl border bg-card p-6 shadow-sm">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Create Party</p>
-          <h1 className="mt-2 text-3xl font-semibold">Add a new customer or supplier</h1>
+          <h1 className="mt-2 text-3xl font-semibold">Add a new customer or party</h1>
         </div>
         <Button asChild variant="outline">
           <Link href="/dashboard/parties">
@@ -53,8 +53,9 @@ export default async function NewPartyPage() {
             <label className="mb-2 block text-sm font-medium">Party type</label>
             <select name="partyType" defaultValue="BOTH" className="w-full rounded-md border bg-background px-3 py-2">
               <option value="CUSTOMER">Customer</option>
-              <option value="SUPPLIER">Supplier</option>
-              <option value="BOTH">Both</option>
+              <option value="PARTY">Party Supplier (Eggs & Chicken)</option>
+              <option value="COMPANY">Company Supplier (Feed & Medicine)</option>
+              <option value="BOTH">Customer + Party Supplier</option>
             </select>
           </div>
           <div>

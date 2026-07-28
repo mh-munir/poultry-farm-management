@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-type SupplierProduct = {
+type PartyProduct = {
   partyId: number | null;
   partyName: string;
   productType: string;
@@ -16,26 +16,26 @@ type SupplierProduct = {
   timestamp: string;
 };
 
-export function SupplierProductsHistory() {
-  const [supplierProducts, setSupplierProducts] = useState<SupplierProduct[]>([]);
+export function PartyProductsHistory() {
+  const [partyProducts, setPartyProducts] = useState<PartyProduct[]>([]);
 
   useEffect(() => {
     const data = localStorage.getItem('supplierProductsHistory');
     if (data) {
       try {
         const parsed = JSON.parse(data);
-        setSupplierProducts(parsed.reverse()); // Show latest first
+        setPartyProducts(parsed.reverse()); // Show latest first
       } catch (err) {
-        console.error('Failed to parse supplier products history:', err);
+        console.error('Failed to parse party products history:', err);
       }
     }
   }, []);
 
-  if (supplierProducts.length === 0) {
+  if (partyProducts.length === 0) {
     return (
       <div className="mt-8 overflow-hidden rounded-2xl border bg-card shadow-sm">
         <div className="border-b px-4 py-4 bg-muted/20">
-          <h2 className="text-lg font-semibold">Supplier Products History</h2>
+          <h2 className="text-lg font-semibold">Party Products History</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -56,7 +56,7 @@ export function SupplierProductsHistory() {
             <tbody>
               <tr>
                 <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
-                  No supplier products recorded yet.
+                  No party products recorded yet.
                 </td>
               </tr>
             </tbody>
@@ -69,7 +69,7 @@ export function SupplierProductsHistory() {
   return (
     <div className="mt-8 overflow-hidden rounded-2xl border bg-card shadow-sm">
       <div className="border-b px-4 py-4 bg-muted/20">
-        <h2 className="text-lg font-semibold">Supplier Products History</h2>
+        <h2 className="text-lg font-semibold">Party Products History</h2>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
@@ -88,7 +88,7 @@ export function SupplierProductsHistory() {
             </tr>
           </thead>
           <tbody>
-            {supplierProducts.map((product, index) => {
+            {partyProducts.map((product, index) => {
               const date = new Date(product.timestamp);
               const formattedDate = date.toLocaleDateString('en-US', {
                 year: 'numeric',
@@ -136,7 +136,7 @@ export function SupplierProductsHistory() {
       </div>
       <div className="border-t px-4 py-4 bg-muted/10">
         <p className="text-sm text-muted-foreground">
-          Total Records: {supplierProducts.length}
+          Total Records: {partyProducts.length}
         </p>
       </div>
     </div>

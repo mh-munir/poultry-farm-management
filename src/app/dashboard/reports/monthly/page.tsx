@@ -64,7 +64,7 @@ export default async function MonthlyReportPage({
             <p className="mt-1 text-xs text-muted-foreground">{data.purchases.count} transactions</p>
           </div>
           <div className="rounded-xl border bg-background p-4">
-            <p className="text-sm text-muted-foreground">Total Costs</p>
+            <p className="text-sm text-muted-foreground">Total Expenses</p>
             <p className="mt-2 text-2xl font-semibold">{formatCurrency(data.costs.total)}</p>
           </div>
           <div className="rounded-xl border bg-background p-4">
@@ -87,7 +87,7 @@ export default async function MonthlyReportPage({
                     <th className="px-4 py-3 text-left font-medium">Date</th>
                     <th className="px-4 py-3 text-right font-medium">Sales</th>
                     <th className="px-4 py-3 text-right font-medium">Purchases</th>
-                    <th className="px-4 py-3 text-right font-medium">Costs</th>
+                    <th className="px-4 py-3 text-right font-medium">Expenses</th>
                     <th className="px-4 py-3 text-right font-medium">Profit/Loss</th>
                   </tr>
                 </thead>

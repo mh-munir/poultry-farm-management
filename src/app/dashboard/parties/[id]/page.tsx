@@ -9,7 +9,7 @@ import PaymentFormDialog from './payment-form-dialog';
 import { PartyPaymentsSection } from './party-payments-section';
 import { PartyRowActions } from '../party-row-actions';
 import { SalesEntryPopup } from '@/components/dashboard/sales-entry-popup';
-import { SupplierProductsDialog } from '@/components/dashboard/supplier-products-dialog';
+import { PartyProductsDialog } from '@/components/dashboard/party-products-dialog';
 import ToastRedirect from '../toast-redirect';
 
 type PartyProfileRecord = {
@@ -191,7 +191,7 @@ export default async function PartyProfilePage({ params, searchParams }: { param
   }));
 
   const isCustomer = party.partyType === 'CUSTOMER' || party.partyType === 'BOTH';
-  const isSupplier = party.partyType === 'SUPPLIER' || party.partyType === 'BOTH';
+  const isSupplier = party.partyType === 'PARTY' || party.partyType === 'BOTH';
   const isBoth = party.partyType === 'BOTH';
 
   const productRows = transactions.flatMap((transaction) =>
@@ -222,9 +222,9 @@ export default async function PartyProfilePage({ params, searchParams }: { param
   const supplierPayable = summary.netSupplierDue;
   const netBalanceAmount = isSupplier ? summary.supplierDue : summary.netCustomerDue;
   const netBalanceLabel = isSupplier
-    ? 'Supplier payable'
+    ? 'Party supplier payable'
     : summary.netSupplierDue > 0
-      ? 'We owe supplier'
+      ? 'We owe party supplier'
       : 'Customer due';
   const dueStatus = summary.netSupplierDue > 0 && !isCustomer
     ? 'Payable'
@@ -251,12 +251,12 @@ export default async function PartyProfilePage({ params, searchParams }: { param
     ['Customer Sales', formatCurrency(summary.customerInvoiced)],
     ['Customer Paid', formatCurrency(summary.customerPaid)],
     ['Customer Due Before Offset', formatCurrency(summary.customerDue)],
-    ['Supplier Supplies', formatCurrency(summary.supplierInvoiced)],
-    ['Supplier Paid', formatCurrency(summary.supplierPaid)],
-    ['Supplier Payable Before Offset', formatCurrency(summary.supplierDue)],
+    ['Party Supplier Supplies', formatCurrency(summary.supplierInvoiced)],
+    ['Party Supplier Paid', formatCurrency(summary.supplierPaid)],
+    ['Party Supplier Payable Before Offset', formatCurrency(summary.supplierDue)],
     ['Offset Applied', formatCurrency(summary.offsetApplied)],
     ['Net Customer Due', formatCurrency(summary.netCustomerDue)],
-    ['Net Supplier Payable', formatCurrency(summary.netSupplierDue)],
+    ['Net Party Supplier Payable', formatCurrency(summary.netSupplierDue)],
     [],
     ['Payment History'],
     ['Date', 'Amount', 'Method', 'Reference', 'Status', 'Notes'],
@@ -318,9 +318,11 @@ export default async function PartyProfilePage({ params, searchParams }: { param
 
   const partyTypeBadgeClass = party.partyType === 'CUSTOMER'
     ? 'bg-sky-100 text-sky-800'
-    : party.partyType === 'SUPPLIER'
+    : party.partyType === 'PARTY'
       ? 'bg-amber-100 text-amber-800'
-      : 'bg-purple-100 text-purple-800';
+      : party.partyType === 'COMPANY'
+        ? 'bg-violet-100 text-violet-800'
+        : 'bg-purple-100 text-purple-800';
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
@@ -339,7 +341,7 @@ export default async function PartyProfilePage({ params, searchParams }: { param
               )}
               <h1 className="mt-4 text-2xl font-semibold leading-tight">{party.name}</h1>
               <span className={`mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${partyTypeBadgeClass}`}>
-                {party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'SUPPLIER' ? 'Supplier' : 'Both'}
+                {party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'PARTY' ? 'Party Supplier' : party.partyType === 'COMPANY' ? 'Company Supplier' : 'Customer + Party Supplier'}
               </span>
             </div>
 
@@ -406,8 +408,8 @@ export default async function PartyProfilePage({ params, searchParams }: { param
                   buttonChildren="📊 Sales Entry"
                 />
               )}
-              {(party.partyType === 'SUPPLIER' || party.partyType === 'BOTH') && (
-                <SupplierProductsDialog
+              {(party.partyType === 'PARTY' || party.partyType === 'COMPANY' || party.partyType === 'BOTH') && (
+                <PartyProductsDialog
                   partyId={party.id}
                   partyName={party.name}
                 />
@@ -416,11 +418,11 @@ export default async function PartyProfilePage({ params, searchParams }: { param
                 <PaymentFormDialog
                   partyId={party.id}
                   partyName={party.name}
-                  title="Pay Supplier"
-                  buttonLabel="Pay Supplier"
+                  title="Pay Party Supplier"
+                  buttonLabel="Pay Party Supplier"
                   dueLabel="Current payable amount"
                   dueAmount={Number(summary.netSupplierDue ?? 0)}
-                  toastSuccessMessage="Supplier payment recorded successfully"
+                  toastSuccessMessage="Party supplier payment recorded successfully"
                   recordPaymentForParty={recordPaymentForParty}
                   buttonClassName="bg-orange-600 hover:bg-orange-700 text-white"
                 />
@@ -472,15 +474,15 @@ export default async function PartyProfilePage({ params, searchParams }: { param
               {isSupplier ? (
                 <>
                   <div className="rounded-xl border bg-background p-4">
-                    <p className="text-sm text-muted-foreground">Supplier supplies</p>
+                    <p className="text-sm text-muted-foreground">Party supplier supplies</p>
                     <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.supplierInvoiced)}</p>
                   </div>
-                  <div className="rounded-xl border bg-background p-4">
-                    <p className="text-sm text-muted-foreground">Supplier paid</p>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Party supplier paid</p>
                     <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.supplierPaid)}</p>
                   </div>
-                  <div className="rounded-xl border bg-background p-4">
-                    <p className="text-sm text-muted-foreground">Supplier payable</p>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Party supplier payable</p>
                     <p className="mt-2 text-2xl font-semibold">{formatCurrency(supplierPayable)}</p>
                   </div>
                 </>
@@ -491,7 +493,7 @@ export default async function PartyProfilePage({ params, searchParams }: { param
           {isBoth ? (
             <section className="rounded-2xl border bg-card p-6 shadow-sm">
               <h2 className="text-lg font-semibold">Offset Summary</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Supplier payable is deducted from customer due</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Party supplier payable is deducted from customer due</p>
               <div className="mt-4 grid gap-4 sm:grid-cols-3">
                 <div className="rounded-xl border bg-background p-4">
                   <p className="text-sm text-muted-foreground">Offset applied</p>
@@ -502,7 +504,7 @@ export default async function PartyProfilePage({ params, searchParams }: { param
                   <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.netCustomerDue)}</p>
                 </div>
                 <div className="rounded-xl border bg-background p-4">
-                  <p className="text-sm text-muted-foreground">Net supplier payable</p>
+                    <p className="text-sm text-muted-foreground">Net party supplier payable</p>
                   <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.netSupplierDue)}</p>
                 </div>
               </div>

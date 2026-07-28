@@ -32,7 +32,7 @@ const reportConfig = [
   },
   {
     title: 'Purchases',
-    description: 'Review supplier invoices, purchase values, and stock acquisition history.',
+    description: 'Review party supplier and company invoices, purchase values, and stock acquisition history.',
     badge: 'Purchases',
     href: '/dashboard/reports/purchases'
   },

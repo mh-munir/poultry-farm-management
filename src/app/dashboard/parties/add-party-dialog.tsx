@@ -253,7 +253,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
         : 0;
       const totalPrice = eggTotal + chickenTotal;
 
-      // Store the supplier products data in localStorage
+      // Store the party products data in localStorage
       const supplierProductData = {
         partyId: supplierProductsPartyId,
         partyName: supplierProductsFormValues.partyName,
@@ -290,8 +290,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
         }
       }
 
-      console.log('Supplier Products Data:', supplierProductData);
-      success(`Supplier products recorded for ${supplierProductsFormValues.partyName}`);
+      success(`Party products recorded for ${supplierProductsFormValues.partyName}`);
       
       // Reset form
       setTimeout(() => {
@@ -309,8 +308,8 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
         router.refresh();
       }, 500);
     } catch (err) {
-      setSupplierProductsError('Failed to record supplier products.');
-      showToastError('Failed to record supplier products.');
+      setSupplierProductsError('Failed to record party products.');
+      showToastError('Failed to record party products.');
       setIsSupplierProductsLoading(false);
     }
   };
@@ -323,7 +322,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
         </Button>
         <SalesEntryPopup partyOptions={partyOptions} productOptions={productOptions} buttonClassName="px-6 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all" />
         <Button type="button" variant="outline" onClick={() => setIsSupplierProductsOpen(true)} className="px-6 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all">
-          🏪 Supplier Products
+          🏪 Party Products
         </Button>
       </div>
 
@@ -406,8 +405,9 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
               className="w-full rounded-md border bg-background px-3 py-2"
             >
               <option value="CUSTOMER">Customer</option>
-              <option value="SUPPLIER">Supplier</option>
-              <option value="BOTH">Both</option>
+              <option value="PARTY">Party Supplier (Eggs & Chicken)</option>
+              <option value="COMPANY">Company Supplier (Feed & Medicine)</option>
+              <option value="BOTH">Customer + Party Supplier</option>
             </select>
           </div>
 
@@ -452,7 +452,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
             setSupplierProductsError('');
           }
         }}
-        title="Supplier Products"
+        title="Party Products"
         footer={
           <div className="flex flex-wrap gap-3 justify-end">
             <Button variant="outline" type="button" onClick={() => setIsSupplierProductsOpen(false)} disabled={isSupplierProductsLoading}>

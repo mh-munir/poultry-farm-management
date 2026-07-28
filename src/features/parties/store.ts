@@ -1,4 +1,4 @@
-type PartyTypeValue = 'CUSTOMER' | 'SUPPLIER' | 'BOTH';
+type PartyTypeValue = 'CUSTOMER' | 'PARTY' | 'COMPANY' | 'BOTH';
 
 export type PartyMemoryRecord = {
   id: number;
@@ -164,6 +164,8 @@ export function getMemoryPartyStats({
     total: parties.length,
     active: parties.filter((party) => party.isActive).length,
     customers: parties.filter((party) => party.partyType === 'CUSTOMER').length,
-    suppliers: parties.filter((party) => party.partyType === 'SUPPLIER').length
+    parties: parties.filter((party) => party.partyType === 'PARTY').length,
+    companies: parties.filter((party) => party.partyType === 'COMPANY').length,
+    suppliers: parties.filter((party) => party.partyType === 'PARTY').length
   };
 }

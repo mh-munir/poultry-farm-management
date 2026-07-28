@@ -37,7 +37,7 @@ export default async function PurchasesPage({
       <div className="flex flex-col gap-3 rounded-2xl border bg-card p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Purchases</p>
-          <h1 className="mt-2 text-3xl font-semibold">Record purchases, update stock, and generate supplier ledger entries</h1>
+          <h1 className="mt-2 text-3xl font-semibold">Record purchases, update stock, and generate party supplier ledger entries</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Purchase feed, medicine, eggs, or chicken with invoice, due tracking, and automatic inventory updates.
           </p>
@@ -58,7 +58,7 @@ export default async function PurchasesPage({
           <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><ClipboardList className="h-5 w-5" />New Purchase</div>
           <form action={createPurchaseTransaction} autoComplete="off" className="space-y-4">
             <div>
-              <label className="mb-2 block text-sm font-medium">Supplier</label>
+              <label className="mb-2 block text-sm font-medium">Party / Company</label>
               <select name="partyId" required className="w-full rounded-md border bg-background px-3 py-2">
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>{supplier.name}</option>

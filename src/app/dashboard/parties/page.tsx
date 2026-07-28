@@ -9,11 +9,11 @@ import { AddPartyDialog } from '@/app/dashboard/parties/add-party-dialog';
 import { PartyToast } from './party-toast';
 import { PartySearchForm } from './search-form';
 import { PartyRowActions } from './party-row-actions';
-import { SupplierProductsDisplay } from './supplier-products-display';
+import { PartyProductsDisplay } from './party-products-display';
 import { getPartyNames, getPartyPageData, getPartyStats } from '@/features/parties/actions';
 import { getProductsForSales } from '@/features/sales/actions';
 
-const PARTY_TYPES = ['ALL', 'CUSTOMER', 'SUPPLIER', 'BOTH'] as const;
+const PARTY_TYPES = ['ALL', 'CUSTOMER', 'PARTY', 'COMPANY', 'BOTH'] as const;
 const STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
 
 function formatCurrency(value: number | string | Decimal | null | undefined) {
@@ -22,7 +22,28 @@ function formatCurrency(value: number | string | Decimal | null | undefined) {
 }
 
 function formatPartyType(type: string) {
+  if (type === 'CUSTOMER') return 'Customer';
+  if (type === 'PARTY') return 'Party Supplier (Eggs & Chicken)';
+  if (type === 'COMPANY') return 'Company Supplier (Feed & Medicine)';
+  if (type === 'BOTH') return 'Customer + Party Supplier';
   return type.replace('_', ' ');
+}
+
+function formatLastTransactionDate(date: Date | null | undefined) {
+  if (!date) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  if (dateDay.getTime() === today.getTime()) {
+    return `Today • ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+  }
+  if (dateDay.getTime() === yesterday.getTime()) {
+    return 'Yesterday';
+  }
+  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export default async function PartiesPage({
@@ -63,7 +84,7 @@ export default async function PartiesPage({
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
         <div className="mb-6">
-          <h1 className="mt-2 text-3xl font-semibold">Manage customers and suppliers</h1>
+          <h1 className="mt-2 text-3xl font-semibold">Manage customers and parties</h1>
         </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-4 shadow-sm mb-6">
@@ -71,7 +92,7 @@ export default async function PartiesPage({
           <StatCard title="Total Parties" value={stats.total} icon={Users} accent="bg-indigo-50 text-indigo-600" />
           <StatCard title="Active Parties" value={stats.active} icon={Package2} accent="bg-emerald-50 text-emerald-600" />
           <StatCard title="Customers" value={stats.customers} icon={Receipt} accent="bg-sky-50 text-sky-600" />
-          <StatCard title="Suppliers" value={stats.suppliers} icon={Receipt} accent="bg-amber-50 text-amber-600" />
+          <StatCard title="Party Suppliers" value={stats.suppliers} icon={Receipt} accent="bg-amber-50 text-amber-600" />
         </div>
       </div>
 
@@ -97,7 +118,7 @@ export default async function PartiesPage({
                 <th className="px-4 py-3 font-medium">Feed price</th>
                 <th className="px-4 py-3 font-medium">Medicine quantity</th>
                 <th className="px-4 py-3 font-medium">Medicine price</th>
-                <th className="px-4 py-3 font-medium">Supplier Products</th>
+                <th className="px-4 py-3 font-medium">Party Products</th>
                 <th className="px-4 py-3 font-medium">Due</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Action</th>
@@ -114,20 +135,28 @@ export default async function PartiesPage({
                 data.parties.map((party) => (
                   <tr key={party.id} className="border-t">
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/dashboard/parties/${party.id}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {party.name}
-                      </Link>
+                      <div className="flex flex-col">
+                        <Link
+                          href={`/dashboard/parties/${party.id}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {party.name}
+                        </Link>
+                        {party.lastTransactionDate && (
+                          <span className="text-xs text-muted-foreground">
+                            {formatLastTransactionDate(party.lastTransactionDate)}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                         party.partyType === 'CUSTOMER' ? 'bg-sky-100 text-sky-800' :
-                        party.partyType === 'SUPPLIER' ? 'bg-amber-100 text-amber-800' :
+                        party.partyType === 'PARTY' ? 'bg-amber-100 text-amber-800' :
+                        party.partyType === 'COMPANY' ? 'bg-violet-100 text-violet-800' :
                         'bg-purple-100 text-purple-800'
                       }`}>
-                        {party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'SUPPLIER' ? 'Supplier' : 'Both'}
+                        {party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'PARTY' ? 'Party Supplier' : party.partyType === 'COMPANY' ? 'Company Supplier' : 'Customer + Party Supplier'}
                       </span>
                     </td>
                     <td className="px-4 py-3">{party.feedQuantity != null ? party.feedQuantity.toString() : '—'}</td>
@@ -135,8 +164,8 @@ export default async function PartiesPage({
                     <td className="px-4 py-3">{party.medicineQuantity != null ? party.medicineQuantity.toString() : '—'}</td>
                     <td className="px-4 py-3">{party.medicinePrice != null ? formatCurrency(party.medicinePrice) : '—'}</td>
                     <td className="px-4 py-3 text-xs">
-                      {party.partyType === 'SUPPLIER' || party.partyType === 'BOTH' ? (
-                        <SupplierProductsDisplay partyId={party.id} />
+                      {party.partyType === 'PARTY' || party.partyType === 'COMPANY' || party.partyType === 'BOTH' ? (
+                        <PartyProductsDisplay partyId={party.id} />
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}

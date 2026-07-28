@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Dialog } from '@/components/ui/dialog';
+import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { createPurchaseTransaction } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,7 +19,7 @@ export interface StockItem {
   dueAmount?: number;
 }
 
-interface SupplierOption {
+interface PartyOption {
   id: number;
   name: string;
 }
@@ -29,7 +30,9 @@ interface StockManagementProps {
   addButtonLabel: string;
   initialItems: StockItem[];
   availableProducts: StockItem[];
-  suppliers: SupplierOption[];
+  suppliers: PartyOption[];
+  companyNames?: ComboboxOption[];
+  useCompanySearch?: boolean;
   redirectPath: string;
 }
 
@@ -50,6 +53,8 @@ export function StockManagement({
   initialItems,
   availableProducts,
   suppliers,
+  companyNames,
+  useCompanySearch,
   redirectPath
 }: StockManagementProps) {
   const [items, setItems] = useState<StockItem[]>(initialItems);
@@ -58,8 +63,8 @@ export function StockManagement({
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editBuyRate, setEditBuyRate] = useState('');
   const [editSaleRate, setEditSaleRate] = useState('');
-  const [supplierId, setSupplierId] = useState<number>(0);
-  const [supplierName, setSupplierName] = useState<string>('');
+  const [partyId, setPartyId] = useState<number>(0);
+  const [partyName, setPartyName] = useState<string>('');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -144,10 +149,21 @@ export function StockManagement({
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    if (!supplierName.trim()) {
+    if (!partyName.trim()) {
       event.preventDefault();
-      showToastError('Please enter a supplier name.');
+      showToastError('Please enter a party name.');
       return;
+    }
+
+    if (useCompanySearch && companyNames) {
+      const matchedCompany = companyNames.find(
+        (company) => company.label.toLowerCase() === partyName.toLowerCase()
+      );
+      if (!matchedCompany) {
+        event.preventDefault();
+        showToastError('Please select a valid company from the list.');
+        return;
+      }
     }
 
     for (const row of rows) {
@@ -207,30 +223,52 @@ export function StockManagement({
           <form action={createPurchaseTransaction} onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium">Company / Supplier</label>
-                <input
-                  list={`suppliers-list-${title}`}
-                  name="supplierName"
-                  value={supplierName}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setSupplierName(val);
-                    const matched = suppliers.find((s) => s.name.toLowerCase() === val.toLowerCase());
-                    if (matched) setSupplierId(matched.id);
-                    else setSupplierId(0);
-                  }}
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  placeholder="Input your Company / Supplier"
-                  autoComplete="off"
-                  required
-                />
-                <datalist id={`suppliers-list-${title}`}>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.name} />
-                  ))}
-                </datalist>
-                <input type="hidden" name="partyId" value={supplierId} />
-                <input type="hidden" name="newPartyName" value={supplierId ? '' : supplierName} />
+                <label className="mb-1 block text-sm font-medium">Party / Company</label>
+                {useCompanySearch && companyNames ? (
+                  <SearchableCombobox
+                    options={companyNames}
+                    value={partyName}
+                    onValueChange={(value) => {
+                      setPartyName(value);
+                      const matched = suppliers.find((s) => s.name.toLowerCase() === value.toLowerCase());
+                      if (matched) {
+                        setPartyId(matched.id);
+                      } else {
+                        setPartyId(0);
+                      }
+                    }}
+                    placeholder="Search company..."
+                    emptyText="No company found"
+                    name="partyName"
+                    required
+                  />
+                ) : (
+                  <>
+                    <input
+                      list={`parties-list-${title}`}
+                      name="partyName"
+                      value={partyName}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setPartyName(val);
+                        const matched = suppliers.find((s) => s.name.toLowerCase() === val.toLowerCase());
+                        if (matched) setPartyId(matched.id);
+                        else setPartyId(0);
+                      }}
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                      placeholder="Input your Party / Company"
+                      autoComplete="off"
+                      required
+                    />
+                    <datalist id={`parties-list-${title}`}>
+                      {suppliers.map((supplier) => (
+                        <option key={supplier.id} value={supplier.name} />
+                      ))}
+                    </datalist>
+                  </>
+                )}
+                <input type="hidden" name="partyId" value={partyId} />
+                <input type="hidden" name="newPartyName" value={partyId ? '' : partyName} />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Purchase Date</label>
@@ -269,53 +307,47 @@ export function StockManagement({
                 {rows.map((row, index) => (
                   <div key={row.rowId} className="border rounded-lg p-4 bg-white space-y-3">
                     <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <label className="mb-1 block text-sm font-medium">{title === 'Medicine' ? 'Stock Medicine' : 'Product'}</label>
-                        <input
-                          list={`products-list-${title}`}
-                          name="productName"
-                          value={row.productName}
-                          onChange={(event) => handleRowChange(row.rowId, 'productName', event.target.value)}
-                          className="w-full h-10 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground"
-                          placeholder="Type or search product"
-                          required
-                        />
-                        <datalist id={`products-list-${title}`}>
-                          {availableProducts.map((product) => (
-                            <option key={product.id} value={product.name} />
-                          ))}
-                        </datalist>
-                        <input type="hidden" name="productId" value={row.productId} />
-                        <input type="hidden" name="productType" value={title === 'Medicine' ? 'MEDICINE' : 'FEED'} />
-                      </div>
+                    <div className="flex-1">
+                      <label className="mb-1 block text-sm font-medium">{title === 'Medicine' ? 'Stock Medicine' : 'Product'}</label>
+                      <input
+                        list={`products-list-${title}`}
+                        name="productName"
+                        value={row.productName}
+                        onChange={(event) => handleRowChange(row.rowId, 'productName', event.target.value)}
+                        className="w-full h-10 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground"
+                        placeholder="Type or search product"
+                        required
+                      />
+                      <datalist id={`products-list-${title}`}>
+                        {availableProducts.map((product) => (
+                          <option key={product.id} value={product.name} />
+                        ))}
+                      </datalist>
+                      <input type="hidden" name="productId" value={row.productId} />
+                      <input type="hidden" name="productType" value={title === 'Medicine' ? 'MEDICINE' : 'FEED'} />
+                      {title === 'Feed' && (
+                        <input type="hidden" name="unit" value="bag" />
+                      )}
+                    </div>
+                    {title === 'Medicine' && (
                       <div className="w-24 ml-4">
-                        <label className="mb-1 block text-sm font-medium">{title === 'Medicine' ? 'Gm' : 'Unit'}</label>
-                        {title === 'Medicine' ? (
-                          <input
-                            type="number"
-                            name="unit"
-                            min="0"
-                            step="0.01"
-                            placeholder="500"
-                            value={row.unit ?? ''}
-                            onChange={(event) => handleRowChange(row.rowId, 'unit', event.target.value)}
-                            className="w-full h-10 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground"
-                          />
-                        ) : (
-                          <input
-                            type="text"
-                            name="unit"
-                            placeholder="bag"
-                            value={row.unit ?? 'bag'}
-                            onChange={(event) => handleRowChange(row.rowId, 'unit', event.target.value)}
-                            className="w-full h-10 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground"
-                          />
-                        )}
+                        <label className="mb-1 block text-sm font-medium">Gm</label>
+                        <input
+                          type="number"
+                          name="unit"
+                          min="0"
+                          step="0.01"
+                          placeholder="500"
+                          value={row.unit ?? ''}
+                          onChange={(event) => handleRowChange(row.rowId, 'unit', event.target.value)}
+                          className="w-full h-10 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground"
+                        />
                       </div>
+                    )}
                     </div>
                     <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_0.6fr] items-end">
                       <div>
-                        <label className="mb-1 block text-sm font-medium">Quantity</label>
+                        <label className="mb-1 block text-sm font-medium">{title === 'Medicine' ? 'Quantity' : 'Quantity Of Sack'}</label>
                         <input
                           type="number"
                           name="quantity"

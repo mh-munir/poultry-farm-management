@@ -9,33 +9,24 @@ import { getSetting } from '@/lib/settings';
 
 const inter = Inter({ subsets: ['latin'] });
 
-export async function generateMetadata(): Promise<Metadata> {
-  let icons: Metadata['icons'] = undefined;
-  try {
-    const branding = await getSetting('branding');
-    const favicon = branding?.favicon ?? null;
-    if (favicon) {
-      icons = { icon: favicon };
-    }
-  } catch {
-    // Ignore branding fetch errors and use default favicon.
-  }
-  return {
-    title: 'Poultry Farm Management System',
-    description: 'Production-ready architecture for a poultry farm management platform',
-    icons
-  };
-}
-
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const session = await auth();
+  let branding: Awaited<ReturnType<typeof getSetting>> = null;
+  try {
+    branding = await getSetting('branding');
+  } catch {
+    // Ignore branding fetch errors.
+  }
 
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {branding?.favicon && <link rel="icon" href={branding.favicon} />}
+      </head>
       <body className={inter.className}>
         <ThemeProvider>
           <AuthProvider session={session}>
-            <AppShell>{children}</AppShell>
+            <AppShell branding={branding}>{children}</AppShell>
           </AuthProvider>
         </ThemeProvider>
       </body>

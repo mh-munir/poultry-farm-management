@@ -78,7 +78,7 @@ export default async function DailyReportPage({
             <p className="mt-1 text-xs text-muted-foreground">{data.purchases.count} transactions</p>
           </div>
           <div className="rounded-xl border bg-background p-4">
-            <p className="text-sm text-muted-foreground">Total Costs</p>
+            <p className="text-sm text-muted-foreground">Total Expenses</p>
             <p className="mt-2 text-2xl font-semibold">{formatCurrency(data.costs.total)}</p>
             <p className="mt-1 text-xs text-muted-foreground">{data.costs.count} expenses</p>
           </div>

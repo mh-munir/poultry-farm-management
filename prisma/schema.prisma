@@ -63,7 +63,7 @@ model User {
   payments        Payment[]
   products        Product[]
   reports         Report[]
-  costs           Cost[]        @relation("CostCreatedBy")
+  expenses         Expense[]     @relation("ExpenseCreatedBy")
   sessions        Session[]
   transactions    Transaction[]
   adminCreationOtps AdminCreationOtp[]
@@ -335,17 +335,17 @@ model Report {
   @@index([reportType, generatedAt])
 }
 
-model Cost {
+model Expense {
   id          Int       @id @default(autoincrement())
   amount      Decimal
   description String?
-  costDate    DateTime?
+  expenseDate    DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   createdById String?
-  createdBy   User?     @relation("CostCreatedBy", fields: [createdById], references: [id])
+  createdBy   User?     @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
 
-  @@index([costDate])
+  @@index([expenseDate])
 }
 
 enum SmsNotificationStatus {

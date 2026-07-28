@@ -15,7 +15,7 @@ const PAGE_TITLES: Record<string, string[]> = {
   '/dashboard/stock/feed': ['Stock', 'Feed'],
   '/dashboard/stock/Medicine': ['Stock', 'Medicine'],
   '/dashboard/stock/reports': ['Stock', 'Reports'],
-  '/dashboard/costs': ['Costs'],
+  '/dashboard/expenses': ['Expenses'],
   '/dashboard/sales': ['Sales'],
   '/dashboard/purchases': ['Purchases'],
   '/dashboard/products': ['Products'],
@@ -91,7 +91,7 @@ function getPageTitle(pathname: string): string[] {
   return [cleanSegment(parts[0]), cleanSegment(parts[1])];
 }
 
-export default function LayoutShell({ children, theme }: { children: React.ReactNode; theme?: string }) {
+export default function LayoutShell({ children, theme, branding }: { children: React.ReactNode; theme?: string; branding: any }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname() || '';
   const hideShell = pathname.startsWith('/auth') || pathname === '/unauthorized';
@@ -109,7 +109,7 @@ export default function LayoutShell({ children, theme }: { children: React.React
   return (
     <div className="flex">
       <ToastContainer />
-      <Sidebar open={open} onClose={() => setOpen(false)} />
+      <Sidebar open={open} onClose={() => setOpen(false)} branding={branding} />
 
       {open && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setOpen(false)} />}
 

@@ -38,7 +38,7 @@ export default async function PurchasesReportPage({
   const [reportData, parties, products] = await Promise.all([
     getPurchasesReportData({ dateFrom, dateTo, partyId, productId, productType }),
     prisma.party.findMany({
-      where: { partyType: { in: ['SUPPLIER', 'BOTH'] } },
+      where: { partyType: { in: ['PARTY', 'COMPANY', 'BOTH'] } },
       orderBy: { name: 'asc' },
       select: { id: true, name: true }
     }),
@@ -55,7 +55,7 @@ export default async function PurchasesReportPage({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold">Purchases Report</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Review supplier invoices, purchase values, and stock acquisition history.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Review party supplier and company invoices, purchase values, and stock acquisition history.</p>
           </div>
           <Button asChild variant="outline">
             <Link href="/dashboard/reports">Back to Reports</Link>
@@ -73,9 +73,9 @@ export default async function PurchasesReportPage({
               <input type="date" name="to" defaultValue={params?.to} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Supplier</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Party / Company</label>
               <select name="party" defaultValue={params?.party || ''} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
-                <option value="">All suppliers</option>
+                <option value="">All parties / companies</option>
                 {parties.map((party) => (
                   <option key={party.id} value={party.id}>{party.name}</option>
                 ))}
@@ -130,7 +130,7 @@ export default async function PurchasesReportPage({
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="px-4 py-3 text-left font-medium">Date</th>
-                    <th className="px-4 py-3 text-left font-medium">Supplier</th>
+                    <th className="px-4 py-3 text-left font-medium">Party / Company</th>
                     <th className="px-4 py-3 text-left font-medium">Product</th>
                     <th className="px-4 py-3 text-left font-medium">Category</th>
                     <th className="px-4 py-3 text-right font-medium">Quantity</th>

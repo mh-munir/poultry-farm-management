@@ -1,0 +1,66 @@
+.printPage {
+  min-height: 100vh;
+  background: white;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  .printPage .print-hidden {
+    display: none !important;
+  }
+
+  .printPage .print-bg-white {
+    background: white !important;
+  }
+
+  .printPage .print-border-0 {
+    border: 0 !important;
+  }
+
+  .printPage .print-border-slate-300 {
+    border-color: #cbd5e1 !important;
+  }
+
+  .printPage .print-p-0 {
+    padding: 0 !important;
+  }
+
+  .printPage .print-px-0 {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .printPage .print-py-0 {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .printPage .print-rounded-none {
+    border-radius: 0 !important;
+  }
+
+  .printPage .print-shadow-none {
+    box-shadow: none !important;
+  }
+
+  .printPage table {
+    break-inside: auto;
+  }
+
+  .printPage thead {
+    display: table-header-group;
+  }
+
+  .printPage tr {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
+
+  .printPage .no-print {
+    display: none !important;
+  }
+}
