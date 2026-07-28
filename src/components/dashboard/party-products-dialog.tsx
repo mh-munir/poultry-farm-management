@@ -6,14 +6,14 @@ import { Dialog } from '@/components/ui/dialog';
 import { recordSupplierProductPurchase } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
 
-type SupplierProductsDialogProps = {
+type PartyProductsDialogProps = {
   partyId: number;
   partyName: string;
 };
 
 type ProductType = 'Both' | 'Egg' | 'Chicken';
 
-export function SupplierProductsDialog({ partyId, partyName }: SupplierProductsDialogProps) {
+export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [productType, setProductType] = useState<ProductType>('Both');
@@ -130,11 +130,11 @@ export function SupplierProductsDialog({ partyId, partyName }: SupplierProductsD
       historyData.push(supplierProductData);
       localStorage.setItem('supplierProductsHistory', JSON.stringify(historyData));
 
-      success(`Supplier products recorded for ${partyName}`);
+      success(`Party products recorded for ${partyName}`);
       resetForm();
       setOpen(false);
     } catch (err) {
-      setError('Failed to record supplier products.');
+      setError('Failed to record party products.');
     } finally {
       setLoading(false);
     }
@@ -148,7 +148,7 @@ export function SupplierProductsDialog({ partyId, partyName }: SupplierProductsD
         onClick={() => setOpen(true)}
         className="px-4 py-2 text-sm font-medium bg-sky-600 hover:bg-sky-700 text-white"
       >
-        🏪 Supplier Products
+        🏪 Party Products
       </Button>
 
       <Dialog
@@ -159,7 +159,7 @@ export function SupplierProductsDialog({ partyId, partyName }: SupplierProductsD
             resetForm();
           }
         }}
-        title="Supplier Products"
+        title="Party Products"
         footer={
           <div className="flex flex-wrap gap-3 justify-end">
             <Button variant="outline" type="button" onClick={() => { setOpen(false); resetForm(); }} disabled={loading}>

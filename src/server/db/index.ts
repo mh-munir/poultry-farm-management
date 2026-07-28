@@ -57,6 +57,24 @@ function isDatabaseUnavailableError(error: unknown): boolean {
   return /Can't reach database server|Server has closed the connection|ECONNRESET|ETIMEDOUT|ConnectionReset|Connection refused|connect ECONN/i.test(message);
 }
 
+async function retryQuery<T>(queryFn: () => Promise<T>, maxRetries = 2): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await queryFn();
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxRetries && isDatabaseUnavailableError(error)) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
+}
+
 export async function dbQuery<T>(query: Promise<T>, timeoutMs = 30000, fallback?: T): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
@@ -66,13 +84,13 @@ export async function dbQuery<T>(query: Promise<T>, timeoutMs = 30000, fallback?
   });
 
   try {
-    return await Promise.race([query, timeout]) as T;
+    return await retryQuery(() => Promise.race([query, timeout])) as T;
   } catch (error) {
-    if (fallback !== undefined && isDatabaseUnavailableError(error)) {
+    if (isDatabaseUnavailableError(error)) {
       if (process.env.NODE_ENV !== 'test') {
         console.warn(`[db] Falling back because the database is unavailable: ${error instanceof Error ? error.message : String(error)}`);
       }
-      return fallback;
+      return fallback as T;
     }
     throw error;
   } finally {

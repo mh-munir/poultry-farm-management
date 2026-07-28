@@ -19,7 +19,7 @@ const partySchema = z.object({
   phone: z.string().min(1, 'Phone number is required.'),
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
-  partyType: z.enum(['CUSTOMER', 'SUPPLIER', 'BOTH']),
+  partyType: z.enum(['CUSTOMER', 'PARTY', 'COMPANY', 'BOTH']),
   taxNumber: z.string().optional(),
   creditLimit: z.coerce.number().min(0).optional(),
   openingBalance: z.coerce.number().default(0),
@@ -72,16 +72,6 @@ async function uploadPartyImage(
   const fileName = `${randomUUID()}.webp`;
   const filePath = `${safePartyId}/${fileName}`;
 
-  console.error('PARTY IMAGE UPLOAD START DEBUG', {
-    partyId,
-    fileName,
-    filePath,
-    imageFileName: imageFile.name,
-    imageFileType: imageFile.type,
-    imageFileSize: imageFile.size,
-    hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
-  });
-
   const supabaseAdmin = getSupabaseAdmin();
 
   // Basic runtime config validation (do not log secrets)
@@ -119,26 +109,12 @@ async function uploadPartyImage(
   const inputBuffer = Buffer.from(arrayBuffer);
   const fileData = await sharp(inputBuffer).webp({ quality: 85 }).toBuffer();
 
-  console.error('PARTY IMAGE UPLOAD START DEBUG', {
-    bucketName: 'party-images',
-    filePath,
-    filePathType: typeof filePath,
-    fileSize: fileData.byteLength
-  });
-
   const { error: uploadError } = await supabaseAdmin.storage
     .from('party-images')
     .upload(filePath, fileData, {
       contentType: PARTY_IMAGE_CONTENT_TYPE,
       upsert: false,
     });
-
-  console.error('PARTY IMAGE UPLOAD RESULT DEBUG', {
-    success: !uploadError,
-    errorMessage: uploadError?.message ?? null,
-    errorName: uploadError?.name ?? null,
-    statusCode: uploadError?.statusCode ?? null
-  });
 
   if (uploadError) {
     console.error('Party image upload failed:', uploadError);
@@ -177,10 +153,12 @@ type PartySummaryTransaction = {
   totalAmount: { toString(): string };
   paidAmount: { toString(): string };
   dueAmount: { toString(): string };
+  transactionDate: Date;
 };
 
 type PartySummaryPayment = {
   amount: { toString(): string };
+  paymentDate: Date;
   allocations: Array<{ id: number }>;
 };
 
@@ -232,9 +210,9 @@ function summarizePartyAccount(partyType: string, transactions: PartySummaryTran
   let customerInvoiced = 0;
   let customerPaid = 0;
   let customerDue = 0;
-  let supplierInvoiced = 0;
-  let supplierPaid = 0;
-  let supplierDue = 0;
+  let partySupplierInvoiced = 0;
+  let partySupplierPaid = 0;
+  let partySupplierDue = 0;
   let standalonePayment = getStandalonePaymentTotal(payments);
 
   for (const transaction of transactions) {
@@ -249,9 +227,9 @@ function summarizePartyAccount(partyType: string, transactions: PartySummaryTran
     }
 
     if (transaction.transactionType === 'PURCHASE') {
-      supplierInvoiced += totalAmount;
-      supplierPaid += paidAmount;
-      supplierDue += dueAmount;
+      partySupplierInvoiced += totalAmount;
+      partySupplierPaid += paidAmount;
+      partySupplierDue += dueAmount;
     }
 
     if (transaction.transactionType === 'PAYMENT') {
@@ -259,31 +237,31 @@ function summarizePartyAccount(partyType: string, transactions: PartySummaryTran
     }
   }
 
-  if (partyType === 'SUPPLIER') {
-    supplierPaid += standalonePayment;
-    supplierDue = Math.max(0, supplierDue - standalonePayment);
+  if (partyType === 'PARTY') {
+    partySupplierPaid += standalonePayment;
+    partySupplierDue = Math.max(0, partySupplierDue - standalonePayment);
   } else {
     customerPaid += standalonePayment;
     customerDue = Math.max(0, customerDue - standalonePayment);
   }
 
-  const offsetApplied = Math.min(customerDue, supplierDue);
+  const offsetApplied = Math.min(customerDue, partySupplierDue);
   const netCustomerDue = Math.max(0, customerDue - offsetApplied);
-  const netSupplierDue = Math.max(0, supplierDue - offsetApplied);
+  const netPartySupplierDue = Math.max(0, partySupplierDue - offsetApplied);
 
   return {
     customerInvoiced,
     customerPaid,
     customerDue,
-    supplierInvoiced,
-    supplierPaid,
-    supplierDue,
+    supplierInvoiced: partySupplierInvoiced,
+    supplierPaid: partySupplierPaid,
+    supplierDue: partySupplierDue,
     offsetApplied,
     netCustomerDue,
-    netSupplierDue,
-    totalInvoiced: customerInvoiced + supplierInvoiced,
-    totalPaid: customerPaid + supplierPaid,
-    totalDue: netCustomerDue + netSupplierDue
+    netSupplierDue: netPartySupplierDue,
+    totalInvoiced: customerInvoiced + partySupplierInvoiced,
+    totalPaid: customerPaid + partySupplierPaid,
+    totalDue: netCustomerDue + netPartySupplierDue
   };
 }
 
@@ -399,12 +377,14 @@ export async function getPartyAccountSummary(partyId: number) {
           transactionType: true,
           totalAmount: true,
           paidAmount: true,
-          dueAmount: true
+          dueAmount: true,
+          transactionDate: true
         }
       },
       payments: {
         select: {
           amount: true,
+          paymentDate: true,
           allocations: {
             select: {
               id: true
@@ -471,12 +451,14 @@ export async function getPartyPageData({
             transactionType: true,
             totalAmount: true,
             paidAmount: true,
-            dueAmount: true
+            dueAmount: true,
+            transactionDate: true
           }
         },
         payments: {
           select: {
             amount: true,
+            paymentDate: true,
             allocations: {
               select: {
                 id: true
@@ -493,10 +475,17 @@ export async function getPartyPageData({
   ]);
 
   const totalPages = Math.ceil(total / take);
-  const partiesWithTotals = (parties as PartyListRecord[]).map(({ transactions, payments, ...party }) => ({
-    ...party,
-    ...summarizePartyAccount(party.partyType, transactions, payments)
-  }));
+  const partiesWithTotals = (parties as PartyListRecord[]).map(({ transactions, payments, ...party }) => {
+    const transactionDates = transactions.map((t) => new Date(t.transactionDate));
+    const paymentDates = payments.map((p) => new Date(p.paymentDate));
+    const lastTransactionDate = transactionDates.concat(paymentDates).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+
+    return {
+      ...party,
+      lastTransactionDate,
+      ...summarizePartyAccount(party.partyType, transactions, payments)
+    };
+  });
 
   return {
     parties: partiesWithTotals,
@@ -531,9 +520,11 @@ export async function getPartyStats(args: { search?: string; partyType?: string;
   const total = await prisma.party.count({ where });
   const active = await prisma.party.count({ where: { ...where, isActive: true } });
   const customers = await prisma.party.count({ where: { ...where, partyType: 'CUSTOMER' } });
-  const suppliers = await prisma.party.count({ where: { ...where, partyType: 'SUPPLIER' } });
+  const parties = await prisma.party.count({ where: { ...where, partyType: 'PARTY' } });
+  const companies = await prisma.party.count({ where: { ...where, partyType: 'COMPANY' } });
+  const suppliers = parties;
 
-  return { total, active, customers, suppliers };
+  return { total, active, customers, parties, companies, suppliers };
 }
 
 export async function getPartyNames() {

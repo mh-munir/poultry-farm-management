@@ -9,6 +9,8 @@ interface SummaryCardProps {
   metricColor: string;
   icon: LucideIcon;
   accent: string;
+  className?: string;
+  valueColor?: string;
 }
 
 export function SummaryCard({
@@ -17,14 +19,16 @@ export function SummaryCard({
   metric,
   metricColor,
   icon: Icon,
-  accent
+  accent,
+  className,
+  valueColor = 'text-slate-950'
 }: SummaryCardProps) {
   return (
-    <Card>
+    <Card className={className}>
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-slate-500">{title}</p>
-          <p className="mt-3 text-2xl font-semibold text-slate-950">{value}</p>
+          <p className={`mt-3 text-2xl font-semibold ${valueColor}`}>{value}</p>
         </div>
         <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${accent}`}>
           <Icon className="h-6 w-6" />

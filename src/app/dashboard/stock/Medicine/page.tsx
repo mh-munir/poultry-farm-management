@@ -1,14 +1,19 @@
 import { StockManagement, type StockItem } from '@/components/dashboard/stock/stock-management';
-import { getStockItemsByType } from '@/features/stock/actions';
-import { getSuppliersForPurchases } from '@/features/purchases/actions';
+import { getStockItemsByType, getMedicineStockCompanyNames } from '@/features/stock/actions';
 import { cookies } from 'next/headers';
 import { PurchaseToast } from '@/components/dashboard/stock/purchase-toast';
+import { type ComboboxOption } from '@/components/ui/combobox';
 
 export default async function MedicinePage() {
-  const [medicineItems, suppliers] = await Promise.all([
+  const [medicineItems, companies] = await Promise.all([
     getStockItemsByType('MEDICINE'),
-    getSuppliersForPurchases()
+    getMedicineStockCompanyNames()
   ]);
+
+  const companyNames: ComboboxOption[] = companies.map((company) => ({
+    value: company.name,
+    label: company.name
+  }));
 
   const initialItems: StockItem[] = medicineItems.map((item) => {
     const lastTransaction = item.transactionItems[0]?.transaction;
@@ -38,7 +43,9 @@ export default async function MedicinePage() {
         description="Track medicine inventory, quantity, and pricing in one place."
         initialItems={initialItems}
         availableProducts={initialItems}
-        suppliers={suppliers}
+        suppliers={companies}
+        companyNames={companyNames}
+        useCompanySearch
         addButtonLabel="Add Medicine Stock"
         redirectPath="/dashboard/stock/Medicine"
       />

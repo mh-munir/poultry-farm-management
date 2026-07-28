@@ -16,7 +16,7 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess }: AddSupplierM
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [farmName, setFarmName] = useState('');
-  const [partyType, setPartyType] = useState<'SUPPLIER' | 'BOTH'>('SUPPLIER');
+  const [partyType, setPartyType] = useState<'PARTY' | 'COMPANY' | 'BOTH'>('PARTY');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { success: showSuccess } = useToast();
@@ -25,7 +25,7 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess }: AddSupplierM
     setName('');
     setPhone('');
     setFarmName('');
-    setPartyType('SUPPLIER');
+    setPartyType('PARTY');
     setError('');
   }
 
@@ -63,14 +63,14 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess }: AddSupplierM
         }
         onOpenChange(next);
       }}
-      title="Add Supplier"
+      title="Add Party Supplier"
       footer={
         <div className="flex flex-wrap gap-3 justify-end">
           <Button type="button" variant="outline" onClick={() => { reset(); onOpenChange(false); }} disabled={loading}>
             Cancel
           </Button>
           <Button type="submit" form="add-supplier-form" disabled={loading} className={loading ? 'opacity-75 cursor-not-allowed' : ''}>
-            {loading ? 'Saving...' : 'Save Supplier'}
+            {loading ? 'Saving...' : 'Save Party Supplier'}
           </Button>
         </div>
       }
@@ -84,7 +84,7 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess }: AddSupplierM
         )}
 
         <div className="sm:col-span-2">
-          <label className="mb-2 block text-sm font-medium">Supplier / Company Name</label>
+          <label className="mb-2 block text-sm font-medium">Party / Company Name</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -107,8 +107,9 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess }: AddSupplierM
 
         <div>
           <label className="mb-2 block text-sm font-medium">Party Type</label>
-          <select value={partyType} onChange={(e) => setPartyType(e.target.value as 'SUPPLIER' | 'BOTH')} className="w-full rounded-md border bg-background px-3 py-2">
-            <option value="SUPPLIER">Supplier</option>
+          <select value={partyType} onChange={(e) => setPartyType(e.target.value as 'PARTY' | 'COMPANY' | 'BOTH')} className="w-full rounded-md border bg-background px-3 py-2">
+            <option value="PARTY">Party Supplier (Eggs & Chicken)</option>
+            <option value="COMPANY">Company Supplier (Feed & Medicine)</option>
             <option value="BOTH">Both</option>
           </select>
         </div>
@@ -119,7 +120,7 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess }: AddSupplierM
             value={farmName}
             onChange={(e) => setFarmName(e.target.value)}
             className="w-full rounded-md border bg-background px-3 py-2"
-            placeholder="Used in supplier selector"
+            placeholder="Used in party selector"
           />
         </div>
       </form>

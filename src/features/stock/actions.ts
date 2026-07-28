@@ -283,10 +283,10 @@ export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE') {
   });
 }
 
-const supplierSchema = z.object({
-  name: z.string().min(1, 'Supplier name is required.'),
+const partySupplierSchema = z.object({
+  name: z.string().min(1, 'Party / Company name is required.'),
   phone: z.string().min(1, 'Phone number is required.'),
-  partyType: z.enum(['SUPPLIER', 'BOTH']).default('SUPPLIER'),
+  partyType: z.enum(['PARTY', 'COMPANY', 'BOTH']).default('PARTY'),
   email: z.string().optional().or(z.literal('')),
   address: z.string().optional().or(z.literal('')),
   farmName: z.string().optional().or(z.literal(''))
@@ -298,15 +298,15 @@ export async function createSupplierForStock(formData: FormData) {
   const raw = {
     name: formData.get('name')?.toString() ?? '',
     phone: formData.get('phone')?.toString() ?? '',
-    partyType: formData.get('partyType')?.toString() ?? 'SUPPLIER',
+    partyType: formData.get('partyType')?.toString() ?? 'PARTY',
     email: formData.get('email')?.toString() ?? '',
     address: formData.get('address')?.toString() ?? '',
     farmName: formData.get('farmName')?.toString() ?? ''
   };
 
-  const parsed = supplierSchema.safeParse(raw);
+  const parsed = partySupplierSchema.safeParse(raw);
   if (!parsed.success) {
-    return { success: false as const, message: parsed.error.issues[0]?.message ?? 'Invalid supplier data.' };
+    return { success: false as const, message: parsed.error.issues[0]?.message ?? 'Invalid party supplier data.' };
   }
 
   const data = parsed.data;
@@ -329,9 +329,9 @@ export async function createSupplierForStock(formData: FormData) {
     revalidatePath('/dashboard/parties');
     revalidatePath('/dashboard/stock');
 
-    return { success: true as const, message: `Supplier '${party.name}' created successfully.`, party };
+    return { success: true as const, message: `Party Supplier '${party.name}' created successfully.`, party };
   } catch (error) {
-    return { success: false as const, message: error instanceof Error ? error.message : 'Failed to create supplier.' };
+    return { success: false as const, message: error instanceof Error ? error.message : 'Failed to create party supplier.' };
   }
 }
 
@@ -388,4 +388,70 @@ export async function createProductForStock(formData: FormData) {
   } catch (error) {
     return { success: false as const, message: error instanceof Error ? error.message : 'Failed to create product.' };
   }
+}
+
+export async function getFeedStockCompanyNames() {
+  await requireUser();
+
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      transactionType: 'PURCHASE',
+      transactionItems: {
+        some: {
+          product: {
+            productType: 'FEED'
+          }
+        }
+      }
+    },
+    include: {
+      party: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    },
+    distinct: ['partyId']
+  });
+
+  return transactions
+    .map((tx) => ({
+      id: tx.party.id,
+      name: tx.party.name
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getMedicineStockCompanyNames() {
+  await requireUser();
+
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      transactionType: 'PURCHASE',
+      transactionItems: {
+        some: {
+          product: {
+            productType: 'MEDICINE'
+          }
+        }
+      }
+    },
+    include: {
+      party: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    },
+    distinct: ['partyId']
+  });
+
+  return transactions
+    .map((tx) => ({
+      id: tx.party.id,
+      name: tx.party.name
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }

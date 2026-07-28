@@ -108,10 +108,11 @@ export async function createPurchaseTransaction(formData: FormData) {
 
   const data = parsed.data;
   const redirectPath = data.redirectPath || '/dashboard/purchases';
+  const isMedicineStock = redirectPath === '/dashboard/stock/Medicine';
   // ensure either an existing partyId or a newPartyName is provided
   if (!data.partyId && !data.newPartyName) {
     const url = new URL(redirectPath, 'http://localhost');
-    url.searchParams.set('error', 'Supplier is required. Select an existing supplier or type a new company name.');
+    url.searchParams.set('error', 'Party Supplier is required. Select an existing party or type a new company name.');
     // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
     redirect(url.toString());
   }
@@ -137,13 +138,23 @@ export async function createPurchaseTransaction(formData: FormData) {
     await prisma.$transaction(async (tx) => {
       let partyIdToUse = Number(data.partyId) || undefined;
       if (!partyIdToUse && data.newPartyName) {
-        const newParty = await tx.party.create({ data: { name: data.newPartyName, partyType: 'SUPPLIER', isActive: true, phone: '' } });
-        partyIdToUse = newParty.id;
+        if (isMedicineStock) {
+          const existingParty = await tx.party.findFirst({
+            where: { name: data.newPartyName }
+          });
+          if (!existingParty) {
+            throw new Error('Invalid company name. Please select from the list.');
+          }
+          partyIdToUse = existingParty.id;
+        } else {
+          const newParty = await tx.party.create({ data: { name: data.newPartyName, partyType: 'PARTY', isActive: true, phone: '' } });
+          partyIdToUse = newParty.id;
+        }
       }
 
       const party = await tx.party.findUnique({ where: { id: partyIdToUse } });
       if (!party) {
-        throw new Error('Supplier not found.');
+        throw new Error('Party Supplier not found.');
       }
 
       const resolvedItems = await Promise.all(
@@ -267,7 +278,7 @@ export async function createPurchaseTransaction(formData: FormData) {
             entryType: PAYMENT_PAID_LEDGER_ENTRY_TYPE,
             amount: new Prisma.Decimal(-data.paymentAmount),
             runningBalance: purchaseBalance.minus(new Prisma.Decimal(data.paymentAmount)),
-            description: `Payment to supplier ${invoiceNumber}`,
+            description: `Payment to party supplier ${invoiceNumber}`,
             referenceNumber: paymentRecord.referenceNumber || invoiceNumber
           }
         });
@@ -306,21 +317,16 @@ export async function createPurchaseTransaction(formData: FormData) {
           stockBalanceData.averageCost = new Prisma.Decimal(unitCost);
         }
 
-        if (balance) {
-          await tx.stockBalance.update({
-            where: { productId },
-            data: stockBalanceData
-          });
-        } else {
-          await tx.stockBalance.create({
-            data: {
-              productId,
-              quantityOnHand: newQuantity,
-              reservedQuantity: new Prisma.Decimal(0),
-              averageCost: stockBalanceData.averageCost ?? null
-            }
-          });
-        }
+        await tx.stockBalance.upsert({
+          where: { productId },
+          update: stockBalanceData,
+          create: {
+            productId,
+            quantityOnHand: newQuantity,
+            reservedQuantity: new Prisma.Decimal(0),
+            averageCost: stockBalanceData.averageCost ?? null
+          }
+        });
 
         await tx.product.update({
           where: { id: productId },
@@ -414,8 +420,8 @@ export type PurchaseDetail = Prisma.TransactionGetPayload<{
   };
 }>;
 
-// Record supplier product purchases (eggs/chicken) as PURCHASE transactions
-// This allows the settlement system to offset customer debt with supplier sales
+// Record party supplier product purchases (eggs/chicken) as PURCHASE transactions
+// This allows the settlement system to offset customer debt with party supplier sales
 export async function recordSupplierProductPurchase({
   partyId,
   eggQuantity,
@@ -436,14 +442,14 @@ export async function recordSupplierProductPurchase({
 
     const party = await prisma.party.findUnique({ where: { id: partyId } });
     if (!party) {
-      return { success: false, message: 'Supplier not found.' };
+      return { success: false, message: 'Party Supplier not found.' };
     }
 
     const invoiceNumber = generatePurchaseInvoiceNumber();
     const dueAmount = totalPrice; // No payment made, so full amount is due
 
     await prisma.$transaction(async (tx) => {
-      // Create a PURCHASE transaction for the supplier products
+      // Create a PURCHASE transaction for the party supplier products
       const purchase = await tx.transaction.create({
         data: {
           transactionType: PURCHASE_TRANSACTION_TYPE,
@@ -459,7 +465,7 @@ export async function recordSupplierProductPurchase({
           dueAmount: new Prisma.Decimal(dueAmount),
           dueDate: null,
           referenceNumber: null,
-          notes: `Supplier Products: ${eggQuantity > 0 ? `Eggs ${eggQuantity}@${eggPrice}` : ''} ${chickenQuantity > 0 ? `Chicken ${chickenQuantity}kg@${chickenPrice}` : ''}`.trim(),
+          notes: `Party Supplier Products: ${eggQuantity > 0 ? `Eggs ${eggQuantity}@${eggPrice}` : ''} ${chickenQuantity > 0 ? `Chicken ${chickenQuantity}kg@${chickenPrice}` : ''}`.trim(),
           transactionItems: {
             createMany: {
               data: [
@@ -500,16 +506,16 @@ export async function recordSupplierProductPurchase({
           entryType: PURCHASE_LEDGER_ENTRY_TYPE,
           amount: new Prisma.Decimal(totalPrice),
           runningBalance: purchaseBalance,
-          description: `Supplier product purchase ${invoiceNumber}`,
+          description: `Party supplier product purchase ${invoiceNumber}`,
           referenceNumber: invoiceNumber
         }
       });
     });
 
-    return { success: true, message: 'Supplier products recorded successfully.' };
+    return { success: true, message: 'Party Supplier products recorded successfully.' };
   } catch (error) {
-    console.error('Error recording supplier products:', error);
-    return { success: false, message: error instanceof Error ? error.message : 'Failed to record supplier products.' };
+    console.error('Error recording party supplier products:', error);
+    return { success: false, message: error instanceof Error ? error.message : 'Failed to record party supplier products.' };
   }
 }
 
@@ -535,11 +541,11 @@ export async function getPurchaseById(id: number) {
 
 export async function getSuppliersForPurchases() {
   // Return only parties that have a company/farm name populated so
-  // the supplier suggestions show company names (not personal contacts).
+  // the party supplier suggestions show company names (not personal contacts).
   const parties = await prisma.party.findMany({
     where: {
       isActive: true,
-      partyType: { in: ['SUPPLIER', 'BOTH'] },
+      partyType: { in: ['PARTY', 'COMPANY', 'BOTH'] },
       NOT: [{ farmName: null }, { farmName: '' }]
     },
     orderBy: { farmName: 'asc' },

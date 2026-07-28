@@ -34,10 +34,6 @@ function getEnv() {
     .map((issue) => `${issue.path.join('.') || 'env'}: ${issue.message}`)
     .join(', ');
 
-  if (process.env.NODE_ENV !== 'test') {
-    console.warn(`[env] Using fallback values because the following environment variables are missing or invalid: ${issues}`);
-  }
-
   return {
     NODE_ENV: process.env.NODE_ENV ?? 'development',
     DATABASE_URL: process.env.DATABASE_URL ?? '',

@@ -13,6 +13,7 @@ import {
   TrendingUp,
   ClipboardList
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { requireUser } from '@/lib/auth';
 import { dbQuery, prisma } from '@/server/db';
 import { Card } from '@/components/ui/card';
@@ -47,6 +48,11 @@ function getTodayRange() {
   return { start, end };
 }
 
+function normalizeDashboardDate(date: Date | null | undefined) {
+  if (!date) return null;
+  return toBangladeshTime(new Date(date));
+}
+
 function formatCurrency(value: number) {
   return `৳ ${new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 0,
@@ -58,6 +64,26 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 0
   }).format(value);
+}
+
+function polarToCartesian(cx: number, cy: number, r: number, angleDegrees: number) {
+  const angleRadians = ((angleDegrees - 90) * Math.PI) / 180;
+  return {
+    x: cx + r * Math.cos(angleRadians),
+    y: cy + r * Math.sin(angleRadians)
+  };
+}
+
+function describeArc(cx: number, cy: number, r: number, startAngle: number, endAngle: number): string {
+  const start = polarToCartesian(cx, cy, r, endAngle);
+  const end = polarToCartesian(cx, cy, r, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
+  return [
+    'M', cx, cy,
+    'L', start.x.toFixed(2), start.y.toFixed(2),
+    'A', r, r, 0, largeArcFlag, 1, end.x.toFixed(2), end.y.toFixed(2),
+    'Z'
+  ].join(' ');
 }
 
 export default async function DashboardPage() {
@@ -93,12 +119,12 @@ export default async function DashboardPage() {
   let dbUnavailable = false;
 
   async function safeQuery<T>(q: Promise<T>, fallback: T): Promise<T> {
-    try {
-      return await query(q);
-    } catch (error) {
+    const result = await query(q);
+    if (result === undefined) {
       dbUnavailable = true;
       return fallback;
     }
+    return result as T;
   }
 
   const [
@@ -106,12 +132,16 @@ export default async function DashboardPage() {
     dailyMedicineSaleAgg,
     dailyFeedPurchaseCostAgg,
     dailyMedicinePurchaseCostAgg,
-    dailyCostExpenseAgg,
+    dailyChickenPurchaseCostAgg,
+    dailyEggPurchaseCostAgg,
+    dailyExpenseAgg,
     totalFeedSaleAgg,
     totalMedicineSaleAgg,
     totalFeedPurchaseCostAgg,
     totalMedicinePurchaseCostAgg,
-    totalCostExpenseAgg,
+    totalChickenPurchaseCostAgg,
+    totalEggPurchaseCostAgg,
+    totalExpenseAgg,
     totalCustomerDueAgg,
     totalFeedMedicineDueAgg,
     totalEggChickenSupplierDueAgg,
@@ -122,7 +152,10 @@ export default async function DashboardPage() {
     openInvoicesCount,
     lowStockAlerts,
     sixMonthSalesAgg,
-    sixMonthPurchaseAgg
+    sixMonthPurchaseAgg,
+    expensesForDashboard,
+    dailyPartyPaymentAgg,
+    totalPartyPaymentAgg
   ] = await Promise.all([
     safeQuery(
       prisma.transactionItem.aggregate({
@@ -151,40 +184,62 @@ export default async function DashboardPage() {
       { _sum: { lineTotal: null } }
     ),
     safeQuery(
-      prisma.transaction.aggregate({
-        _sum: { totalAmount: true },
+      prisma.transactionItem.aggregate({
+        _sum: { lineTotal: true },
         where: {
-          transactionType: 'PURCHASE',
-          transactionDate: { gte: start, lt: end },
-          transactionItems: {
-            some: {
-              product: { productType: 'FEED' }
-            }
-          }
+          transaction: {
+            transactionType: 'PURCHASE',
+            transactionDate: { gte: start, lt: end }
+          },
+          product: { productType: 'FEED' }
         }
       }),
-      { _sum: { totalAmount: null } }
+      { _sum: { lineTotal: null } }
     ),
     safeQuery(
-      prisma.transaction.aggregate({
-        _sum: { totalAmount: true },
+      prisma.transactionItem.aggregate({
+        _sum: { lineTotal: true },
         where: {
-          transactionType: 'PURCHASE',
-          transactionDate: { gte: start, lt: end },
-          transactionItems: {
-            some: {
-              product: { productType: 'MEDICINE' }
-            }
-          }
+          transaction: {
+            transactionType: 'PURCHASE',
+            transactionDate: { gte: start, lt: end }
+          },
+          product: { productType: 'MEDICINE' }
         }
       }),
-      { _sum: { totalAmount: null } }
+      { _sum: { lineTotal: null } }
     ),
     safeQuery(
-      prisma.cost.aggregate({
+      prisma.transactionItem.aggregate({
+        _sum: { lineTotal: true },
+        where: {
+          transaction: {
+            transactionType: 'PURCHASE',
+            transactionDate: { gte: start, lt: end }
+          },
+          product: { productType: 'CHICKEN' }
+        }
+      }),
+      { _sum: { lineTotal: null } }
+    ),
+    safeQuery(
+      prisma.transactionItem.aggregate({
+        _sum: { lineTotal: true },
+        where: {
+          transaction: {
+            transactionType: 'PURCHASE',
+            transactionDate: { gte: start, lt: end }
+          },
+          product: { productType: 'EGG' }
+        }
+      }),
+      { _sum: { lineTotal: null } }
+    ),
+    safeQuery(
+      prisma.expense.aggregate({
         _sum: { amount: true },
         where: {
-          costDate: { gte: start, lt: end }
+          expenseDate: { gte: start, lt: end }
         }
       }),
       { _sum: { amount: null } }
@@ -214,35 +269,55 @@ export default async function DashboardPage() {
       { _sum: { lineTotal: null } }
     ),
     safeQuery(
-      prisma.transaction.aggregate({
-        _sum: { totalAmount: true },
+      prisma.transactionItem.aggregate({
+        _sum: { lineTotal: true },
         where: {
-          transactionType: 'PURCHASE',
-          transactionItems: {
-            some: {
-              product: { productType: 'FEED' }
-            }
-          }
+          transaction: {
+            transactionType: 'PURCHASE'
+          },
+          product: { productType: 'FEED' }
         }
       }),
-      { _sum: { totalAmount: null } }
+      { _sum: { lineTotal: null } }
     ),
     safeQuery(
-      prisma.transaction.aggregate({
-        _sum: { totalAmount: true },
+      prisma.transactionItem.aggregate({
+        _sum: { lineTotal: true },
         where: {
-          transactionType: 'PURCHASE',
-          transactionItems: {
-            some: {
-              product: { productType: 'MEDICINE' }
-            }
-          }
+          transaction: {
+            transactionType: 'PURCHASE'
+          },
+          product: { productType: 'MEDICINE' }
         }
       }),
-      { _sum: { totalAmount: null } }
+      { _sum: { lineTotal: null } }
     ),
     safeQuery(
-      prisma.cost.aggregate({
+      prisma.transactionItem.aggregate({
+        _sum: { lineTotal: true },
+        where: {
+          transaction: {
+            transactionType: 'PURCHASE'
+          },
+          product: { productType: 'CHICKEN' }
+        }
+      }),
+      { _sum: { lineTotal: null } }
+    ),
+    safeQuery(
+      prisma.transactionItem.aggregate({
+        _sum: { lineTotal: true },
+        where: {
+          transaction: {
+            transactionType: 'PURCHASE'
+          },
+          product: { productType: 'EGG' }
+        }
+      }),
+      { _sum: { lineTotal: null } }
+    ),
+    safeQuery(
+      prisma.expense.aggregate({
         _sum: { amount: true }
       }),
       { _sum: { amount: null } }
@@ -292,7 +367,7 @@ export default async function DashboardPage() {
       prisma.stockBalance.findMany({
         select: { quantityOnHand: true, averageCost: true }
       }),
-      []
+      [] as any[]
     ),
     safeQuery(
       prisma.transaction.findMany({
@@ -307,7 +382,7 @@ export default async function DashboardPage() {
           transactionType: true
         }
       }),
-      []
+      [] as any[]
     ),
     safeQuery(prisma.party.count({ where: { isActive: true } }), 0),
     safeQuery(
@@ -329,7 +404,7 @@ export default async function DashboardPage() {
           stockBalance: { select: { quantityOnHand: true } }
         }
       }),
-      []
+      [] as any[]
     ),
     safeQuery(
       prisma.transactionItem.aggregate({
@@ -352,6 +427,33 @@ export default async function DashboardPage() {
         _sum: { totalAmount: true }
       }),
       { _sum: { totalAmount: null } }
+    ),
+    safeQuery(
+      prisma.expense.findMany({
+        select: {
+          id: true,
+          amount: true,
+          expenseDate: true,
+          description: true
+        },
+        orderBy: { expenseDate: 'desc' }
+      }),
+      [] as any[]
+    ),
+    safeQuery(
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: {
+          paymentDate: { gte: start, lt: end }
+        }
+      }),
+      { _sum: { amount: null } }
+    ),
+    safeQuery(
+      prisma.payment.aggregate({
+        _sum: { amount: true }
+      }),
+      { _sum: { amount: null } }
     )
   ]);
 
@@ -387,19 +489,17 @@ export default async function DashboardPage() {
     )
   );
 
-  const monthlyCostResults = await Promise.all(
-    monthRanges.map((range) =>
-      safeQuery(
-        prisma.cost.aggregate({
-          _sum: { amount: true },
-          where: {
-            costDate: { gte: range.start, lt: range.end }
-          }
-        }),
-        { _sum: { amount: null } }
-      )
-    )
-  );
+  const monthlyExpenseResults2 = monthRanges.map((range) => {
+    const total = (expensesForDashboard || []).reduce((sum, expense) => {
+      const expenseDate = normalizeDashboardDate(expense.expenseDate);
+      if (!expenseDate || expenseDate < range.start || expenseDate >= range.end) {
+        return sum;
+      }
+      return sum + Number(expense.amount ?? 0);
+    }, 0);
+
+    return { _sum: { amount: total } };
+  });
 
   // Filter products with low stock
   const filteredLowStockAlerts = (lowStockAlerts || []).filter((product: any) => {
@@ -410,16 +510,28 @@ export default async function DashboardPage() {
 
   const dailyFeedSale = Number(dailyFeedSaleAgg._sum.lineTotal ?? 0);
   const dailyMedicineSale = Number(dailyMedicineSaleAgg._sum.lineTotal ?? 0);
-  const dailyFeedPurchaseCost = Number(dailyFeedPurchaseCostAgg._sum.totalAmount ?? 0);
-  const dailyMedicinePurchaseCost = Number(dailyMedicinePurchaseCostAgg._sum.totalAmount ?? 0);
-  const dailyCostExpenses = Number(dailyCostExpenseAgg._sum.amount ?? 0);
-  const dailyTotalCost = dailyFeedPurchaseCost + dailyMedicinePurchaseCost + dailyCostExpenses;
+  const dailyFeedPurchase = Number(dailyFeedPurchaseCostAgg._sum.lineTotal ?? 0);
+  const dailyMedicinePurchase = Number(dailyMedicinePurchaseCostAgg._sum.lineTotal ?? 0);
+  const dailyChickenPurchase = Number(dailyChickenPurchaseCostAgg._sum.lineTotal ?? 0);
+  const dailyEggPurchase = Number(dailyEggPurchaseCostAgg._sum.lineTotal ?? 0);
+  const dailyExpenses = (expensesForDashboard || []).reduce((sum, expense) => {
+    const expenseDate = normalizeDashboardDate(expense.expenseDate);
+    if (!expenseDate || expenseDate < start || expenseDate >= end) {
+      return sum;
+    }
+    return sum + Number(expense.amount ?? 0);
+  }, 0);
+  const dailyPartyPayment = Number(dailyPartyPaymentAgg._sum.amount ?? 0);
+  const dailyTotalExpense = dailyFeedPurchase + dailyMedicinePurchase + dailyExpenses + dailyPartyPayment;
   const totalFeedSale = Number(totalFeedSaleAgg._sum.lineTotal ?? 0);
   const totalMedicineSale = Number(totalMedicineSaleAgg._sum.lineTotal ?? 0);
-  const totalFeedPurchaseCost = Number(totalFeedPurchaseCostAgg._sum.totalAmount ?? 0);
-  const totalMedicinePurchaseCost = Number(totalMedicinePurchaseCostAgg._sum.totalAmount ?? 0);
-  const totalCostExpenses = Number(totalCostExpenseAgg._sum.amount ?? 0);
-  const totalTotalCost = totalFeedPurchaseCost + totalMedicinePurchaseCost + totalCostExpenses;
+  const totalFeedPurchase = Number(totalFeedPurchaseCostAgg._sum.lineTotal ?? 0);
+  const totalMedicinePurchase = Number(totalMedicinePurchaseCostAgg._sum.lineTotal ?? 0);
+  const totalChickenPurchase = Number(totalChickenPurchaseCostAgg._sum.lineTotal ?? 0);
+  const totalEggPurchase = Number(totalEggPurchaseCostAgg._sum.lineTotal ?? 0);
+  const totalExpenses = (expensesForDashboard || []).reduce((sum, expense) => sum + Number(expense.amount ?? 0), 0);
+  const totalPartyPayment = Number(totalPartyPaymentAgg._sum.amount ?? 0);
+  const totalTotalExpense = totalFeedPurchase + totalMedicinePurchase + totalExpenses + totalPartyPayment;
   const totalCustomerDue = Number(totalCustomerDueAgg._sum.dueAmount ?? 0);
   const totalFeedMedicineDue = Number(totalFeedMedicineDueAgg._sum.dueAmount ?? 0);
   const totalEggChickenSupplierDue = Number(totalEggChickenSupplierDueAgg._sum.dueAmount ?? 0);
@@ -431,32 +543,51 @@ export default async function DashboardPage() {
   }, 0);
 
   const totalSales = totalFeedSale + totalMedicineSale;
-  const netProfit = totalSales - totalTotalCost;
+  const netProfit = totalSales - totalTotalExpense;
 
-  const dailySummaryCards = [
+  type DashboardCardItem = {
+    title: string;
+    value: string;
+    metric: string;
+    metricColor: string;
+    icon: LucideIcon;
+    accent: string;
+    valueColor?: string;
+    className?: string;
+  };
+
+  const dailySummaryCards: DashboardCardItem[] = [
     {
-      title: 'Daily Feed Sale',
-      value: formatCurrency(dailyFeedSale),
-      metric: dailyFeedSale > 0 ? '+ ' + formatCurrency(dailyFeedSale) : 'No sales',
+      title: 'Daily Sale',
+      value: formatCurrency(dailyFeedSale + dailyMedicineSale),
+      metric: dailyFeedSale + dailyMedicineSale > 0 ? '+ ' + formatCurrency(dailyFeedSale + dailyMedicineSale) : 'No sales',
       metricColor: 'text-emerald-600',
       icon: ShoppingCart,
       accent: 'bg-amber-50 text-amber-600'
     },
     {
-      title: 'Daily Medicine Sales',
-      value: formatCurrency(dailyMedicineSale),
-      metric: dailyMedicineSale > 0 ? '+ ' + formatCurrency(dailyMedicineSale) : 'No sales',
+      title: 'Daily Purchase',
+      value: formatCurrency(dailyFeedPurchase + dailyMedicinePurchase),
+      metric: dailyFeedPurchase + dailyMedicinePurchase > 0 ? '+ ' + formatCurrency(dailyFeedPurchase + dailyMedicinePurchase) : 'No purchase',
       metricColor: 'text-sky-600',
       icon: Box,
       accent: 'bg-violet-50 text-violet-600'
     },
     {
-      title: 'Daily Cost',
-      value: formatCurrency(dailyTotalCost),
-      metric: dailyTotalCost > 0 ? '- ' + formatCurrency(dailyTotalCost) : 'No cost',
+      title: "Today's Expense",
+      value: formatCurrency(dailyExpenses),
+      metric: dailyExpenses > 0 ? '- ' + formatCurrency(dailyExpenses) : 'No expense',
       metricColor: 'text-rose-600',
       icon: Wallet,
       accent: 'bg-rose-50 text-rose-600'
+    },
+    {
+      title: "Today's Party Supplier Payment",
+      value: formatCurrency(dailyPartyPayment),
+      metric: dailyPartyPayment > 0 ? '- ' + formatCurrency(dailyPartyPayment) : 'No party supplier payment',
+      metricColor: 'text-amber-600',
+      icon: DollarSign,
+      accent: 'bg-amber-50 text-amber-600'
     },
     {
       title: 'Daily Stock',
@@ -468,54 +599,48 @@ export default async function DashboardPage() {
     }
   ];
 
-  const totalSummaryCards = [
+  const totalSummaryCards: DashboardCardItem[] = [
     {
-      title: 'Total Feed Sales',
-      value: formatCurrency(totalFeedSale),
-      metric: totalFeedSale > 0 ? 'Active' : 'No sales',
-      metricColor: 'text-slate-600',
+      title: 'Total Sales',
+      value: formatCurrency(totalFeedSale + totalMedicineSale),
+      metric: totalFeedSale + totalMedicineSale > 0 ? '+ ' + ((totalMedicineSale / (totalFeedSale + totalMedicineSale)) * 100).toFixed(1) + '%' : '0%',
+      metricColor: 'text-emerald-600',
       icon: ShoppingCart,
       accent: 'bg-indigo-50 text-indigo-600'
     },
     {
-      title: 'Total Medicine Sales',
-      value: formatCurrency(totalMedicineSale),
-      metric: totalMedicineSale > 0 ? '+ ' + ((totalMedicineSale / (totalFeedSale + totalMedicineSale)) * 100).toFixed(1) + '%' : '0%',
+      title: 'Total Purchase',
+      value: formatCurrency(totalFeedPurchase + totalMedicinePurchase),
+      metric: totalFeedPurchase + totalMedicinePurchase > 0 ? '+ ' + ((totalMedicinePurchase / (totalFeedPurchase + totalMedicinePurchase)) * 100).toFixed(1) + '%' : '0%',
       metricColor: 'text-emerald-600',
       icon: Box,
       accent: 'bg-violet-50 text-violet-600'
     },
     {
-      title: 'Total Cost',
-      value: formatCurrency(totalTotalCost),
-      metric: totalTotalCost > 0 ? formatCurrency(totalTotalCost) : 'No cost',
+      title: 'Total Expense',
+      value: formatCurrency(totalExpenses),
+      metric: totalExpenses > 0 ? formatCurrency(totalExpenses) : 'No expense',
       metricColor: 'text-rose-600',
       icon: Wallet,
       accent: 'bg-orange-50 text-orange-600'
     },
     {
-      title: 'Customer Due',
-      value: formatCurrency(totalCustomerDue),
-      metric: totalCustomerDue > 0 ? 'Customer due outstanding' : 'Customer cleared',
-      metricColor: totalCustomerDue > 0 ? 'text-rose-600' : 'text-emerald-600',
-      icon: DollarSign,
-      accent: 'bg-rose-50 text-rose-600'
-    },
-    {
-      title: 'Feed & Medicine Due',
-      value: formatCurrency(totalFeedMedicineDue),
-      metric: totalFeedMedicineDue > 0 ? 'Feed/Medicine supplier due' : 'Cleared',
-      metricColor: totalFeedMedicineDue > 0 ? 'text-slate-600' : 'text-emerald-600',
-      icon: Layers,
-      accent: 'bg-sky-50 text-sky-600'
-    },
-    {
-      title: 'Eggs & Chicken Supplier Due',
-      value: formatCurrency(totalEggChickenSupplierDue),
-      metric: totalEggChickenSupplierDue > 0 ? 'Supplier due outstanding' : 'Cleared',
-      metricColor: totalEggChickenSupplierDue > 0 ? 'text-slate-600' : 'text-emerald-600',
+      title: 'Total Party Supplier Payment',
+      value: formatCurrency(totalPartyPayment),
+      metric: totalPartyPayment > 0 ? 'Party supplier payments outstanding' : 'All party supplier payments cleared',
+      metricColor: totalPartyPayment > 0 ? 'text-rose-600' : 'text-emerald-600',
       icon: ClipboardList,
       accent: 'bg-amber-50 text-amber-600'
+    },
+    {
+      title: 'Total Due',
+      value: formatCurrency(totalCustomerDue + totalFeedMedicineDue + totalEggChickenSupplierDue),
+      metric: totalCustomerDue + totalFeedMedicineDue + totalEggChickenSupplierDue > 0 ? 'Outstanding dues' : 'All dues cleared',
+      metricColor: 'text-amber-600',
+      valueColor: 'text-amber-600',
+      icon: Layers,
+      accent: 'bg-amber-50 text-amber-600',
+      className: 'border-amber-200'
     },
     {
       title: 'Total Stock Value',
@@ -542,7 +667,7 @@ export default async function DashboardPage() {
 
   const expenseData = monthlyExpenseResults.map((result, idx) => ({
     label: monthLabels[idx],
-    value: Number(result._sum.totalAmount ?? 0) + Number(monthlyCostResults[idx]?._sum.amount ?? 0)
+    value: Number(result._sum.totalAmount ?? 0) + Number(monthlyExpenseResults2[idx]?._sum.amount ?? 0)
   }));
 
   const totalRevenue = revenueData.reduce((sum, item) => sum + item.value, 0);
@@ -582,8 +707,10 @@ export default async function DashboardPage() {
                         value={item.value}
                         metric={item.metric}
                         metricColor={item.metricColor}
+                        valueColor={item.valueColor}
                         icon={Icon}
                         accent={item.accent}
+                        className={item.className}
                       />
                     );
                   })}
@@ -608,8 +735,10 @@ export default async function DashboardPage() {
                         value={item.value}
                         metric={item.metric}
                         metricColor={item.metricColor}
+                        valueColor={item.valueColor}
                         icon={Icon}
                         accent={item.accent}
+                        className={item.className}
                       />
                     );
                   })}
@@ -618,65 +747,58 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1.8fr_1.2fr]">
-            <Card className="p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold">Revenue</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Monthly sales and invoice performance.</p>
+          <Card className="p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">Net Profit / Loss Breakdown</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Profit vs loss distribution.</p>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col items-center">
+              <svg viewBox="0 0 200 200" className="h-64 w-64">
+                {(() => {
+                  const profit = Math.max(netProfit, 0);
+                  const loss = Math.abs(Math.min(netProfit, 0));
+                  const total = profit + loss;
+                  if (total === 0) {
+                    return <circle cx="100" cy="100" r="80" fill="#E5E7EB" />;
+                  }
+                  return (
+                    <>
+                      {profit > 0 && (
+                        <path
+                          d={describeArc(100, 100, 80, 0, (profit / total) * 360)}
+                          fill="#16A34A"
+                        />
+                      )}
+                      {loss > 0 && (
+                        <path
+                          d={describeArc(100, 100, 80, (profit / total) * 360, 360)}
+                          fill="#DC2626"
+                        />
+                      )}
+                    </>
+                  );
+                })()}
+              </svg>
+              <div className="mt-4 flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-[#16A34A]"></span>
+                  <span className="text-sm font-medium text-slate-700">Profit</span>
                 </div>
-                <div className="flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm text-primary">
-                  <Activity className="h-4 w-4" /> Live
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-[#DC2626]"></span>
+                  <span className="text-sm font-medium text-slate-700">Loss</span>
                 </div>
               </div>
-              <div className="mt-6 space-y-3 rounded-lg bg-slate-950/5 p-4 text-sm text-muted-foreground">
-                <div className="flex items-end gap-3 h-56">
-                  {revenueData.map((item) => (
-                    <div key={item.label} className="flex-1 text-center">
-                      <div
-                        className="mx-auto h-full rounded-lg bg-primary transition-all duration-300"
-                        style={{ height: `${(item.value / maxRevenue) * 100}%`, width: '100%' }}
-                      />
-                      <p className="mt-3 text-xs font-medium text-slate-700">{item.label}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  {revenueData.map((item) => (
-                    <span key={item.label}>{item.label}</span>
-                  ))}
-                </div>
+              <div className="mt-3 text-center">
+                <p className="text-sm text-slate-500">Net Result</p>
+                <p className={`text-2xl font-bold ${netProfit >= 0 ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
+                  {formatCurrency(netProfit)}
+                </p>
               </div>
-            </Card>
-
-            <Card className="p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold">Expenses</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Budget, purchase, and operational costs.</p>
-                </div>
-                <button className="text-sm font-medium text-primary hover:text-primary/80">View all</button>
-              </div>
-              <div className="mt-6 space-y-3 rounded-lg bg-slate-950/5 p-4 text-sm text-muted-foreground">
-                <div className="flex items-end gap-3 h-56">
-                  {expenseData.map((item) => (
-                    <div key={item.label} className="flex-1 text-center">
-                      <div
-                        className="mx-auto h-full rounded-lg bg-destructive transition-all duration-300"
-                        style={{ height: `${(item.value / maxExpense) * 100}%`, width: '100%' }}
-                      />
-                      <p className="mt-3 text-xs font-medium text-slate-700">{item.label}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  {expenseData.map((item) => (
-                    <span key={item.label}>{item.label}</span>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          </div>
+            </div>
+          </Card>
 
         </section>
 

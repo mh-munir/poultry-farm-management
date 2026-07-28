@@ -57,7 +57,7 @@ export default async function PartyStatementReportPage({
             <select name="party" defaultValue={params?.party || ''} className="rounded-md border bg-background px-3 py-2 text-sm">
               <option value="">Select a party</option>
               {parties.map((party) => (
-                <option key={party.id} value={party.id}>{party.name} ({party.partyType})</option>
+                <option key={party.id} value={party.id}>{party.name} ({party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'PARTY' ? 'Party Supplier' : party.partyType === 'COMPANY' ? 'Company Supplier' : 'Customer + Party Supplier'})</option>
               ))}
             </select>
             <Button type="submit" size="sm">View Statement</Button>
@@ -87,11 +87,11 @@ export default async function PartyStatementReportPage({
                 <p className="mt-2 text-2xl font-semibold">{formatCurrency(data.summary.totalPurchases)}</p>
               </div>
               <div className="rounded-xl border bg-background p-4">
-                <p className="text-sm text-muted-foreground">Supplier Payments</p>
+                <p className="text-sm text-muted-foreground">Party Supplier Payments</p>
                 <p className="mt-2 text-2xl font-semibold">{formatCurrency(data.summary.totalSupplierPayments)}</p>
               </div>
               <div className="rounded-xl border bg-background p-4">
-                <p className="text-sm text-muted-foreground">Supplier Payable</p>
+                <p className="text-sm text-muted-foreground">Party Supplier Payable</p>
                 <p className="mt-2 text-2xl font-semibold">{formatCurrency(data.summary.supplierDue)}</p>
               </div>
             </div>

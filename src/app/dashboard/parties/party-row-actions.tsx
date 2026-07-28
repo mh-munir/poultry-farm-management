@@ -222,8 +222,9 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
             <label className="mb-2 block text-sm font-medium">Party type</label>
             <select name="partyType" defaultValue={party.partyType} className="w-full rounded-md border bg-background px-3 py-2">
               <option value="CUSTOMER">Customer</option>
-              <option value="SUPPLIER">Supplier</option>
-              <option value="BOTH">Both</option>
+              <option value="PARTY">Party Supplier (Eggs & Chicken)</option>
+              <option value="COMPANY">Company Supplier (Feed & Medicine)</option>
+              <option value="BOTH">Customer + Party Supplier</option>
             </select>
           </div>
           <div>

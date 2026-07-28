@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import NextAuth from 'next-auth';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '@/server/auth/config';
@@ -9,8 +10,12 @@ export const handlers = {
   POST: handler
 };
 
-export async function auth() {
+const getCachedSession = cache(async () => {
   return getServerSession(authConfig);
+});
+
+export async function auth() {
+  return getCachedSession();
 }
 
 export async function getUserSession() {

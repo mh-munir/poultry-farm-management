@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
@@ -77,11 +77,11 @@ export async function getDailyReportData(date: Date) {
         transactionDate: { gte: start, lt: end }
       }
     }),
-    prisma.cost.aggregate({
+    prisma.expense.aggregate({
       _sum: { amount: true },
       _count: { _all: true },
       where: {
-        costDate: { gte: start, lt: end }
+        expenseDate: { gte: start, lt: end }
       }
     }),
     prisma.transaction.findMany({
@@ -114,11 +114,11 @@ export async function getDailyReportData(date: Date) {
       },
       orderBy: { transactionDate: 'desc' }
     }),
-    prisma.cost.findMany({
+    prisma.expense.findMany({
       where: {
-        costDate: { gte: start, lt: end }
+        expenseDate: { gte: start, lt: end }
       },
-      orderBy: { costDate: 'desc' }
+      orderBy: { expenseDate: 'desc' }
     })
   ]);
 
@@ -229,10 +229,10 @@ export async function getMonthlyReportData(year: number, month: number) {
         transactionDate: { gte: start, lt: end }
       }
     }),
-    prisma.cost.aggregate({
+    prisma.expense.aggregate({
       _sum: { amount: true },
       where: {
-        costDate: { gte: start, lt: end }
+        expenseDate: { gte: start, lt: end }
       }
     }),
     prisma.transaction.findMany({
@@ -283,10 +283,10 @@ export async function getMonthlyReportData(year: number, month: number) {
           transactionDate: { gte: dayStart, lt: dayEnd }
         }
       }),
-      prisma.cost.aggregate({
+      prisma.expense.aggregate({
         _sum: { amount: true },
         where: {
-          costDate: { gte: dayStart, lt: dayEnd }
+          expenseDate: { gte: dayStart, lt: dayEnd }
         }
       })
     ]);
@@ -357,10 +357,10 @@ export async function getYearlyReportData(year: number) {
         transactionDate: { gte: start, lt: end }
       }
     }),
-    prisma.cost.aggregate({
+    prisma.expense.aggregate({
       _sum: { amount: true },
       where: {
-        costDate: { gte: start, lt: end }
+        expenseDate: { gte: start, lt: end }
       }
     })
   ]);
@@ -390,10 +390,10 @@ export async function getYearlyReportData(year: number) {
           transactionDate: { gte: monthStart, lt: monthEnd }
         }
       }),
-      prisma.cost.aggregate({
+      prisma.expense.aggregate({
         _sum: { amount: true },
         where: {
-          costDate: { gte: monthStart, lt: monthEnd }
+          expenseDate: { gte: monthStart, lt: monthEnd }
         }
       })
     ]);
@@ -772,10 +772,10 @@ export async function getProfitLossReportData(dateFrom?: Date, dateTo?: Date) {
         transactionDate: { gte: start, lt: end }
       }
     }),
-    prisma.cost.aggregate({
+    prisma.expense.aggregate({
       _sum: { amount: true },
       where: {
-        costDate: { gte: start, lt: end }
+        expenseDate: { gte: start, lt: end }
       }
     })
   ]);

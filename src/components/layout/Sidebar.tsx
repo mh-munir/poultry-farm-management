@@ -3,41 +3,18 @@
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { getSetting } from '@/lib/settings';
+import { useState } from 'react';
 import { Home, Users, BarChart2, Settings, Shield, User, LogOut, ChevronDown, Box, Wallet } from 'lucide-react';
 
-export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => void }) {
+export function Sidebar({ open, onClose, branding }: { open?: boolean; onClose?: () => void; branding: any }) {
   const pathname = usePathname() || '';
   const linkClass = (path: string) =>
     pathname === path
       ? 'flex items-center gap-3 rounded-2xl px-3 py-3 transition bg-cyan-50 text-cyan-700 font-semibold ring-1 ring-cyan-200'
       : 'flex items-center gap-3 rounded-2xl px-3 py-3 transition text-slate-700 hover:bg-slate-100 hover:text-slate-900';
   const [stockOpen, setStockOpen] = useState(false);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [brandingName, setBrandingName] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const value = await getSetting('branding');
-        if (value) {
-          setLogoUrl(value.logo ?? null);
-          setBrandingName(value.name ?? null);
-          return;
-        }
-      } catch {}
-      try {
-        const raw = localStorage.getItem('branding');
-        if (raw) {
-          const obj = JSON.parse(raw);
-          setLogoUrl(obj.logo ?? null);
-          setBrandingName(obj.name ?? null);
-        }
-      } catch {}
-    }
-    load();
-  }, []);
+  const logoUrl = branding?.logo ?? null;
+  const brandingName = branding?.name ?? null;
 
   return (
     <aside className={`w-64 border-r border-slate-200 bg-white min-h-screen px-4 py-6 fixed md:fixed z-40 top-0 left-0 h-full max-h-screen overflow-y-auto transform transition-transform shadow-2xl shadow-slate-200/40 duration-300 ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
@@ -103,9 +80,9 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               </ul>
             </li>
             <li>
-              <Link href="/dashboard/costs" onClick={() => onClose?.()} className={linkClass('/dashboard/costs')}>
+              <Link href="/dashboard/expenses" onClick={() => onClose?.()} className={linkClass('/dashboard/expenses')}>
                 <Wallet size={16} className="text-cyan-500" />
-                <span>Costs</span>
+                <span>Expenses</span>
               </Link>
             </li>
           </ul>

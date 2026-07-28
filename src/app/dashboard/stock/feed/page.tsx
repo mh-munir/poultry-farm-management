@@ -1,14 +1,19 @@
 import { StockManagement, type StockItem } from '@/components/dashboard/stock/stock-management';
-import { getStockItemsByType } from '@/features/stock/actions';
-import { getSuppliersForPurchases } from '@/features/purchases/actions';
+import { getStockItemsByType, getFeedStockCompanyNames } from '@/features/stock/actions';
 import { cookies } from 'next/headers';
 import { PurchaseToast } from '@/components/dashboard/stock/purchase-toast';
+import { type ComboboxOption } from '@/components/ui/combobox';
 
 export default async function FeedPage() {
-  const [feedItems, suppliers] = await Promise.all([
+  const [feedItems, companies] = await Promise.all([
     getStockItemsByType('FEED'),
-    getSuppliersForPurchases()
+    getFeedStockCompanyNames()
   ]);
+
+  const companyNames: ComboboxOption[] = companies.map((company) => ({
+    value: company.name,
+    label: company.name
+  }));
 
   const initialItems: StockItem[] = feedItems.map((item) => {
     const lastTransaction = item.transactionItems[0]?.transaction;
@@ -38,7 +43,9 @@ export default async function FeedPage() {
         description="Manage feed stock with quantity and pricing."
         initialItems={initialItems}
         availableProducts={initialItems}
-        suppliers={suppliers}
+        suppliers={companies}
+        companyNames={companyNames}
+        useCompanySearch
         addButtonLabel="Add Feed Stock"
         redirectPath="/dashboard/stock/feed"
       />
