@@ -16,39 +16,39 @@
     padding: 0;
   }
 
-  .no-print {
+  .printPage .no-print {
     display: none !important;
   }
 
-  .print\\:hidden {
+  .printPage .print\\:hidden {
     display: none !important;
   }
 
-  .print\\:bg-white {
+  .printPage .print\\:bg-white {
     background: white !important;
   }
 
-  .print\\:shadow-none {
+  .printPage .print\\:shadow-none {
     box-shadow: none !important;
   }
 
-  .print\\:p-0 {
+  .printPage .print\\:p-0 {
     padding: 0 !important;
   }
 
-  .print\\:border-0 {
+  .printPage .print\\:border-0 {
     border: none !important;
   }
 
-  table {
+  .printPage table {
     break-inside: auto;
   }
 
-  thead {
+  .printPage thead {
     display: table-header-group;
   }
 
-  tr {
+  .printPage tr {
     page-break-inside: avoid;
     break-inside: avoid-page;
   }
