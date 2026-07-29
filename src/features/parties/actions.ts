@@ -3,6 +3,7 @@
 import { notFound } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import type { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '@/server/db';
 import { requireUser } from '@/lib/auth';
@@ -19,15 +20,10 @@ const partySchema = z.object({
   phone: z.string().min(1, 'Phone number is required.'),
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
-  partyType: z.enum(['CUSTOMER', 'PARTY', 'COMPANY', 'BOTH']),
+  partyType: z.enum(['CUSTOMER', 'PARTY', 'BOTH']),
   taxNumber: z.string().optional(),
   creditLimit: z.coerce.number().min(0).optional(),
   openingBalance: z.coerce.number().default(0),
-  feedQuantity: z.coerce.number().min(0).optional(),
-  feedPrice: z.coerce.number().min(0).optional(),
-  feedName: z.string().optional(),
-  medicineQuantity: z.coerce.number().min(0).optional(),
-  medicinePrice: z.coerce.number().min(0).optional(),
   mediaName: z.string().optional(),
   farmName: z.string().optional(),
   isActive: z.preprocess((val) => val === 'on' || val === true, z.boolean()),
@@ -172,12 +168,6 @@ type PartyListRecord = {
   taxNumber: string | null;
   creditLimit: Decimal | null;
   openingBalance: Decimal;
-  feedQuantity: Decimal | null;
-  feedPrice: Decimal | null;
-  feedName: string | null;
-  medicineName: string | null;
-  medicineQuantity: Decimal | null;
-  medicinePrice: Decimal | null;
   imageUrl: string | null;
   mediaName: string | null;
   farmName: string | null;
@@ -521,10 +511,9 @@ export async function getPartyStats(args: { search?: string; partyType?: string;
   const active = await prisma.party.count({ where: { ...where, isActive: true } });
   const customers = await prisma.party.count({ where: { ...where, partyType: 'CUSTOMER' } });
   const parties = await prisma.party.count({ where: { ...where, partyType: 'PARTY' } });
-  const companies = await prisma.party.count({ where: { ...where, partyType: 'COMPANY' } });
   const suppliers = parties;
 
-  return { total, active, customers, parties, companies, suppliers };
+  return { total, active, customers, parties, companies: 0, suppliers };
 }
 
 export async function getPartyNames() {
@@ -532,9 +521,75 @@ export async function getPartyNames() {
   return prisma.party.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } });
 }
 
+export async function getCustomerOptions() {
+  await requireUser();
+  return prisma.party.findMany({
+    where: { partyType: { in: ['CUSTOMER', 'BOTH'] }, isActive: true },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' }
+  });
+}
+
+export async function getSupplierOptions() {
+  await requireUser();
+  return prisma.party.findMany({
+    where: { partyType: { in: ['PARTY', 'BOTH'] }, isActive: true },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' }
+  });
+}
+
+export async function getCustomerCurrentDue(partyId: number) {
+  await requireUser();
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    select: {
+      partyType: true,
+      transactions: {
+        where: { transactionType: 'SALE' },
+        select: { transactionType: true, totalAmount: true, paidAmount: true, dueAmount: true, transactionDate: true }
+      },
+      payments: {
+        select: { amount: true, paymentDate: true, allocations: { select: { id: true } } }
+      }
+    }
+  });
+
+  if (!party) {
+    return 0;
+  }
+
+  const summary = summarizePartyAccount(party.partyType, party.transactions, party.payments);
+  return summary.netCustomerDue;
+}
+
+export async function getSupplierCurrentPayable(partyId: number) {
+  await requireUser();
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    select: {
+      partyType: true,
+      transactions: {
+        where: { transactionType: 'PURCHASE' },
+        select: { transactionType: true, totalAmount: true, paidAmount: true, dueAmount: true, transactionDate: true }
+      },
+      payments: {
+        select: { amount: true, paymentDate: true, allocations: { select: { id: true } } }
+      }
+    }
+  });
+
+  if (!party) {
+    return 0;
+  }
+
+  const summary = summarizePartyAccount(party.partyType, party.transactions, party.payments);
+  return summary.netSupplierDue;
+}
+
 const paymentBaseSchema = z.object({
-  partyId: z.coerce.number({ required_error: 'Party ID is missing.' }),
-  amount: z.coerce.number().min(0.01, 'Payment amount must be positive.'),
+  partyId: z.coerce.number({ required_error: 'Party is required.' }),
+  amount: z.coerce.number().min(0.01, 'Payment amount must be greater than zero.'),
   paymentMethod: z.string().min(1, 'Payment method is required.'),
   referenceNumber: z.string().optional().or(z.literal('')),
   status: z.string().optional().default('COMPLETED'),
@@ -580,6 +635,152 @@ export async function recordPaymentForParty(formData: FormData) {
   } catch (error) {
     console.error('Error recording payment:', error);
     return { success: false, message: 'Failed to record payment.' };
+  }
+}
+
+export async function receiveCustomerPayment(formData: FormData) {
+  const session = await requireUser();
+  const rawData = Object.fromEntries(formData.entries());
+  const parsed = createPaymentSchema.safeParse(rawData);
+
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0]?.message ?? 'Invalid data.' };
+  }
+
+  const { partyId, amount, paymentDate, paymentMethod, referenceNumber, status, notes } = parsed.data;
+
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    select: { partyType: true }
+  });
+
+  if (!party) {
+    return { success: false, message: 'Party not found.' };
+  }
+
+  if (party.partyType !== 'CUSTOMER' && party.partyType !== 'BOTH') {
+    return { success: false, message: 'Selected party is not a customer.' };
+  }
+
+  const currentDue = await getCustomerCurrentDue(partyId);
+
+  if (amount > currentDue) {
+    return { success: false, message: `Payment amount cannot exceed current customer due of ৳${currentDue.toFixed(2)}.` };
+  }
+
+  try {
+    const payment = await prisma.payment.create({
+      data: {
+        partyId,
+        paymentDate,
+        paymentMethod,
+        amount: new Prisma.Decimal(amount),
+        referenceNumber: referenceNumber || null,
+        status,
+        notes: notes || null,
+        createdById: session.user.id
+      }
+    });
+
+    const lastLedger = await prisma.ledgerEntry.findFirst({
+      where: { partyId },
+      orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
+    });
+    const previousBalance = new Prisma.Decimal(lastLedger?.runningBalance ?? 0);
+    const newBalance = previousBalance.minus(new Prisma.Decimal(amount));
+
+    await prisma.ledgerEntry.create({
+      data: {
+        partyId,
+        paymentId: payment.id,
+        entryType: 'PAYMENT_RECEIVED',
+        amount: new Prisma.Decimal(-amount),
+        runningBalance: newBalance,
+        description: `Customer payment received`,
+        referenceNumber: referenceNumber || undefined,
+        createdById: session.user.id
+      }
+    });
+
+    revalidatePath(`/dashboard/parties/${partyId}`);
+    revalidatePath('/dashboard/parties');
+    return { success: true, message: 'Customer payment recorded successfully.' };
+  } catch (error) {
+    console.error('Error recording customer payment:', error);
+    return { success: false, message: 'Failed to record customer payment.' };
+  }
+}
+
+export async function paySupplierPayment(formData: FormData) {
+  const session = await requireUser();
+  const rawData = Object.fromEntries(formData.entries());
+  const parsed = createPaymentSchema.safeParse(rawData);
+
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0]?.message ?? 'Invalid data.' };
+  }
+
+  const { partyId, amount, paymentDate, paymentMethod, referenceNumber, status, notes } = parsed.data;
+
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    select: { partyType: true }
+  });
+
+  if (!party) {
+    return { success: false, message: 'Party not found.' };
+  }
+
+  if (party.partyType !== 'PARTY' && party.partyType !== 'BOTH') {
+    return { success: false, message: 'Selected party is not a supplier.' };
+  }
+
+  const currentPayable = await getSupplierCurrentPayable(partyId);
+
+  if (amount > currentPayable) {
+    return { success: false, message: `Payment amount cannot exceed current supplier payable of ৳${currentPayable.toFixed(2)}.` };
+  }
+
+  try {
+    const payment = await prisma.payment.create({
+      data: {
+        partyId,
+        paymentDate,
+        paymentMethod,
+        amount: new Prisma.Decimal(amount),
+        referenceNumber: referenceNumber || null,
+        status,
+        notes: notes || null,
+        createdById: session.user.id
+      }
+    });
+
+    const lastLedger = await prisma.ledgerEntry.findFirst({
+      where: { partyId },
+      orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
+    });
+    const previousBalance = new Prisma.Decimal(lastLedger?.runningBalance ?? 0);
+    const newBalance = previousBalance.minus(new Prisma.Decimal(amount));
+
+    await prisma.ledgerEntry.create({
+      data: {
+        partyId,
+        paymentId: payment.id,
+        entryType: 'PAYMENT_PAID',
+        amount: new Prisma.Decimal(-amount),
+        runningBalance: newBalance,
+        description: `Payment made to supplier`,
+        referenceNumber: referenceNumber || undefined,
+        createdById: session.user.id
+      }
+    });
+
+    revalidatePath(`/dashboard/parties/${partyId}`);
+    revalidatePath('/dashboard/parties');
+    return { success: true, message: 'Supplier payment recorded successfully.' };
+  } catch (error) {
+    console.error('Error recording supplier payment:', error);
+    return { success: false, message: 'Failed to record supplier payment.' };
   }
 }
 
@@ -634,4 +835,165 @@ export async function deletePaymentForParty(formData: FormData) {
   revalidatePath(`/dashboard/parties/${partyId}`);
   revalidatePath('/dashboard/parties');
   return { success: true, message: 'Payment deleted successfully.' };
+}
+
+const supplierPurchaseSchema = z.object({
+  partyId: z.coerce.number({ required_error: 'Supplier is required.' }),
+  purchaseDate: z.preprocess((value) => value || new Date(), z.coerce.date()),
+  productCategory: z.enum(['EGG', 'CHICKEN'], { required_error: 'Product category is required.' }),
+  productName: z.string().min(1, 'Product name is required.'),
+  quantity: z.coerce.number().min(0.0001, 'Quantity must be greater than zero.'),
+  unit: z.string().min(1, 'Unit is required.'),
+  unitPrice: z.coerce.number().min(0.01, 'Unit price must be greater than zero.'),
+  totalAmount: z.coerce.number().min(0.01, 'Total amount must be greater than zero.'),
+  paidAmount: z.coerce.number().min(0, 'Paid amount cannot be negative.').default(0),
+  paymentMethod: z.enum(['Cash', 'Bank', 'Mobile Banking', 'Credit'], { required_error: 'Payment method is required.' }),
+  referenceNumber: z.string().optional().or(z.literal('')),
+  notes: z.string().optional()
+});
+
+export async function createSupplierPurchase(formData: FormData) {
+  const session = await requireUser();
+  const rawData = Object.fromEntries(formData.entries());
+  const parsed = supplierPurchaseSchema.safeParse(rawData);
+
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0]?.message ?? 'Invalid data.' };
+  }
+
+  const { partyId, purchaseDate, productCategory, productName, quantity, unit, unitPrice, totalAmount, paidAmount, paymentMethod, referenceNumber, notes } = parsed.data;
+
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    select: { partyType: true }
+  });
+
+  if (!party) {
+    return { success: false, message: 'Supplier not found.' };
+  }
+
+  if (party.partyType !== 'PARTY' && party.partyType !== 'BOTH') {
+    return { success: false, message: 'Selected party is not a supplier.' };
+  }
+
+  if (paidAmount > totalAmount) {
+    return { success: false, message: 'Paid amount cannot exceed total amount.' };
+  }
+
+  const invoiceNumber = `SP-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+  const dueAmount = totalAmount - paidAmount;
+  const status = dueAmount > 0 ? 'PENDING' : 'COMPLETED';
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      let productId: number | undefined;
+
+      const existingProduct = await tx.product.findFirst({
+        where: {
+          name: productName.trim(),
+          productType: productCategory
+        }
+      });
+
+      if (existingProduct) {
+        productId = existingProduct.id;
+      } else {
+        const count = await tx.product.count({
+          where: { productType: productCategory }
+        });
+        const newProduct = await tx.product.create({
+          data: {
+            code: `${productCategory}-${String(count + 1).padStart(3, '0')}`,
+            name: productName.trim(),
+            productType: productCategory,
+            unit: unit,
+            isActive: true
+          }
+        });
+        productId = newProduct.id;
+      }
+
+      const purchase = await tx.transaction.create({
+        data: {
+          transactionType: 'PURCHASE',
+          partyId,
+          transactionDate: purchaseDate,
+          invoiceNumber,
+          status,
+          subtotal: new Prisma.Decimal(totalAmount),
+          discount: new Prisma.Decimal(0),
+          tax: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(totalAmount),
+          paidAmount: new Prisma.Decimal(paidAmount),
+          dueAmount: new Prisma.Decimal(dueAmount),
+          referenceNumber: referenceNumber || null,
+          notes: notes || null,
+          transactionItems: {
+            create: {
+              productId: productId,
+              quantity: new Prisma.Decimal(quantity),
+              unitPrice: new Prisma.Decimal(unitPrice),
+              lineTotal: new Prisma.Decimal(totalAmount),
+              taxAmount: new Prisma.Decimal(0),
+              description: `${productCategory} - ${productName} (${quantity} ${unit})`
+            }
+          }
+        }
+      });
+
+      const lastLedger = await tx.ledgerEntry.findFirst({
+        where: { partyId },
+        orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
+      });
+      const previousBalance = new Prisma.Decimal(lastLedger?.runningBalance ?? 0);
+      const purchaseBalance = previousBalance.plus(new Prisma.Decimal(totalAmount));
+
+      await tx.ledgerEntry.create({
+        data: {
+          partyId,
+          transactionId: purchase.id,
+          entryType: 'PURCHASE',
+          amount: new Prisma.Decimal(totalAmount),
+          runningBalance: purchaseBalance,
+          description: `Supplier purchase - ${productName}`,
+          referenceNumber: invoiceNumber,
+          createdById: session.user.id
+        }
+      });
+
+      if (paidAmount > 0) {
+        const paymentRecord = await tx.payment.create({
+          data: {
+            partyId,
+            paymentDate: purchaseDate,
+            paymentMethod,
+            amount: new Prisma.Decimal(paidAmount),
+            referenceNumber: referenceNumber || null,
+            status: paidAmount < totalAmount ? 'PARTIAL' : 'COMPLETED',
+            notes: notes || null
+          }
+        });
+
+        await tx.ledgerEntry.create({
+          data: {
+            partyId,
+            transactionId: purchase.id,
+            paymentId: paymentRecord.id,
+            entryType: 'PAYMENT_PAID',
+            amount: new Prisma.Decimal(-paidAmount),
+            runningBalance: purchaseBalance.minus(new Prisma.Decimal(paidAmount)),
+            description: `Payment for supplier purchase - ${productName}`,
+            referenceNumber: referenceNumber || undefined,
+            createdById: session.user.id
+          }
+        });
+      }
+    });
+
+    revalidatePath('/dashboard/parties');
+    return { success: true, message: 'Supplier purchase recorded successfully.' };
+  } catch (error) {
+    console.error('Error recording supplier purchase:', error);
+    return { success: false, message: 'Failed to record supplier purchase.' };
+  }
 }

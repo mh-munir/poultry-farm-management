@@ -5,18 +5,20 @@ import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { AppShell } from '@/components/layout/app-shell';
 import { auth } from '@/server/auth';
-import { getSetting } from '@/lib/settings';
+import { getBranding } from '@/lib/branding';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const session = await auth();
-  let branding: Awaited<ReturnType<typeof getSetting>> = null;
+  let branding = null as Awaited<ReturnType<typeof getBranding>>;
   try {
-    branding = await getSetting('branding');
+    branding = await getBranding();
   } catch {
     // Ignore branding fetch errors.
   }
+
+  console.log('[branding-debug] root layout branding prop', branding)
 
   return (
     <html lang="en" suppressHydrationWarning>

@@ -13,6 +13,7 @@ interface SearchableComboboxProps {
   onValueChange: (value: string) => void;
   placeholder?: string;
   emptyText?: string;
+  createNewLabel?: string;
   name?: string;
   required?: boolean;
 }
@@ -23,6 +24,7 @@ export function SearchableCombobox({
   onValueChange,
   placeholder = 'Search...',
   emptyText = 'No results found',
+  createNewLabel,
   name,
   required
 }: SearchableComboboxProps) {
@@ -39,6 +41,18 @@ export function SearchableCombobox({
   const filteredOptions = options.filter((option) =>
     option.label.toLowerCase().includes(search.toLowerCase())
   );
+
+  const exactMatch = options.find(
+    (option) => option.label.toLowerCase() === search.toLowerCase()
+  );
+
+  const showCreateNew = createNewLabel
+    ? search.trim().length > 0 && !exactMatch
+    : false;
+
+  const allOptions = showCreateNew
+    ? [...filteredOptions, { value: search.trim(), label: `${createNewLabel}${search.trim()}` }]
+    : filteredOptions;
 
   useEffect(() => {
     if (!open) {
@@ -87,7 +101,7 @@ export function SearchableCombobox({
     // Delay to allow click events on options to fire first
     setTimeout(() => {
       if (open) {
-        const exactMatch = filteredOptions.find(
+        const exactMatch = allOptions.find(
           (option) => option.label.toLowerCase() === search.toLowerCase()
         );
         if (exactMatch) {
@@ -125,21 +139,21 @@ export function SearchableCombobox({
       case 'ArrowDown':
         event.preventDefault();
         setHighlightedIndex((prev) => {
-          const next = prev < filteredOptions.length - 1 ? prev + 1 : 0;
+          const next = prev < allOptions.length - 1 ? prev + 1 : 0;
           return next;
         });
         break;
       case 'ArrowUp':
         event.preventDefault();
         setHighlightedIndex((prev) => {
-          const next = prev > 0 ? prev - 1 : filteredOptions.length - 1;
+          const next = prev > 0 ? prev - 1 : allOptions.length - 1;
           return next;
         });
         break;
       case 'Enter':
         event.preventDefault();
-        if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
-          const selected = filteredOptions[highlightedIndex];
+        if (highlightedIndex >= 0 && highlightedIndex < allOptions.length) {
+          const selected = allOptions[highlightedIndex];
           onValueChange(selected.value);
           setOpen(false);
           setSearch('');
@@ -177,10 +191,10 @@ export function SearchableCombobox({
           ref={listRef}
           className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-white py-1 text-sm shadow-md"
         >
-          {filteredOptions.length === 0 ? (
+          {allOptions.length === 0 ? (
             <li className="px-3 py-2 text-muted-foreground">{emptyText}</li>
           ) : (
-            filteredOptions.map((option, index) => (
+            allOptions.map((option, index) => (
               <li
                 key={option.value}
                 onMouseDown={(event) => {

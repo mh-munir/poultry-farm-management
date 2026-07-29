@@ -35,6 +35,9 @@ export const authConfig = {
               where: { email },
               select: { id: true, name: true, email: true, password: true, role: true, image: true }
             }),
+            'Auth User Lookup by Email',
+            'User',
+            'findUnique',
             30000,
             null
           );
@@ -67,19 +70,35 @@ export const authConfig = {
   ],
   callbacks: {
     async jwt({ token, user }: { token: JWT; user?: User }) {
+      const start = Date.now();
+      const needsRefresh = token.sub && (!token.name || !token.role || token.image === undefined);
+      if (needsRefresh) {
+        console.log('[perf] jwt callback: token missing fields, will query DB', {
+          hasName: !!token.name,
+          hasRole: !!token.role,
+          image: token.image
+        });
+      } else if (token.sub) {
+        console.log('[perf] jwt callback: skipping DB refresh, token complete');
+      }
       if (user) {
         const jwtToken = token as JWT & { image?: string | null };
+        jwtToken.name = user.name ?? jwtToken.name;
         jwtToken.role = user.role ?? 'USER';
         if (typeof user.image !== 'undefined') {
           jwtToken.image = user.image ?? null;
         }
-      } else if (token.sub) {
+      } else if (needsRefresh) {
+        const dbStart = Date.now();
         try {
           const refreshedUser = await dbQuery(
             prisma.user.findUnique({
               where: { id: token.sub },
               select: { name: true, role: true, image: true }
             }),
+            'Auth User Refresh by Token',
+            'User',
+            'findUnique',
             20000,
             null
           );
@@ -90,10 +109,12 @@ export const authConfig = {
             jwtToken.role = refreshedUser.role ?? jwtToken.role;
             jwtToken.image = refreshedUser.image ?? null;
           }
-        } catch {
-          // Ignore refresh failures and keep the existing token data.
+          console.log('[perf] jwt callback: DB query duration', Date.now() - dbStart, 'ms');
+        } catch (err) {
+          console.log('[perf] jwt callback: DB query failed', err);
         }
       }
+      console.log('[perf] jwt callback: total duration', Date.now() - start, 'ms');
       return token;
     },
     async session({ session, token }: { session: Session; token: JWT }) {

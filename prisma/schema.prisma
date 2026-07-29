@@ -63,10 +63,11 @@ model User {
   payments        Payment[]
   products        Product[]
   reports         Report[]
-  expenses         Expense[]     @relation("ExpenseCreatedBy")
+  expenses        Expense[]     @relation("ExpenseCreatedBy")
   sessions        Session[]
   transactions    Transaction[]
   adminCreationOtps AdminCreationOtp[]
+  companiesCreated Company[]    @relation("CompanyCreatedBy")
 }
 
 model VerificationToken {
@@ -105,12 +106,6 @@ model Party {
   taxNumber        String?
   creditLimit      Decimal?
   openingBalance   Decimal           @default(0)
-  feedQuantity     Decimal?
-  feedPrice        Decimal?
-  feedName         String?
-  medicineName     String?
-  medicineQuantity Decimal?
-  medicinePrice    Decimal?
   imageUrl         String?
   mediaName        String?
   farmName         String?
@@ -124,6 +119,28 @@ model Party {
   payments         Payment[]
   smsNotifications SmsNotification[]
   transactions     Transaction[]
+
+  @@index([name])
+}
+
+model Company {
+  id               Int               @id @default(autoincrement())
+  name             String            @unique
+  contactPerson    String?
+  phone            String?
+  email            String?
+  address          String?
+  companyType      String            @default("FEED")
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  createdById      String?
+  createdBy        User?             @relation("CompanyCreatedBy", fields: [createdById], references: [id])
+  products         Product[]
+  transactions     Transaction[]     @relation("CompanyTransactions")
+  payments         Payment[]         @relation("CompanyPayments")
+  ledgerEntries    LedgerEntry[]     @relation("CompanyLedgerEntries")
+  dueAdjustments   DueAdjustment[]
 
   @@index([name])
 }
@@ -148,6 +165,7 @@ model Product {
   productType          String
   unit                 String
   categoryId           Int?
+  companyId            Int?
   defaultPurchasePrice Decimal?
   defaultSellingPrice  Decimal?
   barcode              String?
@@ -159,11 +177,13 @@ model Product {
   createdById          String?
   category             ProductCategory?  @relation(fields: [categoryId], references: [id])
   createdBy            User?             @relation(fields: [createdById], references: [id])
+  company              Company?          @relation(fields: [companyId], references: [id])
   stockBalance         StockBalance?
   stockMovements       StockMovement[]
   transactionItems     TransactionItem[]
 
   @@index([productType, name])
+  @@index([companyId])
 }
 
 model StockBalance {
@@ -194,7 +214,8 @@ model StockMovement {
 model Transaction {
   id               Int                 @id @default(autoincrement())
   transactionType  String
-  partyId          Int
+  partyId          Int?
+  companyId        Int?
   transactionDate  DateTime            @default(now())
   invoiceNumber    String              @unique
   referenceNumber  String?
@@ -216,10 +237,12 @@ model Transaction {
   smsNotifications SmsNotification?
   stockMovements   StockMovement[]
   createdBy        User?               @relation(fields: [createdById], references: [id])
-  party            Party               @relation(fields: [partyId], references: [id])
+  party            Party?              @relation(fields: [partyId], references: [id])
+  company          Company?            @relation("CompanyTransactions", fields: [companyId], references: [id])
   transactionItems TransactionItem[]
 
   @@index([partyId, transactionDate])
+  @@index([companyId, transactionDate])
 }
 
 model TransactionItem {
@@ -260,7 +283,8 @@ model SmsNotification {
 
 model Payment {
   id              Int                 @id @default(autoincrement())
-  partyId         Int
+  partyId         Int?
+  companyId       Int?
   paymentDate     DateTime            @default(now())
   paymentMethod   String
   amount          Decimal
@@ -271,10 +295,12 @@ model Payment {
   createdById     String?
   ledgerEntries   LedgerEntry[]
   createdBy       User?               @relation(fields: [createdById], references: [id])
-  party           Party               @relation(fields: [partyId], references: [id])
+  party           Party?              @relation(fields: [partyId], references: [id])
+  company         Company?            @relation("CompanyPayments", fields: [companyId], references: [id])
   allocations     PaymentAllocation[]
 
   @@index([partyId, paymentDate])
+  @@index([companyId, paymentDate])
 }
 
 model PaymentAllocation {
@@ -293,6 +319,7 @@ model LedgerEntry {
   id              Int          @id @default(autoincrement())
   entryDate       DateTime     @default(now())
   partyId         Int?
+  companyId       Int?
   transactionId   Int?
   paymentId       Int?
   entryType       String
@@ -303,23 +330,30 @@ model LedgerEntry {
   createdById     String?
   createdBy       User?        @relation(fields: [createdById], references: [id])
   party           Party?       @relation(fields: [partyId], references: [id])
+  company         Company?     @relation("CompanyLedgerEntries", fields: [companyId], references: [id])
   payment         Payment?     @relation(fields: [paymentId], references: [id])
   transaction     Transaction? @relation(fields: [transactionId], references: [id])
 
   @@index([partyId, entryDate])
+  @@index([companyId, entryDate])
 }
 
 model DueAdjustment {
   id             Int         @id @default(autoincrement())
   transactionId  Int
-  partyId        Int
+  partyId        Int?
+  companyId      Int?
   adjustmentType String
   amount         Decimal
   reason         String?
   isAuto         Boolean     @default(true)
   createdAt      DateTime    @default(now())
-  party          Party       @relation(fields: [partyId], references: [id])
+  party          Party?      @relation(fields: [partyId], references: [id])
+  company        Company?    @relation(fields: [companyId], references: [id])
   transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([partyId])
+  @@index([companyId])
 }
 
 model Report {

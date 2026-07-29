@@ -492,7 +492,7 @@ export async function getSalesReportData(filters: {
       id: item.id,
       transactionId: t.id,
       date: t.transactionDate,
-      partyName: t.party.name,
+      partyName: t.party?.name ?? 'Unknown',
       productName: item.product.name,
       productType: item.product.productType,
       unit: item.product.unit,
@@ -519,6 +519,7 @@ export async function getPurchasesReportData(filters: {
   dateFrom?: Date;
   dateTo?: Date;
   partyId?: number;
+  companyId?: number;
   productId?: number;
   productType?: string;
 }) {
@@ -535,10 +536,15 @@ export async function getPurchasesReportData(filters: {
     where.partyId = filters.partyId;
   }
 
+  if (filters.companyId) {
+    where.companyId = filters.companyId;
+  }
+
   const transactions = await prisma.transaction.findMany({
     where,
     include: {
       party: { select: { id: true, name: true } },
+      company: { select: { id: true, name: true } },
       transactionItems: {
         include: {
           product: { select: { id: true, name: true, productType: true, unit: true } }
@@ -569,7 +575,7 @@ export async function getPurchasesReportData(filters: {
       id: item.id,
       transactionId: t.id,
       date: t.transactionDate,
-      partyName: t.party.name,
+      partyName: t.party?.name ?? 'Unknown',
       productName: item.product.name,
       productType: item.product.productType,
       unit: item.product.unit,

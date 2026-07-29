@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/server/db'
@@ -53,6 +54,13 @@ export async function POST(request: Request) {
       update: { value, updatedById: session.user.id ?? null },
       create: { key, value, updatedById: session.user.id ?? null }
     });
+
+    if (key === 'branding') {
+      revalidatePath('/');
+      revalidatePath('/dashboard');
+      revalidatePath('/dashboard/settings');
+      revalidatePath('/dashboard/settings/logo');
+    }
 
     return NextResponse.json({ key: upserted.key, value: upserted.value });
   } catch (err: any) {

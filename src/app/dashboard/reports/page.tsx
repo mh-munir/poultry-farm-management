@@ -142,7 +142,7 @@ export default async function ReportsPage() {
         <div className="mt-5 flex flex-wrap gap-3">
           <Button variant="outline">Export PDF</Button>
           <Button variant="outline">Export Excel</Button>
-          <Button variant="outline">Print Reports</Button>
+          <Button variant="outline" onClick={() => window.location.href = '/dashboard/reports/party-statement'}>Print Reports</Button>
         </div>
       </div>
     </main>

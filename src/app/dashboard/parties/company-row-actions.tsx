@@ -1,0 +1,210 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { Eye, MoreHorizontal, Pencil, Printer, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
+import { createOrUpdateCompany, deleteCompany } from '@/features/companies/actions';
+import { useToast } from '@/hooks/use-toast';
+import { getFriendlyServerActionError, handleStaleServerActionError } from '@/lib/server-action-errors';
+
+export type CompanyRowEditPayload = {
+  id: number;
+  name: string;
+  contactPerson: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  companyType: string;
+  isActive: boolean;
+};
+
+type CompanyRowActionsProps = {
+  company: CompanyRowEditPayload;
+  editOnly?: boolean;
+  printHref?: string;
+  editButtonClassName?: string;
+  printButtonClassName?: string;
+};
+
+export function CompanyRowActions({ company, editOnly = false, printHref, editButtonClassName, printButtonClassName }: CompanyRowActionsProps) {
+  const router = useRouter();
+  const { success, error: showToastError } = useToast();
+  const [actionOpen, setActionOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleEditSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSaving(true);
+
+    const formData = new FormData(event.currentTarget);
+
+    try {
+      const result = await createOrUpdateCompany(formData);
+      setIsSaving(false);
+
+      if (result.success) {
+        success(result.message);
+        setEditOpen(false);
+        setActionOpen(false);
+        router.refresh();
+        return;
+      }
+
+      showToastError(result.message);
+    } catch (error) {
+      setIsSaving(false);
+      const staleHandled = handleStaleServerActionError(error, showToastError);
+      if (!staleHandled) {
+        const message = getFriendlyServerActionError(error);
+        showToastError(message);
+      }
+    }
+  };
+
+  const handleDeleteSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const confirmed = window.confirm(`Delete ${company.name}? This will remove related transactions and payments.`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+    try {
+      const result = await deleteCompany(Number(formData.get('companyId')));
+
+      if (result.success) {
+        success(result.message);
+        setActionOpen(false);
+        router.refresh();
+      } else {
+        showToastError(result.message);
+      }
+    } catch (error) {
+      const staleHandled = handleStaleServerActionError(error, showToastError);
+      if (!staleHandled) {
+        const message = getFriendlyServerActionError(error);
+        showToastError(message);
+      }
+    }
+  };
+
+  return (
+    <div className="inline-flex justify-end">
+      {editOnly ? (
+        <div className="inline-flex items-center gap-2">
+          <Button type="button" size="sm" onClick={() => setEditOpen(true)} className={editButtonClassName}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit Company
+          </Button>
+{printHref ? (
+          <Button asChild size="sm" className={printButtonClassName}>
+            <a href={printHref} target="_blank" rel="noreferrer">
+              <Printer className="mr-2 h-4 w-4" />
+              Print
+            </a>
+          </Button>
+        ) : null}
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setActionOpen(true)}
+          aria-label={`Actions for ${company.name}`}
+          className="h-9 w-9 p-0"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      )}
+
+      {!editOnly ? (
+        <Dialog open={actionOpen} onOpenChange={setActionOpen} title="Company Actions">
+          <div className="grid gap-3">
+            <Link
+              href={`/dashboard/companies/${company.id}` as any}
+              className="flex w-full items-center gap-2 rounded-md border px-4 py-3 text-left text-sm font-medium hover:bg-muted"
+              onClick={() => setActionOpen(false)}
+            >
+              <Eye className="h-4 w-4" />
+              Profile
+            </Link>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-md border px-4 py-3 text-left text-sm font-medium hover:bg-muted"
+              onClick={() => {
+                setEditOpen(true);
+                setActionOpen(false);
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </button>
+            <form onSubmit={handleDeleteSubmit}>
+              <input type="hidden" name="companyId" value={company.id} />
+              <button
+                type="submit"
+                className="flex w-full items-center gap-2 rounded-md border border-red-200 px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </button>
+            </form>
+          </div>
+        </Dialog>
+      ) : null}
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen} title="Edit Company">
+        <form onSubmit={handleEditSubmit} autoComplete="off" className="grid gap-4 md:grid-cols-2">
+          <input type="hidden" name="id" value={company.id} />
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-medium">Company name</label>
+            <input name="name" required defaultValue={company.name} className="w-full rounded-md border bg-background px-3 py-2" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">Contact person</label>
+            <input name="contactPerson" defaultValue={company.contactPerson ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">Phone</label>
+            <input
+              name="phone"
+              required
+              inputMode="numeric"
+              pattern="[0-9]{11}"
+              maxLength={11}
+              defaultValue={company.phone ?? ''}
+              className="w-full rounded-md border bg-background px-3 py-2"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">Enter exactly 11 numeric digits.</p>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">Email</label>
+            <input type="email" name="email" defaultValue={company.email ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium">Company type</label>
+            <select name="companyType" defaultValue={company.companyType} className="w-full rounded-md border bg-background px-3 py-2">
+              <option value="FEED">Feed Company</option>
+              <option value="MEDICINE">Medicine Company</option>
+              <option value="BOTH">Both</option>
+            </select>
+          </div>
+          <div className="md:col-span-2 flex items-center gap-2 rounded-md border bg-background px-3 py-3">
+            <input id={`isActive-${company.id}`} name="isActive" type="checkbox" defaultChecked={company.isActive} className="h-4 w-4" />
+            <label htmlFor={`isActive-${company.id}`} className="text-sm">Active company</label>
+          </div>
+          <div className="md:col-span-2 flex flex-wrap gap-3">
+            <Button type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Changes'}</Button>
+            <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+          </div>
+        </form>
+      </Dialog>
+    </div>
+  );
+}

@@ -147,7 +147,7 @@ export default function LayoutShell({ children, theme, branding }: { children: R
           </div>
         </header>
 
-        <main className="p-6">{children}</main>
+        <main className="p-6 text-table-body">{children}</main>
       </div>
     </div>
   );

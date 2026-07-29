@@ -5,7 +5,7 @@ export async function POST() {
   cookiesStore.set({
     name: 'purchaseSuccess',
     value: '',
-    path: '/dashboard/stock',
+    path: '/dashboard',
     maxAge: 0,
     sameSite: 'lax'
   });

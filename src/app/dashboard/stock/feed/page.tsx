@@ -10,7 +10,7 @@ export default async function FeedPage() {
     getFeedStockCompanyNames()
   ]);
 
-  const companyNames: ComboboxOption[] = companies.map((company) => ({
+  const companyOptions: ComboboxOption[] = companies.map((company) => ({
     value: company.name,
     label: company.name
   }));
@@ -26,7 +26,7 @@ export default async function FeedPage() {
       salesRate: Number(item.defaultSellingPrice ?? 0),
       productType: item.productType,
       lastTransactionDate: lastTransaction?.transactionDate,
-      companyName: lastTransaction?.party?.name,
+      companyName: lastTransaction?.company?.name ?? lastTransaction?.party?.name,
       paidAmount: Number(lastTransaction?.paidAmount ?? 0),
       dueAmount: Number(lastTransaction?.dueAmount ?? 0)
     };
@@ -44,8 +44,10 @@ export default async function FeedPage() {
         initialItems={initialItems}
         availableProducts={initialItems}
         suppliers={companies}
-        companyNames={companyNames}
+        companyNames={companyOptions}
         useCompanySearch
+        allowCreateCompany
+        createNewLabel="Create new company: "
         addButtonLabel="Add Feed Stock"
         redirectPath="/dashboard/stock/feed"
       />

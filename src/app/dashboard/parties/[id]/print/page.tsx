@@ -141,7 +141,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
             <div className="text-sm text-slate-600 md:text-right">
               <p className="font-semibold text-slate-900">Printed {formatDate(printDate)}</p>
               <p className="mt-1">Statement No: {party.id.toString().padStart(4, '0')}</p>
-              <p className="mt-1">Party Type: {party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'PARTY' ? 'Party Supplier (Eggs & Chicken)' : party.partyType === 'COMPANY' ? 'Company Supplier (Feed & Medicine)' : 'Customer + Party Supplier'}</p>
+              <p className="mt-1">Party Type: {party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'PARTY' ? 'Party Supplier (Eggs & Chicken)' : 'Customer + Party Supplier'}</p>
             </div>
           </div>
 

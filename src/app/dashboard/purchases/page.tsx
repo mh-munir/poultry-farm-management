@@ -57,13 +57,25 @@ export default async function PurchasesPage({
         <div className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><ClipboardList className="h-5 w-5" />New Purchase</div>
           <form action={createPurchaseTransaction} autoComplete="off" className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium">Party / Company</label>
-              <select name="partyId" required className="w-full rounded-md border bg-background px-3 py-2">
-                {suppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                ))}
-              </select>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium">Party (for poultry)</label>
+                <select name="partyId" className="w-full rounded-md border bg-background px-3 py-2">
+                  <option value="">Select party...</option>
+                  {suppliers.parties.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium">Company (for feed/medicine)</label>
+                <select name="companyId" className="w-full rounded-md border bg-background px-3 py-2">
+                  <option value="">Select company...</option>
+                  {suppliers.companies.map((company) => (
+                    <option key={company.id} value={company.id}>{company.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
@@ -133,7 +145,7 @@ export default async function PurchasesPage({
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <div className="font-medium">{purchase.invoiceNumber}</div>
-                      <div className="text-xs text-muted-foreground">{purchase.party.name}</div>
+                      <div className="text-xs text-muted-foreground">{purchase.party?.name ?? 'Unknown'}</div>
                     </div>
                     <div className="text-right text-sm">
                       <div>{formatCurrency(purchase.totalAmount)}</div>

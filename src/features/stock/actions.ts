@@ -267,7 +267,8 @@ export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE') {
               transactionDate: true,
               paidAmount: true,
               dueAmount: true,
-              party: { select: { name: true } }
+              party: { select: { name: true } },
+              company: { select: { name: true } }
             }
           }
         },
@@ -393,34 +394,16 @@ export async function createProductForStock(formData: FormData) {
 export async function getFeedStockCompanyNames() {
   await requireUser();
 
-  const transactions = await prisma.transaction.findMany({
-    where: {
-      transactionType: 'PURCHASE',
-      transactionItems: {
-        some: {
-          product: {
-            productType: 'FEED'
-          }
-        }
-      }
-    },
-    include: {
-      party: {
-        select: {
-          id: true,
-          name: true
-        }
-      }
-    },
-    distinct: ['partyId']
+  const companies = await prisma.company.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' }
   });
 
-  return transactions
-    .map((tx) => ({
-      id: tx.party.id,
-      name: tx.party.name
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  return companies.map((c) => ({
+    id: c.id,
+    name: c.name
+  }));
 }
 
 export async function getMedicineStockCompanyNames() {
@@ -438,20 +421,21 @@ export async function getMedicineStockCompanyNames() {
       }
     },
     include: {
-      party: {
+      company: {
         select: {
           id: true,
           name: true
         }
       }
     },
-    distinct: ['partyId']
+    distinct: ['companyId']
   });
 
   return transactions
     .map((tx) => ({
-      id: tx.party.id,
-      name: tx.party.name
+      id: tx.company?.id ?? 0,
+      name: tx.company?.name ?? 'Unknown'
     }))
+    .filter((item) => item.name !== 'Unknown')
     .sort((a, b) => a.name.localeCompare(b.name));
 }

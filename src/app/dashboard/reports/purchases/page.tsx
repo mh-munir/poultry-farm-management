@@ -32,13 +32,26 @@ export default async function PurchasesReportPage({
   const dateFrom = params?.from ? new Date(params.from + 'T00:00:00') : undefined;
   const dateTo = params?.to ? new Date(params.to + 'T00:00:00') : undefined;
   const partyId = params?.party ? Number(params.party) : undefined;
+  let partyFilter: { partyId?: number; companyId?: number } = {};
+  if (params?.party) {
+    if (params.party.startsWith('party-')) {
+      partyFilter.partyId = Number(params.party.replace('party-', ''));
+    } else if (params.party.startsWith('company-')) {
+      partyFilter.companyId = Number(params.party.replace('company-', ''));
+    }
+  }
   const productId = params?.product ? Number(params.product) : undefined;
   const productType = params?.type || undefined;
 
-  const [reportData, parties, products] = await Promise.all([
-    getPurchasesReportData({ dateFrom, dateTo, partyId, productId, productType }),
+  const [reportData, parties, companies, products] = await Promise.all([
+    getPurchasesReportData({ dateFrom, dateTo, partyId: partyFilter.partyId, companyId: partyFilter.companyId, productId, productType }),
     prisma.party.findMany({
-      where: { partyType: { in: ['PARTY', 'COMPANY', 'BOTH'] } },
+      where: { partyType: { in: ['PARTY', 'BOTH'] } },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true }
+    }),
+    prisma.company.findMany({
+      where: { isActive: true },
       orderBy: { name: 'asc' },
       select: { id: true, name: true }
     }),
@@ -77,7 +90,10 @@ export default async function PurchasesReportPage({
               <select name="party" defaultValue={params?.party || ''} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
                 <option value="">All parties / companies</option>
                 {parties.map((party) => (
-                  <option key={party.id} value={party.id}>{party.name}</option>
+                  <option key={`party-${party.id}`} value={`party-${party.id}`}>{party.name} (Party)</option>
+                ))}
+                {companies.map((company) => (
+                  <option key={`company-${company.id}`} value={`company-${company.id}`}>{company.name} (Company)</option>
                 ))}
               </select>
             </div>
