@@ -20,12 +20,6 @@ async function loadScript(url: string) {
 async function exportPdf(element: HTMLElement, fileName = 'invoice.pdf') {
   if (typeof window === 'undefined') throw new Error('Must run in browser')
 
-  // Prefer already-installed packages on node_modules (if present at runtime).
-  // But avoid static imports so bundlers won't fail when packages are missing.
-  // Try to use global variables if available, otherwise load from CDN.
-
-  // html2canvas
-  // @ts-ignore
   let html2canvasFn: any = (window as any).html2canvas
   if (!html2canvasFn) {
     try {
@@ -84,104 +78,132 @@ export default function Invoice(props: InvoiceProps) {
   const total = subTotal + tax
   const [loadingPdf, setLoadingPdf] = React.useState(false)
   const { toast: showToast, success: showSuccess, error: showError, info: showInfo } = useToast()
-
   return (
-    <div className="invoice-print-area max-w-3xl mx-auto border p-6 bg-white print:p-0 print:border-0">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-20 h-20 bg-transparent flex items-center justify-center rounded overflow-hidden">
-            {company?.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={company.logo} alt={company.name ?? 'Logo'} className="h-full w-full object-contain" />
-            ) : (
-              <div className="w-12 h-12 bg-gray-100 flex items-center justify-center rounded">
-                <svg className="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v4a1 1 0 001 1h3l3 3h6" />
-                </svg>
+    <div className="invoice-print-area max-w-3xl mx-auto bg-white print:bg-white">
+      <div className="shadow-sm border rounded-md overflow-hidden">
+        <header className="flex items-center justify-between bg-white p-6">
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-20 flex items-center justify-center overflow-hidden rounded">
+              {company?.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={company.logo} alt={company.name ?? 'Logo'} className="h-full w-full object-contain" />
+              ) : (
+                <div className="w-12 h-12 bg-gray-100 flex items-center justify-center rounded">
+                  <svg className="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v4a1 1 0 001 1h3l3 3h6" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="text-sm text-slate-600 font-semibold">{company?.name ?? 'Brand Name'}</div>
+              <div className="text-xs text-slate-400">{(company as any)?.tagline ?? 'Tagline space here'}</div>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <div className="text-4xl font-extrabold tracking-wide text-slate-900">INVOICE</div>
+            <div className="mt-2 text-sm text-slate-500">Invoice #{invoiceNumber}</div>
+            <div className="text-sm text-slate-500">Date: {date}</div>
+          </div>
+        </header>
+
+        <div className="h-3 bg-yellow-400" />
+
+        <main className="p-6">
+          <div className="grid grid-cols-2 gap-6 mb-6">
+            <div>
+              <div className="text-xs text-slate-500">Invoice to:</div>
+              <div className="font-medium text-slate-900 text-lg">{billedTo}</div>
+              {address && <div className="mt-1 text-sm text-slate-600">{address}</div>}
+            </div>
+
+            <div className="text-right">
+              <div className="text-xs text-slate-500">Invoice #</div>
+              <div className="font-medium text-slate-900">{invoiceNumber}</div>
+              <div className="mt-2 text-xs text-slate-500">Date</div>
+              <div className="font-medium text-slate-900">{date}</div>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-md border">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-900 text-white">
+                <tr>
+                  <th className="px-4 py-3 text-left">SL.</th>
+                  <th className="px-4 py-3 text-left">Item Description</th>
+                  <th className="px-4 py-3 text-right">Price</th>
+                  <th className="px-4 py-3 text-center">Qty</th>
+                  <th className="px-4 py-3 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-slate-200">
+                {items.map((it, idx) => (
+                  <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                    <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
+                    <td className="px-4 py-3 text-slate-700">{it.description}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">৳{it.price.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-center text-slate-700">{it.qty}</td>
+                    <td className="px-4 py-3 text-right font-medium text-slate-900">৳{(it.price * it.qty).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <div className="w-80">
+              <div className="flex justify-between text-sm text-slate-600"><div>Sub Total:</div><div>৳{subTotal.toFixed(2)}</div></div>
+              <div className="flex justify-between text-sm text-slate-600 mt-1"><div>Tax:</div><div>৳{tax.toFixed(2)}</div></div>
+              <div className="mt-3 flex items-center justify-between bg-yellow-400 px-4 py-3">
+                <div className="text-sm font-semibold text-slate-900">Total:</div>
+                <div className="text-xl font-extrabold text-slate-900">৳{total.toFixed(2)}</div>
               </div>
-            )}
+            </div>
           </div>
-          <div>
-            <div className="text-sm text-gray-500">{company?.name ?? 'Brand Name'}</div>
-            <div className="text-xs text-gray-400">Tagline goes here</div>
+
+          <div className="mt-8 grid grid-cols-2 gap-6 text-sm text-slate-600">
+            <div>
+              <div className="font-semibold text-slate-800 mb-2">Terms & Conditions</div>
+              <div>Payment due within 15 days. Late payments may be subject to fees.</div>
+            </div>
+            <div>
+              <div className="font-semibold text-slate-800 mb-2">Payment Info</div>
+              <div>Account #: 1234 5678 9012</div>
+              <div>Bank: Example Bank</div>
+            </div>
           </div>
-        </div>
+        </main>
 
-        <div className="text-right">
-          <div className="text-2xl font-semibold">INVOICE</div>
-          <div className="text-sm text-gray-500">Invoice #{invoiceNumber}</div>
-          <div className="text-sm text-gray-500">Date: {date}</div>
-        </div>
+        <footer className="p-6 bg-white border-t text-sm text-slate-500 flex items-center justify-between">
+          <div>Phone: {company?.phone ?? '—'} | Address: {company?.address ?? '—'} | {company?.website ?? ''}</div>
+          <div className="text-right">
+            <div className="font-semibold text-slate-800">Authorized Sign</div>
+            <div className="mt-4 h-8 w-48 border-b border-slate-300" />
+          </div>
+        </footer>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div>
-          <div className="text-xs text-gray-500">Invoice to:</div>
-          <div className="font-medium">{billedTo}</div>
-          {address && <div className="text-sm text-gray-600">{address}</div>}
-        </div>
-
-        <div className="text-right">
-          <div className="text-xs text-gray-500">Payment Info</div>
-          <div className="text-sm text-gray-600">Bank: 0123456789</div>
-          <div className="text-sm text-gray-600">IBAN: XX00 0000 0000</div>
-        </div>
-      </div>
-
-      <table className="w-full border-collapse mb-6">
-        <thead>
-          <tr className="bg-gray-50">
-            <th className="text-left py-3 px-2 text-xs text-gray-600">SL.</th>
-            <th className="text-left py-3 px-2 text-xs text-gray-600">Item Description</th>
-            <th className="text-right py-3 px-2 text-xs text-gray-600">Price</th>
-            <th className="text-center py-3 px-2 text-xs text-gray-600">Qty.</th>
-            <th className="text-right py-3 px-2 text-xs text-gray-600">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((it, idx) => (
-            <tr key={it.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-              <td className="py-3 px-2 text-sm text-gray-700">{idx + 1}</td>
-              <td className="py-3 px-2 text-sm text-gray-700">{it.description}</td>
-              <td className="py-3 px-2 text-sm text-gray-700 text-right">${it.price.toFixed(2)}</td>
-              <td className="py-3 px-2 text-sm text-gray-700 text-center">{it.qty}</td>
-              <td className="py-3 px-2 text-sm text-gray-700 text-right">${(it.price * it.qty).toFixed(2)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <div className="flex justify-end mb-6">
-        <div className="w-72">
-          <div className="flex justify-between text-sm text-gray-600"><div>Sub Total:</div><div>${subTotal.toFixed(2)}</div></div>
-          <div className="flex justify-between text-sm text-gray-600"><div>Tax:</div><div>${tax.toFixed(2)}</div></div>
-          <div className="flex justify-between text-lg font-semibold mt-2"><div>Total:</div><div>${total.toFixed(2)}</div></div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between mt-6">
-        <div className="text-sm text-gray-500">Thank you for your business</div>
-        <div className="flex items-center gap-3">
-          <PrintButton />
-          <Button variant="outline" onClick={async () => {
-            const el = document.querySelector('.invoice-print-area') as HTMLElement | null;
-            if (!el) return;
-            const id = showInfo('Preparing PDF...')
-            try {
-              setLoadingPdf(true)
-              await exportPdf(el, `invoice-${invoiceNumber}.pdf`)
-              showSuccess('PDF saved')
-            } catch (err: any) {
-              // eslint-disable-next-line no-console
-              console.error('PDF export failed', err)
-              showError(err?.message ?? 'Failed to export PDF')
-            } finally {
-              setLoadingPdf(false)
-            }
-          }} disabled={loadingPdf}>
-            {loadingPdf ? 'Preparing PDF...' : 'Download PDF'}
-          </Button>
-        </div>
+      <div className="mt-4 flex items-center justify-end gap-3 no-print">
+        <PrintButton />
+        <Button variant="outline" onClick={async () => {
+          const el = document.querySelector('.invoice-print-area') as HTMLElement | null;
+          if (!el) return;
+          const id = showInfo('Preparing PDF...')
+          try {
+            setLoadingPdf(true)
+            await exportPdf(el, `invoice-${invoiceNumber}.pdf`)
+            showSuccess('PDF saved')
+          } catch (err: any) {
+            // eslint-disable-next-line no-console
+            console.error('PDF export failed', err)
+            showError(err?.message ?? 'Failed to export PDF')
+          } finally {
+            setLoadingPdf(false)
+          }
+        }} disabled={loadingPdf}>
+          {loadingPdf ? 'Preparing PDF...' : 'Download PDF'}
+        </Button>
       </div>
     </div>
   )

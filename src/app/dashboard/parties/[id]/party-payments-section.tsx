@@ -86,12 +86,12 @@ export function PartyPaymentsSection({
         }} className="mt-6 grid gap-4 rounded-xl border bg-background p-4 md:grid-cols-2">
         <input type="hidden" name="partyId" value={partyId} />
         <div>
-          <label className="mb-2 block text-sm font-medium">Amount</label>
-          <input type="number" min="0.01" step="0.01" name="amount" required className="w-full rounded-md border bg-background px-3 py-2" placeholder="Enter amount" />
+          <label className="mb-2 block text-form-label">Amount</label>
+          <input type="number" min="0.01" step="0.01" name="amount" required className="w-full rounded-lg border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" placeholder="Enter amount" />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium">Payment method</label>
-          <select name="paymentMethod" required className="w-full rounded-md border bg-background px-3 py-2">
+          <label className="mb-2 block text-form-label">Payment method</label>
+          <select name="paymentMethod" required className="w-full rounded-lg border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
             <option value="Cash">Cash</option>
             <option value="Bank">Bank</option>
             <option value="Mobile">Mobile</option>
@@ -99,30 +99,30 @@ export function PartyPaymentsSection({
           </select>
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium">Reference number</label>
-          <input name="referenceNumber" className="w-full rounded-md border bg-background px-3 py-2" placeholder="Optional" />
+          <label className="mb-2 block text-form-label">Reference number</label>
+          <input name="referenceNumber" className="w-full rounded-lg border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" placeholder="Optional" />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium">Status</label>
-          <select name="status" defaultValue="COMPLETED" className="w-full rounded-md border bg-background px-3 py-2">
+          <label className="mb-2 block text-form-label">Status</label>
+          <select name="status" defaultValue="COMPLETED" className="w-full rounded-lg border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
             <option value="COMPLETED">Completed</option>
             <option value="PENDING">Pending</option>
             <option value="CANCELLED">Cancelled</option>
           </select>
         </div>
         <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium">Notes</label>
-          <textarea name="notes" rows={3} className="w-full rounded-md border bg-background px-3 py-2" placeholder="Optional notes" />
+          <label className="mb-2 block text-form-label">Notes</label>
+          <textarea name="notes" rows={3} className="w-full rounded-lg border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" placeholder="Optional notes" />
         </div>
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 flex flex-wrap items-center gap-3">
           <Button type="submit">Save payment</Button>
         </div>
         </form>
       )}
 
-      <div className="mt-6 overflow-hidden rounded-xl border">
+      <div className="mt-6 overflow-hidden rounded-xl border bg-card">
         <div className="bg-muted/40 px-4 py-3 text-sm font-semibold">Payments</div>
-        <table className="min-w-full text-sm">
+        <table className="min-w-full text-table-body">
           <thead className="bg-muted/20 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Date</th>
@@ -147,7 +147,7 @@ export function PartyPaymentsSection({
                           <input type="hidden" name="partyId" value={partyId} />
                           <input type="hidden" name="paymentId" value={payment.id} />
                           <div>
-                            <label className="mb-1 block text-xs font-medium">Amount</label>
+                            <label className="mb-1 block text-form-label">Amount</label>
                             <input
                               type="number"
                               min="0.01"
@@ -156,16 +156,16 @@ export function PartyPaymentsSection({
                               required
                               value={drafts[payment.id]?.amount ?? payment.amount}
                               onChange={(event) => handleDraftChange(payment.id, 'amount', event.target.value)}
-                              className="w-full rounded-md border bg-background px-3 py-2"
+                              className="w-full rounded-lg border bg-background px-3 py-2 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                             />
                           </div>
                           <div>
-                            <label className="mb-1 block text-xs font-medium">Method</label>
+                            <label className="mb-1 block text-form-label">Method</label>
                             <select
                               name="paymentMethod"
                               value={drafts[payment.id]?.paymentMethod ?? payment.paymentMethod}
                               onChange={(event) => handleDraftChange(payment.id, 'paymentMethod', event.target.value)}
-                              className="w-full rounded-md border bg-background px-3 py-2"
+                              className="w-full rounded-lg border bg-background px-3 py-2 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                             >
                               <option value="Cash">Cash</option>
                               <option value="Bank">Bank</option>
@@ -174,21 +174,21 @@ export function PartyPaymentsSection({
                             </select>
                           </div>
                           <div>
-                            <label className="mb-1 block text-xs font-medium">Reference</label>
+                            <label className="mb-1 block text-form-label">Reference</label>
                             <input
                               name="referenceNumber"
                               value={drafts[payment.id]?.referenceNumber ?? ''}
                               onChange={(event) => handleDraftChange(payment.id, 'referenceNumber', event.target.value)}
-                              className="w-full rounded-md border bg-background px-3 py-2"
+                              className="w-full rounded-lg border bg-background px-3 py-2 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                             />
                           </div>
                           <div>
-                            <label className="mb-1 block text-xs font-medium">Status</label>
+                            <label className="mb-1 block text-form-label">Status</label>
                             <select
                               name="status"
                               value={drafts[payment.id]?.status ?? payment.status}
                               onChange={(event) => handleDraftChange(payment.id, 'status', event.target.value)}
-                              className="w-full rounded-md border bg-background px-3 py-2"
+                              className="w-full rounded-lg border bg-background px-3 py-2 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                             >
                               <option value="COMPLETED">Completed</option>
                               <option value="PENDING">Pending</option>
@@ -196,13 +196,13 @@ export function PartyPaymentsSection({
                             </select>
                           </div>
                           <div className="md:col-span-2">
-                            <label className="mb-1 block text-xs font-medium">Notes</label>
+                            <label className="mb-1 block text-form-label">Notes</label>
                             <textarea
                               name="notes"
                               rows={3}
                               value={drafts[payment.id]?.notes ?? ''}
                               onChange={(event) => handleDraftChange(payment.id, 'notes', event.target.value)}
-                              className="w-full rounded-md border bg-background px-3 py-2"
+                              className="w-full rounded-lg border bg-background px-3 py-2 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                             />
                           </div>
                           <div className="md:col-span-2 flex gap-2">

@@ -37,10 +37,15 @@ export default {
         }
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)'
-      }
+        xs: '4px',
+        sm: '8px',
+        DEFAULT: '12px',
+        md: '12px',
+        lg: '16px',
+        xl: '20px',
+        '2xl': '24px',
+        full: '9999px'
+      },
     }
   },
   plugins: []

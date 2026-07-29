@@ -12,9 +12,9 @@ function buildReceiptMarkup(title: string, exportData: string) {
 
   return `
     <html>
-      <head><title>${title} Receipt</title></head>
+      <head><title>${title} Profile</title></head>
       <body style="font-family: Arial, sans-serif; padding: 24px; color: #111;">
-        <h2 style="margin-bottom: 12px;">${title} Receipt</h2>
+        <h2 style="margin-bottom: 12px;">${title} Profile</h2>
         <div style="border: 1px solid #d1d5db; padding: 16px; border-radius: 8px; background: #fff;">
           <div style="white-space: pre-wrap; line-height: 1.6;">${content}</div>
         </div>
@@ -23,12 +23,12 @@ function buildReceiptMarkup(title: string, exportData: string) {
   `;
 }
 
-type PartyProfileActionsProps = {
-  partyName: string;
+type CompanyProfileActionsProps = {
+  companyName: string;
   exportData: string;
 };
 
-export function PartyProfileActions({ partyName, exportData }: PartyProfileActionsProps) {
+export function CompanyProfileActions({ companyName, exportData }: CompanyProfileActionsProps) {
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = () => {
@@ -37,7 +37,7 @@ export function PartyProfileActions({ partyName, exportData }: PartyProfileActio
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${partyName.replace(/\s+/g, '-').toLowerCase()}-profile.csv`;
+    link.download = `${companyName.replace(/\s+/g, '-').toLowerCase()}-profile.csv`;
     link.click();
     URL.revokeObjectURL(url);
     setIsExporting(false);
@@ -46,7 +46,7 @@ export function PartyProfileActions({ partyName, exportData }: PartyProfileActio
   const handlePrint = () => {
     const printWindow = window.open('', '_blank', 'width=900,height=700');
     if (!printWindow) return;
-    printWindow.document.write(buildReceiptMarkup(partyName, exportData));
+    printWindow.document.write(buildReceiptMarkup(companyName, exportData));
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();

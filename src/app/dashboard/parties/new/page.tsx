@@ -54,7 +54,6 @@ export default async function NewPartyPage() {
             <select name="partyType" defaultValue="BOTH" className="w-full rounded-md border bg-background px-3 py-2">
               <option value="CUSTOMER">Customer</option>
               <option value="PARTY">Party Supplier (Eggs & Chicken)</option>
-              <option value="COMPANY">Company Supplier (Feed & Medicine)</option>
               <option value="BOTH">Customer + Party Supplier</option>
             </select>
           </div>
@@ -73,26 +72,6 @@ export default async function NewPartyPage() {
           <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-3">
             <input id="isActive" name="isActive" type="checkbox" defaultChecked className="h-4 w-4" />
             <label htmlFor="isActive" className="text-sm">Active party</label>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Feed quantity</label>
-            <input type="number" step="0.01" min="0" name="feedQuantity" className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Feed price</label>
-            <input type="number" step="0.01" min="0" name="feedPrice" className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Feed name</label>
-            <input name="feedName" className="w-full rounded-md border bg-background px-3 py-2" placeholder="Feed name" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Medicine quantity</label>
-            <input type="number" step="0.01" min="0" name="medicineQuantity" className="w-full rounded-md border bg-background px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Medicine price</label>
-            <input type="number" step="0.01" min="0" name="medicinePrice" className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Party image</label>

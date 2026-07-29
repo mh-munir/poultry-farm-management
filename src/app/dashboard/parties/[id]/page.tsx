@@ -1,4 +1,3 @@
-import { MapPin, Package2, Phone, ReceiptText, Wallet2, Users } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
@@ -6,10 +5,10 @@ import { deletePaymentForParty, getPartyAccountSummary, recordPaymentForParty, u
 import { getCustomersForSales, getProductsForSales } from '@/features/sales/actions';
 import { getProductsForPurchases } from '@/features/purchases/actions';
 import PaymentFormDialog from './payment-form-dialog';
-import { PartyPaymentsSection } from './party-payments-section';
 import { PartyRowActions } from '../party-row-actions';
 import { SalesEntryPopup } from '@/components/dashboard/sales-entry-popup';
 import { PartyProductsDialog } from '@/components/dashboard/party-products-dialog';
+import { TransactionTabs } from './transaction-tabs';
 import ToastRedirect from '../toast-redirect';
 
 type PartyProfileRecord = {
@@ -22,11 +21,6 @@ type PartyProfileRecord = {
   taxNumber: string | null;
   creditLimit: { toString(): string } | null;
   openingBalance: { toString(): string };
-  feedQuantity: { toString(): string } | null;
-  feedPrice: { toString(): string } | null;
-  feedName: string | null;
-  medicineQuantity: { toString(): string } | null;
-  medicinePrice: { toString(): string } | null;
   imageUrl: string | null;
   mediaName: string | null;
   farmName: string | null;
@@ -68,6 +62,16 @@ type PartyPaymentRecord = {
   notes: string | null;
 };
 
+type LedgerEntryRecord = {
+  id: number;
+  entryDate: Date;
+  entryType: string;
+  amount: { toString(): string };
+  runningBalance: { toString(): string };
+  description: string | null;
+  referenceNumber: string | null;
+};
+
 function formatCurrency(value: number | string | { toString(): string } | null | undefined) {
   const number = Number(value?.toString() ?? 0);
   return `৳ ${new Intl.NumberFormat('en-US', {
@@ -104,11 +108,6 @@ export default async function PartyProfilePage({ params, searchParams }: { param
       taxNumber: true,
       creditLimit: true,
       openingBalance: true,
-      feedQuantity: true,
-      feedPrice: true,
-      feedName: true,
-      medicineQuantity: true,
-      medicinePrice: true,
       imageUrl: true,
       mediaName: true,
       farmName: true,
@@ -120,7 +119,7 @@ export default async function PartyProfilePage({ params, searchParams }: { param
 
   if (!party) notFound();
 
-  const [transactions, payments, summary, customers, saleProducts, purchaseProducts] = await Promise.all([
+  const [transactions, payments, ledgerEntries, summary, customers, saleProducts, purchaseProducts] = await Promise.all([
     prisma.transaction.findMany({
       where: { partyId },
       orderBy: { transactionDate: 'desc' },
@@ -164,6 +163,19 @@ export default async function PartyProfilePage({ params, searchParams }: { param
         notes: true
       }
     }) as Promise<PartyPaymentRecord[]>,
+    prisma.ledgerEntry.findMany({
+      where: { partyId },
+      orderBy: { entryDate: 'desc' },
+      select: {
+        id: true,
+        entryDate: true,
+        entryType: true,
+        amount: true,
+        runningBalance: true,
+        description: true,
+        referenceNumber: true
+      }
+    }) as Promise<LedgerEntryRecord[]>,
     getPartyAccountSummary(partyId),
     getCustomersForSales(),
     getProductsForSales(),
@@ -189,6 +201,10 @@ export default async function PartyProfilePage({ params, searchParams }: { param
     defaultSellingPrice: Number(p.defaultSellingPrice ?? 0),
     stockQuantity: Number(p.stockBalance?.quantityOnHand ?? 0)
   }));
+
+  const totalBuy = summary.supplierInvoiced;
+  const totalPaid = summary.supplierPaid;
+  const totalPayable = summary.netSupplierDue;
 
   const isCustomer = party.partyType === 'CUSTOMER' || party.partyType === 'BOTH';
   const isSupplier = party.partyType === 'PARTY' || party.partyType === 'BOTH';
@@ -241,6 +257,10 @@ export default async function PartyProfilePage({ params, searchParams }: { param
         ? 'bg-sky-100 text-sky-700'
         : 'bg-rose-100 text-rose-700';
 
+  const lastPurchaseDate = transactions
+    .filter((t) => t.transactionType === 'PURCHASE')
+    .sort((a, b) => b.transactionDate.getTime() - a.transactionDate.getTime())[0];
+
   const exportCsv = [
     ['Party Profile', party.name],
     ['Phone', party.phone],
@@ -263,293 +283,199 @@ export default async function PartyProfilePage({ params, searchParams }: { param
     ...payments.map((payment) => [formatDate(payment.paymentDate), formatCurrency(payment.amount), payment.paymentMethod, payment.referenceNumber ?? '', payment.status, payment.notes ?? ''])
   ]
     .map((row) => row.join(','))
-    .join('\n');
+     .join('\n');
 
-  const renderProductTable = (
-    title: string,
-    rows: typeof productRows,
-    emptyMessage: string,
-    showMedia: boolean
-  ) => (
-    <div className="mt-6 overflow-hidden rounded-xl border min-w-0">
-      <div className="bg-muted/40 px-4 py-3 text-sm font-semibold">{title}</div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead className="bg-muted/10 text-left text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-medium">Date</th>
-              <th className="px-4 py-3 font-medium">Product</th>
-              <th className="px-4 py-3 font-medium">Type</th>
-              <th className="px-4 py-3 font-medium">Quantity</th>
-              <th className="px-4 py-3 font-medium">Unit</th>
-              <th className="px-4 py-3 font-medium">Unit price</th>
-              <th className="px-4 py-3 font-medium">Line total</th>
-              {showMedia ? <th className="px-4 py-3 font-medium">Media</th> : null}
-              <th className="px-4 py-3 font-medium">Print</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length > 0 ? (
-              rows.map((row) => (
-                <tr key={row.id} className="border-t hover:bg-muted/40 transition-colors">
-                  <td className="px-4 py-3">{formatDate(row.transactionDate)}</td>
-                  <td className="px-4 py-3">{row.productName}</td>
-                  <td className="px-4 py-3">{row.productType}</td>
-                  <td className="px-4 py-3">{row.quantity}</td>
-                  <td className="px-4 py-3">{row.unit}</td>
-                  <td className="px-4 py-3">{formatCurrency(row.unitPrice)}</td>
-                  <td className="px-4 py-3">{formatCurrency(row.lineTotal)}</td>
-                  {showMedia ? <td className="px-4 py-3">{row.mediaName ?? '—'}</td> : null}
-                  <td className="px-4 py-3">
-                    <a href={`/dashboard/sales/${row.id.split('-')[0]}`} className="text-sm text-blue-600 hover:underline">Print</a>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr className="border-t">
-                <td colSpan={showMedia ? 9 : 8} className="px-4 py-6 text-center text-muted-foreground">{emptyMessage}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const partyTypeBadgeClass = party.partyType === 'CUSTOMER'
+   const partyTypeBadgeClass = party.partyType === 'CUSTOMER'
     ? 'bg-sky-100 text-sky-800'
     : party.partyType === 'PARTY'
       ? 'bg-amber-100 text-amber-800'
-      : party.partyType === 'COMPANY'
-        ? 'bg-violet-100 text-violet-800'
-        : 'bg-purple-100 text-purple-800';
+      : 'bg-purple-100 text-purple-800';
 
   return (
-    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
+    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-4 py-6">
       <ToastRedirect initialSuccess={success ?? undefined} initialError={error ?? undefined} />
-      <div className="min-w-0 grid gap-6 lg:grid-cols-[320px_1fr]">
-        <aside className="min-w-0 space-y-6">
-          <div className="rounded-2xl border bg-card p-6 shadow-sm">
-            <div className="flex flex-col items-center text-center">
-              {party.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={party.imageUrl} alt={party.name} className="h-24 w-24 rounded-full border object-cover shadow-md" />
-              ) : (
-                <div className="flex h-24 w-24 items-center justify-center rounded-full border bg-muted text-3xl font-semibold text-muted-foreground">
-                  {party.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <h1 className="mt-4 text-2xl font-semibold leading-tight">{party.name}</h1>
-              <span className={`mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${partyTypeBadgeClass}`}>
-                {party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'PARTY' ? 'Party Supplier' : party.partyType === 'COMPANY' ? 'Company Supplier' : 'Customer + Party Supplier'}
-              </span>
-            </div>
 
-            <div className="mt-6 space-y-3">
-              <div className="flex items-start gap-3 rounded-xl border bg-background p-3">
-                <Phone className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-muted-foreground">Mobile phone</p>
-                  <p className="mt-0.5 truncate text-sm font-semibold">{party.phone ?? '—'}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 rounded-xl border bg-background p-3">
-                <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-muted-foreground">Address</p>
-                  <p className="mt-0.5 truncate text-sm font-semibold">{party.address ?? '—'}</p>
-                </div>
-              </div>
-              {party.farmName ? (
-                <div className="flex items-start gap-3 rounded-xl border bg-background p-3">
-                  <Package2 className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">Farm name</p>
-                    <p className="mt-0.5 truncate text-sm font-semibold">{party.farmName}</p>
-                  </div>
-                </div>
-              ) : null}
-              <div className="flex items-start gap-3 rounded-xl border bg-background p-3">
-                <ReceiptText className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-muted-foreground">Opening balance</p>
-                  <p className="mt-0.5 truncate text-sm font-semibold">{formatCurrency(Number(party.openingBalance ?? 0))}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center gap-2">
-              <PartyRowActions
-                editOnly
-                party={{
-                  id: party.id,
-                  name: party.name,
-                  phone: party.phone ?? '',
-                  email: party.email,
-                  address: party.address,
-                  partyType: party.partyType,
-                  taxNumber: party.taxNumber,
-                  creditLimit: party.creditLimit?.toString() ?? null,
-                  openingBalance: party.openingBalance.toString(),
-                  imageUrl: party.imageUrl,
-                  isActive: party.isActive
-                }}
-                printHref={`/dashboard/parties/${party.id}/print`}
-                editButtonClassName="bg-blue-600 hover:bg-blue-700 text-white"
-                printButtonClassName="bg-slate-600 hover:bg-slate-700 text-white"
-              />
-              {(party.partyType === 'CUSTOMER' || party.partyType === 'BOTH') && (
-                <SalesEntryPopup
-                  partyOptions={customersForSales}
-                  productOptions={saleProductsForSales}
-                  defaultPartyId={party.id}
-                  defaultPartyName={party.name}
-                  buttonClassName="bg-violet-600 hover:bg-violet-700 text-white"
-                  buttonChildren="📊 Sales Entry"
-                />
-              )}
-              {(party.partyType === 'PARTY' || party.partyType === 'COMPANY' || party.partyType === 'BOTH') && (
-                <PartyProductsDialog
-                  partyId={party.id}
-                  partyName={party.name}
-                />
-              )}
-              {showPaySupplierButton ? (
-                <PaymentFormDialog
-                  partyId={party.id}
-                  partyName={party.name}
-                  title="Pay Party Supplier"
-                  buttonLabel="Pay Party Supplier"
-                  dueLabel="Current payable amount"
-                  dueAmount={Number(summary.netSupplierDue ?? 0)}
-                  toastSuccessMessage="Party supplier payment recorded successfully"
-                  recordPaymentForParty={recordPaymentForParty}
-                  buttonClassName="bg-orange-600 hover:bg-orange-700 text-white"
-                />
-              ) : null}
-              {showCustomerPaymentButton ? (
-                <PaymentFormDialog
-                  partyId={party.id}
-                  partyName={party.name}
-                  title="Customer Payment"
-                  buttonLabel="Customer Payment"
-                  dueLabel="Current receivable amount"
-                  dueAmount={Number(summary.netCustomerDue ?? 0)}
-                  toastSuccessMessage="Customer payment recorded successfully"
-                  recordPaymentForParty={recordPaymentForParty}
-                  buttonClassName="bg-emerald-600 hover:bg-emerald-700 text-white"
-                />
-              ) : null}
-            </div>
+      <div className="mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <a href="/dashboard/parties" className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              Back
+            </a>
+            <h1 className="text-page-title text-slate-950">{party.name}</h1>
+            <span className={`inline-flex items-center rounded-full px-3 py-1 text-badge font-semibold ${partyTypeBadgeClass}`}>
+              {party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'PARTY' ? 'Party Supplier' : 'Customer + Party Supplier'}
+            </span>
+            <span className={`inline-flex items-center rounded-full px-3 py-1 text-badge font-semibold ${party.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+              {party.isActive ? 'Active' : 'Inactive'}
+            </span>
           </div>
-        </aside>
-
-        <div className="min-w-0 space-y-6">
-          <section className="rounded-2xl border bg-card p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold">Financial Overview</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Quick summary of the party account</p>
-              </div>
-              <span className={`rounded-full px-3 py-1 text-sm font-medium ${dueBadgeClass}`}>{dueStatus}</span>
-            </div>
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {isCustomer ? (
-                <>
-                  <div className="rounded-xl border bg-background p-4">
-                    <p className="text-sm text-muted-foreground">Customer sales</p>
-                    <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.customerInvoiced)}</p>
-                  </div>
-                  <div className="rounded-xl border bg-background p-4">
-                    <p className="text-sm text-muted-foreground">Customer paid / adjusted</p>
-                    <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.customerPaid + summary.offsetApplied)}</p>
-                  </div>
-                  <div className="rounded-xl border bg-background p-4">
-                    <p className="text-sm text-muted-foreground">Customer due</p>
-                    <p className="mt-2 text-2xl font-semibold">{formatCurrency(customerDue)}</p>
-                  </div>
-                </>
-              ) : null}
-              {isSupplier ? (
-                <>
-                  <div className="rounded-xl border bg-background p-4">
-                    <p className="text-sm text-muted-foreground">Party supplier supplies</p>
-                    <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.supplierInvoiced)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Party supplier paid</p>
-                    <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.supplierPaid)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Party supplier payable</p>
-                    <p className="mt-2 text-2xl font-semibold">{formatCurrency(supplierPayable)}</p>
-                  </div>
-                </>
-              ) : null}
-            </div>
-          </section>
-
-          {isBoth ? (
-            <section className="rounded-2xl border bg-card p-6 shadow-sm">
-              <h2 className="text-lg font-semibold">Offset Summary</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">Party supplier payable is deducted from customer due</p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                <div className="rounded-xl border bg-background p-4">
-                  <p className="text-sm text-muted-foreground">Offset applied</p>
-                  <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.offsetApplied)}</p>
-                </div>
-                <div className="rounded-xl border bg-background p-4">
-                  <p className="text-sm text-muted-foreground">Net customer due</p>
-                  <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.netCustomerDue)}</p>
-                </div>
-                <div className="rounded-xl border bg-background p-4">
-                    <p className="text-sm text-muted-foreground">Net party supplier payable</p>
-                  <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.netSupplierDue)}</p>
-                </div>
-              </div>
-            </section>
-          ) : null}
-
-          <section>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-semibold">Transaction history</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Separate buy and sale history for this party.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-2 text-sm font-medium">
-                  <Wallet2 className="h-4 w-4" />
-                  {visibleEntryCount} entries
-                </div>
-              </div>
-            </div>
-
-            {showCustomerTable ? renderProductTable('Sale History', customerProductRows, 'No sale history entries available yet.', true) : null}
-            {showSupplierTable ? renderProductTable('Buy History', supplierProductRows, 'No buy history entries available yet.', false) : null}
-
-            <div className="mt-6">
-              <PartyPaymentsSection
-                partyId={party.id}
-                initialPayments={payments.map((payment) => ({
-                  id: payment.id,
-                  amount: payment.amount.toString(),
-                  paymentDate: payment.paymentDate.toISOString(),
-                  paymentMethod: payment.paymentMethod,
-                  referenceNumber: payment.referenceNumber,
-                  status: payment.status,
-                  notes: payment.notes
-                }))}
-                recordPaymentForParty={recordPaymentForParty}
-                updatePaymentForParty={updatePaymentForParty}
-                deletePaymentForParty={deletePaymentForParty}
-                showForm={false}
-                showDeleteButton={false}
-              />
-            </div>
-          </section>
+          <div className="flex items-center gap-2">
+            <a href={`/dashboard/parties/${party.id}/print`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14" rx="2"/></svg>
+              Print
+            </a>
+            <a href={`/dashboard/parties/${party.id}/edit`} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Edit
+            </a>
+          </div>
         </div>
       </div>
+
+      <div className="mb-8 grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] sm:grid-cols-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/><line x1="15" y1="7" x2="15" y2="7"/></svg>
+          </div>
+          <div>
+            <p className="text-form-label text-muted-foreground">Mobile</p>
+            <p className="text-sm font-semibold text-slate-900">{party.phone || '—'}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <div>
+            <p className="text-form-label text-muted-foreground">Address</p>
+            <p className="text-sm font-semibold text-slate-900">{party.address || '—'}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <div>
+            <p className="text-form-label text-muted-foreground">Opening Balance</p>
+            <p className="text-sm font-semibold text-slate-900">{formatCurrency(Number(party.openingBalance ?? 0))}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div>
+            <p className="text-form-label text-muted-foreground">Party Type</p>
+            <p className="text-sm font-semibold text-slate-900">{party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'PARTY' ? 'Party Supplier' : 'Both'}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="text-card-title text-slate-950">Financial Summary</h2>
+          <span className={`rounded-full px-3 py-1 text-badge font-medium ${dueBadgeClass}`}>{dueStatus}</span>
+        </div>
+        <p className="mb-4 text-card-subtitle">Account overview</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              </div>
+              <div>
+                <p className="text-form-label text-muted-foreground">Total Buy</p>
+                <p className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">{formatCurrency(totalBuy)}</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <div>
+                <p className="text-form-label text-muted-foreground">Total Paid</p>
+                <p className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">{formatCurrency(totalPaid)}</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div>
+                <p className="text-form-label text-muted-foreground">Outstanding Payable</p>
+                <p className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">{formatCurrency(totalPayable)}</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div>
+                <p className="text-form-label text-muted-foreground">Last Purchase</p>
+                <p className="mt-1 text-xl font-semibold text-slate-900">{lastPurchaseDate ? formatDate(lastPurchaseDate.transactionDate) : '—'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {isBoth ? (
+        <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <h3 className="text-card-subtitle font-semibold uppercase tracking-wider text-slate-400">Offset Summary</h3>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+              <p className="text-form-label text-muted-foreground">Offset Applied</p>
+              <p className="mt-1 text-lg font-semibold text-slate-900 tabular-nums">{formatCurrency(summary.offsetApplied)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+              <p className="text-form-label text-muted-foreground">Net Customer Due</p>
+              <p className="mt-1 text-lg font-semibold text-slate-900 tabular-nums">{formatCurrency(summary.netCustomerDue)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+              <p className="text-form-label text-muted-foreground">Net Supplier Payable</p>
+              <p className="mt-1 text-lg font-semibold text-slate-900 tabular-nums">{formatCurrency(summary.netSupplierDue)}</p>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="mb-8">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-card-title text-slate-950">Transaction History</h2>
+            <p className="text-card-subtitle">Buy, payments, and ledger records</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <button type="button" className="rounded-full px-5 py-2.5 text-sm font-semibold transition-all duration-200 bg-primary text-primary-foreground shadow-sm">Buy</button>
+          <button type="button" className="rounded-full px-5 py-2.5 text-sm font-semibold transition-all duration-200 bg-muted text-muted-foreground hover:bg-muted/80">Payments</button>
+          <button type="button" className="rounded-full px-5 py-2.5 text-sm font-semibold transition-all duration-200 bg-muted text-muted-foreground hover:bg-muted/80">Ledger</button>
+        </div>
+      </section>
+
+      <TransactionTabs
+        buyRows={supplierProductRows}
+        payments={payments.map((payment) => ({
+          id: payment.id,
+          amount: payment.amount.toString(),
+          paymentDate: payment.paymentDate.toISOString(),
+          paymentMethod: payment.paymentMethod,
+          referenceNumber: payment.referenceNumber,
+          status: payment.status,
+          notes: payment.notes
+        }))}
+        ledgerEntries={ledgerEntries.map((entry) => ({
+          id: entry.id,
+          entryDate: entry.entryDate,
+          entryType: entry.entryType,
+          amount: entry.amount.toString(),
+          runningBalance: entry.runningBalance.toString(),
+          description: entry.description,
+          referenceNumber: entry.referenceNumber
+        }))}
+        partyId={party.id}
+        recordPaymentForParty={recordPaymentForParty}
+        updatePaymentForParty={updatePaymentForParty}
+        deletePaymentForParty={deletePaymentForParty}
+      />
     </main>
   );
 }

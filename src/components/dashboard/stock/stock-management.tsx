@@ -5,6 +5,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { createPurchaseTransaction } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
+import { Printer } from 'lucide-react';
 
 export interface StockItem {
   id?: number;
@@ -33,7 +34,11 @@ interface StockManagementProps {
   suppliers: PartyOption[];
   companyNames?: ComboboxOption[];
   useCompanySearch?: boolean;
+  allowCreateCompany?: boolean;
+  createNewLabel?: string;
   redirectPath: string;
+  asSection?: boolean;
+  showAddButton?: boolean;
 }
 
 interface StockRow {
@@ -55,7 +60,11 @@ export function StockManagement({
   suppliers,
   companyNames,
   useCompanySearch,
-  redirectPath
+  allowCreateCompany,
+  createNewLabel,
+  redirectPath,
+  asSection = false,
+  showAddButton = true,
 }: StockManagementProps) {
   const [items, setItems] = useState<StockItem[]>(initialItems);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -151,11 +160,11 @@ export function StockManagement({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     if (!partyName.trim()) {
       event.preventDefault();
-      showToastError('Please enter a party name.');
+      showToastError('Please enter a company name.');
       return;
     }
 
-    if (useCompanySearch && companyNames) {
+    if (useCompanySearch && companyNames && !allowCreateCompany) {
       const matchedCompany = companyNames.find(
         (company) => company.label.toLowerCase() === partyName.toLowerCase()
       );
@@ -196,8 +205,13 @@ export function StockManagement({
     }
   };
 
+  const SectionWrapper = asSection ? 'section' : 'main';
+  const sectionClassName = asSection
+    ? 'mx-auto max-w-screen-3xl'
+    : 'mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4';
+
   return (
-    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
+    <SectionWrapper className={sectionClassName}>
       <div className="rounded-2xl border bg-card p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -209,13 +223,15 @@ export function StockManagement({
               <div className="font-medium">Total Stock Value</div>
               <div className="text-primary">{totalStockValue.toLocaleString()} TK</div>
             </div>
-            <button
-              type="button"
-              onClick={openForm}
-              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-            >
-              {addButtonLabel}
-            </button>
+            {showAddButton && (
+              <button
+                type="button"
+                onClick={openForm}
+                className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+              >
+                {addButtonLabel}
+              </button>
+            )}
           </div>
         </div>
 
@@ -223,7 +239,7 @@ export function StockManagement({
           <form action={createPurchaseTransaction} onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium">Party / Company</label>
+                <label className="mb-1 block text-sm font-medium">Company</label>
                 {useCompanySearch && companyNames ? (
                   <SearchableCombobox
                     options={companyNames}
@@ -239,6 +255,7 @@ export function StockManagement({
                     }}
                     placeholder="Search company..."
                     emptyText="No company found"
+                    createNewLabel={allowCreateCompany ? createNewLabel : undefined}
                     name="partyName"
                     required
                   />
@@ -269,6 +286,7 @@ export function StockManagement({
                 )}
                 <input type="hidden" name="partyId" value={partyId} />
                 <input type="hidden" name="newPartyName" value={partyId ? '' : partyName} />
+                <input type="hidden" name="newCompanyName" value={partyName} />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Purchase Date</label>
@@ -538,6 +556,15 @@ export function StockManagement({
                       >
                         Edit
                       </button>
+                      <a
+                        href={`/dashboard/stock/print/${item.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-2 inline-flex items-center gap-1 rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600"
+                      >
+                        <Printer className="h-3 w-3" />
+                        Print
+                      </a>
                     </td>
                   </tr>
                 ))}
@@ -553,6 +580,6 @@ export function StockManagement({
           </div>
         </div>
       </div>
-    </main>
+    </SectionWrapper>
   );
 }

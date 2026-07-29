@@ -9,12 +9,11 @@ import { AddPartyDialog } from '@/app/dashboard/parties/add-party-dialog';
 import { PartyToast } from './party-toast';
 import { PartySearchForm } from './search-form';
 import { PartyRowActions } from './party-row-actions';
-import { PartyProductsDisplay } from './party-products-display';
 import { getPartyNames, getPartyPageData, getPartyStats } from '@/features/parties/actions';
 import { getProductsForSales } from '@/features/sales/actions';
 
-const PARTY_TYPES = ['ALL', 'CUSTOMER', 'PARTY', 'COMPANY', 'BOTH'] as const;
-const STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
+const PARTY_TYPES = ['ALL', 'CUSTOMER', 'PARTY', 'BOTH'] as const;
+const PARTY_STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
 
 function formatCurrency(value: number | string | Decimal | null | undefined) {
   const number = Number(value ?? 0);
@@ -24,7 +23,6 @@ function formatCurrency(value: number | string | Decimal | null | undefined) {
 function formatPartyType(type: string) {
   if (type === 'CUSTOMER') return 'Customer';
   if (type === 'PARTY') return 'Party Supplier (Eggs & Chicken)';
-  if (type === 'COMPANY') return 'Company Supplier (Feed & Medicine)';
   if (type === 'BOTH') return 'Customer + Party Supplier';
   return type.replace('_', ' ');
 }
@@ -49,7 +47,14 @@ function formatLastTransactionDate(date: Date | null | undefined) {
 export default async function PartiesPage({
   searchParams
 }: {
-  searchParams?: Promise<{ page?: string; search?: string; partyType?: string; status?: string; error?: string; success?: string }>;
+  searchParams?: Promise<{
+    page?: string;
+    search?: string;
+    partyType?: string;
+    status?: string;
+    error?: string;
+    success?: string;
+  }>;
 }) {
   await requireUser();
 
@@ -83,10 +88,11 @@ export default async function PartiesPage({
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
-        <div className="mb-6">
-          <h1 className="mt-2 text-3xl font-semibold">Manage customers and parties</h1>
-        </div>
+      <div className="mb-6">
+        <h1 className="mt-2 text-3xl font-semibold">Manage customers and parties</h1>
+      </div>
 
+      {/* Parties Stats */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-4 shadow-sm mb-6">
         <div className="grid gap-4 md:grid-cols-4 flex-1">
           <StatCard title="Total Parties" value={stats.total} icon={Users} accent="bg-indigo-50 text-indigo-600" />
@@ -96,107 +102,102 @@ export default async function PartiesPage({
         </div>
       </div>
 
+      {/* Parties Header */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-6 justify-between">
-          <AddPartyDialog partyOptions={partyOptions} productOptions={productOptions} />
-          <PartySearchForm search={search} partyType={partyType} status={status} />
+        <AddPartyDialog partyOptions={partyOptions} productOptions={productOptions} />
+        <PartySearchForm search={search} partyType={partyType} status={status} />
       </div>
 
       <PartyToast success={success} error={error} />
 
-      {/* All Parties Table with Pagination */}
+      {/* Parties Table */}
       <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         <div className="border-b px-4 py-4 bg-muted/20">
-          <h2 className="text-lg font-semibold">All Parties</h2>
+          <h2 className="text-lg font-semibold">Parties</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-muted/40 text-left">
-              <tr>
-                <th className="px-4 py-3 font-medium">Party Name</th>
-                <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Feed quantity</th>
-                <th className="px-4 py-3 font-medium">Feed price</th>
-                <th className="px-4 py-3 font-medium">Medicine quantity</th>
-                <th className="px-4 py-3 font-medium">Medicine price</th>
-                <th className="px-4 py-3 font-medium">Party Products</th>
-                <th className="px-4 py-3 font-medium">Due</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.parties.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
-                    No parties found. Create your first party to get started.
-                  </td>
-                </tr>
-              ) : (
-                data.parties.map((party) => (
-                  <tr key={party.id} className="border-t">
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col">
-                        <Link
-                          href={`/dashboard/parties/${party.id}`}
-                          className="font-medium text-primary hover:underline"
-                        >
-                          {party.name}
-                        </Link>
-                        {party.lastTransactionDate && (
-                          <span className="text-xs text-muted-foreground">
-                            {formatLastTransactionDate(party.lastTransactionDate)}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        party.partyType === 'CUSTOMER' ? 'bg-sky-100 text-sky-800' :
-                        party.partyType === 'PARTY' ? 'bg-amber-100 text-amber-800' :
-                        party.partyType === 'COMPANY' ? 'bg-violet-100 text-violet-800' :
-                        'bg-purple-100 text-purple-800'
-                      }`}>
-                        {party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'PARTY' ? 'Party Supplier' : party.partyType === 'COMPANY' ? 'Company Supplier' : 'Customer + Party Supplier'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">{party.feedQuantity != null ? party.feedQuantity.toString() : '—'}</td>
-                    <td className="px-4 py-3">{party.feedPrice != null ? formatCurrency(party.feedPrice) : '—'}</td>
-                    <td className="px-4 py-3">{party.medicineQuantity != null ? party.medicineQuantity.toString() : '—'}</td>
-                    <td className="px-4 py-3">{party.medicinePrice != null ? formatCurrency(party.medicinePrice) : '—'}</td>
-                    <td className="px-4 py-3 text-xs">
-                      {party.partyType === 'PARTY' || party.partyType === 'COMPANY' || party.partyType === 'BOTH' ? (
-                        <PartyProductsDisplay partyId={party.id} />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">{formatCurrency(party.totalDue)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${(party.totalDue ?? 0) <= 0 ? 'bg-emerald-50 text-emerald-700' : (party.totalPaid ?? 0) > 0 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
-                        {(party.totalDue ?? 0) <= 0 ? 'Cleared' : (party.totalPaid ?? 0) > 0 ? 'Partial' : 'Pending'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <PartyRowActions
-                        party={{
-                          id: party.id,
-                          name: party.name,
-                          phone: party.phone ?? '',
-                          email: party.email,
-                          address: party.address,
-                          partyType: party.partyType,
-                          taxNumber: party.taxNumber,
-                          creditLimit: party.creditLimit?.toString() ?? null,
-                          openingBalance: party.openingBalance.toString(),
-                          imageUrl: party.imageUrl,
-                          isActive: party.isActive
-                        }}
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
+             <thead className="bg-muted/40 text-left">
+               <tr>
+                 <th className="px-4 py-3 font-medium">Party Name</th>
+                 <th className="px-4 py-3 font-medium">Type</th>
+                 <th className="px-4 py-3 font-medium">Phone</th>
+                 <th className="px-4 py-3 font-medium">Purchase</th>
+                 <th className="px-4 py-3 font-medium">Sales</th>
+                 <th className="px-4 py-3 font-medium">Paid</th>
+                 <th className="px-4 py-3 font-medium">Due</th>
+                 <th className="px-4 py-3 text-right font-medium">Action</th>
+               </tr>
+             </thead>
+             <tbody>
+               {data.parties.length === 0 ? (
+                 <tr>
+                   <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                     No parties found. Create your first party to get started.
+                   </td>
+                 </tr>
+               ) : (
+                 data.parties.map((party) => (
+                   <tr key={party.id} className="border-t">
+                     <td className="px-4 py-3">
+                       <div className="flex flex-col">
+                         <Link
+                           href={`/dashboard/parties/${party.id}`}
+                           className="font-medium text-primary hover:underline"
+                         >
+                           {party.name}
+                         </Link>
+                         {party.lastTransactionDate && (
+                           <span className="text-xs text-muted-foreground">
+                             {formatLastTransactionDate(party.lastTransactionDate)}
+                           </span>
+                         )}
+                       </div>
+                     </td>
+                     <td className="px-4 py-3">
+                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                         party.partyType === 'CUSTOMER' ? 'bg-sky-100 text-sky-800' :
+                         party.partyType === 'PARTY' ? 'bg-amber-100 text-amber-800' :
+                         'bg-purple-100 text-purple-800'
+                       }`}>
+                         {formatPartyType(party.partyType)}
+                       </span>
+                     </td>
+                     <td className="px-4 py-3 text-sm text-slate-600">{party.phone || '—'}</td>
+                     <td className="px-4 py-3 text-sm font-medium text-slate-800">{formatCurrency(party.supplierInvoiced ?? 0)}</td>
+                     <td className="px-4 py-3 text-sm font-medium text-slate-800">{formatCurrency(party.customerInvoiced ?? 0)}</td>
+                     <td className="px-4 py-3 text-sm font-medium text-slate-800">{formatCurrency(party.totalPaid ?? 0)}</td>
+                     <td className="px-4 py-3">{formatCurrency(party.totalDue)}</td>
+                     <td className="px-4 py-3 text-right">
+                       <div className="flex items-center justify-end gap-2">
+                         <Link
+                           href={`/dashboard/parties/${party.id}/print`}
+                           target="_blank"
+                           className="rounded-full bg-muted px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-muted/80"
+                         >
+                           🖨 Print
+                         </Link>
+                         <PartyRowActions
+                           party={{
+                             id: party.id,
+                             name: party.name,
+                             phone: party.phone ?? '',
+                             email: party.email,
+                             address: party.address,
+                             partyType: party.partyType,
+                             taxNumber: party.taxNumber,
+                             creditLimit: party.creditLimit?.toString() ?? null,
+                             openingBalance: party.openingBalance.toString(),
+                             imageUrl: party.imageUrl,
+                             isActive: party.isActive
+                           }}
+                         />
+                       </div>
+                     </td>
+                   </tr>
+                 ))
+               )}
+             </tbody>
           </table>
         </div>
 

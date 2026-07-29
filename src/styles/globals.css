@@ -22,7 +22,11 @@
   --border: 214 32% 91%;
   --input: 214 32% 91%;
   --ring: 142 76% 36%;
-  --radius: 0.75rem;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
 }
 
 .dark {
@@ -48,11 +52,39 @@
 }
 
 body {
-  @apply min-h-screen bg-background text-foreground antialiased;
+  @apply min-h-screen bg-background text-foreground antialiased font-sans;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
   @apply border-border;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply text-foreground;
+}
+
+input, select, textarea {
+  @apply font-sans;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
 }
 
 input[type="number"]::-webkit-outer-spin-button,
@@ -63,4 +95,127 @@ input[type="number"]::-webkit-inner-spin-button {
 
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+@layer components {
+  .text-page-title {
+    @apply text-[30px] font-[700] leading-tight tracking-tight;
+  }
+
+  .text-section-title {
+    @apply text-[22px] font-[600] leading-tight;
+  }
+
+  .text-card-title {
+    @apply text-[16px] font-[600] leading-snug;
+  }
+
+  .text-card-subtitle {
+    @apply text-[13px] font-[400] text-muted-foreground;
+  }
+
+  .text-table-header {
+    @apply text-[14px] font-[600] leading-snug;
+  }
+
+  .text-table-body {
+    @apply text-[14px] font-[500] leading-snug;
+  }
+
+  .text-form-label {
+    @apply text-[13px] font-[500] leading-snug;
+  }
+
+  .text-input {
+    @apply text-[15px] font-[400] leading-snug;
+  }
+
+  .text-button {
+    @apply text-[15px] font-[600] leading-snug;
+  }
+
+  .text-badge {
+    @apply text-[13px] font-[600] leading-snug;
+  }
+
+  .text-sidebar-menu {
+    @apply text-[15px] font-[500] leading-snug;
+  }
+
+  .text-sidebar-group {
+    @apply text-[12px] font-[700] uppercase tracking-[0.08em];
+  }
+}
+
+@layer utilities {
+  .space-system {
+    & > * + * {
+      @apply mt-4;
+    }
+  }
+
+  .space-system-sm {
+    & > * + * {
+      @apply mt-2;
+    }
+  }
+
+  .space-system-lg {
+    & > * + * {
+      @apply mt-6;
+    }
+  }
+
+  .space-system-xl {
+    & > * + * {
+      @apply mt-8;
+    }
+  }
+}
+
+[data-sheet], .financial, .mono {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  body > div {
+    background: white !important;
+  }
+
+  header,
+  .sidebar,
+  .no-print,
+  [class*="md:ml-64"] > header,
+  [class*="md:ml-64"] > div {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  table {
+    break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
 }

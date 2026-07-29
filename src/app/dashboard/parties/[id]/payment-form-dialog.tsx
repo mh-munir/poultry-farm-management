@@ -64,43 +64,43 @@ export default function PaymentFormDialog({
         >
           <input type="hidden" name="partyId" value={String(partyId)} />
           <input type="hidden" name="status" value="COMPLETED" />
-          <div className="md:col-span-2 rounded-2xl border border-border bg-slate-50 p-4">
-            <p className="text-sm font-medium text-muted-foreground">Party</p>
-            <p className="mt-2 text-base font-semibold text-foreground">{partyName}</p>
-            <p className="mt-4 text-sm text-muted-foreground">{dueLabel}</p>
-            <p className="mt-1 text-lg font-semibold">৳ {dueAmount.toFixed(2)}</p>
+           <div className="md:col-span-2 rounded-xl border border-border bg-slate-50 p-4">
+            <p className="text-form-label text-muted-foreground">Party</p>
+            <p className="mt-2 text-[15px] font-semibold text-foreground">{partyName}</p>
+            <p className="mt-3 text-form-label text-muted-foreground">{dueLabel}</p>
+            <p className="mt-1 text-base font-semibold">৳ {dueAmount.toFixed(2)}</p>
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Payment amount</label>
+            <label className="mb-2 block text-form-label">Payment amount</label>
             <input
               type="number"
               min="0.01"
               step="0.01"
               name="amount"
               required
-              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               placeholder="Enter amount"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Payment date</label>
+            <label className="mb-2 block text-form-label">Payment date</label>
             <input
               type="date"
               name="paymentDate"
               required
               defaultValue={new Date().toISOString().slice(0, 10)}
-              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Payment method</label>
+            <label className="mb-2 block text-form-label">Payment method</label>
             <select
               name="paymentMethod"
               required
-              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <option value="Cash">Cash</option>
               <option value="Bank">Bank</option>
@@ -111,20 +111,20 @@ export default function PaymentFormDialog({
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Reference number</label>
+            <label className="mb-2 block text-form-label">Reference number</label>
             <input
               name="referenceNumber"
-              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               placeholder="Optional"
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Notes</label>
+            <label className="mb-2 block text-form-label">Notes</label>
             <textarea
               name="notes"
               rows={3}
-              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               placeholder="Optional notes"
             />
           </div>

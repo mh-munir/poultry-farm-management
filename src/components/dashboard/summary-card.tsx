@@ -27,14 +27,14 @@ export function SummaryCard({
     <Card className={className}>
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-slate-500">{title}</p>
-          <p className={`mt-3 text-2xl font-semibold ${valueColor}`}>{value}</p>
+          <p className="text-card-title text-muted-foreground">{title}</p>
+          <p className={`mt-2 text-card-title ${valueColor}`}>{value}</p>
         </div>
-        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${accent}`}>
-          <Icon className="h-6 w-6" />
+        <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${accent}`}>
+          <Icon className="h-5 w-5" />
         </div>
       </div>
-      <p className={`mt-4 text-sm font-medium ${metricColor}`}>{metric}</p>
+      <p className={`mt-3 text-sm font-medium ${metricColor}`}>{metric}</p>
     </Card>
   );
 }

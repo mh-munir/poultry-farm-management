@@ -1,21 +1,34 @@
 "use client"
 import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import AdminImageUploader from '@/components/admin-image-uploader'
 import { getSetting, saveSetting } from '@/lib/settings'
 import { useToast } from '@/hooks/use-toast'
 
-export default function LogoSettingsClient() {
-  const [logoUrl, setLogoUrl] = useState<string | null>(null)
-  const [faviconUrl, setFaviconUrl] = useState<string | null>(null)
+type BrandingValue = {
+  logo?: string | null;
+  name?: string;
+  favicon?: string | null;
+};
+
+type LogoSettingsClientProps = {
+  initialBranding?: BrandingValue | null;
+};
+
+export default function LogoSettingsClient({ initialBranding }: LogoSettingsClientProps) {
+  const router = useRouter()
+  const [logoUrl, setLogoUrl] = useState<string | null>(initialBranding?.logo ?? null)
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(initialBranding?.favicon ?? null)
   const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null)
   const [pendingFaviconFile, setPendingFaviconFile] = useState<File | null>(null)
-  const [faviconPreview, setFaviconPreview] = useState<string | null>(null)
-  const [name, setName] = useState('')
+  const [faviconPreview, setFaviconPreview] = useState<string | null>(initialBranding?.favicon ?? null)
+  const [name, setName] = useState(initialBranding?.name ?? '')
   const [saving, setSaving] = useState(false)
   const { success: showToastSuccess, error: showToastError } = useToast()
 
   useEffect(() => {
     async function load() {
+      if (initialBranding) return;
       try {
         const value = await getSetting('branding')
         if (value) {
@@ -40,7 +53,7 @@ export default function LogoSettingsClient() {
     }
 
     load()
-  }, [])
+  }, [initialBranding])
 
   useEffect(() => {
     if (faviconUrl) {
@@ -111,6 +124,7 @@ export default function LogoSettingsClient() {
       if (payload.favicon) {
         updateBrowserFavicon(payload.favicon)
       }
+      router.refresh()
     } else {
       showToastError('Failed to save settings.')
       localStorage.setItem('branding', JSON.stringify(payload))

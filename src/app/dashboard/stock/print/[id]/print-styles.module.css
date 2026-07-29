@@ -1,0 +1,55 @@
+.printPage {
+  max-width: 80mm;
+  margin: 0 auto;
+  padding: 20px;
+  background: white;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  .printPage {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  .print\\:bg-white {
+    background: white !important;
+  }
+
+  .print\\:shadow-none {
+    box-shadow: none !important;
+  }
+
+  .print\\:p-0 {
+    padding: 0 !important;
+  }
+
+  .print\\:border-0 {
+    border: none !important;
+  }
+
+  table {
+    break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
+}

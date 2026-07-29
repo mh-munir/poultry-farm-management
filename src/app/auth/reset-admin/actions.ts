@@ -65,6 +65,9 @@ export async function resetAdminPassword(formData: FormData) {
 
     const existingUser = await dbQuery(
       prisma.user.findUnique({ where: { email: parsed.data.email } }),
+      'Reset Admin Find User by Email',
+      'User',
+      'findUnique',
       30000
     );
 
@@ -82,6 +85,9 @@ export async function resetAdminPassword(formData: FormData) {
           password: hashedPassword
         }
       }),
+      'Reset Admin Update User Role',
+      'User',
+      'update',
       30000
     );
 

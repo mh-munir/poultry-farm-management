@@ -13,7 +13,7 @@ interface AlertDialogProps {
   variant?: AlertDialogVariant;
   title: string;
   message: string;
-  autoCloseDuration?: number; // in milliseconds
+  autoCloseDuration?: number;
   onClose?: () => void;
 }
 
@@ -91,11 +91,11 @@ export function AlertDialog({
         if (!newOpen) onClose?.();
       }}
     >
-      <div className="flex flex-col items-center gap-4 py-6">
+      <div className="flex flex-col items-center gap-4 py-4">
         <div className="flex justify-center">{config.icon}</div>
 
         <div className="text-center">
-          <h2 className={`text-xl font-bold ${config.titleClass}`}>{title}</h2>
+          <h3 className={`text-base font-semibold ${config.titleClass}`}>{title}</h3>
           <p className="mt-2 text-sm text-gray-600">{message}</p>
         </div>
 
