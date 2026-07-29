@@ -433,6 +433,7 @@ export default async function DashboardPage() {
           id: true,
           invoiceNumber: true,
           party: { select: { name: true } },
+          company: { select: { name: true } },
           totalAmount: true,
           status: true,
           transactionType: true
