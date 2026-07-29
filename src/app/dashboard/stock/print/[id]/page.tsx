@@ -21,11 +21,12 @@ function formatDate(date: Date) {
 export default async function StockPrintPage({
   params
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   await requireUser();
 
-  const id = Number(params.id);
+  const { id: idStr } = await params;
+  const id = Number(idStr);
 
   if (isNaN(id) || id <= 0) {
     return (
