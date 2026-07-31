@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Plus, ArrowLeft, ClipboardList, Package2 } from 'lucide-react';
+import { Plus, ArrowLeft, ClipboardList, Package2, Printer } from 'lucide-react';
 import type { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';

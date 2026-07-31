@@ -430,9 +430,9 @@ export function SalesEntryPopup({
             ) : null}
           </div>
 
-          <div className="sm:col-span-2 grid gap-4 rounded-xl border bg-muted/10 p-4 text-sm sm:grid-cols-4">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Discount</label>
+          <div className="sm:col-span-2 grid gap-3 sm:grid-cols-4 bg-slate-50 rounded-[20px] p-4 text-sm">
+            <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+              <label className="block text-xs font-medium text-slate-500">Discount</label>
               <input
                 name="discount"
                 autoComplete="off"
@@ -441,15 +441,15 @@ export function SalesEntryPopup({
                 step="any"
                 value={salesDiscount}
                 onChange={(event) => setSalesDiscount(event.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-2"
+                className="mt-2 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-950"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Total Amount</label>
-              <input value={salesNetTotal.toFixed(2)} readOnly className="w-full rounded-md border bg-muted px-3 py-2" />
+            <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+              <label className="block text-xs font-medium text-slate-500">Total Amount</label>
+              <input value={salesNetTotal.toFixed(2)} readOnly className="mt-2 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-950" />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Paid Amount</label>
+            <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+              <label className="block text-xs font-medium text-slate-500">Paid Amount</label>
               <input
                 name="paymentAmount"
                 autoComplete="off"
@@ -458,12 +458,12 @@ export function SalesEntryPopup({
                 step="any"
                 value={salesPaymentAmount}
                 onChange={(event) => setSalesPaymentAmount(event.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-2"
+                className="mt-2 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-950"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Due Amount</label>
-              <input value={salesDueAmount.toFixed(2)} readOnly className="w-full rounded-md border bg-muted px-3 py-2" />
+            <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+              <label className="block text-xs font-medium text-slate-500">Due Amount</label>
+              <input value={salesDueAmount.toFixed(2)} readOnly className="mt-2 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-950" />
             </div>
           </div>
 

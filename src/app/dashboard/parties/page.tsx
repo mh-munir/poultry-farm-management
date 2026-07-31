@@ -149,7 +149,7 @@ export default async function PartiesPage({
                          </Link>
                          {party.lastTransactionDate && (
                            <span className="text-xs text-muted-foreground">
-                             {formatLastTransactionDate(party.lastTransactionDate)}
+                             Last Deal: {formatLastTransactionDate(party.lastTransactionDate)}
                            </span>
                          )}
                        </div>

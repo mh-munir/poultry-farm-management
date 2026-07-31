@@ -1,4 +1,4 @@
-import { MapPin, Phone, ReceiptText, Wallet2, Package2, Factory } from 'lucide-react';
+import { MapPin, Phone, ReceiptText, Wallet2, Package2, Factory, Printer } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
@@ -413,6 +413,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                         <th className="px-4 py-3 font-medium">Quantity</th>
                         <th className="px-4 py-3 font-medium">Unit Price</th>
                         <th className="px-4 py-3 font-medium">Amount</th>
+                        <th className="px-4 py-3 font-medium">Action</th>
                         <th className="px-4 py-3 font-medium text-right">Running Balance</th>
                       </tr>
                     </thead>
@@ -434,6 +435,21 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                           <td className="px-4 py-3">{row.quantity ?? '-'}</td>
                           <td className="px-4 py-3">{row.unitPrice !== null && row.unitPrice !== undefined ? formatCurrency(row.unitPrice) : '-'}</td>
                           <td className={`px-4 py-3 font-medium ${row.isPayment ? 'text-emerald-700' : ''}`}>{formatCurrency(row.lineTotal)}</td>
+                          <td className="px-4 py-3">
+                            {row.transactionId ? (
+                              <a
+                                href={`/dashboard/transactions/${row.transactionId}/print`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center rounded-md border border-border px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-muted"
+                              >
+                                <Printer className="mr-1 h-3.5 w-3.5" />
+                                Print
+                              </a>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">—</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-right font-medium">{formatCurrency(row.runningBalance)}</td>
                         </tr>
                       ))}

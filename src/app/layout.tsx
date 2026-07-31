@@ -18,8 +18,6 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     // Ignore branding fetch errors.
   }
 
-  console.log('[branding-debug] root layout branding prop', branding)
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

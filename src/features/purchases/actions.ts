@@ -114,16 +114,17 @@ function generatePurchaseInvoiceNumber() {
   return `PUR-${datePart}-${randomPart}`;
 }
 
-export async function createPurchaseTransaction(formData: FormData) {
+export type PurchaseActionResult =
+  | { success: true; message: string; transactionId: number }
+  | { success: false; message: string };
+
+async function createPurchaseTransactionInternal(formData: FormData): Promise<PurchaseActionResult> {
   await requireUser();
 
   const parsed = purchaseSchema.safeParse(normalizePurchaseInput(formData));
   if (!parsed.success) {
     const message = parsed.error.issues[0]?.message ?? 'Purchase validation failed.';
-    const url = new URL('/dashboard/purchases', 'http://localhost');
-    url.searchParams.set('error', message);
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    return { success: false, message };
   }
 
   const data = parsed.data;
@@ -134,25 +135,16 @@ export async function createPurchaseTransaction(formData: FormData) {
   try {
     supplierType = getSupplierTypeFromItems(items);
   } catch (error) {
-    const url = new URL(redirectPath, 'http://localhost');
-    url.searchParams.set('error', error instanceof Error ? error.message : 'Invalid purchase.');
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    return { success: false, message: error instanceof Error ? error.message : 'Invalid purchase.' };
   }
 
   if (supplierType === 'company') {
     if (!data.companyId && !data.newCompanyName) {
-      const url = new URL(redirectPath, 'http://localhost');
-      url.searchParams.set('error', 'Company supplier is required. Select an existing company or type a new one.');
-      // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-      redirect(url.toString());
+      return { success: false, message: 'Company supplier is required. Select an existing company or type a new one.' };
     }
   } else {
     if (!data.partyId && !data.newPartyName) {
-      const url = new URL(redirectPath, 'http://localhost');
-      url.searchParams.set('error', 'Party supplier is required. Select an existing party or type a new one.');
-      // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-      redirect(url.toString());
+      return { success: false, message: 'Party supplier is required. Select an existing party or type a new one.' };
     }
   }
 
@@ -160,58 +152,52 @@ export async function createPurchaseTransaction(formData: FormData) {
   const totalAmount = subtotal - data.discount;
 
   if (totalAmount < 0) {
-      const url = new URL(redirectPath, 'http://localhost');
-      url.searchParams.set('error', 'Total amount cannot be negative.');
-      // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-      redirect(url.toString());
-    }
+    return { success: false, message: 'Total amount cannot be negative.' };
+  }
 
-    if (Number(data.paymentAmount) > totalAmount) {
-      const url = new URL(redirectPath, 'http://localhost');
-      url.searchParams.set('error', 'Payment amount cannot be greater than total amount.');
-      // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-      redirect(url.toString());
-    }
+  if (Number(data.paymentAmount) > totalAmount) {
+    return { success: false, message: 'Payment amount cannot be greater than total amount.' };
+  }
 
   try {
-    await prisma.$transaction(async (tx) => {
-      const resolvedItems = await Promise.all(
-        items.map(async (item) => {
-          let productId = item.productId;
+    const purchaseId = await prisma.$transaction(async (tx) => {
+      const resolvedItems: Array<typeof items[number] & { productId: number }> = [];
 
-          if (!productId && item.productName && item.productName.trim()) {
-            const existingProduct = await tx.product.findFirst({
-              where: {
+      for (const item of items) {
+        let productId = item.productId;
+
+        if (!productId && item.productName && item.productName.trim()) {
+          const existingProduct = await tx.product.findFirst({
+            where: {
+              name: item.productName.trim(),
+              productType: item.productType || 'FEED'
+            }
+          });
+
+          if (existingProduct) {
+            productId = existingProduct.id;
+          } else {
+            const existingCount = await tx.product.count({
+              where: { productType: item.productType || 'FEED' }
+            });
+            const newProduct = await tx.product.create({
+              data: {
+                code: `${item.productType || 'FEED'}-${String(existingCount + 1).padStart(3, '0')}`,
                 name: item.productName.trim(),
-                productType: item.productType || 'FEED'
+                productType: item.productType || 'FEED',
+                unit: item.unit || 'pcs',
+                isActive: true
               }
             });
-
-            if (existingProduct) {
-              productId = existingProduct.id;
-            } else {
-              const existingCount = await tx.product.count({
-                where: { productType: item.productType || 'FEED' }
-              });
-              const newProduct = await tx.product.create({
-                data: {
-                  code: `${item.productType || 'FEED'}-${String(existingCount + 1).padStart(3, '0')}`,
-                  name: item.productName.trim(),
-                  productType: item.productType || 'FEED',
-                  unit: item.unit || 'pcs',
-                  isActive: true
-                }
-              });
-              productId = newProduct.id;
-            }
+            productId = newProduct.id;
           }
+        }
 
-          return {
-            ...item,
-            productId: productId ?? 0
-          };
-        })
-      );
+        resolvedItems.push({
+          ...item,
+          productId: productId ?? 0
+        });
+      }
 
       const invoiceNumber = generatePurchaseInvoiceNumber();
       const dueAmount = totalAmount - data.paymentAmount;
@@ -452,42 +438,61 @@ export async function createPurchaseTransaction(formData: FormData) {
           }
         });
       }
+
+      return purchase.id;
     });
+
+    revalidatePath(redirectPath);
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/companies');
+    revalidatePath('/dashboard/stock/feed');
+    revalidatePath('/dashboard/stock/Medicine');
+
+    const productTypes = new Set(items.map((item) => item.productType));
+    const stockProductTypes = new Set(['FEED', 'MEDICINE']);
+    const hasOnlyFeedMedicine = [...productTypes].every((t) => stockProductTypes.has(t));
+    let successMessage = 'Purchase invoice created successfully.';
+
+    if (hasOnlyFeedMedicine && productTypes.size === 1) {
+      const type = [...productTypes][0];
+      if (type === 'FEED') {
+        successMessage = 'Feed stock added successfully.';
+      } else if (type === 'MEDICINE') {
+        successMessage = 'Medicine stock added successfully.';
+      }
+    }
+
+    return { success: true, message: successMessage, transactionId: purchaseId };
   } catch (error) {
-    const url = new URL(redirectPath, 'http://localhost');
-    url.searchParams.set('error', error instanceof Error ? error.message : 'Purchase creation failed.');
+    return { success: false, message: error instanceof Error ? error.message : 'Purchase creation failed.' };
+  }
+}
+
+export async function createCompanyStockPurchaseTransaction(formData: FormData): Promise<PurchaseActionResult> {
+  return createPurchaseTransactionInternal(formData);
+}
+
+export async function createPurchaseTransaction(formData: FormData): Promise<never> {
+  const result = await createPurchaseTransactionInternal(formData);
+  const redirectPath = formData.get('redirectPath')?.toString() || '/dashboard/purchases';
+  const url = new URL(redirectPath, 'http://localhost');
+
+  if (!result.success) {
+    url.searchParams.set('error', result.message);
     // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
     redirect(url.toString());
-  }
-
-  revalidatePath(redirectPath);
-  revalidatePath('/dashboard');
-
-  const productTypes = new Set(items.map((item) => item.productType));
-  const FEED_MEDICINE_TYPES = new Set(['FEED', 'MEDICINE']);
-  const hasOnlyFeedMedicine = [...productTypes].every((t) => FEED_MEDICINE_TYPES.has(t));
-  let successMessage = 'Purchase invoice created successfully.';
-
-  if (hasOnlyFeedMedicine && productTypes.size === 1) {
-    const type = [...productTypes][0];
-    if (type === 'FEED') {
-      successMessage = 'Feed stock added successfully.';
-    } else if (type === 'MEDICINE') {
-      successMessage = 'Medicine stock added successfully.';
-    }
   }
 
   const cookiesStore = await cookies();
   cookiesStore.set({
     name: 'purchaseSuccess',
-    value: successMessage,
+    value: result.message,
     path: '/dashboard',
     maxAge: 5,
     sameSite: 'lax'
   });
 
-  const url = new URL(redirectPath, 'http://localhost');
-  url.searchParams.set('success', successMessage);
+  url.searchParams.set('success', result.message);
   // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
   redirect(url.toString());
 }

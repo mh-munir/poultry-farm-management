@@ -1,6 +1,7 @@
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Printer } from 'lucide-react';
 import { prisma } from '@/server/db';
 import { getDailyReportData } from '@/features/reports/actions';
 
@@ -170,6 +171,14 @@ export default async function DailyReportPage({
                       <td className="px-4 py-3 text-right">{formatCurrency(Number(txn.totalAmount))}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(Number(txn.paidAmount))}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(Number(txn.dueAmount))}</td>
+                      <td className="px-4 py-3 text-right">
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/dashboard/transactions/${txn.id}/print`} target="_blank" rel="noreferrer">
+                            <Printer className="mr-2 h-4 w-4" />
+                            Print
+                          </Link>
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

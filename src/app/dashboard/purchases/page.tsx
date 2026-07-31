@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Plus, ArrowLeft, ClipboardList, DollarSign, Package2 } from 'lucide-react';
+import { Plus, ArrowLeft, ClipboardList, DollarSign, Package2, Printer } from 'lucide-react';
 import type { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -147,9 +147,17 @@ export default async function PurchasesPage({
                       <div className="font-medium">{purchase.invoiceNumber}</div>
                       <div className="text-xs text-muted-foreground">{purchase.party?.name ?? 'Unknown'}</div>
                     </div>
-                    <div className="text-right text-sm">
-                      <div>{formatCurrency(purchase.totalAmount)}</div>
-                      <div className="text-xs text-muted-foreground">Due {formatCurrency(purchase.dueAmount)}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right text-sm">
+                        <div>{formatCurrency(purchase.totalAmount)}</div>
+                        <div className="text-xs text-muted-foreground">Due {formatCurrency(purchase.dueAmount)}</div>
+                      </div>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/dashboard/transactions/${purchase.id}/print`} target="_blank" rel="noreferrer">
+                          <Printer className="mr-2 h-4 w-4" />
+                          Print
+                        </Link>
+                      </Button>
                     </div>
                   </div>
                 </div>

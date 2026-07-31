@@ -456,10 +456,7 @@ export async function getPartyPageData({
             }
           }
         }
-      },
-      orderBy: { createdAt: 'desc' },
-      take,
-      skip
+      }
     }),
     prisma.party.count({ where })
   ]);
@@ -475,7 +472,16 @@ export async function getPartyPageData({
       lastTransactionDate,
       ...summarizePartyAccount(party.partyType, transactions, payments)
     };
+  }).sort((a, b) => {
+    if (a.lastTransactionDate && b.lastTransactionDate) {
+      return b.lastTransactionDate.getTime() - a.lastTransactionDate.getTime();
+    }
+    if (a.lastTransactionDate) return -1;
+    if (b.lastTransactionDate) return 1;
+    return 0;
   });
+
+  const partiesPage = partiesWithTotals.slice(skip, skip + take);
 
   return {
     parties: partiesWithTotals,

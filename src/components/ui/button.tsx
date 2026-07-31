@@ -4,22 +4,22 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-button font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[12px] text-button font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 shadow-sm',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 active:bg-secondary/70',
-        outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground active:bg-accent/50',
-        ghost: 'hover:bg-accent hover:text-accent-foreground active:bg-accent/50',
-        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80 shadow-sm'
+        default: 'bg-primary text-primary-foreground hover:bg-primary/95 active:bg-primary/90 shadow-sm',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/90 active:bg-secondary/80 shadow-sm',
+        outline: 'border border-input bg-white hover:bg-slate-50 active:bg-slate-100',
+        ghost: 'hover:bg-slate-100 active:bg-slate-200',
+        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/95 active:bg-destructive/90 shadow-sm'
       },
       size: {
-        default: 'h-[42px] px-4 py-2',
-        sm: 'h-[36px] rounded-lg px-3 py-1.5 text-sm',
-        lg: 'h-[42px] rounded-lg px-4 py-2',
-        icon: 'h-10 w-10 rounded-lg',
-        fullWidth: 'h-[42px] w-full rounded-lg px-4 py-2'
+        default: 'h-[48px] px-5',
+        sm: 'h-[42px] rounded-[12px] px-4 text-sm',
+        lg: 'h-[52px] rounded-[12px] px-6',
+        icon: 'h-[48px] w-[48px] rounded-[12px]',
+        fullWidth: 'h-[48px] w-full rounded-[12px] px-5'
       }
     },
     defaultVariants: {

@@ -10,7 +10,6 @@ import { CompanyToast } from '@/app/dashboard/parties/company-toast';
 import { CompanySearchForm } from '@/app/dashboard/parties/company-search-form';
 import { CompanyRowActions } from '@/app/dashboard/parties/company-row-actions';
 import { StockManagement, type StockItem } from '@/components/dashboard/stock/stock-management';
-import { PurchaseToast } from '@/components/dashboard/stock/purchase-toast';
 import { AddStockModal } from '@/components/dashboard/stock/add-stock-modal';
 import { getCompanyNames, getCompanyPageData, getCompanyStats, getCompaniesByType } from '@/features/companies/actions';
 import { getStockItemsByType } from '@/features/stock/actions';
@@ -42,9 +41,7 @@ export default async function CompaniesPage({
 
   const cookiesStore = await cookies();
   const companySuccessCookie = cookiesStore.get('companySuccess');
-  const purchaseSuccessCookie = cookiesStore.get('purchaseSuccess');
   const companySuccess = companySuccessCookie?.value ?? '';
-  const purchaseSuccess = purchaseSuccessCookie?.value ?? '';
 
   const params = await searchParams;
   const companyPage = Number(params?.companyPage ?? '1');
@@ -115,8 +112,6 @@ export default async function CompaniesPage({
       </div>
 
       <CompanyToast success={companySuccess} error={companyError} />
-      <PurchaseToast initialSuccess={purchaseSuccess} />
-      <PurchaseToast initialSuccess={purchaseSuccess} />
 
       {/* Companies Section */}
       <div className="mb-8">
@@ -251,7 +246,7 @@ export default async function CompaniesPage({
 
       {/* Feeds Section */}
       <div className="mb-8">
-        <StockManagement
+          <StockManagement
           title="Feed"
           description="Manage feed stock with quantity and pricing."
           initialItems={initialFeedItems}
@@ -262,7 +257,6 @@ export default async function CompaniesPage({
           allowCreateCompany
           createNewLabel="Create new company: "
           addButtonLabel="Add Feed Stock"
-          redirectPath="/dashboard/stock/feed"
           asSection
           showAddButton={false}
         />
@@ -270,7 +264,7 @@ export default async function CompaniesPage({
 
       {/* Medicines Section */}
       <div className="mb-8">
-        <StockManagement
+          <StockManagement
           title="Medicine"
           description="Track medicine inventory, quantity, and pricing in one place."
           initialItems={initialMedicineItems}
@@ -279,7 +273,6 @@ export default async function CompaniesPage({
           companyNames={medicineCompanyOptions}
           useCompanySearch
           addButtonLabel="Add Medicine Stock"
-          redirectPath="/dashboard/stock/Medicine"
           asSection
           showAddButton={false}
         />
