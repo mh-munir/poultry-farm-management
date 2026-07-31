@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
+import { getCompanyCurrentDue } from '@/features/companies/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { StockItem } from './stock-management';
 
@@ -43,6 +44,7 @@ export function AddStockModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [companyId, setCompanyId] = useState(0);
+  const [previousDue, setPreviousDue] = useState(0);
   const transactionDate = new Date().toISOString().slice(0, 10);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [paymentAmount, setPaymentAmount] = useState('');

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Download, Eye, Pencil, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { PartyPaymentsSection } from './party-payments-section';
 
 type ProductRow = {
@@ -157,7 +158,7 @@ function ProductItemsTable({ title, rows }: { title: string; rows: ProductRow[] 
         <h3 className="text-card-title">{title}</h3>
         <span className="rounded-full bg-background px-3 py-1 text-badge text-muted-foreground">{rows.length} items</span>
       </div>
-      <div className="overflow-x-auto">
+      <ResponsiveTable minWidth="980px">
         <table className="min-w-full text-table-body">
           <thead className="bg-muted/20 text-left text-muted-foreground">
             <tr>
@@ -186,7 +187,7 @@ function ProductItemsTable({ title, rows }: { title: string; rows: ProductRow[] 
             ))}
           </tbody>
         </table>
-      </div>
+      </ResponsiveTable>
     </div>
   );
 }
@@ -292,7 +293,7 @@ export function TransactionTabs({
 
       <div className="p-5">
         <div className="overflow-hidden rounded-2xl border border-border">
-          <div className="overflow-x-auto">
+          <ResponsiveTable stickyLastColumn minWidth="980px">
             <table className="min-w-[980px] w-full text-table-body">
               <thead className="bg-muted/30 text-left text-muted-foreground">
                 <tr>
@@ -349,7 +350,7 @@ export function TransactionTabs({
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
 
         {activeTab === 'sales' ? <ProductItemsTable title="Sales Items" rows={saleRows} /> : null}

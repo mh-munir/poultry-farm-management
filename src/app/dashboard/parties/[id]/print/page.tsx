@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { prisma } from '@/server/db';
 import PrintTrigger from './print-trigger';
 import { getBranding } from '@/lib/branding';
@@ -224,6 +225,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                 <span className="text-sm text-slate-500">{customerRows.length} entries</span>
               </div>
               <div className="overflow-hidden rounded-xl border border-slate-200">
+                <ResponsiveTable minWidth="900px">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-50">
                     <tr>
@@ -250,6 +252,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                     )) : <EmptyState label="No sales found" />}
                   </tbody>
                 </table>
+                </ResponsiveTable>
               </div>
             </section>
 
@@ -259,6 +262,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                 <span className="text-sm text-slate-500">{supplierRows.length} entries</span>
               </div>
               <div className="overflow-hidden rounded-xl border border-slate-200">
+                <ResponsiveTable minWidth="900px">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-50">
                     <tr>
@@ -285,6 +289,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                     )) : <EmptyState label="No supplies found" />}
                   </tbody>
                 </table>
+                </ResponsiveTable>
               </div>
             </section>
 
@@ -294,6 +299,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                 <span className="text-sm text-slate-500">{payments.length} entries</span>
               </div>
               <div className="overflow-hidden rounded-xl border border-slate-200">
+                <ResponsiveTable minWidth="820px">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-50">
                     <tr>
@@ -318,6 +324,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                     )) : <EmptyState label="No payments found" />}
                   </tbody>
                 </table>
+                </ResponsiveTable>
               </div>
             </section>
           </div>

@@ -3,6 +3,7 @@ import { Plus, ArrowLeft, ClipboardList, Package2, Printer } from 'lucide-react'
 import type { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { getCustomersForSales, getProductsForSales, getSalesPageData } from '@/features/sales/actions';
 import { SaleForm } from './sale-form';
 
@@ -108,7 +109,7 @@ export default async function SalesPage({
             </Button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <ResponsiveTable minWidth="840px">
             <table className="min-w-full text-sm">
               <thead className="bg-muted/40 text-left">
                 <tr>
@@ -146,7 +147,7 @@ export default async function SalesPage({
                 })}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         )}
       </div>
     </main>

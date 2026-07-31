@@ -14,10 +14,6 @@ export function Sidebar({ open, onClose, branding }: { open?: boolean; onClose?:
   const logoUrl = branding?.logo ?? null;
   const brandingName = branding?.name ?? null;
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.debug('[branding-debug] sidebar', { branding, logoUrl, brandingName });
-  }
-
   return (
     <aside className={`w-64 border-r border-slate-200 bg-white min-h-screen px-4 py-6 fixed md:fixed z-40 top-0 left-0 h-full max-h-screen overflow-y-auto transform transition-transform shadow-2xl shadow-slate-200/40 duration-300 ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
       <div className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-5 ring-1 ring-slate-200/70 shadow-sm">

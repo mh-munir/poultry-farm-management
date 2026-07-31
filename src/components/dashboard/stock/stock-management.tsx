@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/ui/dialog';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -546,7 +547,7 @@ export function StockManagement({
         </Dialog>
 
         <div className="mt-6 overflow-hidden rounded-lg border">
-          <div className="overflow-x-auto">
+          <ResponsiveTable stickyLastColumn minWidth="1120px">
             <table className="min-w-full divide-y divide-border text-sm">
               <thead className="bg-muted/50">
                 <tr>
@@ -601,7 +602,7 @@ export function StockManagement({
                 ) : null}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
       </div>
     </SectionWrapper>

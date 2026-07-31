@@ -1,5 +1,6 @@
 "use client"
 import React, { useEffect, useState } from 'react'
+import { ResponsiveTable } from '@/components/ui/responsive-table'
 
 type Expense = { id: string; description: string; amount: number; date: string }
 
@@ -107,7 +108,7 @@ export default function ExpensesManager() {
               <div className="px-6 py-8 text-sm text-muted-foreground text-center">No expenses recorded yet.</div>
             ) : (
               <>
-                <div className="overflow-x-auto">
+                <ResponsiveTable minWidth="640px">
                   <table className="min-w-full text-sm">
                     <thead className="bg-muted/40 text-left text-muted-foreground">
                       <tr>
@@ -132,7 +133,7 @@ export default function ExpensesManager() {
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </ResponsiveTable>
                 <div className="px-6 py-3 border-t bg-muted/20 flex items-center justify-between">
                   <span className="text-sm font-medium text-muted-foreground">Total</span>
                   <span className="text-sm font-semibold">৳ {total.toFixed(2)}</span>

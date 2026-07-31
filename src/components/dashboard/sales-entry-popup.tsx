@@ -6,6 +6,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { createSaleTransactionWithToast } from '@/features/sales/actions';
+import { getCustomerCurrentDue } from '@/features/parties/actions';
 import { useToast } from '@/hooks/use-toast';
 
 export type PartyOption = {
@@ -74,6 +75,7 @@ export function SalesEntryPopup({
     name: defaultPartyName ?? '',
     mediaName: ''
   });
+  const [previousDue, setPreviousDue] = useState(0);
 
   const handleSalesChange = (field: string, value: string) => {
     setSalesFormValues((current) => ({ ...current, [field]: value }));
@@ -109,6 +111,9 @@ export function SalesEntryPopup({
     setSalesPartyId(party.id);
     setSalesNameError('');
     setShowPartySuggestions(false);
+    getCustomerCurrentDue(party.id).then((due) => {
+      setPreviousDue(due);
+    });
   };
 
   const visibleProductOptions = useMemo(() => {
@@ -169,6 +174,7 @@ export function SalesEntryPopup({
   }, 0);
   const salesNetTotal = Math.max(0, salesTotal - Number(salesDiscount || 0));
   const salesDueAmount = Math.max(0, salesNetTotal - Number(salesPaymentAmount || 0));
+  const salesFinalDue = previousDue + salesDueAmount;
 
   const matchingPartyOptions = useMemo(() => {
     const searchTerm = salesFormValues.name.trim().toLowerCase();
@@ -192,9 +198,13 @@ export function SalesEntryPopup({
       setSalesNameError('Please select a valid party name from the list.');
       setSalesFormValues((current) => ({ ...current, name: '' }));
       setSalesPartyId(null);
+      setPreviousDue(0);
     } else {
       setSalesNameError('');
       setSalesPartyId(matchedParty.id);
+      getCustomerCurrentDue(matchedParty.id).then((due) => {
+        setPreviousDue(due);
+      });
     }
   };
 
@@ -220,6 +230,7 @@ export function SalesEntryPopup({
         setSalesPartyId(defaultPartyId ?? null);
         setSalesPaymentAmount('');
         setSalesDiscount('');
+        setPreviousDue(0);
         setIsSalesLoading(false);
         onSuccess?.();
       }, 500);
@@ -247,6 +258,7 @@ export function SalesEntryPopup({
           if (!next && !isSalesLoading) {
             setOpen(false);
             setSalesError('');
+            setPreviousDue(0);
           }
         }}
         title="Sales Entry"
@@ -462,8 +474,8 @@ export function SalesEntryPopup({
               />
             </div>
             <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-              <label className="block text-xs font-medium text-slate-500">Due Amount</label>
-              <input value={salesDueAmount.toFixed(2)} readOnly className="mt-2 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-950" />
+<label className="block text-xs font-medium text-slate-500">Final Due</label>
+               <input value={salesFinalDue.toFixed(2)} readOnly className="mt-2 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-950" />
             </div>
           </div>
 

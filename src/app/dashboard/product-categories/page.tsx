@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Plus, Search, ArrowLeft, Boxes, CheckCircle2 } from 'lucide-react';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { getCategoryPageData, getCategoryStats } from '@/features/product-categories/actions';
 
 export default async function ProductCategoriesPage({
@@ -80,7 +81,7 @@ export default async function ProductCategoriesPage({
       )}
 
       <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="overflow-x-auto">
+        <ResponsiveTable stickyLastColumn minWidth="720px">
           <table className="min-w-full text-sm">
             <thead className="bg-muted/40 text-left">
               <tr>
@@ -127,7 +128,7 @@ export default async function ProductCategoriesPage({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTable>
 
         <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">Showing {data.categories.length} of {data.total} categories</p>

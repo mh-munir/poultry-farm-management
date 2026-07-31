@@ -1,5 +1,6 @@
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import Link from 'next/link';
 import { getYearlyReportData } from '@/features/reports/actions';
 
@@ -37,7 +38,7 @@ export default async function YearlyReportPage({
         </div>
 
         <div className="mt-6">
-          <form method="get" className="flex items-center gap-3">
+          <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <label className="text-sm font-medium">Year:</label>
             <input type="number" name="year" defaultValue={String(year)} className="rounded-md border bg-background px-3 py-2 text-sm" />
             <Button type="submit" size="sm">View Report</Button>
@@ -70,7 +71,7 @@ export default async function YearlyReportPage({
           {data.monthlyBreakdown.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">No data available for this year.</p>
           ) : (
-            <div className="mt-4 overflow-x-auto">
+            <ResponsiveTable className="mt-4" minWidth="760px">
               <table className="min-w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
@@ -95,7 +96,7 @@ export default async function YearlyReportPage({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           )}
         </div>
       </div>

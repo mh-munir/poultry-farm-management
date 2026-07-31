@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 
 type InitialPayment = {
   id: number;
@@ -122,6 +123,7 @@ export function PartyPaymentsSection({
 
       <div className="mt-6 overflow-hidden rounded-xl border bg-card">
         <div className="bg-muted/40 px-4 py-3 text-sm font-semibold">Payments</div>
+        <ResponsiveTable stickyLastColumn minWidth="980px">
         <table className="min-w-full text-table-body">
           <thead className="bg-muted/20 text-left">
             <tr>
@@ -251,6 +253,7 @@ export function PartyPaymentsSection({
             )}
           </tbody>
         </table>
+        </ResponsiveTable>
       </div>
     </div>
   );

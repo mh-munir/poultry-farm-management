@@ -6,6 +6,7 @@ import AdminCredentialsForm from './AdminCredentialsForm'
 import CreateAdminForm from './CreateAdminForm'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { ResponsiveTable } from '@/components/ui/responsive-table'
 
 type Props = {
   initialName: string;
@@ -75,7 +76,7 @@ export default function UsersSettingsClient({ initialName, initialEmail, initial
           </div>
 
           {users.length > 0 ? (
-            <div className="overflow-x-auto">
+            <ResponsiveTable minWidth="640px">
               <table className="min-w-full text-sm">
                 <thead className="bg-muted/40 text-left">
                   <tr>
@@ -94,7 +95,7 @@ export default function UsersSettingsClient({ initialName, initialEmail, initial
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           ) : (
             <p className="text-sm text-muted-foreground">No user accounts found.</p>
           )}

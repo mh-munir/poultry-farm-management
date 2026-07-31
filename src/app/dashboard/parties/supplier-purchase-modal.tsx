@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
-import { getSupplierOptions, createSupplierPurchase } from '@/features/parties/actions';
+import { getSupplierOptions, getSupplierCurrentPayable, createSupplierPurchase } from '@/features/parties/actions';
 
 type SupplierPurchaseModalProps = {
   open: boolean;
@@ -32,6 +32,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
   const [chickenQuantity, setChickenQuantity] = useState('');
   const [chickenUnitPrice, setChickenUnitPrice] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
+  const [previousDue, setPreviousDue] = useState(0);
   const [formError, setFormError] = useState('');
   const { success, error: showError } = useToast();
 
@@ -51,6 +52,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
   }, [productCategory, eggTotal, chickenTotal]);
 
   const dueAmount = useMemo(() => totalAmount - Number(paidAmount || 0), [totalAmount, paidAmount]);
+  const finalDue = previousDue + dueAmount;
   const showEgg = productCategory === 'EGG' || productCategory === 'BOTH';
   const showChicken = productCategory === 'CHICKEN' || productCategory === 'BOTH';
 
@@ -71,6 +73,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
     setChickenQuantity('');
     setChickenUnitPrice('');
     setPaidAmount('');
+    setPreviousDue(0);
     setFormError('');
   }, [open]);
 
@@ -240,7 +243,17 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
           <SearchableCombobox
             options={partyOptions}
             value={String(selectedPartyId ?? '')}
-            onValueChange={(value) => setSelectedPartyId(Number(value) || null)}
+            onValueChange={(value) => {
+    const id = Number(value) || null;
+    setSelectedPartyId(id);
+    if (id) {
+      getSupplierCurrentPayable(id).then((payable) => {
+        setPreviousDue(payable);
+      });
+    } else {
+      setPreviousDue(0);
+    }
+  }}
             placeholder="Search supplier..."
             emptyText="No supplier found"
             required
@@ -408,15 +421,15 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
               className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
             />
           </div>
-          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <label className="text-xs font-medium text-slate-500">Due Amount</label>
-            <input
-              type="text"
-              readOnly
-              value={`৳ ${dueAmount.toFixed(2)}`}
-              className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
-            />
-          </div>
+<div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+             <label className="text-xs font-medium text-slate-500">Final Due</label>
+             <input
+               type="text"
+               readOnly
+               value={`৳ ${finalDue.toFixed(2)}`}
+               className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
+             />
+           </div>
         </div>
 
         <div className="md:col-span-2 flex flex-wrap items-center gap-3">

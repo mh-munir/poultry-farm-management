@@ -1,6 +1,7 @@
 import { MapPin, Phone, ReceiptText, Wallet2, Package2, Factory, Printer } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { prisma } from '@/server/db';
 import { getCompanyAccountSummary, getCompanyProfile } from '@/features/companies/actions';
 import { CompanyRowActions } from '@/app/dashboard/parties/company-row-actions';
@@ -402,7 +403,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
               </div>
             ) : (
               <div className="mt-6 overflow-hidden rounded-xl border min-w-0">
-                <div className="overflow-x-auto">
+                <ResponsiveTable minWidth="1120px">
                   <table className="min-w-full text-sm">
                     <thead className="bg-muted/40 text-left">
                       <tr>
@@ -455,7 +456,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </ResponsiveTable>
               </div>
             )}
           </section>
