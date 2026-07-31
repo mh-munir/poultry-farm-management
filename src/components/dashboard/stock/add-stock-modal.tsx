@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useMemo, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
-import { createPurchaseTransaction } from '@/features/purchases/actions';
+import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { StockItem } from './stock-management';
 
@@ -39,6 +40,7 @@ export function AddStockModal({
 }: AddStockModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [stockType, setStockType] = useState<'FEED' | 'MEDICINE'>('FEED');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [companyId, setCompanyId] = useState(0);
   const transactionDate = new Date().toISOString().slice(0, 10);
@@ -47,7 +49,8 @@ export function AddStockModal({
   const [rows, setRows] = useState<StockRow[]>([
     { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: '' },
   ]);
-  const { error: showToastError } = useToast();
+  const router = useRouter();
+  const { success, error: showToastError } = useToast();
 
   const companyOptions: ComboboxOption[] = useMemo(() => {
     const companies = stockType === 'FEED' ? feedCompanies : medicineCompanies;
@@ -107,9 +110,14 @@ export function AddStockModal({
     updateRow(rowId, field, value);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
     if (!companyName.trim()) {
-      event.preventDefault();
       showToastError('Please select a company.');
       return;
     }
@@ -118,38 +126,52 @@ export function AddStockModal({
       (company) => company.label.toLowerCase() === companyName.toLowerCase()
     );
     if (!matchedCompany) {
-      event.preventDefault();
       showToastError('Please select a valid company from the list.');
       return;
     }
 
     for (const row of rows) {
       if (!row.productName.trim()) {
-        event.preventDefault();
         showToastError('Please enter a product name for each row.');
         return;
       }
       if (Number(row.quantity) <= 0) {
-        event.preventDefault();
         showToastError('Quantity must be greater than 0.');
         return;
       }
       if (Number(row.buyRate) < 0) {
-        event.preventDefault();
         showToastError('Buy rate cannot be negative.');
         return;
       }
       if (Number(row.saleRate) < 0) {
-        event.preventDefault();
         showToastError('Sale rate cannot be negative.');
         return;
       }
     }
 
     if (Number(paymentAmount) < 0) {
-      event.preventDefault();
       showToastError('Payment amount cannot be negative.');
       return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+    setIsSubmitting(true);
+
+    try {
+      const result = await createCompanyStockPurchaseTransaction(formData);
+
+      if (!result.success) {
+        showToastError(result.message);
+        return;
+      }
+
+      setIsOpen(false);
+      success(result.message);
+      router.refresh();
+    } catch (error) {
+      showToastError(error instanceof Error ? error.message : 'Stock purchase failed.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -173,7 +195,7 @@ export function AddStockModal({
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen} title="Add Stock">
-        <form action={createPurchaseTransaction} onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium">Stock Type *</label>
@@ -219,7 +241,6 @@ export function AddStockModal({
           <input type="hidden" name="referenceNumber" value="" />
           <input type="hidden" name="dueDate" value="" />
           <input type="hidden" name="notes" value="" />
-          <input type="hidden" name="redirectPath" value="/dashboard/companies" />
 
           <div className="rounded-2xl border bg-muted/10 p-4">
             <div className="mb-3 flex items-start justify-between gap-3">
@@ -375,12 +396,17 @@ export function AddStockModal({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-              Save stock purchase
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isSubmitting ? 'Saving...' : 'Save stock purchase'}
             </button>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
+              disabled={isSubmitting}
               className="rounded-md border px-4 py-2 text-sm"
             >
               Cancel

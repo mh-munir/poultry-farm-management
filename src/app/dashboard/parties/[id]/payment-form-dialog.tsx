@@ -95,39 +95,7 @@ export default function PaymentFormDialog({
             />
           </div>
 
-          <div>
-            <label className="mb-2 block text-form-label">Payment method</label>
-            <select
-              name="paymentMethod"
-              required
-              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-              <option value="Cash">Cash</option>
-              <option value="Bank">Bank</option>
-              <option value="Mobile">Mobile</option>
-              <option value="Cheque">Cheque</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="mb-2 block text-form-label">Reference number</label>
-            <input
-              name="referenceNumber"
-              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              placeholder="Optional"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="mb-2 block text-form-label">Notes</label>
-            <textarea
-              name="notes"
-              rows={3}
-              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              placeholder="Optional notes"
-            />
-          </div>
+          <input type="hidden" name="paymentMethod" value="Cash" />
 
           <div className="md:col-span-2 flex flex-wrap items-center gap-3">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

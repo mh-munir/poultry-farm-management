@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -18,13 +17,9 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [companyOptions, setCompanyOptions] = useState<ComboboxOption[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(preselectedCompanyId ?? null);
-  const [selectedCompanyName, setSelectedCompanyName] = useState('');
   const [currentDue, setCurrentDue] = useState(0);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [paymentMethod, setPaymentMethod] = useState('Cash');
-  const [referenceNumber, setReferenceNumber] = useState('');
-  const [notes, setNotes] = useState('');
   const { success, error: showError } = useToast();
 
   useEffect(() => {
@@ -39,14 +34,11 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
         setCompanyOptions(options);
 
         if (preselectedCompanyId && all.some((c) => c.id === preselectedCompanyId)) {
-          const preset = all.find((c) => c.id === preselectedCompanyId);
           setSelectedCompanyId(preselectedCompanyId);
-          setSelectedCompanyName(preset?.name ?? '');
           const due = await getCompanyCurrentDue(preselectedCompanyId);
           setCurrentDue(due);
         } else if (!preselectedCompanyId) {
           setSelectedCompanyId(null);
-          setSelectedCompanyName('');
           setCurrentDue(0);
         }
       };
@@ -54,14 +46,10 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
       loadCompanies();
       setPaymentAmount('');
       setPaymentDate(new Date().toISOString().slice(0, 10));
-      setPaymentMethod('Cash');
-      setReferenceNumber('');
-      setNotes('');
     }
   }, [open, preselectedCompanyId]);
 
   const handleCompanyChange = async (value: string) => {
-    setSelectedCompanyName(value);
     const matched = companyOptions.find((c) => c.label.toLowerCase() === value.toLowerCase());
     if (matched) {
       const id = Number(matched.value);
@@ -99,6 +87,7 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
       <form onSubmit={handleSubmit} className="mt-2 grid gap-4 md:grid-cols-2">
         <input type="hidden" name="companyId" value={String(selectedCompanyId ?? '')} />
         <input type="hidden" name="status" value="COMPLETED" />
+        <input type="hidden" name="paymentMethod" value="Cash" />
 
         <div className="md:col-span-2">
           <label className="mb-2 block text-sm font-medium">Company</label>
@@ -136,46 +125,6 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
             required
             className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             placeholder="Enter amount"
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium">Payment Method</label>
-          <select
-            name="paymentMethod"
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-            required
-            className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <option value="Cash">Cash</option>
-            <option value="Bank Transfer">Bank Transfer</option>
-            <option value="Mobile Banking">Mobile Banking</option>
-            <option value="Cheque">Cheque</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium">Reference / Transaction ID</label>
-          <input
-            name="referenceNumber"
-            value={referenceNumber}
-            onChange={(e) => setReferenceNumber(e.target.value)}
-            className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            placeholder="Optional"
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium">Notes</label>
-          <textarea
-            name="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-            className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            placeholder="Optional notes"
           />
         </div>
 

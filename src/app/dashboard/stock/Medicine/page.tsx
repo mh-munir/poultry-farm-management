@@ -1,7 +1,5 @@
 import { StockManagement, type StockItem } from '@/components/dashboard/stock/stock-management';
 import { getStockItemsByType, getMedicineStockCompanyNames } from '@/features/stock/actions';
-import { cookies } from 'next/headers';
-import { PurchaseToast } from '@/components/dashboard/stock/purchase-toast';
 import { type ComboboxOption } from '@/components/ui/combobox';
 
 export default async function MedicinePage() {
@@ -32,12 +30,8 @@ export default async function MedicinePage() {
     };
   });
 
-  const cookiesStore = await cookies();
-  const purchaseSuccess = cookiesStore.get('purchaseSuccess')?.value;
-
   return (
     <>
-      <PurchaseToast initialSuccess={purchaseSuccess} />
       <StockManagement
         title="Medicine"
         description="Track medicine inventory, quantity, and pricing in one place."
@@ -47,7 +41,6 @@ export default async function MedicinePage() {
         companyNames={companyNames}
         useCompanySearch
         addButtonLabel="Add Medicine Stock"
-        redirectPath="/dashboard/stock/Medicine"
       />
     </>
   );

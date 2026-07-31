@@ -1,8 +1,9 @@
 .printPage {
-  max-width: 80mm;
+  max-width: 1000px;
+  width: 100%;
   margin: 0 auto;
   padding: 20px;
-  background: white;
+  background: #f8fafc;
 }
 
 @media print {
@@ -11,9 +12,18 @@
     margin: 12mm;
   }
 
+  html,
+  body {
+    background: white !important;
+    color: #111827 !important;
+  }
+
   .printPage {
     max-width: 100%;
+    width: 100%;
+    margin: 0;
     padding: 0;
+    background: white;
   }
 
   .printPage .no-print {
@@ -41,7 +51,14 @@
   }
 
   .printPage table {
-    break-inside: auto;
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: auto;
+  }
+
+  .printPage th,
+  .printPage td {
+    border: 1px solid #d1d5db;
   }
 
   .printPage thead {
@@ -49,6 +66,12 @@
   }
 
   .printPage tr {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
+
+  .printPage .reportSection,
+  .printPage .reportFooter {
     page-break-inside: avoid;
     break-inside: avoid-page;
   }

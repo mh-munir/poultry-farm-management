@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -20,9 +19,6 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
   const [currentDue, setCurrentDue] = useState(0);
   const [receiveAmount, setReceiveAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [paymentMethod, setPaymentMethod] = useState('Cash');
-  const [referenceNumber, setReferenceNumber] = useState('');
-  const [notes, setNotes] = useState('');
   const { success, error: showError } = useToast();
 
   useEffect(() => {
@@ -34,9 +30,6 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
       setCurrentDue(0);
       setReceiveAmount('');
       setPaymentDate(new Date().toISOString().slice(0, 10));
-      setPaymentMethod('Cash');
-      setReferenceNumber('');
-      setNotes('');
     }
   }, [open]);
 
@@ -73,11 +66,12 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title="Receive Payment">
-      <form onSubmit={handleSubmit} className="mt-2 grid gap-4 md:grid-cols-2">
+      <form onSubmit={handleSubmit} className="mt-2 grid gap-5 md:grid-cols-2">
         <input type="hidden" name="status" value="COMPLETED" />
+        <input type="hidden" name="paymentMethod" value="Cash" />
 
         <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium">Party</label>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Party</label>
           <SearchableCombobox
             options={partyOptions}
             value={String(selectedPartyId ?? '')}
@@ -90,19 +84,19 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium">Payment Date</label>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Payment Date</label>
           <input
             type="date"
             name="paymentDate"
             value={paymentDate}
             onChange={(e) => setPaymentDate(e.target.value)}
             required
-            className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="w-full h-[50px] rounded-[12px] border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium">Receive Amount</label>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Receive Amount</label>
           <input
             type="number"
             name="amount"
@@ -111,67 +105,38 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
             value={receiveAmount}
             onChange={(e) => setReceiveAmount(e.target.value)}
             required
-            className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="w-full h-[50px] rounded-[12px] border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             placeholder="Enter amount"
           />
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium">Payment Method</label>
-          <select
-            name="paymentMethod"
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-            required
-            className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <option value="Cash">Cash</option>
-            <option value="Bank Transfer">Bank Transfer</option>
-            <option value="Mobile Banking">Mobile Banking</option>
-            <option value="Cheque">Cheque</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium">Reference / Transaction ID</label>
-          <input
-            name="referenceNumber"
-            value={referenceNumber}
-            onChange={(e) => setReferenceNumber(e.target.value)}
-            className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            placeholder="Optional"
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium">Notes</label>
-          <textarea
-            name="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-            className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            placeholder="Optional notes"
-          />
-        </div>
-
-        <div className="md:col-span-2 rounded-2xl border border-border bg-slate-50 p-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Current Due</p>
-              <p className="mt-1 text-lg font-semibold">৳ {currentDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Receive Amount</p>
-              <p className="mt-1 text-lg font-semibold">৳ {(Number(receiveAmount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Remaining Due</p>
-              <p className={`mt-1 text-lg font-semibold ${remainingDue < 0 ? 'text-red-600' : remainingDue === 0 && receiveAmount ? 'text-emerald-600' : ''}`}>
-                ৳ {remainingDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
+        <div className="md:col-span-2 grid gap-3 md:grid-cols-3 bg-slate-50 rounded-[20px] p-4">
+          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <label className="text-xs font-medium text-slate-500">Current Due</label>
+            <input
+              type="text"
+              readOnly
+              value={`৳ ${currentDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
+            />
+          </div>
+          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <label className="text-xs font-medium text-slate-500">Receive Amount</label>
+            <input
+              type="text"
+              readOnly
+              value={`৳ ${(Number(receiveAmount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
+            />
+          </div>
+          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <label className="text-xs font-medium text-slate-500">Remaining Due</label>
+            <input
+              type="text"
+              readOnly
+              value={`৳ ${remainingDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              className={`mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold ${remainingDue < 0 ? 'text-red-600' : remainingDue === 0 && receiveAmount ? 'text-emerald-600' : 'text-slate-950'}`}
+            />
           </div>
         </div>
 

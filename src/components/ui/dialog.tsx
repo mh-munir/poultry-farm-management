@@ -26,26 +26,27 @@ export function Dialog({
       role="dialog"
     >
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm"
         onClick={() => onOpenChange(false)}
       />
       <div
-        className={`relative z-10 w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.12),0_4px_20px_rgba(0,0,0,0.08)] transition-all duration-200 ${
+        className={`relative z-10 w-full max-w-3xl rounded-[12px] border border-slate-200/80 bg-slate-50 shadow-[0_24px_80px_rgba(15,23,42,0.12),0_8px_30px_rgba(15,23,42,0.08)] transition-all duration-200 ${
           open ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
         }`}
       >
-        <div className="flex items-center justify-between gap-4 px-6 pt-5 pb-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+        <div className="flex items-center justify-between gap-4 px-6 py-5 border-b border-slate-200 bg-white/80 backdrop-blur-sm">
+          <h2 className="text-lg font-semibold tracking-tight text-slate-950">{title}</h2>
           <button
             onClick={() => onOpenChange(false)}
-            className="rounded-lg p-1 hover:bg-gray-100 transition-colors"
+            className="rounded-[12px] p-2 text-slate-600 hover:bg-slate-100 transition-colors"
+            aria-label="Close"
           >
-            <X size={18} className="text-gray-500" />
+            <X size={18} />
           </button>
         </div>
-        <div className="overflow-y-auto max-h-[70vh] px-6 py-5">{children}</div>
+        <div className="overflow-y-auto max-h-[76vh] px-6 py-6">{children}</div>
         {footer ? (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+          <div className="flex flex-wrap items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-white/80">
             {footer}
           </div>
         ) : null}

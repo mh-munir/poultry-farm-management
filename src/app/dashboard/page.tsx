@@ -8,6 +8,7 @@ import {
   ClipboardList
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { QueryProfiler } from '@/lib/profiler';
 import { dbQuery, prisma } from '@/server/db';
@@ -124,296 +125,132 @@ export default async function DashboardPage() {
   }
 
   const [
-    dailyFeedSaleAgg,
-    dailyMedicineSaleAgg,
-    dailyFeedPurchaseCostAgg,
-    dailyMedicinePurchaseCostAgg,
-    dailyChickenPurchaseCostAgg,
-    dailyEggPurchaseCostAgg,
-    dailyExpenseAgg,
-    totalFeedSaleAgg,
-    totalMedicineSaleAgg,
-    totalFeedPurchaseCostAgg,
-    totalMedicinePurchaseCostAgg,
-    totalChickenPurchaseCostAgg,
-    totalEggPurchaseCostAgg,
-    totalExpenseAgg,
-    totalCustomerDueAgg,
-    totalFeedMedicineDueAgg,
-    totalEggChickenSupplierDueAgg,
-    totalStockAgg,
-    totalStockValueAgg,
+    transactionItemTotals,
+    transactionDueTotals,
+    expenseTotals,
+    expenseMonthlyGroups,
+    paymentTotals,
+    stockBalances,
     recentTransactions,
     activePartiesCount,
     openInvoicesCount,
     lowStockAlerts,
-    sixMonthSalesAgg,
-    sixMonthPurchaseAgg,
-    expensesForDashboard,
-    dailyPartyPaymentAgg,
-    totalPartyPaymentAgg
+    monthlyRevenueRows,
+    monthlyPurchaseRows
   ] = await Promise.all([
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        _sum: { lineTotal: true },
-        where: {
-          transaction: {
-            transactionType: 'SALE',
-            transactionDate: { gte: start, lt: end }
-          },
-          product: { productType: 'FEED' }
-        }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Daily Feed Sale',
+    query(
+      prisma.$queryRaw<
+        Array<{
+          daily_feed_sale: Prisma.Decimal | null;
+          daily_medicine_sale: Prisma.Decimal | null;
+          daily_feed_purchase: Prisma.Decimal | null;
+          daily_medicine_purchase: Prisma.Decimal | null;
+          daily_chicken_purchase: Prisma.Decimal | null;
+          daily_egg_purchase: Prisma.Decimal | null;
+          total_feed_sale: Prisma.Decimal | null;
+          total_medicine_sale: Prisma.Decimal | null;
+          total_feed_purchase: Prisma.Decimal | null;
+          total_medicine_purchase: Prisma.Decimal | null;
+          total_chicken_purchase: Prisma.Decimal | null;
+          total_egg_purchase: Prisma.Decimal | null;
+        }>
+      >`
+        SELECT
+          SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END) AS "daily_feed_sale",
+          SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END) AS "daily_medicine_sale",
+          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END) AS "daily_feed_purchase",
+          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END) AS "daily_medicine_purchase",
+          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'CHICKEN' THEN ti."lineTotal" ELSE 0 END) AS "daily_chicken_purchase",
+          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'EGG' THEN ti."lineTotal" ELSE 0 END) AS "daily_egg_purchase",
+          SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END) AS "total_feed_sale",
+          SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END) AS "total_medicine_sale",
+          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END) AS "total_feed_purchase",
+          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END) AS "total_medicine_purchase",
+          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'CHICKEN' THEN ti."lineTotal" ELSE 0 END) AS "total_chicken_purchase",
+          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'EGG' THEN ti."lineTotal" ELSE 0 END) AS "total_egg_purchase"
+        FROM "TransactionItem" ti
+        JOIN "Transaction" tr ON tr.id = ti."transactionId"
+        JOIN "Product" p ON p.id = ti."productId"
+        WHERE tr."transactionType" IN ('SALE', 'PURCHASE')
+      `,
+      'Dashboard TransactionItem Totals',
       'TransactionItem',
       'aggregate'
     ),
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        _sum: { lineTotal: true },
-        where: {
-          transaction: {
-            transactionType: 'SALE',
-            transactionDate: { gte: start, lt: end }
-          },
-          product: { productType: 'MEDICINE' }
-        }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Daily Medicine Sale',
-      'TransactionItem',
+    query(
+      prisma.$queryRaw<
+        Array<{
+          total_customer_due: Prisma.Decimal | null;
+          total_feed_medicine_due: Prisma.Decimal | null;
+          total_egg_chicken_due: Prisma.Decimal | null;
+        }>
+      >`
+        SELECT
+          SUM(CASE WHEN t."transactionType" = 'SALE' AND t."dueAmount" > 0 THEN t."dueAmount" ELSE 0 END) AS "total_customer_due",
+          SUM(CASE WHEN t."transactionType" = 'PURCHASE' AND t."dueAmount" > 0 AND EXISTS(
+            SELECT 1
+            FROM "TransactionItem" ti
+            JOIN "Product" p ON p.id = ti."productId"
+            WHERE ti."transactionId" = t.id
+              AND p."productType" IN ('FEED', 'MEDICINE')
+          ) THEN t."dueAmount" ELSE 0 END) AS "total_feed_medicine_due",
+          SUM(CASE WHEN t."transactionType" = 'PURCHASE' AND t."dueAmount" > 0 AND EXISTS(
+            SELECT 1
+            FROM "TransactionItem" ti
+            JOIN "Product" p ON p.id = ti."productId"
+            WHERE ti."transactionId" = t.id
+              AND p."productType" IN ('EGG', 'CHICKEN')
+          ) THEN t."dueAmount" ELSE 0 END) AS "total_egg_chicken_due"
+        FROM "Transaction" t
+        WHERE t."transactionType" IN ('SALE', 'PURCHASE')
+          AND t."dueAmount" > 0
+      `,
+      'Dashboard Transaction Due Totals',
+      'Transaction',
       'aggregate'
     ),
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        _sum: { lineTotal: true },
-        where: {
-          transaction: {
-            transactionType: 'PURCHASE',
-            transactionDate: { gte: start, lt: end }
-          },
-          product: { productType: 'FEED' }
-        }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Daily Feed Purchase',
-      'TransactionItem',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        _sum: { lineTotal: true },
-        where: {
-          transaction: {
-            transactionType: 'PURCHASE',
-            transactionDate: { gte: start, lt: end }
-          },
-          product: { productType: 'MEDICINE' }
-        }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Daily Medicine Purchase',
-      'TransactionItem',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        _sum: { lineTotal: true },
-        where: {
-          transaction: {
-            transactionType: 'PURCHASE',
-            transactionDate: { gte: start, lt: end }
-          },
-          product: { productType: 'CHICKEN' }
-        }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Daily Chicken Purchase',
-      'TransactionItem',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        _sum: { lineTotal: true },
-        where: {
-          transaction: {
-            transactionType: 'PURCHASE',
-            transactionDate: { gte: start, lt: end }
-          },
-          product: { productType: 'EGG' }
-        }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Daily Egg Purchase',
-      'TransactionItem',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.expense.aggregate({
-        _sum: { amount: true },
-        where: {
-          expenseDate: { gte: start, lt: end }
-        }
-      }),
-      { _sum: { amount: null } },
-      'Dashboard Daily Expense',
+    query(
+      prisma.$queryRaw<
+        Array<{
+          daily_expense: Prisma.Decimal | null;
+          total_expense: Prisma.Decimal | null;
+        }>
+      >`
+        SELECT
+          SUM(CASE WHEN "expenseDate" >= ${start} AND "expenseDate" < ${end} THEN amount ELSE 0 END) AS "daily_expense",
+          SUM(amount) AS "total_expense"
+        FROM "Expense"
+      `,
+      'Dashboard Expense Totals',
       'Expense',
       'aggregate'
     ),
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        _sum: { lineTotal: true },
-        where: {
-          transaction: {
-            transactionType: 'SALE'
-          },
-          product: { productType: 'FEED' }
-        }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Total Feed Sale',
-      'TransactionItem',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        _sum: { lineTotal: true },
-        where: {
-          transaction: {
-            transactionType: 'SALE'
-          },
-          product: { productType: 'MEDICINE' }
-        }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Total Medicine Sale',
-      'TransactionItem',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        _sum: { lineTotal: true },
-        where: {
-          transaction: {
-            transactionType: 'PURCHASE'
-          },
-          product: { productType: 'FEED' }
-        }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Total Feed Purchase',
-      'TransactionItem',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        _sum: { lineTotal: true },
-        where: {
-          transaction: {
-            transactionType: 'PURCHASE'
-          },
-          product: { productType: 'MEDICINE' }
-        }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Total Medicine Purchase',
-      'TransactionItem',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        _sum: { lineTotal: true },
-        where: {
-          transaction: {
-            transactionType: 'PURCHASE'
-          },
-          product: { productType: 'CHICKEN' }
-        }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Total Chicken Purchase',
-      'TransactionItem',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        _sum: { lineTotal: true },
-        where: {
-          transaction: {
-            transactionType: 'PURCHASE'
-          },
-          product: { productType: 'EGG' }
-        }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Total Egg Purchase',
-      'TransactionItem',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.expense.aggregate({
-        _sum: { amount: true }
-      }),
-      { _sum: { amount: null } },
-      'Dashboard Total Expense',
+    query(
+      prisma.$queryRaw<Array<{ month: Date; total: Prisma.Decimal | null }>>`
+        SELECT date_trunc('month', "expenseDate") AS month, SUM(amount) AS total
+        FROM "Expense"
+        WHERE "expenseDate" >= ${sixMonthsAgo}
+        GROUP BY month
+        ORDER BY month
+      `,
+      'Dashboard Monthly Expenses',
       'Expense',
       'aggregate'
     ),
-    safeQuery(
-      prisma.transaction.aggregate({
-        _sum: { dueAmount: true },
-        where: {
-          transactionType: 'SALE',
-          dueAmount: { gt: 0 }
-        }
-      }),
-      { _sum: { dueAmount: null } },
-      'Dashboard Customer Due',
-      'Transaction',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.transaction.aggregate({
-        _sum: { dueAmount: true },
-        where: {
-          transactionType: 'PURCHASE',
-          dueAmount: { gt: 0 },
-          transactionItems: {
-            some: {
-              product: { productType: { in: ['FEED', 'MEDICINE'] } }
-            }
-          }
-        }
-      }),
-      { _sum: { dueAmount: null } },
-      'Dashboard Feed Medicine Due',
-      'Transaction',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.transaction.aggregate({
-        _sum: { dueAmount: true },
-        where: {
-          transactionType: 'PURCHASE',
-          dueAmount: { gt: 0 },
-          transactionItems: {
-            some: {
-              product: { productType: { in: ['EGG', 'CHICKEN'] } }
-            }
-          }
-        }
-      }),
-      { _sum: { dueAmount: null } },
-      'Dashboard Supplier Due',
-      'Transaction',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.stockBalance.aggregate({ _sum: { quantityOnHand: true } }),
-      { _sum: { quantityOnHand: null } },
-      'Dashboard Stock Quantity',
-      'StockBalance',
+    query(
+      prisma.$queryRaw<
+        Array<{
+          daily_party_payment: Prisma.Decimal | null;
+          total_party_payment: Prisma.Decimal | null;
+        }>
+      >`
+        SELECT
+          SUM(CASE WHEN "paymentDate" >= ${start} AND "paymentDate" < ${end} THEN amount ELSE 0 END) AS "daily_party_payment",
+          SUM(amount) AS "total_party_payment"
+        FROM "Payment"
+      `,
+      'Dashboard Payment Totals',
+      'Payment',
       'aggregate'
     ),
     safeQuery(
@@ -472,121 +309,66 @@ export default async function DashboardPage() {
       'Product',
       'findMany'
     ),
-    safeQuery(
-      prisma.transactionItem.aggregate({
-        where: {
-          transaction: {
-            transactionType: 'SALE',
-            transactionDate: { gte: sixMonthsAgo }
-          }
-        },
-        _sum: { lineTotal: true }
-      }),
-      { _sum: { lineTotal: null } },
-      'Dashboard Six Month Sales',
+    query(
+      prisma.$queryRaw<Array<{ month: Date; total: Prisma.Decimal | null }>>`
+        SELECT date_trunc('month', tr."transactionDate") AS month, SUM(ti."lineTotal") AS total
+        FROM "TransactionItem" ti
+        JOIN "Transaction" tr ON tr.id = ti."transactionId"
+        WHERE tr."transactionType" = 'SALE'
+          AND tr."transactionDate" >= ${sixMonthsAgo}
+        GROUP BY month
+        ORDER BY month
+      `,
+      'Dashboard Monthly Revenue',
       'TransactionItem',
       'aggregate'
     ),
-    safeQuery(
-      prisma.transaction.aggregate({
-        where: {
-          transactionType: 'PURCHASE',
-          transactionDate: { gte: sixMonthsAgo }
-        },
-        _sum: { totalAmount: true }
-      }),
-      { _sum: { totalAmount: null } },
-      'Dashboard Six Month Purchase',
+    query(
+      prisma.$queryRaw<Array<{ month: Date; total: Prisma.Decimal | null }>>`
+        SELECT date_trunc('month', "transactionDate") AS month, SUM("totalAmount") AS total
+        FROM "Transaction"
+        WHERE "transactionType" = 'PURCHASE'
+          AND "transactionDate" >= ${sixMonthsAgo}
+        GROUP BY month
+        ORDER BY month
+      `,
+      'Dashboard Monthly Purchase',
       'Transaction',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.expense.findMany({
-        select: {
-          id: true,
-          amount: true,
-          expenseDate: true,
-          description: true
-        },
-        orderBy: { expenseDate: 'desc' }
-      }),
-      [] as any[],
-      'Dashboard Expenses',
-      'Expense',
-      'findMany'
-    ),
-    safeQuery(
-      prisma.payment.aggregate({
-        _sum: { amount: true },
-        where: {
-          paymentDate: { gte: start, lt: end }
-        }
-      }),
-      { _sum: { amount: null } },
-      'Dashboard Daily Party Payment',
-      'Payment',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.payment.aggregate({
-        _sum: { amount: true }
-      }),
-      { _sum: { amount: null } },
-      'Dashboard Total Party Payment',
-      'Payment',
       'aggregate'
     )
   ]);
 
-  const monthlyRevenueResults = await Promise.all(
-    monthRanges.map((range) =>
-      safeQuery(
-        prisma.transactionItem.aggregate({
-          _sum: { lineTotal: true },
-          where: {
-            transaction: {
-              transactionType: 'SALE',
-              transactionDate: { gte: range.start, lt: range.end }
-            }
-          }
-        }),
-        { _sum: { lineTotal: null } },
-        'Dashboard Monthly Revenue',
-        'TransactionItem',
-        'aggregate'
-      )
-    )
-  );
+  const [
+    transactionItemTotalsRow = {
+      daily_feed_sale: 0,
+      daily_medicine_sale: 0,
+      daily_feed_purchase: 0,
+      daily_medicine_purchase: 0,
+      daily_chicken_purchase: 0,
+      daily_egg_purchase: 0,
+      total_feed_sale: 0,
+      total_medicine_sale: 0,
+      total_feed_purchase: 0,
+      total_medicine_purchase: 0,
+      total_chicken_purchase: 0,
+      total_egg_purchase: 0
+    }
+  ] = transactionItemTotals;
 
-  const monthlyExpenseResults = await Promise.all(
-    monthRanges.map((range) =>
-      safeQuery(
-        prisma.transaction.aggregate({
-          _sum: { totalAmount: true },
-          where: {
-            transactionType: 'PURCHASE',
-            transactionDate: { gte: range.start, lt: range.end }
-          }
-        }),
-        { _sum: { totalAmount: null } },
-        'Dashboard Monthly Purchase',
-        'Transaction',
-        'aggregate'
-      )
-    )
-  );
+  const [transactionDueTotalsRow = { total_customer_due: 0, total_feed_medicine_due: 0, total_egg_chicken_due: 0 }] = transactionDueTotals;
+  const [expenseTotalsRow = { daily_expense: 0, total_expense: 0 }] = expenseTotals;
+  const [paymentTotalsRow = { daily_party_payment: 0, total_party_payment: 0 }] = paymentTotals;
 
-  const monthlyExpenseResults2 = monthRanges.map((range) => {
-    const total = (expensesForDashboard || []).reduce((sum, expense) => {
-      const expenseDate = normalizeDashboardDate(expense.expenseDate);
-      if (!expenseDate || expenseDate < range.start || expenseDate >= range.end) {
-        return sum;
-      }
-      return sum + Number(expense.amount ?? 0);
-    }, 0);
+  const monthlyRevenueResults = monthRanges.map((range) => {
+    const row = monthlyRevenueRows.find((item) => item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7));
+    return { _sum: { lineTotal: row ? Number(row.total ?? 0) : 0 } };
+  });
 
-    return { _sum: { amount: total } };
-  }   );
+  const monthlyExpenseResults = monthRanges.map((range) => {
+    const purchaseRow = monthlyPurchaseRows.find((item) => item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7));
+    const expenseRow = expenseMonthlyGroups.find((item) => item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7));
+    return { _sum: { totalAmount: Number(purchaseRow?.total ?? 0), amount: Number(expenseRow?.total ?? 0) } };
+  });
 
   // Filter products with low stock
   const filteredLowStockAlerts = (lowStockAlerts || []).filter((product: any) => {
@@ -595,35 +377,29 @@ export default async function DashboardPage() {
     return threshold > 0 && quantity <= threshold;
   });
 
-  const dailyFeedSale = Number(dailyFeedSaleAgg._sum.lineTotal ?? 0);
-  const dailyMedicineSale = Number(dailyMedicineSaleAgg._sum.lineTotal ?? 0);
-  const dailyFeedPurchase = Number(dailyFeedPurchaseCostAgg._sum.lineTotal ?? 0);
-  const dailyMedicinePurchase = Number(dailyMedicinePurchaseCostAgg._sum.lineTotal ?? 0);
-  const dailyChickenPurchase = Number(dailyChickenPurchaseCostAgg._sum.lineTotal ?? 0);
-  const dailyEggPurchase = Number(dailyEggPurchaseCostAgg._sum.lineTotal ?? 0);
-  const dailyExpenses = (expensesForDashboard || []).reduce((sum, expense) => {
-    const expenseDate = normalizeDashboardDate(expense.expenseDate);
-    if (!expenseDate || expenseDate < start || expenseDate >= end) {
-      return sum;
-    }
-    return sum + Number(expense.amount ?? 0);
-  }, 0);
-  const dailyPartyPayment = Number(dailyPartyPaymentAgg._sum.amount ?? 0);
+  const dailyFeedSale = Number(transactionItemTotalsRow.daily_feed_sale ?? 0);
+  const dailyMedicineSale = Number(transactionItemTotalsRow.daily_medicine_sale ?? 0);
+  const dailyFeedPurchase = Number(transactionItemTotalsRow.daily_feed_purchase ?? 0);
+  const dailyMedicinePurchase = Number(transactionItemTotalsRow.daily_medicine_purchase ?? 0);
+  const dailyChickenPurchase = Number(transactionItemTotalsRow.daily_chicken_purchase ?? 0);
+  const dailyEggPurchase = Number(transactionItemTotalsRow.daily_egg_purchase ?? 0);
+  const dailyExpenses = Number(expenseTotalsRow.daily_expense ?? 0);
+  const dailyPartyPayment = Number(paymentTotalsRow.daily_party_payment ?? 0);
   const dailyTotalExpense = dailyFeedPurchase + dailyMedicinePurchase + dailyExpenses + dailyPartyPayment;
-  const totalFeedSale = Number(totalFeedSaleAgg._sum.lineTotal ?? 0);
-  const totalMedicineSale = Number(totalMedicineSaleAgg._sum.lineTotal ?? 0);
-  const totalFeedPurchase = Number(totalFeedPurchaseCostAgg._sum.lineTotal ?? 0);
-  const totalMedicinePurchase = Number(totalMedicinePurchaseCostAgg._sum.lineTotal ?? 0);
-  const totalChickenPurchase = Number(totalChickenPurchaseCostAgg._sum.lineTotal ?? 0);
-  const totalEggPurchase = Number(totalEggPurchaseCostAgg._sum.lineTotal ?? 0);
-  const totalExpenses = (expensesForDashboard || []).reduce((sum, expense) => sum + Number(expense.amount ?? 0), 0);
-  const totalPartyPayment = Number(totalPartyPaymentAgg._sum.amount ?? 0);
+  const totalFeedSale = Number(transactionItemTotalsRow.total_feed_sale ?? 0);
+  const totalMedicineSale = Number(transactionItemTotalsRow.total_medicine_sale ?? 0);
+  const totalFeedPurchase = Number(transactionItemTotalsRow.total_feed_purchase ?? 0);
+  const totalMedicinePurchase = Number(transactionItemTotalsRow.total_medicine_purchase ?? 0);
+  const totalChickenPurchase = Number(transactionItemTotalsRow.total_chicken_purchase ?? 0);
+  const totalEggPurchase = Number(transactionItemTotalsRow.total_egg_purchase ?? 0);
+  const totalExpenses = Number(expenseTotalsRow.total_expense ?? 0);
+  const totalPartyPayment = Number(paymentTotalsRow.total_party_payment ?? 0);
   const totalTotalExpense = totalFeedPurchase + totalMedicinePurchase + totalExpenses + totalPartyPayment;
-  const totalCustomerDue = Number(totalCustomerDueAgg._sum.dueAmount ?? 0);
-  const totalFeedMedicineDue = Number(totalFeedMedicineDueAgg._sum.dueAmount ?? 0);
-  const totalEggChickenSupplierDue = Number(totalEggChickenSupplierDueAgg._sum.dueAmount ?? 0);
-  const totalStock = Number(totalStockAgg._sum.quantityOnHand ?? 0);
-  const totalStockValue = totalStockValueAgg.reduce((sum: number, sb: any) => {
+  const totalCustomerDue = Number(transactionDueTotalsRow.total_customer_due ?? 0);
+  const totalFeedMedicineDue = Number(transactionDueTotalsRow.total_feed_medicine_due ?? 0);
+  const totalEggChickenSupplierDue = Number(transactionDueTotalsRow.total_egg_chicken_due ?? 0);
+  const totalStock = stockBalances.reduce((sum: number, sb: any) => sum + Number(sb.quantityOnHand ?? 0), 0);
+  const totalStockValue = stockBalances.reduce((sum: number, sb: any) => {
     const qty = Number(sb.quantityOnHand ?? 0);
     const cost = Number(sb.averageCost ?? 0);
     return sum + qty * cost;
@@ -738,7 +514,7 @@ export default async function DashboardPage() {
 
   const expenseData = monthlyExpenseResults.map((result, idx) => ({
     label: monthLabels[idx],
-    value: Number(result._sum.totalAmount ?? 0) + Number(monthlyExpenseResults2[idx]?._sum.amount ?? 0)
+    value: Number(result._sum.totalAmount ?? 0) + Number(result._sum.amount ?? 0)
   }));
 
   const totalRevenue = revenueData.reduce((sum, item) => sum + item.value, 0);

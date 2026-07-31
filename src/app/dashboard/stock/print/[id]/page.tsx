@@ -139,48 +139,44 @@ export default async function StockPrintPage({
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className={styles.printPage}>
-        <PrintTrigger />
-
         <div className="no-print mb-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold">Stock Report</h1>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-          >
-            Print
-          </button>
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Stock Report</p>
+            <h1 className="mt-1 text-2xl font-semibold">{product.name}</h1>
+          </div>
+          <PrintTrigger />
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm print:bg-white print:shadow-none print:p-0">
-          <div className="mb-6 flex items-center justify-between border-b pb-4">
+        <div className="bg-white p-6 shadow-sm print:shadow-none print:p-0 print:border-0 print:bg-white">
+          <div className="mb-8 flex flex-col gap-6 border-b pb-6 print:border-b-0 print:pb-0 md:flex-row md:items-end md:justify-between">
             <div>
-              <h2 className="text-xl font-semibold">{product.name}</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="text-3xl font-semibold tracking-tight">{product.name}</h2>
+              <p className="mt-3 text-sm text-muted-foreground">
                 Code: {product.code} | Type: {product.productType} | Unit: {product.unit}
               </p>
             </div>
-            <div className="text-right text-sm text-muted-foreground">
-              <div>Printed: {formatDate(printDate)}</div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <div className="font-semibold text-slate-900">Printed</div>
+              <div className="mt-1">{formatDate(printDate)}</div>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="rounded-lg border p-3">
+          <div className="mb-8 grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">Quantity On Hand</div>
-              <div className="mt-1 text-lg font-semibold">
+              <div className="mt-2 text-2xl font-semibold">
                 {Number(stockBalance?.quantityOnHand ?? 0).toFixed(2)} {product.unit}
               </div>
             </div>
-            <div className="rounded-lg border p-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">Average Cost</div>
-              <div className="mt-1 text-lg font-semibold">
+              <div className="mt-2 text-2xl font-semibold">
                 {formatCurrency(Number(stockBalance?.averageCost ?? 0))}
               </div>
             </div>
-            <div className="rounded-lg border p-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">Stock Value</div>
-              <div className="mt-1 text-lg font-semibold">
+              <div className="mt-2 text-2xl font-semibold">
                 {formatCurrency(
                   Number(stockBalance?.quantityOnHand ?? 0) * Number(stockBalance?.averageCost ?? 0)
                 )}
@@ -188,14 +184,14 @@ export default async function StockPrintPage({
             </div>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-8 reportSection">
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Recent Movements
             </h3>
             {movements.length === 0 ? (
               <p className="text-sm text-muted-foreground">No movements recorded.</p>
             ) : (
-              <div className="overflow-hidden rounded-lg border">
+              <div className="overflow-hidden rounded-lg border border-slate-200">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
@@ -238,14 +234,14 @@ export default async function StockPrintPage({
             )}
           </div>
 
-          <div className="mb-6">
+          <div className="mb-8 reportSection">
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Recent Sales
             </h3>
             {salesItems.length === 0 ? (
               <p className="text-sm text-muted-foreground">No sales recorded.</p>
             ) : (
-              <div className="overflow-hidden rounded-lg border">
+              <div className="overflow-hidden rounded-lg border border-slate-200">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
@@ -275,14 +271,14 @@ export default async function StockPrintPage({
             )}
           </div>
 
-          <div className="mb-6">
+          <div className="mb-8 reportSection">
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Recent Purchases
             </h3>
             {purchaseItems.length === 0 ? (
               <p className="text-sm text-muted-foreground">No purchases recorded.</p>
             ) : (
-              <div className="overflow-hidden rounded-lg border">
+              <div className="overflow-hidden rounded-lg border border-slate-200">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>

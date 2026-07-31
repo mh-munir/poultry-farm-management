@@ -6,6 +6,12 @@ export type Branding = {
   favicon?: string | null
 }
 
+export type InvoiceCompanyProfile = Branding & {
+  address?: string
+  phone?: string
+  website?: string
+}
+
 export async function getBranding(): Promise<Branding | null> {
   try {
     const setting = await (prisma as any).setting.findUnique({ where: { key: 'branding' } })
@@ -31,5 +37,24 @@ export async function getBranding(): Promise<Branding | null> {
   } catch (error) {
     console.log('[branding-debug] getBranding -> error', error)
     return null
+  }
+}
+
+export async function getInvoiceCompanyProfile(): Promise<InvoiceCompanyProfile> {
+  const [branding, profileSetting] = await Promise.all([
+    getBranding(),
+    (prisma as any).setting.findUnique({ where: { key: 'company_profile' } }).catch(() => null)
+  ])
+
+  const rawProfile = profileSetting?.value
+  const profile = typeof rawProfile === 'string' ? JSON.parse(rawProfile) : rawProfile
+
+  return {
+    name: profile?.name ?? branding?.name,
+    logo: branding?.logo,
+    favicon: branding?.favicon,
+    address: profile?.address,
+    phone: profile?.phone,
+    website: profile?.website
   }
 }

@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
-import { createPurchaseTransaction } from '@/features/purchases/actions';
+import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Printer } from 'lucide-react';
 
@@ -36,7 +37,6 @@ interface StockManagementProps {
   useCompanySearch?: boolean;
   allowCreateCompany?: boolean;
   createNewLabel?: string;
-  redirectPath: string;
   asSection?: boolean;
   showAddButton?: boolean;
 }
@@ -62,7 +62,6 @@ export function StockManagement({
   useCompanySearch,
   allowCreateCompany,
   createNewLabel,
-  redirectPath,
   asSection = false,
   showAddButton = true,
 }: StockManagementProps) {
@@ -77,8 +76,10 @@ export function StockManagement({
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [rows, setRows] = useState<StockRow[]>([{ rowId: 1, productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: '' }]);
-  const { error: showToastError } = useToast();
+  const router = useRouter();
+  const { success, error: showToastError } = useToast();
 
   useEffect(() => {
     setItems(initialItems);
@@ -157,9 +158,14 @@ export function StockManagement({
     updateRow(rowId, field, value);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
     if (!partyName.trim()) {
-      event.preventDefault();
       showToastError('Please enter a company name.');
       return;
     }
@@ -169,7 +175,6 @@ export function StockManagement({
         (company) => company.label.toLowerCase() === partyName.toLowerCase()
       );
       if (!matchedCompany) {
-        event.preventDefault();
         showToastError('Please select a valid company from the list.');
         return;
       }
@@ -177,31 +182,46 @@ export function StockManagement({
 
     for (const row of rows) {
       if (!row.productName.trim()) {
-        event.preventDefault();
         showToastError('Please enter a product name for each row.');
         return;
       }
       if (Number(row.quantity) <= 0) {
-        event.preventDefault();
         showToastError('Quantity must be greater than 0.');
         return;
       }
       if (Number(row.buyRate) < 0) {
-        event.preventDefault();
         showToastError('Buy rate cannot be negative.');
         return;
       }
       if (Number(row.saleRate) < 0) {
-        event.preventDefault();
         showToastError('Sale rate cannot be negative.');
         return;
       }
     }
 
     if (Number(paymentAmount) < 0) {
-      event.preventDefault();
       showToastError('Payment amount cannot be negative.');
       return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+    setIsSubmitting(true);
+
+    try {
+      const result = await createCompanyStockPurchaseTransaction(formData);
+
+      if (!result.success) {
+        showToastError(result.message);
+        return;
+      }
+
+      setIsFormOpen(false);
+      success(result.message);
+      router.refresh();
+    } catch (error) {
+      showToastError(error instanceof Error ? error.message : 'Stock purchase failed.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -236,7 +256,7 @@ export function StockManagement({
         </div>
 
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen} title={`Add ${title} Stock`}>
-          <form action={createPurchaseTransaction} onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="md:col-span-2">
                 <label className="mb-1 block text-sm font-medium">Company</label>
@@ -457,19 +477,23 @@ export function StockManagement({
               </div>
             </div>
 
-            <input type="hidden" name="redirectPath" value={redirectPath} />
             <input type="hidden" name="discount" value="0" />
             <input type="hidden" name="referenceNumber" value="" />
             <input type="hidden" name="dueDate" value="" />
             <input type="hidden" name="notes" value="" />
 
             <div className="flex flex-wrap items-center gap-3">
-              <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-                Save stock purchase
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSubmitting ? 'Saving...' : 'Save stock purchase'}
               </button>
               <button
                 type="button"
                 onClick={() => setIsFormOpen(false)}
+                disabled={isSubmitting}
                 className="rounded-md border px-4 py-2 text-sm"
               >
                 Cancel

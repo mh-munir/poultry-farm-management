@@ -1,7 +1,5 @@
 import { StockManagement, type StockItem } from '@/components/dashboard/stock/stock-management';
 import { getStockItemsByType, getFeedStockCompanyNames } from '@/features/stock/actions';
-import { cookies } from 'next/headers';
-import { PurchaseToast } from '@/components/dashboard/stock/purchase-toast';
 import { type ComboboxOption } from '@/components/ui/combobox';
 
 export default async function FeedPage() {
@@ -32,12 +30,8 @@ export default async function FeedPage() {
     };
   });
 
-  const cookiesStore = await cookies();
-  const purchaseSuccess = cookiesStore.get('purchaseSuccess')?.value;
-
   return (
     <>
-      <PurchaseToast initialSuccess={purchaseSuccess} />
       <StockManagement
         title="Feed"
         description="Manage feed stock with quantity and pricing."
@@ -49,7 +43,6 @@ export default async function FeedPage() {
         allowCreateCompany
         createNewLabel="Create new company: "
         addButtonLabel="Add Feed Stock"
-        redirectPath="/dashboard/stock/feed"
       />
     </>
   );
