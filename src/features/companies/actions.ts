@@ -163,10 +163,7 @@ export async function getCompanyPageData(args: { page: number; search?: string; 
 
   if (args.search) {
     filters.push({
-      OR: [
-        { name: { contains: args.search, mode: 'insensitive' } },
-        { contactPerson: { contains: args.search, mode: 'insensitive' } }
-      ]
+      name: { contains: args.search, mode: 'insensitive' }
     });
   }
 
@@ -245,10 +242,7 @@ export async function getCompanyStats(args: { search?: string; companyType?: str
 
   if (args.search) {
     filters.push({
-      OR: [
-        { name: { contains: args.search, mode: 'insensitive' } },
-        { contactPerson: { contains: args.search, mode: 'insensitive' } }
-      ]
+      name: { contains: args.search, mode: 'insensitive' }
     });
   }
 
