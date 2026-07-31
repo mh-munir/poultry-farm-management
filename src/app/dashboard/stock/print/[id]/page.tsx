@@ -1,4 +1,5 @@
 import { requireUser } from '@/lib/auth';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { prisma } from '@/server/db';
 import PrintTrigger from './print-trigger';
 import styles from './print-styles.module.css';
@@ -192,6 +193,7 @@ export default async function StockPrintPage({
               <p className="text-sm text-muted-foreground">No movements recorded.</p>
             ) : (
               <div className="overflow-hidden rounded-lg border border-slate-200">
+                <ResponsiveTable minWidth="760px">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
@@ -230,6 +232,7 @@ export default async function StockPrintPage({
                     ))}
                   </tbody>
                 </table>
+                </ResponsiveTable>
               </div>
             )}
           </div>
@@ -242,6 +245,7 @@ export default async function StockPrintPage({
               <p className="text-sm text-muted-foreground">No sales recorded.</p>
             ) : (
               <div className="overflow-hidden rounded-lg border border-slate-200">
+                <ResponsiveTable minWidth="720px">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
@@ -264,6 +268,7 @@ export default async function StockPrintPage({
                     ))}
                   </tbody>
                 </table>
+                </ResponsiveTable>
                 <div className="border-t bg-muted/30 px-3 py-2 text-right text-sm font-semibold">
                   Total Sales: {formatCurrency(totalSalesValue)}
                 </div>
@@ -279,6 +284,7 @@ export default async function StockPrintPage({
               <p className="text-sm text-muted-foreground">No purchases recorded.</p>
             ) : (
               <div className="overflow-hidden rounded-lg border border-slate-200">
+                <ResponsiveTable minWidth="720px">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
@@ -303,6 +309,7 @@ export default async function StockPrintPage({
                     ))}
                   </tbody>
                 </table>
+                </ResponsiveTable>
                 <div className="border-t bg-muted/30 px-3 py-2 text-right text-sm font-semibold">
                   Total Purchases: {formatCurrency(totalPurchaseValue)}
                 </div>

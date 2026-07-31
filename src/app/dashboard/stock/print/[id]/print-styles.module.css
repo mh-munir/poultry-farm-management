@@ -12,12 +12,6 @@
     margin: 12mm;
   }
 
-  html,
-  body {
-    background: white !important;
-    color: #111827 !important;
-  }
-
   .printPage {
     max-width: 100%;
     width: 100%;

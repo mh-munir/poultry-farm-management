@@ -3,6 +3,7 @@ import { Plus, Search, Filter, Package2, ArrowLeft, Barcode, Boxes, AlertTriangl
 import type { Decimal } from '@prisma/client/runtime/library';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { getProductCategories, getProductPageData, getProductStats } from '@/features/products/actions';
 
 const PRODUCT_TYPES = ['ALL', 'FEED', 'MEDICINE', 'EGG', 'CHICKEN'] as const;
@@ -114,7 +115,7 @@ export default async function ProductsPage({
       )}
 
       <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="overflow-x-auto">
+        <ResponsiveTable stickyLastColumn minWidth="820px">
           <table className="min-w-full text-sm">
             <thead className="bg-muted/40 text-left">
               <tr>
@@ -178,7 +179,7 @@ export default async function ProductsPage({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTable>
 
         <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">Showing {data.products.length} of {data.total} products</p>

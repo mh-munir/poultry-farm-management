@@ -178,6 +178,107 @@ input[type="number"] {
   font-feature-settings: "tnum";
 }
 
+.responsive-table-container {
+  --responsive-table-min-width: 760px;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.responsive-table-container table {
+  width: 100%;
+  min-width: var(--responsive-table-min-width);
+  table-layout: auto;
+}
+
+.responsive-table-container thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.responsive-table-container th,
+.responsive-table-container td {
+  min-width: 7rem;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.responsive-table-container th:first-child,
+.responsive-table-container td:first-child {
+  min-width: 10rem;
+}
+
+.responsive-table-container th:last-child,
+.responsive-table-container td:last-child {
+  min-width: 8.5rem;
+}
+
+.responsive-table-container td {
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.responsive-table-container td [class*="flex"],
+.responsive-table-container td form,
+.responsive-table-container td button,
+.responsive-table-container td a {
+  min-width: max-content;
+}
+
+.responsive-table-container td button,
+.responsive-table-container td a,
+.responsive-table-container td [role="button"] {
+  white-space: nowrap;
+}
+
+.responsive-table-container :is(.text-right, [class*="tabular-nums"]) {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+@media (min-width: 1024px) {
+  .responsive-table-container--sticky-last th:last-child,
+  .responsive-table-container--sticky-last td:last-child {
+    position: sticky;
+    right: 0;
+    z-index: 15;
+    background: hsl(var(--card));
+    box-shadow: -12px 0 18px -18px rgb(15 23 42 / 0.45);
+  }
+
+  .responsive-table-container--sticky-last thead th:last-child {
+    z-index: 25;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-table-container {
+    margin-inline: -0.25rem;
+    padding-inline: 0.25rem;
+  }
+
+  .responsive-table-container table {
+    font-size: 0.8125rem;
+  }
+
+  .responsive-table-container th,
+  .responsive-table-container td {
+    min-width: 8rem;
+  }
+
+  .responsive-table-container th:first-child,
+  .responsive-table-container td:first-child {
+    min-width: 11rem;
+  }
+}
+
 @media print {
   @page {
     size: A4 portrait;
@@ -186,6 +287,11 @@ input[type="number"] {
 
   body > div {
     background: white !important;
+  }
+
+  html, body {
+    background: white !important;
+    color: #111827 !important;
   }
 
   header,
@@ -217,5 +323,21 @@ input[type="number"] {
   tr {
     page-break-inside: avoid;
     break-inside: avoid-page;
+  }
+
+  .responsive-table-container {
+    overflow: visible !important;
+    scrollbar-gutter: auto;
+  }
+
+  .responsive-table-container table {
+    min-width: 100% !important;
+  }
+
+  .responsive-table-container thead th,
+  .responsive-table-container--sticky-last th:last-child,
+  .responsive-table-container--sticky-last td:last-child {
+    position: static !important;
+    box-shadow: none !important;
   }
 }

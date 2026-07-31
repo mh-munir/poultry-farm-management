@@ -1,5 +1,6 @@
 import type { Decimal } from '@prisma/client/runtime/library';
 import { requireUser } from '@/lib/auth';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { prisma } from '@/server/db';
 
 type StockReportProduct = {
@@ -129,14 +130,14 @@ export default async function StockReportsPage() {
             <h1 className="text-2xl font-semibold">Stock Reports</h1>
             <p className="mt-2 text-sm text-muted-foreground">Monitor inventory, low stock warnings, and feed/medicine value performance.</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
             <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
               <div className="font-medium">Low Stock Items</div>
               <div className="text-primary">{warnings.medicine.length + warnings.feed.length}</div>
             </div>
-            <div className="flex items-center gap-2">
-              <input placeholder="Search products" className="rounded-md border bg-background px-3 py-2 text-sm" />
-              <select className="rounded-md border bg-background px-3 py-2 text-sm">
+            <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+              <input placeholder="Search products" className="w-full rounded-md border bg-background px-3 py-2 text-sm sm:w-56" />
+              <select className="w-full rounded-md border bg-background px-3 py-2 text-sm sm:w-40">
                 <option value="all">All types</option>
                 <option value="feed">Feed</option>
                 <option value="medicine">Medicine</option>
@@ -224,6 +225,7 @@ export default async function StockReportsPage() {
                 <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">No medicine stock warnings right now.</div>
               ) : (
                 <div className="overflow-hidden rounded-lg border">
+                  <ResponsiveTable stickyLastColumn minWidth="680px">
                   <table className="min-w-full text-sm">
                     <thead className="bg-muted/50">
                       <tr>
@@ -260,6 +262,7 @@ export default async function StockReportsPage() {
                       })}
                     </tbody>
                   </table>
+                  </ResponsiveTable>
                 </div>
               )}
             </div>
@@ -278,6 +281,7 @@ export default async function StockReportsPage() {
                 <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">No feed stock warnings right now.</div>
               ) : (
                 <div className="overflow-hidden rounded-lg border">
+                  <ResponsiveTable stickyLastColumn minWidth="680px">
                   <table className="min-w-full text-sm">
                     <thead className="bg-muted/50">
                       <tr>
@@ -314,6 +318,7 @@ export default async function StockReportsPage() {
                       })}
                     </tbody>
                   </table>
+                  </ResponsiveTable>
                 </div>
               )}
             </div>

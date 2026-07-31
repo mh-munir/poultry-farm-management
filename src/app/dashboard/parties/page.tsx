@@ -4,6 +4,7 @@ import type { Decimal } from '@prisma/client/runtime/library';
 import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { AddPartyDialog } from '@/app/dashboard/parties/add-party-dialog';
 import { PartyToast } from './party-toast';
@@ -22,8 +23,8 @@ function formatCurrency(value: number | string | Decimal | null | undefined) {
 
 function formatPartyType(type: string) {
   if (type === 'CUSTOMER') return 'Customer';
-  if (type === 'PARTY') return 'Party Supplier (Eggs & Chicken)';
-  if (type === 'BOTH') return 'Customer + Party Supplier';
+  if (type === 'PARTY') return 'Supplier';
+  if (type === 'BOTH') return 'Both';
   return type.replace('_', ' ');
 }
 
@@ -86,6 +87,11 @@ export default async function PartiesPage({
     stockQuantity: Number(product.stockBalance?.quantityOnHand ?? 0)
   }));
 
+  const totalPurchase = data.parties.reduce((sum, p) => sum + Number(p.supplierInvoiced ?? 0), 0);
+  const totalSales = data.parties.reduce((sum, p) => sum + Number(p.customerInvoiced ?? 0), 0);
+  const totalPaid = data.parties.reduce((sum, p) => sum + Number(p.totalPaid ?? 0), 0);
+  const totalDue = data.parties.reduce((sum, p) => sum + Number(p.totalDue ?? 0), 0);
+
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="mb-6">
@@ -115,14 +121,13 @@ export default async function PartiesPage({
         <div className="border-b px-4 py-4 bg-muted/20">
           <h2 className="text-lg font-semibold">Parties</h2>
         </div>
-        <div className="overflow-x-auto">
+        <ResponsiveTable stickyLastColumn minWidth="980px">
           <table className="min-w-full text-sm">
              <thead className="bg-muted/40 text-left">
                <tr>
                  <th className="px-4 py-3 font-medium">Party Name</th>
-                 <th className="px-4 py-3 font-medium">Type</th>
-                 <th className="px-4 py-3 font-medium">Phone</th>
-                 <th className="px-4 py-3 font-medium">Purchase</th>
+                  <th className="px-4 py-3 font-medium">Type</th>
+                  <th className="px-4 py-3 font-medium">Purchase</th>
                  <th className="px-4 py-3 font-medium">Sales</th>
                  <th className="px-4 py-3 font-medium">Paid</th>
                  <th className="px-4 py-3 font-medium">Due</th>
@@ -132,7 +137,7 @@ export default async function PartiesPage({
              <tbody>
                {data.parties.length === 0 ? (
                  <tr>
-                   <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
                      No parties found. Create your first party to get started.
                    </td>
                  </tr>
@@ -163,8 +168,7 @@ export default async function PartiesPage({
                          {formatPartyType(party.partyType)}
                        </span>
                      </td>
-                     <td className="px-4 py-3 text-sm text-slate-600">{party.phone || '—'}</td>
-                     <td className="px-4 py-3 text-sm font-medium text-slate-800">{formatCurrency(party.supplierInvoiced ?? 0)}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-slate-800">{formatCurrency(party.supplierInvoiced ?? 0)}</td>
                      <td className="px-4 py-3 text-sm font-medium text-slate-800">{formatCurrency(party.customerInvoiced ?? 0)}</td>
                      <td className="px-4 py-3 text-sm font-medium text-slate-800">{formatCurrency(party.totalPaid ?? 0)}</td>
                      <td className="px-4 py-3">{formatCurrency(party.totalDue)}</td>
@@ -197,9 +201,21 @@ export default async function PartiesPage({
                    </tr>
                  ))
                )}
-             </tbody>
-          </table>
-        </div>
+              </tbody>
+              {data.parties.length > 0 && (
+                <tfoot>
+                  <tr className="border-t bg-muted/40 font-semibold">
+                    <td colSpan={2} className="px-4 py-3 text-sm">TOTAL</td>
+                    <td className="px-4 py-3 text-sm">{formatCurrency(totalPurchase)}</td>
+                    <td className="px-4 py-3 text-sm">{formatCurrency(totalSales)}</td>
+                    <td className="px-4 py-3 text-sm">{formatCurrency(totalPaid)}</td>
+                    <td className="px-4 py-3 text-sm">{formatCurrency(totalDue)}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">—</td>
+                  </tr>
+                </tfoot>
+              )}
+           </table>
+        </ResponsiveTable>
 
         <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">

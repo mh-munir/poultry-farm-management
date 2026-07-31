@@ -1,5 +1,6 @@
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import Link from 'next/link';
 import { getSalesReportData } from '@/features/reports/actions';
 import { prisma } from '@/server/db';
@@ -125,7 +126,7 @@ export default async function SalesReportPage({
           {reportData.items.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">No sales found for the selected filters.</p>
           ) : (
-            <div className="mt-4 overflow-x-auto">
+            <ResponsiveTable className="mt-4" minWidth="1120px">
               <table className="min-w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
@@ -156,7 +157,7 @@ export default async function SalesReportPage({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           )}
         </div>
       </div>

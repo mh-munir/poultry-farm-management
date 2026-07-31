@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DollarSign, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createSaleTransaction } from '@/features/sales/actions';
+import { getCustomerCurrentDue } from '@/features/parties/actions';
 
 export type CustomerOption = {
   id: number;
@@ -45,7 +46,17 @@ export function SaleForm({ customers, products, selectedPartyId }: SaleFormProps
   const [rows, setRows] = useState<SaleItemRow[]>(() => [createRow()]);
   const [discount, setDiscount] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [previousDue, setPreviousDue] = useState(0);
 
+  useEffect(() => {
+    if (selectedPartyId) {
+      getCustomerCurrentDue(selectedPartyId).then((due) => {
+        setPreviousDue(due);
+      });
+    } else {
+      setPreviousDue(0);
+    }
+  }, [selectedPartyId]);
   const productsById = useMemo(() => {
     return new Map(products.map((product) => [String(product.id), product]));
   }, [products]);
@@ -55,6 +66,7 @@ export function SaleForm({ customers, products, selectedPartyId }: SaleFormProps
   }, 0);
   const totalAmount = Math.max(0, subtotal - Number(discount || 0));
   const dueAmount = Math.max(0, totalAmount - Number(paymentAmount || 0));
+  const finalDue = previousDue + dueAmount;
 
   const updateRow = (rowId: string, field: keyof Omit<SaleItemRow, 'rowId'>, value: string) => {
     setRows((currentRows) => currentRows.map((row) => {
@@ -168,10 +180,10 @@ export function SaleForm({ customers, products, selectedPartyId }: SaleFormProps
             className="w-full rounded-md border bg-background px-3 py-2"
           />
         </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium">Due Amount</label>
-          <input value={dueAmount.toFixed(2)} readOnly className="w-full rounded-md border bg-muted px-3 py-2" />
-        </div>
+<div>
+           <label className="mb-2 block text-sm font-medium">Final Due</label>
+           <input value={finalDue.toFixed(2)} readOnly className="w-full rounded-md border bg-muted px-3 py-2" />
+         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

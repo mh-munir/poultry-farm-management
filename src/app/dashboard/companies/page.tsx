@@ -4,6 +4,7 @@ import type { Decimal } from '@prisma/client/runtime/library';
 import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
 import { StatCard } from '@/components/dashboard/stat-card';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { AddCompanyDialog } from '@/app/dashboard/parties/add-company-dialog';
 import { PayCompanyButton } from './pay-company-button';
 import { CompanyToast } from '@/app/dashboard/parties/company-toast';
@@ -126,7 +127,7 @@ export default async function CompaniesPage({
         </div>
 
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-6 justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <AddCompanyDialog />
             <PayCompanyButton />
             <AddStockModal
@@ -143,7 +144,7 @@ export default async function CompaniesPage({
           <div className="border-b px-4 py-4 bg-muted/20">
             <h2 className="text-lg font-semibold">Feeds and Medicine Companies</h2>
           </div>
-          <div className="overflow-x-auto">
+          <ResponsiveTable stickyLastColumn minWidth="920px">
             <table className="min-w-full text-sm">
               <thead className="bg-muted/40 text-left">
                 <tr>
@@ -212,7 +213,7 @@ export default async function CompaniesPage({
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
 
           <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">

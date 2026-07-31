@@ -113,8 +113,8 @@ function formatDate(value: Date | string) {
 
 function formatPartyType(value: string) {
   if (value === 'CUSTOMER') return 'Customer';
-  if (value === 'PARTY') return 'Party Supplier';
-  return 'Customer + Party Supplier';
+  if (value === 'PARTY') return 'Supplier';
+  return 'Both';
 }
 
 function getInitials(name: string) {

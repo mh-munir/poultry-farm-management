@@ -1,5 +1,6 @@
 import { Landmark } from 'lucide-react';
 import type { InvoiceCompanyProfile } from '@/lib/branding';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { InvoicePrintTrigger } from './invoice-print-trigger';
 
 export type InvoiceLineItem = {
@@ -148,6 +149,7 @@ export function TransactionInvoiceView({
         </section>
 
         <section className="mt-5 overflow-hidden rounded-lg border border-slate-200">
+          <ResponsiveTable minWidth="720px">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-900 text-white">
               <tr>
@@ -170,6 +172,7 @@ export function TransactionInvoiceView({
               ))}
             </tbody>
           </table>
+          </ResponsiveTable>
         </section>
 
         <section className="mt-5 grid gap-5 sm:grid-cols-[1fr_320px]">

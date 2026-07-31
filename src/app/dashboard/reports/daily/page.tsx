@@ -1,5 +1,6 @@
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import Link from 'next/link';
 import { Printer } from 'lucide-react';
 import { prisma } from '@/server/db';
@@ -55,7 +56,7 @@ export default async function DailyReportPage({
         </div>
 
         <div className="mt-6">
-          <form method="get" className="flex items-center gap-3">
+          <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <label className="text-sm font-medium">Select Date:</label>
             <input
               type="date"
@@ -142,7 +143,7 @@ export default async function DailyReportPage({
           {data.transactions.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">No transactions found for the selected date.</p>
           ) : (
-            <div className="mt-4 overflow-x-auto">
+            <ResponsiveTable className="mt-4" stickyLastColumn minWidth="1040px">
               <table className="min-w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
@@ -183,7 +184,7 @@ export default async function DailyReportPage({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           )}
         </div>
       </div>

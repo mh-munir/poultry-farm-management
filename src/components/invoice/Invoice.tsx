@@ -3,6 +3,7 @@ import React from "react"
 import { useToast } from '@/hooks/use-toast'
 import { PrintButton } from "../print-button"
 import { Button } from '@/components/ui/button'
+import { ResponsiveTable } from '@/components/ui/responsive-table'
 import type { Branding } from '@/lib/branding'
 
 async function loadScript(url: string) {
@@ -127,6 +128,7 @@ export default function Invoice(props: InvoiceProps) {
           </div>
 
           <div className="overflow-hidden rounded-md border">
+            <ResponsiveTable minWidth="700px">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-900 text-white">
                 <tr>
@@ -149,6 +151,7 @@ export default function Invoice(props: InvoiceProps) {
                 ))}
               </tbody>
             </table>
+            </ResponsiveTable>
           </div>
 
           <div className="mt-6 flex justify-end">

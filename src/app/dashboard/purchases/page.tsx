@@ -3,6 +3,7 @@ import { Plus, ArrowLeft, ClipboardList, DollarSign, Package2, Printer } from 'l
 import type { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { createPurchaseTransaction, getProductsForPurchases, getPurchasesPageData, getSuppliersForPurchases } from '@/features/purchases/actions';
 
 function formatCurrency(value: number | string | Prisma.Decimal | null | undefined) {
@@ -184,7 +185,7 @@ export default async function PurchasesPage({
             </Button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <ResponsiveTable minWidth="840px">
             <table className="min-w-full text-sm">
               <thead className="bg-muted/40 text-left">
                 <tr>
@@ -222,7 +223,7 @@ export default async function PurchasesPage({
                 })}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         )}
       </div>
     </main>

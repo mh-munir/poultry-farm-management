@@ -1,5 +1,6 @@
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import Link from 'next/link';
 import { getPartyStatementData } from '@/features/reports/actions';
 import { prisma } from '@/server/db';
@@ -182,7 +183,7 @@ export default async function PartyStatementReportPage({
               {data.entries.length === 0 ? (
                 <p className="mt-4 text-sm text-muted-foreground">No transactions found for this party.</p>
               ) : (
-                <div className="mt-4 overflow-x-auto">
+                <ResponsiveTable className="mt-4" minWidth="900px">
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-50">
                       <tr>
@@ -217,7 +218,7 @@ export default async function PartyStatementReportPage({
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </ResponsiveTable>
               )}
             </div>
           </>
