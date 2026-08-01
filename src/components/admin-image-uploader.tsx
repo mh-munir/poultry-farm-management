@@ -65,13 +65,13 @@ export default function AdminImageUploader({ existingImageUrl, onFileSelected, o
       <div className="mb-2">
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="Preview" className="h-24 w-24 rounded-full object-cover border shadow-sm" />
+          <img src={preview} alt="Preview" className="h-20 w-20 sm:h-24 sm:w-24 rounded-full object-cover border shadow-sm" />
         ) : (
-          <div className="h-24 w-24 rounded-full border bg-muted text-3xl font-semibold text-muted-foreground flex items-center justify-center">A</div>
+          <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border bg-muted text-3xl font-semibold text-muted-foreground flex items-center justify-center">A</div>
         )}
       </div>
 
-      <input ref={inputRef} id="imageFile" name="imageFile" type="file" accept="image/*" onChange={onFileChange} className="w-full rounded-md border bg-background px-3 py-2" />
+      <input ref={inputRef} id="imageFile" name="imageFile" type="file" accept="image/*" onChange={onFileChange} className="w-full rounded-md border bg-background px-3 py-2 sm:px-3 sm:py-2" />
       <input type="hidden" name="existingImageUrl" value={existingImageUrl ?? ''} />
     </div>
   );

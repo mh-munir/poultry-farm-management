@@ -10,12 +10,8 @@ export const handlers = {
   POST: handler
 };
 
-const getCachedSession = cache(async () => {
-  return getServerSession(authConfig);
-});
-
 export async function auth() {
-  return getCachedSession();
+  return getServerSession(authConfig);
 }
 
 export async function getUserSession() {

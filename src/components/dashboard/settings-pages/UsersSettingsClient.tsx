@@ -33,7 +33,7 @@ export default function UsersSettingsClient({ initialName, initialEmail, initial
         <p className="text-sm text-muted-foreground mt-1">Manage administrator account and user access.</p>
       </div>
 
-      <div className="flex gap-2 mb-6 border-b border-slate-200 pb-2">
+      <div className="flex flex-wrap gap-2 mb-6 border-b border-slate-200 pb-2">
         <button
           type="button"
           onClick={() => setActiveTab('account')}

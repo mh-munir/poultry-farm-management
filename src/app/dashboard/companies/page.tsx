@@ -117,7 +117,7 @@ export default async function CompaniesPage({
       {/* Companies Section */}
       <div className="mb-8">
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-4 shadow-sm mb-6">
-          <div className="grid gap-4 md:grid-cols-5 flex-1">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 flex-1">
             <StatCard title="Total Companies" value={companyStats.total} icon={Factory} accent="bg-indigo-50 text-indigo-600" />
             <StatCard title="Active Companies" value={companyStats.active} icon={Package2} accent="bg-emerald-50 text-emerald-600" />
             <StatCard title="Feed Companies" value={companyStats.feed} icon={Package2} accent="bg-amber-50 text-amber-600" />

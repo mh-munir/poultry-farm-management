@@ -43,8 +43,8 @@ export default async function DailyReportPage({
   const data = await getDailyReportData(selectedDate);
 
   return (
-    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
-      <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 sm:px-4 py-4">
+      <div className="rounded-2xl border bg-card p-4 sm:p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold">Daily Report</h1>

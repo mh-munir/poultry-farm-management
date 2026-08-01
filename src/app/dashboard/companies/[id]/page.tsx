@@ -268,7 +268,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <ToastRedirect initialSuccess={success ?? undefined} initialError={error ?? undefined} />
-      <div className="min-w-0 grid gap-6 lg:grid-cols-[320px_1fr]">
+      <div className="min-w-0 grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
         <aside className="min-w-0 space-y-6">
           <div className="rounded-2xl border bg-card p-6 shadow-sm">
             <div className="flex flex-col items-center text-center">
@@ -352,7 +352,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
 
         <div className="min-w-0 space-y-6">
           <section className="rounded-2xl border bg-card p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-semibold">Financial Overview</h2>
                 <p className="mt-1 text-xs text-muted-foreground">Quick summary of the company account</p>
@@ -362,7 +362,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
               </span>
             </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="rounded-xl border bg-background p-4">
                 <p className="text-sm text-muted-foreground">Total Feed Purchases</p>
                 <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalFeedPurchases)}</p>
@@ -387,12 +387,12 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
           </section>
 
           <section>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-xl font-semibold">Transaction history</h2>
                 <p className="mt-1 text-sm text-muted-foreground">Purchase and payment history for this company.</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <CompanyProfileActions companyName={company.name} exportData={exportCsv} />
               </div>
             </div>

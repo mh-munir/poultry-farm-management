@@ -68,7 +68,7 @@ export default function CompanySettingsClient() {
           <label className="block text-sm">Address</label>
           <textarea className="mt-1 w-full rounded border px-3 py-2" value={address} onChange={(e) => setAddress(e.target.value)} />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm">Phone</label>
             <input className="mt-1 w-full rounded border px-3 py-2" value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -78,8 +78,8 @@ export default function CompanySettingsClient() {
             <input className="mt-1 w-full rounded border px-3 py-2" value={website} onChange={(e) => setWebsite(e.target.value)} />
           </div>
         </div>
-        <div className="mt-4">
-          <button disabled={saving} onClick={save} className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button disabled={saving} onClick={save} className="w-full sm:w-auto rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
         </div>
       </div>
     </div>

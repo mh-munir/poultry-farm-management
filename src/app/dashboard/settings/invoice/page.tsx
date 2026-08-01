@@ -4,7 +4,7 @@ import InvoiceSettingsClient from '@/components/dashboard/settings-pages/Invoice
 export default async function InvoicePage() {
   await requireRole(['ADMIN','MANAGER'])
   return (
-    <main className="mx-auto min-h-[70vh] max-w-screen-3xl px-6 py-10">
+    <main className="mx-auto min-h-[70vh] max-w-screen-3xl px-4 py-6 sm:px-6 sm:py-10">
       <InvoiceSettingsClient />
     </main>
   )

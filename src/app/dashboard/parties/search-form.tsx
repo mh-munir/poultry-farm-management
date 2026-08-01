@@ -10,7 +10,7 @@ interface SearchFormProps {
 
 export function PartySearchForm({ search, partyType, status }: SearchFormProps) {
   return (
-    <form method="get" action="/dashboard/parties" className="flex items-center gap-2 w-full md:w-96">
+    <form method="get" action="/dashboard/parties" className="flex items-center gap-2 w-full max-w-lg md:w-96">
       <input
         type="hidden"
         name="partyType"

@@ -25,7 +25,7 @@ export function SummaryCard({
 }: SummaryCardProps) {
   return (
     <Card className={className}>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-card-title text-muted-foreground">{title}</p>
           <p className={`mt-2 text-card-title ${valueColor}`}>{value}</p>

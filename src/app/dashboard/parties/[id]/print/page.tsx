@@ -211,7 +211,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-8 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
             <StatementCard title="Customer" value={formatCurrency(totalSales)} subtext="Total Sales" icon={Receipt} />
             <StatementCard title="Customer" value={formatCurrency(totalPayments)} subtext="Total Paid" icon={Wallet} />
             <StatementCard title="Party Supplier" value={formatCurrency(totalSupplies)} subtext="Total Supplies" icon={Package} />

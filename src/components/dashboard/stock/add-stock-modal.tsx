@@ -245,7 +245,7 @@ export function AddStockModal({
           <input type="hidden" name="notes" value="" />
 
           <div className="rounded-2xl border bg-muted/10 p-4">
-            <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-semibold">Stock items</p>
                 <p className="text-xs text-muted-foreground">Select from existing items below, or add new ones with quantity and pricing.</p>

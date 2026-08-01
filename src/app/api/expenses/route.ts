@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/server/db'
 import { requireUser } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
+import { revalidateTags, CACHE_TAGS } from '@/lib/cache'
 
 const createSchema = z.object({ amount: z.coerce.number(), description: z.string().optional(), date: z.string().optional() })
 
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
       }
     })
 
-    revalidatePath('/dashboard');
+    revalidateTags([CACHE_TAGS.reports, CACHE_TAGS.dashboard]);
     revalidatePath('/dashboard/expenses');
     return NextResponse.json(created)
   } catch (err: any) {
@@ -67,6 +68,8 @@ export async function DELETE(request: Request) {
 
   try {
     await (prisma as any).expense.delete({ where: { id: Number(id) } })
+    revalidateTags([CACHE_TAGS.reports, CACHE_TAGS.dashboard]);
+    revalidatePath('/dashboard/expenses');
     return NextResponse.json({ ok: true })
   } catch (err: any) {
     return NextResponse.json({ error: 'expenses_delete_failed', message: err?.message ?? String(err) }, { status: 500 })

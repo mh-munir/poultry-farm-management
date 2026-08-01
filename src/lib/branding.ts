@@ -1,4 +1,12 @@
+import { cache } from 'react';
+import { unstable_cache, revalidateTag } from 'next/cache';
 import { prisma } from '@/server/db'
+import { CACHE_TAGS } from '@/lib/cache';
+
+export function invalidateBrandingCache() {
+  revalidateTag(CACHE_TAGS.branding);
+  revalidateTag(CACHE_TAGS.companyProfile);
+}
 
 export type Branding = {
   name?: string
@@ -12,9 +20,13 @@ export type InvoiceCompanyProfile = Branding & {
   website?: string
 }
 
-export async function getBranding(): Promise<Branding | null> {
+const getBrandingCached = unstable_cache(async (): Promise<Branding | null> => {
   try {
-    const setting = await (prisma as any).setting.findUnique({ where: { key: 'branding' } })
+    const setting = await (prisma as any).setting.findUnique({
+      where: { key: 'branding' },
+      select: { value: true }
+    })
+
     if (!setting?.value) {
       return null
     }
@@ -24,22 +36,25 @@ export async function getBranding(): Promise<Branding | null> {
       return null
     }
 
-    const branding = {
+    return {
       name: parsed?.name ?? undefined,
       logo: parsed?.logo ?? undefined,
       favicon: parsed?.favicon ?? undefined
     }
-
-    return branding
   } catch {
     return null
   }
-}
+}, ['branding'], { tags: [CACHE_TAGS.branding], revalidate: 300 });
 
-export async function getInvoiceCompanyProfile(): Promise<InvoiceCompanyProfile> {
+export const getBranding = cache(getBrandingCached);
+
+const getInvoiceCompanyProfileCached = unstable_cache(async (): Promise<InvoiceCompanyProfile> => {
   const [branding, profileSetting] = await Promise.all([
     getBranding(),
-    (prisma as any).setting.findUnique({ where: { key: 'company_profile' } }).catch(() => null)
+    (prisma as any).setting.findUnique({
+      where: { key: 'company_profile' },
+      select: { value: true }
+    }).catch(() => null)
   ])
 
   const rawProfile = profileSetting?.value
@@ -53,4 +68,6 @@ export async function getInvoiceCompanyProfile(): Promise<InvoiceCompanyProfile>
     phone: profile?.phone,
     website: profile?.website
   }
-}
+}, ['company-profile'], { tags: [CACHE_TAGS.branding, CACHE_TAGS.companyProfile], revalidate: 300 });
+
+export const getInvoiceCompanyProfile = cache(getInvoiceCompanyProfileCached);

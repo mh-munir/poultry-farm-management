@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
+import { revalidateTags, CACHE_TAGS } from '@/lib/cache';
 
 type ProductTypeValue = 'FEED' | 'MEDICINE' | 'EGG' | 'CHICKEN';
 
@@ -92,6 +93,8 @@ export async function createOrUpdateProduct(formData: FormData) {
     redirect(url.toString());
   }
 
+  revalidateTags([CACHE_TAGS.products, CACHE_TAGS.stock, CACHE_TAGS.dashboard]);
+  revalidateTags([CACHE_TAGS.products, CACHE_TAGS.stock, CACHE_TAGS.dashboard]);
   revalidatePath('/dashboard/products');
   const url = new URL('/dashboard/products', 'http://localhost');
   url.searchParams.set('success', data.id ? 'Product updated successfully.' : 'Product created successfully.');
@@ -212,7 +215,7 @@ export async function getProductStats() {
     const [total, active, lowStock] = await Promise.all([
       prisma.product.count(),
       prisma.product.count({ where: { isActive: true } }),
-      prisma.product.count({ where: { stockBalance: { quantityOnHand: { lte: 0 } } } })
+      prisma.product.count({ where: { lowStockThreshold: { gt: 0 }, stockBalance: { quantityOnHand: { lte: 0 } } } })
     ]);
 
     return { total, active, lowStock };

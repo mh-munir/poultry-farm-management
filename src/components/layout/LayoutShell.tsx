@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Menu, X, ChevronRight } from 'lucide-react';
 import Sidebar from './Sidebar';
@@ -94,8 +94,8 @@ function getPageTitle(pathname: string): string[] {
 export default function LayoutShell({ children, theme, branding }: { children: React.ReactNode; theme?: string; branding: any }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname() || '';
-  const hideShell = pathname.startsWith('/auth') || pathname === '/unauthorized';
-  const breadcrumbs = getPageTitle(pathname);
+  const hideShell = useMemo(() => pathname.startsWith('/auth') || pathname === '/unauthorized', [pathname]);
+  const breadcrumbs = useMemo(() => getPageTitle(pathname), [pathname]);
 
   if (hideShell) {
     return (
@@ -113,14 +113,14 @@ export default function LayoutShell({ children, theme, branding }: { children: R
 
       {open && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setOpen(false)} />}
 
-      <div className="flex-1 min-h-screen md:ml-64">
+      <div className="flex-1 min-h-screen">
         <header className="sticky top-0 z-20 border-b border-border bg-surface/95 shadow-sm backdrop-blur-lg">
-          <div className="mx-auto flex max-w-screen-3xl px-4 md:px-8 py-4 items-center justify-between">
+          <div className="mx-auto flex max-w-screen-3xl flex-col gap-3 px-3 py-3 md:flex-row md:items-center md:justify-between md:px-8 md:py-4">
             <div className="flex items-center gap-3">
               <button className="md:hidden p-2 rounded-lg hover:bg-muted/60 transition-colors" onClick={() => setOpen(!open)} aria-label="Toggle menu">
                 {open ? <X size={18} /> : <Menu size={18} />}
               </button>
-              <nav className="flex items-center gap-2 text-sm">
+              <nav className="flex flex-1 items-center gap-2 text-sm overflow-x-auto whitespace-nowrap min-w-0">
                 {breadcrumbs.map((crumb, index) => {
                   const isLast = index === breadcrumbs.length - 1;
                   return (
@@ -129,8 +129,8 @@ export default function LayoutShell({ children, theme, branding }: { children: R
                       <span
                         className={
                           isLast
-                            ? 'font-semibold text-foreground'
-                            : 'text-muted-foreground hover:text-foreground transition-colors'
+                            ? 'font-semibold text-foreground truncate min-w-0'
+                            : 'text-muted-foreground hover:text-foreground transition-colors truncate min-w-0'
                         }
                       >
                         {crumb}
@@ -147,7 +147,7 @@ export default function LayoutShell({ children, theme, branding }: { children: R
           </div>
         </header>
 
-        <main className="p-6 text-table-body">{children}</main>
+        <main className="p-4 sm:p-6 text-table-body">{children}</main>
       </div>
     </div>
   );

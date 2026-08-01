@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { auth } from '@/server/auth';
 import { redirect } from 'next/navigation';
 
@@ -13,7 +14,7 @@ export interface AppSession {
   user: AppSessionUser;
 }
 
-export async function requireUser(): Promise<AppSession> {
+export const requireUser = cache(async (): Promise<AppSession> => {
   try {
     const session = (await auth()) as AppSession | null;
 
@@ -25,7 +26,7 @@ export async function requireUser(): Promise<AppSession> {
   } catch {
     redirect('/auth/sign-in');
   }
-}
+});
 
 export async function requireRole(allowedRoles: Array<'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'USER'>) {
   try {

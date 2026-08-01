@@ -23,14 +23,14 @@ export default function BackupSettingsClient() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="rounded-xl border bg-card p-6 mb-6">
-        <h2 className="text-2xl font-semibold">Backup</h2>
-        <p className="text-sm text-muted-foreground">Download a JSON backup of your server-backed settings.</p>
+    <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
+      <div className="rounded-xl border bg-card p-4 sm:p-6 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-semibold">Backup</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground">Download a JSON backup of your server-backed settings.</p>
       </div>
 
-      <div className="rounded-xl border bg-card p-6">
-        <button disabled={downloading} onClick={downloadBackup} className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{downloading ? 'Preparing backup...' : 'Download Backup'}</button>
+      <div className="rounded-xl border bg-card p-4 sm:p-6">
+        <button disabled={downloading} onClick={downloadBackup} className="w-full sm:w-auto rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{downloading ? 'Preparing backup...' : 'Download Backup'}</button>
       </div>
     </div>
   )

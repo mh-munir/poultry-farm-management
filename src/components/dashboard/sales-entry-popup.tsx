@@ -247,7 +247,7 @@ export function SalesEntryPopup({
         type="button"
         variant="secondary"
         onClick={() => setOpen(true)}
-        className={buttonClassName}
+        className={`w-full sm:w-auto ${buttonClassName ?? ''}`}
       >
         {buttonChildren ?? '📊 Sales Entry'}
       </Button>
@@ -357,7 +357,7 @@ export function SalesEntryPopup({
           </div>
 
           <div className="sm:col-span-2 space-y-3 rounded-xl border bg-muted/10 p-4">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <label className="text-sm font-medium">Sale Items</label>
               <Button type="button" variant="outline" size="sm" onClick={addSalesProductRow}>
                 Add Item
@@ -368,7 +368,7 @@ export function SalesEntryPopup({
               const selectedProduct = productsById.get(row.productId);
 
               return (
-                <div key={row.rowId} className="grid gap-3 rounded-lg border bg-white p-3 md:grid-cols-[1.4fr_0.55fr_0.65fr_auto]">
+                <div key={row.rowId} className="grid gap-3 rounded-lg border bg-white p-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-[1.4fr_0.55fr_0.65fr_auto]">
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted-foreground">Product</label>
                     <select
@@ -442,7 +442,7 @@ export function SalesEntryPopup({
             ) : null}
           </div>
 
-          <div className="sm:col-span-2 grid gap-3 sm:grid-cols-4 bg-slate-50 rounded-[20px] p-4 text-sm">
+          <div className="sm:col-span-2 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-slate-50 rounded-[20px] p-4 text-sm">
             <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
               <label className="block text-xs font-medium text-slate-500">Discount</label>
               <input

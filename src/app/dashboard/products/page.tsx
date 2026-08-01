@@ -60,7 +60,7 @@ export default async function ProductsPage({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <div className="rounded-2xl border bg-background p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm text-muted-foreground"><Package2 className="h-4 w-4" /> Total Products</div>
           <div className="mt-3 text-2xl font-semibold">{stats.total}</div>
@@ -183,7 +183,7 @@ export default async function ProductsPage({
 
         <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">Showing {data.products.length} of {data.total} products</p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {Array.from({ length: data.totalPages }, (_, index) => index + 1).map((pageNumber) => {
               const params = new URLSearchParams({ ...(search ? { search } : {}), ...(categoryId && categoryId !== 'ALL' ? { categoryId } : {}), ...(productType && productType !== 'ALL' ? { productType } : {}) });
               params.set('page', String(pageNumber));

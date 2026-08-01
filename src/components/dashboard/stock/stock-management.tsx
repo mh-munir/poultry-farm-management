@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/ui/dialog';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
@@ -86,7 +86,9 @@ export function StockManagement({
     setItems(initialItems);
   }, [initialItems]);
 
-  const totalStockValue = items.reduce((total, item) => total + item.quantity * item.buyRate, 0);
+  const totalStockValue = useMemo(() => {
+    return items.reduce((total, item) => total + item.quantity * item.buyRate, 0);
+  }, [items]);
 
   const totalAmount = useMemo(() => {
     return rows.reduce((sum, row) => {
@@ -101,31 +103,31 @@ export function StockManagement({
     return Math.max(0, totalAmount - payment);
   }, [paymentAmount, totalAmount]);
 
-  const updateRow = (rowId: number, field: keyof StockRow, value: string) => {
+  const updateRow = useCallback((rowId: number, field: keyof StockRow, value: string) => {
     setRows((prev) => prev.map((row) => (row.rowId === rowId ? { ...row, [field]: value } : row)));
-  };
+  }, []);
 
-  const addRow = () => {
+  const addRow = useCallback(() => {
     setRows((prev) => [...prev, { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: title === 'Medicine' ? 'gm' : 'bag' }]);
-  };
+  }, [title]);
 
-  const openForm = () => {
+  const openForm = useCallback(() => {
     if (title === 'Medicine') {
       setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: 'gm' }]);
     } else {
       setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: 'bag' }]);
     }
     setIsFormOpen(true);
-  };
+  }, [title]);
 
-  const openEditModal = (item: StockItem) => {
+  const openEditModal = useCallback((item: StockItem) => {
     setEditingItemId(item.id ?? null);
     setEditBuyRate(String(item.buyRate ?? '0'));
     setEditSaleRate(String(item.salesRate ?? '0'));
     setIsEditModalOpen(true);
-  };
+  }, []);
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = useCallback(() => {
     if (editingItemId === null) return;
     
     setItems((prev) =>
@@ -136,13 +138,13 @@ export function StockManagement({
       )
     );
     setIsEditModalOpen(false);
-  };
+  }, [editBuyRate, editSaleRate, editingItemId]);
 
-  const removeRow = (rowId: number) => {
+  const removeRow = useCallback((rowId: number) => {
     setRows((prev) => prev.filter((row) => row.rowId !== rowId));
-  };
+  }, []);
 
-  const handleRowChange = (rowId: number, field: keyof StockRow, value: string) => {
+  const handleRowChange = useCallback((rowId: number, field: keyof StockRow, value: string) => {
     if (field === 'productName') {
       const normalizedValue = value.trim();
       updateRow(rowId, 'productName', value);
@@ -157,7 +159,7 @@ export function StockManagement({
       return;
     }
     updateRow(rowId, field, value);
-  };
+  }, [availableProducts, updateRow]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -229,17 +231,17 @@ export function StockManagement({
   const SectionWrapper = asSection ? 'section' : 'main';
   const sectionClassName = asSection
     ? 'mx-auto max-w-screen-3xl'
-    : 'mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4';
+    : 'mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4 sm:px-4';
 
   return (
     <SectionWrapper className={sectionClassName}>
-      <div className="rounded-2xl border bg-card p-6 shadow-sm">
+      <div className="rounded-2xl border bg-card p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{title}</h1>
             <p className="mt-2 text-sm text-muted-foreground">{description}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
               <div className="font-medium">Total Stock Value</div>
               <div className="text-primary">{totalStockValue.toLocaleString()} TK</div>
@@ -248,7 +250,7 @@ export function StockManagement({
               <button
                 type="button"
                 onClick={openForm}
-                className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+                className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground sm:w-auto"
               >
                 {addButtonLabel}
               </button>
@@ -258,8 +260,8 @@ export function StockManagement({
 
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen} title={`Add ${title} Stock`}>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="md:col-span-2">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+              <div className="sm:col-span-2">
                 <label className="mb-1 block text-sm font-medium">Company</label>
                 {useCompanySearch && companyNames ? (
                   <SearchableCombobox
@@ -322,7 +324,7 @@ export function StockManagement({
             </div>
 
             <div className="rounded-2xl border bg-muted/10 p-4">
-              <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold">Stock items</p>
                   {items.length > 0 ? (
@@ -384,7 +386,7 @@ export function StockManagement({
                       </div>
                     )}
                     </div>
-                    <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_0.6fr] items-end">
+                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_1fr_1fr_0.6fr] items-end">
                       <div>
                         <label className="mb-1 block text-sm font-medium">{title === 'Medicine' ? 'Quantity' : 'Quantity Of Sack'}</label>
                         <input
@@ -437,7 +439,7 @@ export function StockManagement({
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 mb-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mb-4">
               <div>
                 <label className="mb-1 block text-sm font-medium">Payment Method</label>
                 <select
@@ -467,7 +469,7 @@ export function StockManagement({
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm font-medium">Total Amount</label>
                 <div className="rounded-md border bg-background px-3 py-2 text-sm">{totalAmount.toFixed(2)}</div>
@@ -551,45 +553,47 @@ export function StockManagement({
             <table className="min-w-full divide-y divide-border text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium">Date</th>
-                  <th className="px-4 py-3 text-left font-medium">Company Name</th>
-                  <th className="px-4 py-3 text-left font-medium">{title} Name</th>
-                  <th className="px-4 py-3 text-left font-medium">Gram</th>
-                  <th className="px-4 py-3 text-left font-medium">Quantity</th>
-                  <th className="px-4 py-3 text-left font-medium">Paid</th>
-                  <th className="px-4 py-3 text-left font-medium">Due</th>
-                  <th className="px-4 py-3 text-left font-medium">Total Amount</th>
-                  <th className="px-4 py-3 text-left font-medium">Action</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Date</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Company Name</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{title} Name</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Gram</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Quantity</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Paid</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Due</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Total Amount</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border bg-background">
                 {items.map((item) => (
                   <tr key={`${item.id ?? item.name}-${item.buyRate}`} className="hover:bg-muted/30">
-                    <td className="px-4 py-3">{item.lastTransactionDate ? new Date(item.lastTransactionDate).toLocaleDateString() : '-'}</td>
-                    <td className="px-4 py-3">{item.companyName || '-'}</td>
-                    <td className="px-4 py-3">{item.name}</td>
-                    <td className="px-4 py-3">{item.unit || '-'}</td>
-                    <td className="px-4 py-3">{item.quantity}</td>
-                    <td className="px-4 py-3">{Number(item.paidAmount ?? 0).toFixed(2)} TK</td>
-                    <td className="px-4 py-3">{Number(item.dueAmount ?? 0).toFixed(2)} TK</td>
-                    <td className="px-4 py-3 font-medium">{(item.quantity * item.buyRate).toFixed(2)} TK</td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(item)}
-                        className="rounded-md bg-blue-500 px-3 py-1 text-xs font-medium text-white hover:bg-blue-600"
-                      >
-                        Edit
-                      </button>
-                      <a
-                        href={`/dashboard/stock/print/${item.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="ml-2 inline-flex items-center gap-1 rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600"
-                      >
-                        <Printer className="h-3 w-3" />
-                        Print
-                      </a>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3">{item.lastTransactionDate ? new Date(item.lastTransactionDate).toLocaleDateString() : '-'}</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3">{item.companyName || '-'}</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3">{item.name}</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3">{item.unit || '-'}</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3">{item.quantity}</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3">{Number(item.paidAmount ?? 0).toFixed(2)} TK</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3">{Number(item.dueAmount ?? 0).toFixed(2)} TK</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 font-medium">{(item.quantity * item.buyRate).toFixed(2)} TK</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(item)}
+                          className="rounded-md bg-blue-500 px-3 py-1 text-xs font-medium text-white hover:bg-blue-600"
+                        >
+                          Edit
+                        </button>
+                        <a
+                          href={`/dashboard/stock/print/${item.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600"
+                        >
+                          <Printer className="h-3 w-3" />
+                          Print
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 ))}

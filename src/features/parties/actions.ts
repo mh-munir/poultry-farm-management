@@ -1,12 +1,12 @@
 'use server';
 
 import { notFound } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
+import { unstable_cache } from 'next/cache';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import type { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '@/server/db';
 import { requireUser } from '@/lib/auth';
+import { CACHE_TAGS, revalidatePartyData, revalidatePurchaseData } from '@/lib/cache';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
@@ -70,18 +70,8 @@ async function uploadPartyImage(
 
   const supabaseAdmin = getSupabaseAdmin();
 
-  // Basic runtime config validation (do not log secrets)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const bucketName = BUCKET_NAME.trim();
-
-  console.error("PARTY IMAGE SUPABASE CONFIG DEBUG", {
-    supabaseUrl,
-    bucketName,
-    bucketNameJson: JSON.stringify(bucketName),
-    filePath,
-    filePathJson: JSON.stringify(filePath),
-    filePathType: typeof filePath,
-  });
 
   if (!supabaseUrl) {
     throw new Error('Supabase URL is not configured');
@@ -156,30 +146,6 @@ type PartySummaryPayment = {
   amount: { toString(): string };
   paymentDate: Date;
   allocations: Array<{ id: number }>;
-};
-
-type PartyListRecord = {
-  id: number;
-  name: string;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  partyType: string;
-  taxNumber: string | null;
-  creditLimit: Decimal | null;
-  openingBalance: Decimal;
-  imageUrl: string | null;
-  mediaName: string | null;
-  farmName: string | null;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  createdById: string | null;
-  _count: {
-    transactions: number;
-  };
-  transactions: PartySummaryTransaction[];
-  payments: PartySummaryPayment[];
 };
 
 function toNumber(value: number | string | { toString(): string } | null | undefined) {
@@ -298,7 +264,7 @@ export async function createOrUpdateParty(formData: FormData) {
       });
     }
 
-    revalidatePath('/dashboard/parties');
+    revalidatePartyData(party.id);
 
     return {
       success: true,
@@ -348,7 +314,7 @@ export async function deleteParty(formData: FormData) {
       prisma.party.delete({ where: { id: partyId } })
     ]);
 
-    revalidatePath('/dashboard/parties');
+    revalidatePartyData(partyId);
     return { success: true, message: `Party '${party.name}' and all related data have been deleted.` };
   } catch (error: any) {
     console.error('Error deleting party:', error);
@@ -360,36 +326,81 @@ export async function getPartyAccountSummary(partyId: number) {
   await requireUser();
   const party = await prisma.party.findUnique({
     where: { id: partyId },
-    select: {
-      partyType: true,
-      transactions: {
-        select: {
-          transactionType: true,
-          totalAmount: true,
-          paidAmount: true,
-          dueAmount: true,
-          transactionDate: true
-        }
-      },
-      payments: {
-        select: {
-          amount: true,
-          paymentDate: true,
-          allocations: {
-            select: {
-              id: true
-            }
-          }
-        }
-      }
-    }
+    select: { partyType: true }
   });
 
   if (!party) {
     notFound();
   }
 
-  return summarizePartyAccount(party.partyType, party.transactions, party.payments);
+  const [txnSummary, paymentSummary] = await Promise.all([
+    prisma.$queryRaw<Array<{ transactionType: string; totalAmount: any; paidAmount: any; dueAmount: any }>>`
+      SELECT "transactionType", SUM("totalAmount") AS "totalAmount", SUM("paidAmount") AS "paidAmount", SUM("dueAmount") AS "dueAmount"
+      FROM "Transaction"
+      WHERE "partyId" = ${partyId}
+      GROUP BY "transactionType"
+    `,
+    prisma.$queryRaw<Array<{ totalPaid: any }>>`
+      SELECT COALESCE(SUM("amount"), 0) AS "totalPaid"
+      FROM "Payment" p
+      WHERE p."partyId" = ${partyId}
+        AND NOT EXISTS (
+          SELECT 1 FROM "PaymentAllocation" pa WHERE pa."paymentId" = p."id"
+        )
+    `
+  ]);
+
+  let customerInvoiced = 0;
+  let customerPaid = 0;
+  let customerDue = 0;
+  let partySupplierInvoiced = 0;
+  let partySupplierPaid = 0;
+  let partySupplierDue = 0;
+
+  for (const row of txnSummary as Array<{ transactionType: string; totalAmount: any; paidAmount: any; dueAmount: any }>) {
+    const totalAmount = Number(row.totalAmount ?? 0);
+    const paidAmount = Number(row.paidAmount ?? 0);
+    const dueAmount = Number(row.dueAmount ?? 0);
+    if (row.transactionType === 'SALE') {
+      customerInvoiced += totalAmount;
+      customerPaid += paidAmount;
+      customerDue += dueAmount;
+    }
+    if (row.transactionType === 'PURCHASE') {
+      partySupplierInvoiced += totalAmount;
+      partySupplierPaid += paidAmount;
+      partySupplierDue += dueAmount;
+    }
+  }
+
+  const standalonePayment = Number((paymentSummary[0] as any)?.totalPaid ?? 0);
+
+  if (party.partyType === 'PARTY') {
+    partySupplierPaid += standalonePayment;
+    partySupplierDue = Math.max(0, partySupplierDue - standalonePayment);
+  } else {
+    customerPaid += standalonePayment;
+    customerDue = Math.max(0, customerDue - standalonePayment);
+  }
+
+  const offsetApplied = Math.min(customerDue, partySupplierDue);
+  const netCustomerDue = Math.max(0, customerDue - offsetApplied);
+  const netPartySupplierDue = Math.max(0, partySupplierDue - offsetApplied);
+
+  return {
+    customerInvoiced,
+    customerPaid,
+    customerDue,
+    supplierInvoiced: partySupplierInvoiced,
+    supplierPaid: partySupplierPaid,
+    supplierDue: partySupplierDue,
+    offsetApplied,
+    netCustomerDue,
+    netSupplierDue: netPartySupplierDue,
+    totalInvoiced: customerInvoiced + partySupplierInvoiced,
+    totalPaid: customerPaid + partySupplierPaid,
+    totalDue: netCustomerDue + netPartySupplierDue
+  };
 }
 
 export async function getPartyPageData({
@@ -427,45 +438,104 @@ export async function getPartyPageData({
 
   const where: PartyWhereInput = filters.length > 0 ? { AND: filters } : {};
 
-  const [parties, total] = await prisma.$transaction([
+  const [parties, total] = await Promise.all([
     prisma.party.findMany({
       where,
-      include: {
-        _count: {
-          select: {
-            transactions: true
-          }
-        },
-        transactions: {
-          select: {
-            transactionType: true,
-            totalAmount: true,
-            paidAmount: true,
-            dueAmount: true,
-            transactionDate: true
-          }
-        },
-        payments: {
-          select: {
-            amount: true,
-            paymentDate: true,
-            allocations: {
-              select: {
-                id: true
-              }
-            }
-          }
-        }
-      }
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        address: true,
+        partyType: true,
+        taxNumber: true,
+        creditLimit: true,
+        openingBalance: true,
+        imageUrl: true,
+        mediaName: true,
+        farmName: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        createdById: true
+      },
+      orderBy: { updatedAt: 'desc' },
+      skip,
+      take
     }),
     prisma.party.count({ where })
   ]);
 
+  const partyIds = parties.map((party) => party.id);
+  const [transactionSummary, standalonePayments, lastActivity] = partyIds.length === 0
+    ? [[], [], []] as [
+        Array<{ partyId: number; transactionType: string; totalAmount: any; paidAmount: any; dueAmount: any }>,
+        Array<{ partyId: number; totalPaid: any }>,
+        Array<{ partyId: number; lastActivityAt: Date | null }>
+      ]
+    : await Promise.all([
+        prisma.$queryRaw<Array<{ partyId: number; transactionType: string; totalAmount: any; paidAmount: any; dueAmount: any }>>`
+          SELECT "partyId", "transactionType",
+            SUM("totalAmount") AS "totalAmount",
+            SUM("paidAmount") AS "paidAmount",
+            SUM("dueAmount") AS "dueAmount"
+          FROM "Transaction"
+          WHERE "partyId" IN (${Prisma.join(partyIds)})
+          GROUP BY "partyId", "transactionType"
+        `,
+        prisma.$queryRaw<Array<{ partyId: number; totalPaid: any }>>`
+          SELECT p."partyId", COALESCE(SUM(p."amount"), 0) AS "totalPaid"
+          FROM "Payment" p
+          WHERE p."partyId" IN (${Prisma.join(partyIds)})
+            AND NOT EXISTS (
+              SELECT 1 FROM "PaymentAllocation" pa WHERE pa."paymentId" = p."id"
+            )
+          GROUP BY p."partyId"
+        `,
+        prisma.$queryRaw<Array<{ partyId: number; lastActivityAt: Date | null }>>`
+          SELECT "partyId", MAX("activityAt") AS "lastActivityAt"
+          FROM (
+            SELECT "partyId", "transactionDate" AS "activityAt"
+            FROM "Transaction"
+            WHERE "partyId" IN (${Prisma.join(partyIds)})
+            UNION ALL
+            SELECT "partyId", "paymentDate" AS "activityAt"
+            FROM "Payment"
+            WHERE "partyId" IN (${Prisma.join(partyIds)})
+          ) activity
+          GROUP BY "partyId"
+        `
+      ]);
+
+  const transactionMap = new Map<number, PartySummaryTransaction[]>();
+  for (const row of transactionSummary) {
+    const rows = transactionMap.get(row.partyId) ?? [];
+    rows.push({
+      transactionType: row.transactionType,
+      totalAmount: row.totalAmount ?? 0,
+      paidAmount: row.paidAmount ?? 0,
+      dueAmount: row.dueAmount ?? 0,
+      transactionDate: new Date()
+    });
+    transactionMap.set(row.partyId, rows);
+  }
+
+  const paymentMap = new Map<number, PartySummaryPayment[]>();
+  for (const row of standalonePayments) {
+    paymentMap.set(row.partyId, [{
+      amount: row.totalPaid ?? 0,
+      paymentDate: new Date(),
+      allocations: []
+    }]);
+  }
+
+  const lastActivityMap = new Map(lastActivity.map((row) => [row.partyId, row.lastActivityAt]));
+
   const totalPages = Math.ceil(total / take);
-  const partiesWithTotals = (parties as PartyListRecord[]).map(({ transactions, payments, ...party }) => {
-    const transactionDates = transactions.map((t) => new Date(t.transactionDate));
-    const paymentDates = payments.map((p) => new Date(p.paymentDate));
-    const lastTransactionDate = transactionDates.concat(paymentDates).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+  const partiesWithTotals = parties.map((party) => {
+    const transactions = transactionMap.get(party.id) ?? [];
+    const payments = paymentMap.get(party.id) ?? [];
+    const lastTransactionDate = lastActivityMap.get(party.id) ?? null;
 
     return {
       ...party,
@@ -481,13 +551,11 @@ export async function getPartyPageData({
     return 0;
   });
 
-  const partiesPage = partiesWithTotals.slice(skip, skip + take);
-
   return {
     parties: partiesWithTotals,
     total,
-    totalPages,
-    page
+    totalPages: Math.max(1, totalPages),
+    page: Math.min(page, Math.max(1, totalPages))
   };
 }
 
@@ -513,84 +581,133 @@ export async function getPartyStats(args: { search?: string; partyType?: string;
 
   const where: PartyWhereInput = filters.length > 0 ? { AND: filters } : {};
 
-  const total = await prisma.party.count({ where });
-  const active = await prisma.party.count({ where: { ...where, isActive: true } });
-  const customers = await prisma.party.count({ where: { ...where, partyType: 'CUSTOMER' } });
-  const parties = await prisma.party.count({ where: { ...where, partyType: 'PARTY' } });
-  const suppliers = parties;
+  const rows = await prisma.party.groupBy({
+    by: ['isActive', 'partyType'],
+    where,
+    _count: { _all: true }
+  });
 
-  return { total, active, customers, parties, companies: 0, suppliers };
+  const total = rows.reduce((sum, row) => sum + row._count._all, 0);
+  const activeParties = rows.reduce((sum, row) => sum + (row.isActive ? row._count._all : 0), 0);
+  const customers = rows.reduce((sum, row) => sum + (row.partyType === 'CUSTOMER' ? row._count._all : 0), 0);
+  const suppliers = rows.reduce((sum, row) => sum + (row.partyType === 'PARTY' ? row._count._all : 0), 0);
+
+  return { total, active: activeParties, customers, parties: suppliers, companies: 0, suppliers: suppliers };
 }
+
+const getPartyNamesCached = unstable_cache(
+  async () => prisma.party.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+  ['party-name-options'],
+  { tags: [CACHE_TAGS.parties], revalidate: 300 }
+);
+
+const getCustomerOptionsCached = unstable_cache(
+  async () =>
+    prisma.party.findMany({
+      where: { partyType: { in: ['CUSTOMER', 'BOTH'] }, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' }
+    }),
+  ['customer-options'],
+  { tags: [CACHE_TAGS.parties], revalidate: 300 }
+);
+
+const getSupplierOptionsCached = unstable_cache(
+  async () =>
+    prisma.party.findMany({
+      where: { partyType: { in: ['PARTY', 'BOTH'] }, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' }
+    }),
+  ['supplier-options'],
+  { tags: [CACHE_TAGS.parties], revalidate: 300 }
+);
 
 export async function getPartyNames() {
   await requireUser();
-  return prisma.party.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } });
+  return getPartyNamesCached();
 }
 
 export async function getCustomerOptions() {
   await requireUser();
-  return prisma.party.findMany({
-    where: { partyType: { in: ['CUSTOMER', 'BOTH'] }, isActive: true },
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' }
-  });
+  return getCustomerOptionsCached();
 }
 
 export async function getSupplierOptions() {
   await requireUser();
-  return prisma.party.findMany({
-    where: { partyType: { in: ['PARTY', 'BOTH'] }, isActive: true },
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' }
-  });
+  return getSupplierOptionsCached();
 }
 
 export async function getCustomerCurrentDue(partyId: number) {
   await requireUser();
   const party = await prisma.party.findUnique({
     where: { id: partyId },
-    select: {
-      partyType: true,
-      transactions: {
-        where: { transactionType: 'SALE' },
-        select: { transactionType: true, totalAmount: true, paidAmount: true, dueAmount: true, transactionDate: true }
-      },
-      payments: {
-        select: { amount: true, paymentDate: true, allocations: { select: { id: true } } }
-      }
-    }
+    select: { partyType: true }
   });
 
   if (!party) {
     return 0;
   }
 
-  const summary = summarizePartyAccount(party.partyType, party.transactions, party.payments);
-  return summary.netCustomerDue;
+  const [saleAgg, paymentAgg] = await Promise.all([
+    prisma.transaction.aggregate({
+      where: { partyId, transactionType: 'SALE' },
+      _sum: { totalAmount: true, paidAmount: true, dueAmount: true }
+    }),
+    prisma.$queryRaw<Array<{ totalPaid: any }>>`
+      SELECT COALESCE(SUM("amount"), 0) AS "totalPaid"
+      FROM "Payment" p
+      WHERE p."partyId" = ${partyId}
+        AND NOT EXISTS (
+          SELECT 1 FROM "PaymentAllocation" pa WHERE pa."paymentId" = p."id"
+        )
+    `
+  ]);
+
+  const customerDue = Number(saleAgg._sum.dueAmount ?? 0);
+  const standalonePayment = Number(paymentAgg[0]?.totalPaid ?? 0);
+
+  if (party.partyType === 'PARTY') {
+    return Math.max(0, customerDue);
+  }
+
+  return Math.max(0, customerDue - standalonePayment);
 }
 
 export async function getSupplierCurrentPayable(partyId: number) {
   await requireUser();
   const party = await prisma.party.findUnique({
     where: { id: partyId },
-    select: {
-      partyType: true,
-      transactions: {
-        where: { transactionType: 'PURCHASE' },
-        select: { transactionType: true, totalAmount: true, paidAmount: true, dueAmount: true, transactionDate: true }
-      },
-      payments: {
-        select: { amount: true, paymentDate: true, allocations: { select: { id: true } } }
-      }
-    }
+    select: { partyType: true }
   });
 
   if (!party) {
     return 0;
   }
 
-  const summary = summarizePartyAccount(party.partyType, party.transactions, party.payments);
-  return summary.netSupplierDue;
+  const [purchaseAgg, paymentAgg] = await Promise.all([
+    prisma.transaction.aggregate({
+      where: { partyId, transactionType: 'PURCHASE' },
+      _sum: { totalAmount: true, paidAmount: true, dueAmount: true }
+    }),
+    prisma.$queryRaw<Array<{ totalPaid: any }>>`
+      SELECT COALESCE(SUM("amount"), 0) AS "totalPaid"
+      FROM "Payment" p
+      WHERE p."partyId" = ${partyId}
+        AND NOT EXISTS (
+          SELECT 1 FROM "PaymentAllocation" pa WHERE pa."paymentId" = p."id"
+        )
+    `
+  ]);
+
+  const supplierDue = Number(purchaseAgg._sum.dueAmount ?? 0);
+  const standalonePayment = Number(paymentAgg[0]?.totalPaid ?? 0);
+
+  if (party.partyType === 'CUSTOMER') {
+    return Math.max(0, supplierDue);
+  }
+
+  return Math.max(0, supplierDue - standalonePayment);
 }
 
 const paymentBaseSchema = z.object({
@@ -635,8 +752,7 @@ export async function recordPaymentForParty(formData: FormData) {
         createdById: session.user.id
       }
     });
-    revalidatePath(`/dashboard/parties/${partyId}`);
-    revalidatePath('/dashboard/parties');
+    revalidatePartyData(partyId);
     return { success: true, message: 'Payment recorded successfully.' };
   } catch (error) {
     console.error('Error recording payment:', error);
@@ -708,8 +824,7 @@ export async function receiveCustomerPayment(formData: FormData) {
       }
     });
 
-    revalidatePath(`/dashboard/parties/${partyId}`);
-    revalidatePath('/dashboard/parties');
+    revalidatePartyData(partyId);
     return { success: true, message: 'Customer payment recorded successfully.' };
   } catch (error) {
     console.error('Error recording customer payment:', error);
@@ -781,8 +896,7 @@ export async function paySupplierPayment(formData: FormData) {
       }
     });
 
-    revalidatePath(`/dashboard/parties/${partyId}`);
-    revalidatePath('/dashboard/parties');
+    revalidatePartyData(partyId);
     return { success: true, message: 'Supplier payment recorded successfully.' };
   } catch (error) {
     console.error('Error recording supplier payment:', error);
@@ -818,8 +932,7 @@ export async function updatePaymentForParty(formData: FormData) {
       where: { id: paymentId },
       data: paymentData
     });
-    revalidatePath(`/dashboard/parties/${partyId}`);
-    revalidatePath('/dashboard/parties');
+    revalidatePartyData(partyId);
     return { success: true, message: 'Payment updated successfully.' };
   } catch (error) {
     console.error('Error updating payment:', error);
@@ -838,8 +951,7 @@ export async function deletePaymentForParty(formData: FormData) {
 
   await prisma.payment.delete({ where: { id: paymentId } });
 
-  revalidatePath(`/dashboard/parties/${partyId}`);
-  revalidatePath('/dashboard/parties');
+  revalidatePartyData(partyId);
   return { success: true, message: 'Payment deleted successfully.' };
 }
 
@@ -996,7 +1108,7 @@ export async function createSupplierPurchase(formData: FormData) {
       }
     });
 
-    revalidatePath('/dashboard/parties');
+    revalidatePurchaseData({ partyId });
     return { success: true, message: 'Supplier purchase recorded successfully.' };
   } catch (error) {
     console.error('Error recording supplier purchase:', error);

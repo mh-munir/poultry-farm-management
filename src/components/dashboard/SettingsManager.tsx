@@ -46,7 +46,7 @@ export default function SettingsManager() {
         <p className="mt-2 text-sm text-muted-foreground">Toggle the sections below to show or hide them on the settings dashboard.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
         {sections.map((section) => (
           <div key={section.key} className="rounded-xl border bg-card p-5 shadow-sm flex flex-col justify-between">
             <div>

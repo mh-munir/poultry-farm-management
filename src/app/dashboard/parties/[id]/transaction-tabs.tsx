@@ -154,7 +154,7 @@ function ProductItemsTable({ title, rows }: { title: string; rows: ProductRow[] 
 
   return (
     <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border bg-muted/30 px-4 py-3">
         <h3 className="text-card-title">{title}</h3>
         <span className="rounded-full bg-background px-3 py-1 text-badge text-muted-foreground">{rows.length} items</span>
       </div>
@@ -243,13 +243,13 @@ export function TransactionTabs({
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm">
-      <div className="flex flex-col gap-4 border-b border-border p-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 border-b border-border p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-xl font-bold text-foreground">Transaction History</h2>
           <p className="mt-1 text-card-subtitle">Ledger-backed activity with running balance</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <input
               type="date"
               value={dateFrom}
@@ -291,7 +291,7 @@ export function TransactionTabs({
         </div>
       </div>
 
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         <div className="overflow-hidden rounded-2xl border border-border">
           <ResponsiveTable stickyLastColumn minWidth="980px">
             <table className="min-w-[980px] w-full text-table-body">

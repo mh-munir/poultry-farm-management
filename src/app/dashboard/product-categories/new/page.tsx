@@ -9,7 +9,7 @@ export default async function NewProductCategoryPage() {
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
-      <div className="flex items-center justify-between rounded-2xl border bg-card p-6 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border bg-card p-6 shadow-sm">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">New Category</p>
           <h1 className="mt-2 text-3xl font-semibold">Create a product category</h1>

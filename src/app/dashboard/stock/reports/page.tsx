@@ -123,8 +123,8 @@ export default async function StockReportsPage() {
   const salesValueTotal = feedSalesValue + medicineSalesValue;
 
   return (
-    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
-      <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4 sm:px-4">
+      <div className="rounded-2xl border bg-card p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">Stock Reports</h1>
@@ -142,13 +142,13 @@ export default async function StockReportsPage() {
                 <option value="feed">Feed</option>
                 <option value="medicine">Medicine</option>
               </select>
-              <button className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">Export CSV</button>
+              <button className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground sm:w-auto">Export CSV</button>
             </div>
           </div>
         </div>
 
         <div className="mt-6 space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             <div className="rounded-xl border bg-gradient-to-br from-white/70 to-slate-50 p-4 shadow">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
@@ -210,7 +210,7 @@ export default async function StockReportsPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             <div className="rounded-xl border bg-white/80 p-4 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
                 <div>
@@ -224,15 +224,15 @@ export default async function StockReportsPage() {
               {warnings.medicine.length === 0 ? (
                 <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">No medicine stock warnings right now.</div>
               ) : (
-                <div className="overflow-hidden rounded-lg border">
+                <div className="overflow-x-auto rounded-lg border">
                   <ResponsiveTable stickyLastColumn minWidth="680px">
                   <table className="min-w-full text-sm">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="px-3 py-3 text-left font-medium">Name</th>
-                        <th className="px-3 py-3 text-left font-medium">Qty</th>
-                        <th className="px-3 py-3 text-left font-medium">Threshold</th>
-                        <th className="px-3 py-3 text-left font-medium">Actions</th>
+                        <th className="px-2 py-2 sm:px-3 sm:py-3 text-left font-medium">Name</th>
+                        <th className="px-2 py-2 sm:px-3 sm:py-3 text-left font-medium">Qty</th>
+                        <th className="px-2 py-2 sm:px-3 sm:py-3 text-left font-medium">Threshold</th>
+                        <th className="px-2 py-2 sm:px-3 sm:py-3 text-left font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border bg-background">
@@ -240,7 +240,7 @@ export default async function StockReportsPage() {
                         const isOutOfStock = Number(item.stockBalance?.quantityOnHand ?? 0) === 0;
                         return (
                           <tr key={item.id} className={`hover:bg-muted/30 ${isOutOfStock ? 'bg-red-50' : ''}`}>
-                            <td className="px-3 py-3">
+                            <td className="px-2 py-2 sm:px-3 sm:py-3">
                               <div className="flex items-center gap-2">
                                 <div>
                                   <div className="font-medium">{item.name}</div>
@@ -249,9 +249,9 @@ export default async function StockReportsPage() {
                                 {isOutOfStock && <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">OUT</span>}
                               </div>
                             </td>
-                            <td className="px-3 py-3 font-semibold">{formatQty(item.stockBalance?.quantityOnHand ?? 0)} {item.unit}</td>
-                            <td className="px-3 py-3">{formatQty(item.lowStockThreshold ?? 0)}</td>
-                            <td className="px-3 py-3">
+                            <td className="px-2 py-2 sm:px-3 sm:py-3 font-semibold">{formatQty(item.stockBalance?.quantityOnHand ?? 0)} {item.unit}</td>
+                            <td className="px-2 py-2 sm:px-3 sm:py-3">{formatQty(item.lowStockThreshold ?? 0)}</td>
+                            <td className="px-2 py-2 sm:px-3 sm:py-3">
                               <div className="flex gap-2">
                                 <button className="rounded-md border px-2 py-1 text-xs">Add Stock</button>
                                 <button className="rounded-md border px-2 py-1 text-xs">View</button>
@@ -280,15 +280,15 @@ export default async function StockReportsPage() {
               {warnings.feed.length === 0 ? (
                 <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">No feed stock warnings right now.</div>
               ) : (
-                <div className="overflow-hidden rounded-lg border">
+                <div className="overflow-x-auto rounded-lg border">
                   <ResponsiveTable stickyLastColumn minWidth="680px">
                   <table className="min-w-full text-sm">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="px-3 py-3 text-left font-medium">Name</th>
-                        <th className="px-3 py-3 text-left font-medium">Qty</th>
-                        <th className="px-3 py-3 text-left font-medium">Threshold</th>
-                        <th className="px-3 py-3 text-left font-medium">Actions</th>
+                        <th className="px-2 py-2 sm:px-3 sm:py-3 text-left font-medium">Name</th>
+                        <th className="px-2 py-2 sm:px-3 sm:py-3 text-left font-medium">Qty</th>
+                        <th className="px-2 py-2 sm:px-3 sm:py-3 text-left font-medium">Threshold</th>
+                        <th className="px-2 py-2 sm:px-3 sm:py-3 text-left font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border bg-background">
@@ -296,7 +296,7 @@ export default async function StockReportsPage() {
                         const isOutOfStock = Number(item.stockBalance?.quantityOnHand ?? 0) === 0;
                         return (
                           <tr key={item.id} className={`hover:bg-muted/30 ${isOutOfStock ? 'bg-red-50' : ''}`}>
-                            <td className="px-3 py-3">
+                            <td className="px-2 py-2 sm:px-3 sm:py-3">
                               <div className="flex items-center gap-2">
                                 <div>
                                   <div className="font-medium">{item.name}</div>
@@ -305,9 +305,9 @@ export default async function StockReportsPage() {
                                 {isOutOfStock && <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">OUT</span>}
                               </div>
                             </td>
-                            <td className="px-3 py-3 font-semibold">{formatQty(item.stockBalance?.quantityOnHand ?? 0)} {item.unit}</td>
-                            <td className="px-3 py-3">{formatQty(item.lowStockThreshold ?? 0)}</td>
-                            <td className="px-3 py-3">
+                            <td className="px-2 py-2 sm:px-3 sm:py-3 font-semibold">{formatQty(item.stockBalance?.quantityOnHand ?? 0)} {item.unit}</td>
+                            <td className="px-2 py-2 sm:px-3 sm:py-3">{formatQty(item.lowStockThreshold ?? 0)}</td>
+                            <td className="px-2 py-2 sm:px-3 sm:py-3">
                               <div className="flex gap-2">
                                 <button className="rounded-md border px-2 py-1 text-xs">Add Stock</button>
                                 <button className="rounded-md border px-2 py-1 text-xs">View</button>

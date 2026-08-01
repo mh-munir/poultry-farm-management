@@ -10,8 +10,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
-import { QueryProfiler } from '@/lib/profiler';
-import { dbQuery, prisma } from '@/server/db';
+import getDashboardDataCached from '@/features/dashboard/actions';
 import { Card } from '@/components/ui/card';
 import { SummaryCard } from '@/components/dashboard/summary-card';
 import { ServiceUnavailableCard } from '@/components/ui/service-unavailable-card';
@@ -107,236 +106,63 @@ export default async function DashboardPage() {
     monthRanges.push({ start: monthStart, end: monthEnd });
   }
 
-  const profiler = new QueryProfiler();
-
-  function query<T>(q: Promise<T>, qName: string, qModel: string, qOperation: string): Promise<T> {
-    return dbQuery(q, qName, qModel, qOperation, 30000, undefined, profiler);
-  }
-
   let dbUnavailable = false;
 
-  async function safeQuery<T>(q: Promise<T>, fallback: T, qName: string, qModel: string, qOperation: string): Promise<T> {
-    const result = await query(q, qName, qModel, qOperation);
-    if (result === undefined) {
-      dbUnavailable = true;
-      return fallback;
-    }
-    return result as T;
-  }
-
-  const [
-    transactionItemTotals,
-    transactionDueTotals,
-    expenseTotals,
+  const {
+    summaryRow,
     expenseMonthlyGroups,
-    paymentTotals,
     stockBalances,
     recentTransactions,
-    activePartiesCount,
-    openInvoicesCount,
-    lowStockAlerts,
     monthlyRevenueRows,
     monthlyPurchaseRows
-  ] = await Promise.all([
-    query(
-      prisma.$queryRaw<
-        Array<{
-          daily_feed_sale: Prisma.Decimal | null;
-          daily_medicine_sale: Prisma.Decimal | null;
-          daily_feed_purchase: Prisma.Decimal | null;
-          daily_medicine_purchase: Prisma.Decimal | null;
-          daily_chicken_purchase: Prisma.Decimal | null;
-          daily_egg_purchase: Prisma.Decimal | null;
-          total_feed_sale: Prisma.Decimal | null;
-          total_medicine_sale: Prisma.Decimal | null;
-          total_feed_purchase: Prisma.Decimal | null;
-          total_medicine_purchase: Prisma.Decimal | null;
-          total_chicken_purchase: Prisma.Decimal | null;
-          total_egg_purchase: Prisma.Decimal | null;
-        }>
-      >`
-        SELECT
-          SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END) AS "daily_feed_sale",
-          SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END) AS "daily_medicine_sale",
-          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END) AS "daily_feed_purchase",
-          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END) AS "daily_medicine_purchase",
-          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'CHICKEN' THEN ti."lineTotal" ELSE 0 END) AS "daily_chicken_purchase",
-          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'EGG' THEN ti."lineTotal" ELSE 0 END) AS "daily_egg_purchase",
-          SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END) AS "total_feed_sale",
-          SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END) AS "total_medicine_sale",
-          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END) AS "total_feed_purchase",
-          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END) AS "total_medicine_purchase",
-          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'CHICKEN' THEN ti."lineTotal" ELSE 0 END) AS "total_chicken_purchase",
-          SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'EGG' THEN ti."lineTotal" ELSE 0 END) AS "total_egg_purchase"
-        FROM "TransactionItem" ti
-        JOIN "Transaction" tr ON tr.id = ti."transactionId"
-        JOIN "Product" p ON p.id = ti."productId"
-        WHERE tr."transactionType" IN ('SALE', 'PURCHASE')
-      `,
-      'Dashboard TransactionItem Totals',
-      'TransactionItem',
-      'aggregate'
-    ),
-    query(
-      prisma.$queryRaw<
-        Array<{
-          total_customer_due: Prisma.Decimal | null;
-          total_feed_medicine_due: Prisma.Decimal | null;
-          total_egg_chicken_due: Prisma.Decimal | null;
-        }>
-      >`
-        SELECT
-          SUM(CASE WHEN t."transactionType" = 'SALE' AND t."dueAmount" > 0 THEN t."dueAmount" ELSE 0 END) AS "total_customer_due",
-          SUM(CASE WHEN t."transactionType" = 'PURCHASE' AND t."dueAmount" > 0 AND EXISTS(
-            SELECT 1
-            FROM "TransactionItem" ti
-            JOIN "Product" p ON p.id = ti."productId"
-            WHERE ti."transactionId" = t.id
-              AND p."productType" IN ('FEED', 'MEDICINE')
-          ) THEN t."dueAmount" ELSE 0 END) AS "total_feed_medicine_due",
-          SUM(CASE WHEN t."transactionType" = 'PURCHASE' AND t."dueAmount" > 0 AND EXISTS(
-            SELECT 1
-            FROM "TransactionItem" ti
-            JOIN "Product" p ON p.id = ti."productId"
-            WHERE ti."transactionId" = t.id
-              AND p."productType" IN ('EGG', 'CHICKEN')
-          ) THEN t."dueAmount" ELSE 0 END) AS "total_egg_chicken_due"
-        FROM "Transaction" t
-        WHERE t."transactionType" IN ('SALE', 'PURCHASE')
-          AND t."dueAmount" > 0
-      `,
-      'Dashboard Transaction Due Totals',
-      'Transaction',
-      'aggregate'
-    ),
-    query(
-      prisma.$queryRaw<
-        Array<{
-          daily_expense: Prisma.Decimal | null;
-          total_expense: Prisma.Decimal | null;
-        }>
-      >`
-        SELECT
-          SUM(CASE WHEN "expenseDate" >= ${start} AND "expenseDate" < ${end} THEN amount ELSE 0 END) AS "daily_expense",
-          SUM(amount) AS "total_expense"
-        FROM "Expense"
-      `,
-      'Dashboard Expense Totals',
-      'Expense',
-      'aggregate'
-    ),
-    query(
-      prisma.$queryRaw<Array<{ month: Date; total: Prisma.Decimal | null }>>`
-        SELECT date_trunc('month', "expenseDate") AS month, SUM(amount) AS total
-        FROM "Expense"
-        WHERE "expenseDate" >= ${sixMonthsAgo}
-        GROUP BY month
-        ORDER BY month
-      `,
-      'Dashboard Monthly Expenses',
-      'Expense',
-      'aggregate'
-    ),
-    query(
-      prisma.$queryRaw<
-        Array<{
-          daily_party_payment: Prisma.Decimal | null;
-          total_party_payment: Prisma.Decimal | null;
-        }>
-      >`
-        SELECT
-          SUM(CASE WHEN "paymentDate" >= ${start} AND "paymentDate" < ${end} THEN amount ELSE 0 END) AS "daily_party_payment",
-          SUM(amount) AS "total_party_payment"
-        FROM "Payment"
-      `,
-      'Dashboard Payment Totals',
-      'Payment',
-      'aggregate'
-    ),
-    safeQuery(
-      prisma.stockBalance.findMany({
-        select: { quantityOnHand: true, averageCost: true }
-      }),
-      [] as any[],
-      'Dashboard Stock Value',
-      'StockBalance',
-      'findMany'
-    ),
-    safeQuery(
-      prisma.transaction.findMany({
-        take: 5,
-        orderBy: { transactionDate: 'desc' },
-        select: {
-          id: true,
-          invoiceNumber: true,
-          party: { select: { name: true } },
-          company: { select: { name: true } },
-          totalAmount: true,
-          status: true,
-          transactionType: true
-        }
-      }),
-      [] as any[],
-      'Dashboard Recent Transactions',
-      'Transaction',
-      'findMany'
-    ),
-    safeQuery(prisma.party.count({ where: { isActive: true } }), 0, 'Dashboard Active Parties', 'Party', 'count'),
-    safeQuery(
-      prisma.transaction.count({
-        where: { transactionType: 'SALE', status: { not: 'COMPLETED' } }
-      }),
-      0,
-      'Dashboard Open Invoices',
-      'Transaction',
-      'count'
-    ),
-    safeQuery(
-      prisma.product.findMany({
-        where: {
-          isActive: true,
-          lowStockThreshold: { gt: 0 }
-        },
-        select: {
-          id: true,
-          name: true,
-          lowStockThreshold: true,
-          stockBalance: { select: { quantityOnHand: true } }
-        }
-      }),
-      [] as any[],
-      'Dashboard Low Stock Alerts',
-      'Product',
-      'findMany'
-    ),
-    query(
-      prisma.$queryRaw<Array<{ month: Date; total: Prisma.Decimal | null }>>`
-        SELECT date_trunc('month', tr."transactionDate") AS month, SUM(ti."lineTotal") AS total
-        FROM "TransactionItem" ti
-        JOIN "Transaction" tr ON tr.id = ti."transactionId"
-        WHERE tr."transactionType" = 'SALE'
-          AND tr."transactionDate" >= ${sixMonthsAgo}
-        GROUP BY month
-        ORDER BY month
-      `,
-      'Dashboard Monthly Revenue',
-      'TransactionItem',
-      'aggregate'
-    ),
-    query(
-      prisma.$queryRaw<Array<{ month: Date; total: Prisma.Decimal | null }>>`
-        SELECT date_trunc('month', "transactionDate") AS month, SUM("totalAmount") AS total
-        FROM "Transaction"
-        WHERE "transactionType" = 'PURCHASE'
-          AND "transactionDate" >= ${sixMonthsAgo}
-        GROUP BY month
-        ORDER BY month
-      `,
-      'Dashboard Monthly Purchase',
-      'Transaction',
-      'aggregate'
-    )
-  ]);
+  } = await (async () => {
+    try {
+      return await getDashboardDataCached({ start, end, sixMonthsAgo });
+    } catch (err) {
+      // If the DB is unavailable keep the previous behaviour of showing ServiceUnavailableCard
+      dbUnavailable = true;
+      return { summaryRow: null, expenseMonthlyGroups: [], stockBalances: [], recentTransactions: [], monthlyRevenueRows: [], monthlyPurchaseRows: [] } as any;
+    }
+  })();
+
+  const transactionItemTotals = [
+    {
+      daily_feed_sale: summaryRow?.daily_feed_sale ?? 0,
+      daily_medicine_sale: summaryRow?.daily_medicine_sale ?? 0,
+      daily_feed_purchase: summaryRow?.daily_feed_purchase ?? 0,
+      daily_medicine_purchase: summaryRow?.daily_medicine_purchase ?? 0,
+      daily_chicken_purchase: summaryRow?.daily_chicken_purchase ?? 0,
+      daily_egg_purchase: summaryRow?.daily_egg_purchase ?? 0,
+      total_feed_sale: summaryRow?.total_feed_sale ?? 0,
+      total_medicine_sale: summaryRow?.total_medicine_sale ?? 0,
+      total_feed_purchase: summaryRow?.total_feed_purchase ?? 0,
+      total_medicine_purchase: summaryRow?.total_medicine_purchase ?? 0,
+      total_chicken_purchase: summaryRow?.total_chicken_purchase ?? 0,
+      total_egg_purchase: summaryRow?.total_egg_purchase ?? 0
+    }
+  ];
+
+  const transactionDueTotals = [
+    {
+      total_customer_due: summaryRow?.total_customer_due ?? 0,
+      total_feed_medicine_due: summaryRow?.total_feed_medicine_due ?? 0,
+      total_egg_chicken_due: summaryRow?.total_egg_chicken_due ?? 0
+    }
+  ];
+
+  const expenseTotals = [
+    {
+      daily_expense: summaryRow?.daily_expense ?? 0,
+      total_expense: summaryRow?.total_expense ?? 0
+    }
+  ];
+
+  const paymentTotals = [
+    {
+      daily_party_payment: summaryRow?.daily_party_payment ?? 0,
+      total_party_payment: summaryRow?.total_party_payment ?? 0
+    }
+  ];
 
   const [
     transactionItemTotalsRow = {
@@ -360,38 +186,26 @@ export default async function DashboardPage() {
   const [paymentTotalsRow = { daily_party_payment: 0, total_party_payment: 0 }] = paymentTotals;
 
   const monthlyRevenueResults = monthRanges.map((range) => {
-    const row = monthlyRevenueRows.find((item) => item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7));
+    const row = monthlyRevenueRows.find((item: { month: Date; total: any }) => item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7));
     return { _sum: { lineTotal: row ? Number(row.total ?? 0) : 0 } };
   });
 
   const monthlyExpenseResults = monthRanges.map((range) => {
-    const purchaseRow = monthlyPurchaseRows.find((item) => item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7));
-    const expenseRow = expenseMonthlyGroups.find((item) => item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7));
+    const purchaseRow = monthlyPurchaseRows.find((item: { month: Date; total: any }) => item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7));
+    const expenseRow = expenseMonthlyGroups.find((item: { month: Date; total: any }) => item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7));
     return { _sum: { totalAmount: Number(purchaseRow?.total ?? 0), amount: Number(expenseRow?.total ?? 0) } };
-  });
-
-  // Filter products with low stock
-  const filteredLowStockAlerts = (lowStockAlerts || []).filter((product: any) => {
-    const quantity = Number(product.stockBalance?.quantityOnHand ?? 0);
-    const threshold = Number(product.lowStockThreshold ?? 0);
-    return threshold > 0 && quantity <= threshold;
   });
 
   const dailyFeedSale = Number(transactionItemTotalsRow.daily_feed_sale ?? 0);
   const dailyMedicineSale = Number(transactionItemTotalsRow.daily_medicine_sale ?? 0);
   const dailyFeedPurchase = Number(transactionItemTotalsRow.daily_feed_purchase ?? 0);
   const dailyMedicinePurchase = Number(transactionItemTotalsRow.daily_medicine_purchase ?? 0);
-  const dailyChickenPurchase = Number(transactionItemTotalsRow.daily_chicken_purchase ?? 0);
-  const dailyEggPurchase = Number(transactionItemTotalsRow.daily_egg_purchase ?? 0);
   const dailyExpenses = Number(expenseTotalsRow.daily_expense ?? 0);
   const dailyPartyPayment = Number(paymentTotalsRow.daily_party_payment ?? 0);
-  const dailyTotalExpense = dailyFeedPurchase + dailyMedicinePurchase + dailyExpenses + dailyPartyPayment;
   const totalFeedSale = Number(transactionItemTotalsRow.total_feed_sale ?? 0);
   const totalMedicineSale = Number(transactionItemTotalsRow.total_medicine_sale ?? 0);
   const totalFeedPurchase = Number(transactionItemTotalsRow.total_feed_purchase ?? 0);
   const totalMedicinePurchase = Number(transactionItemTotalsRow.total_medicine_purchase ?? 0);
-  const totalChickenPurchase = Number(transactionItemTotalsRow.total_chicken_purchase ?? 0);
-  const totalEggPurchase = Number(transactionItemTotalsRow.total_egg_purchase ?? 0);
   const totalExpenses = Number(expenseTotalsRow.total_expense ?? 0);
   const totalPartyPayment = Number(paymentTotalsRow.total_party_payment ?? 0);
   const totalTotalExpense = totalFeedPurchase + totalMedicinePurchase + totalExpenses + totalPartyPayment;
@@ -519,17 +333,13 @@ export default async function DashboardPage() {
 
   const totalRevenue = revenueData.reduce((sum, item) => sum + item.value, 0);
   const totalExpense = expenseData.reduce((sum, item) => sum + item.value, 0);
-  const maxRevenue = Math.max(...revenueData.map((item) => item.value), 1);
-  const maxExpense = Math.max(...expenseData.map((item) => item.value), 1);
-
-  profiler.printReport();
 
   const profit = Math.max(netProfit, 0);
   const loss = Math.abs(Math.min(netProfit, 0));
   const total = profit + loss;
 
   return (
-    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
+    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-4 sm:px-6 py-4">
       <div className="">
         {dbUnavailable ? (
           <div className="mb-6">
@@ -550,7 +360,7 @@ export default async function DashboardPage() {
                   </div>
                   <div className="rounded-lg bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">Updated</div>
                 </div>
-                <div className="grid gap-4 md:grid-cols-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
                   {dailySummaryCards.map((item) => {
                     const Icon = item.icon;
                     return (
@@ -578,7 +388,7 @@ export default async function DashboardPage() {
                   </div>
                   <div className="rounded-lg bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">Summary</div>
                 </div>
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                    {totalSummaryCards.map((item) => {
                      const Icon = item.icon;
                      return (
@@ -600,8 +410,8 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <Card className="p-6">
-              <div className="flex items-center justify-between gap-4">
+            <Card className="p-4 sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-section-title">Net Profit / Loss Breakdown</h2>
                   <p className="mt-1 text-card-subtitle">Financial performance overview</p>
@@ -616,7 +426,7 @@ export default async function DashboardPage() {
 
               <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
                 <div className="flex flex-col items-center">
-                  <div className="relative h-[280px] w-[280px]">
+                  <div className="relative h-[240px] w-[240px] sm:h-[280px] sm:w-[280px]">
                     <svg viewBox="0 0 240 240" className="h-full w-full">
                       {(() => {if (total === 0) {
                           return (

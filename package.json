@@ -23,7 +23,7 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
     "@hookform/resolvers": "^3.0.0",
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "5.22.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@supabase/server": "^1.4.1",
     "@supabase/supabase-js": "^2.110.8",
@@ -63,7 +63,7 @@
     "eslint": "9.39.5",
     "eslint-config-next": "15.5.21",
     "postcss": "^8.5.20",
-    "prisma": "^5.22.0",
+    "prisma": "5.22.0",
     "tailwindcss": "^3.4.16",
     "typescript": "^5.9.3"
   }

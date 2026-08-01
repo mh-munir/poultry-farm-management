@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -20,6 +21,7 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
   const [currentDue, setCurrentDue] = useState(0);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const router = useRouter();
   const { success, error: showError } = useToast();
 
   useEffect(() => {
@@ -79,6 +81,7 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
     }
 
     success(result.message);
+    router.refresh();
     onOpenChange(false);
   };
 

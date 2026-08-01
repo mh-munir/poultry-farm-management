@@ -54,11 +54,11 @@ export function CompanyProfileActions({ companyName, exportData }: CompanyProfil
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={handleExport} disabled={isExporting}>
+      <Button type="button" variant="outline" onClick={handleExport} disabled={isExporting} className="h-[42px]">
         <Download className="mr-2 h-4 w-4" />
         {isExporting ? 'Exporting...' : 'Export'}
       </Button>
-      <Button type="button" variant="outline" onClick={handlePrint}>
+      <Button type="button" variant="outline" onClick={handlePrint} className="h-[42px]">
         <Printer className="mr-2 h-4 w-4" />
         Print
       </Button>

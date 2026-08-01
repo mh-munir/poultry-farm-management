@@ -1,6 +1,8 @@
+import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/server/db';
+import { revalidateTags, CACHE_TAGS } from '@/lib/cache';
 
 const stockSchema = z.object({
   name: z.string().min(1),
@@ -151,6 +153,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ sto
       notes: `Added stock for ${name}`
     }
   });
+
+  revalidateTags([CACHE_TAGS.stock, CACHE_TAGS.products, CACHE_TAGS.dashboard]);
+  revalidatePath('/dashboard/stock');
 
   const refreshedProduct = await prisma.product.findUnique({
     where: { id: product.id },

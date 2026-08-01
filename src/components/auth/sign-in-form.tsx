@@ -45,7 +45,7 @@ export function SignInForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} autoComplete="off" className="space-y-6">
+    <form onSubmit={handleSubmit} autoComplete="off" className="w-full max-w-md space-y-6">
       <div className="space-y-5">
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-semibold text-foreground">

@@ -8,6 +8,9 @@ import type { JWT } from 'next-auth/jwt';
 
 const { compare } = bcrypt;
 
+const jwtUserCache = new Map<string, { name?: string | null; role?: string | null; image?: string | null; expiry: number }>();
+const JWT_USER_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export const authConfig: AuthOptions = {
   pages: {
     signIn: '/auth/sign-in'
@@ -68,13 +71,20 @@ export const authConfig: AuthOptions = {
             return null;
           }
 
-          return {
+          const result = {
             id: user.id,
             name: user.name,
             email: user.email,
             image: user.image,
             role: user.role
           };
+
+          // Cache user fields to reduce immediate jwt refresh DB hits
+          try {
+            jwtUserCache.set(user.id, { name: user.name ?? null, role: user.role ?? null, image: user.image ?? null, expiry: Date.now() + JWT_USER_CACHE_TTL });
+          } catch {}
+
+          return result;
         } catch (err) {
           console.error('[auth] authorize: unexpected error', err);
           return null;
@@ -84,39 +94,28 @@ export const authConfig: AuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile, email, credentials }) {
-      console.log('[auth] signIn callback', {
-        userId: user?.id,
-        email: user?.email,
-        provider: account?.provider,
-        hasProfile: !!profile,
-        hasEmail: !!email,
-        hasCredentials: !!credentials
-      });
       return true;
     },
     async jwt({ token, user }: { token: JWT; user?: User }) {
-      const start = Date.now();
       const needsRefresh = token.sub && (!token.name || !token.role || token.image === undefined);
-      if (needsRefresh) {
-        console.log('[auth] jwt callback: token missing fields, will query DB', {
-          hasName: !!token.name,
-          hasRole: !!token.role,
-          image: token.image
-        });
-      } else if (token.sub) {
-        console.log('[auth] jwt callback: skipping DB refresh, token complete');
-      }
-      try {
-        if (user) {
-          const jwtToken = token as JWT & { image?: string | null };
-          jwtToken.name = user.name ?? jwtToken.name;
-          jwtToken.role = user.role ?? 'USER';
-          if (typeof user.image !== 'undefined') {
-            jwtToken.image = user.image ?? null;
-          }
-        } else if (needsRefresh) {
-          const dbStart = Date.now();
-          try {
+      if (user) {
+        const jwtToken = token as JWT & { image?: string | null };
+        jwtToken.name = user.name ?? jwtToken.name;
+        jwtToken.role = user.role ?? 'USER';
+        if (typeof user.image !== 'undefined') {
+          jwtToken.image = user.image ?? null;
+        }
+      } else if (needsRefresh) {
+        try {
+          // Try in-memory cache first to avoid repeated DB hits for the same user
+          const cacheEntry = token.sub ? jwtUserCache.get(token.sub) : undefined;
+          const now = Date.now();
+          if (cacheEntry && cacheEntry.expiry > now) {
+            const jwtToken = token as JWT & { image?: string | null };
+            jwtToken.name = cacheEntry.name ?? jwtToken.name;
+            jwtToken.role = cacheEntry.role ?? jwtToken.role;
+            jwtToken.image = cacheEntry.image ?? jwtToken.image ?? null;
+          } else {
             const refreshedUser = await dbQuery(
               prisma.user.findUnique({
                 where: { id: token.sub },
@@ -134,16 +133,21 @@ export const authConfig: AuthOptions = {
               jwtToken.name = refreshedUser.name ?? jwtToken.name;
               jwtToken.role = refreshedUser.role ?? jwtToken.role;
               jwtToken.image = refreshedUser.image ?? null;
+
+              if (token.sub) {
+                jwtUserCache.set(token.sub, {
+                  name: refreshedUser.name ?? null,
+                  role: refreshedUser.role ?? null,
+                  image: refreshedUser.image ?? null,
+                  expiry: Date.now() + JWT_USER_CACHE_TTL
+                });
+              }
             }
-            console.log('[auth] jwt callback: DB query duration', Date.now() - dbStart, 'ms');
-          } catch (err) {
-            console.error('[auth] jwt callback: DB query failed', err);
           }
+        } catch (err) {
+          console.error('[auth] jwt callback: DB query failed', err);
         }
-      } catch (err) {
-        console.error('[auth] jwt callback error', err);
       }
-      console.log('[auth] jwt callback: total duration', Date.now() - start, 'ms');
       return token;
     },
     async session({ session, token }: { session: Session; token: JWT }) {

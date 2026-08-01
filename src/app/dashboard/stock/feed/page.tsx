@@ -31,7 +31,7 @@ export default async function FeedPage() {
   });
 
   return (
-    <>
+    <div className="px-2 py-4 sm:px-4 sm:py-6">
       <StockManagement
         title="Feed"
         description="Manage feed stock with quantity and pricing."
@@ -44,6 +44,6 @@ export default async function FeedPage() {
         createNewLabel="Create new company: "
         addButtonLabel="Add Feed Stock"
       />
-    </>
+    </div>
   );
 }

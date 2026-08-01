@@ -38,15 +38,15 @@ export default function RestoreSettingsClient() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="rounded-xl border bg-card p-6 mb-6">
-        <h2 className="text-2xl font-semibold">Restore</h2>
-        <p className="text-sm text-muted-foreground">Upload a previously exported JSON backup to restore your server-backed settings.</p>
+    <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
+      <div className="rounded-xl border bg-card p-4 sm:p-6 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-semibold">Restore</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground">Upload a previously exported JSON backup to restore your server-backed settings.</p>
       </div>
 
-      <div className="rounded-xl border bg-card p-6 space-y-4">
-        <input type="file" accept="application/json" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
-        <button disabled={restoring} onClick={onRestore} className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{restoring ? 'Restoring...' : 'Restore'}</button>
+      <div className="rounded-xl border bg-card p-4 sm:p-6 space-y-4">
+        <input type="file" accept="application/json" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="w-full" />
+        <button disabled={restoring} onClick={onRestore} className="w-full sm:w-auto rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{restoring ? 'Restoring...' : 'Restore'}</button>
       </div>
     </div>
   )

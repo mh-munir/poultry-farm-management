@@ -121,6 +121,7 @@ model Party {
   transactions     Transaction[]
 
   @@index([name])
+  @@index([isActive, partyType, name])
 }
 
 model Company {
@@ -143,6 +144,7 @@ model Company {
   dueAdjustments   DueAdjustment[]
 
   @@index([name])
+  @@index([isActive, companyType, name])
 }
 
 model ProductCategory {
@@ -156,6 +158,7 @@ model ProductCategory {
   products    Product[]
 
   @@index([name])
+  @@index([isActive, name])
 }
 
 model Product {
@@ -183,6 +186,8 @@ model Product {
   transactionItems     TransactionItem[]
 
   @@index([productType, name])
+  @@index([isActive, productType, name])
+  @@index([categoryId, isActive])
   @@index([companyId])
 }
 
@@ -243,6 +248,8 @@ model Transaction {
 
   @@index([partyId, transactionDate])
   @@index([companyId, transactionDate])
+  @@index([transactionType, transactionDate])
+  @@index([transactionType, status])
 }
 
 model TransactionItem {
@@ -258,6 +265,7 @@ model TransactionItem {
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([transactionId])
+  @@index([productId])
 }
 
 model SmsNotification {
@@ -301,6 +309,7 @@ model Payment {
 
   @@index([partyId, paymentDate])
   @@index([companyId, paymentDate])
+  @@index([paymentDate])
 }
 
 model PaymentAllocation {
@@ -336,6 +345,8 @@ model LedgerEntry {
 
   @@index([partyId, entryDate])
   @@index([companyId, entryDate])
+  @@index([partyId, entryDate, id])
+  @@index([companyId, entryDate, id])
 }
 
 model DueAdjustment {

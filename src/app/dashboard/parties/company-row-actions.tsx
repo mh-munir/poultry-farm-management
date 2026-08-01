@@ -96,7 +96,7 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
   return (
     <div className="inline-flex justify-end">
       {editOnly ? (
-        <div className="inline-flex items-center gap-2">
+        <div className="inline-flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" onClick={() => setEditOpen(true)} className={editButtonClassName}>
             <Pencil className="mr-2 h-4 w-4" />
             Edit Company

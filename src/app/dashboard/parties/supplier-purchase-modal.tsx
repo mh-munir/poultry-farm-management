@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -34,6 +35,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
   const [paidAmount, setPaidAmount] = useState('');
   const [previousDue, setPreviousDue] = useState(0);
   const [formError, setFormError] = useState('');
+  const router = useRouter();
   const { success, error: showError } = useToast();
 
   const eggTotal = useMemo(() => Number(eggQuantity || 0) * Number(eggUnitPrice || 0), [eggQuantity, eggUnitPrice]);
@@ -215,6 +217,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
     }
 
     success('Supplier purchase recorded successfully.');
+    router.refresh();
     setIsSubmitting(false);
     onOpenChange(false);
   };
@@ -230,7 +233,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title="Supplier Purchase">
-      <form onSubmit={handleSubmit} className="mt-2 grid gap-4 md:grid-cols-2">
+      <form onSubmit={handleSubmit} className="mt-2 grid gap-4 md:gap-5 grid-cols-1 md:grid-cols-2">
         {formError && (
           <div className="md:col-span-2 rounded-lg border-2 border-rose-300 bg-rose-50 p-4">
             <p className="text-base font-semibold text-rose-900">⚠️ Error</p>

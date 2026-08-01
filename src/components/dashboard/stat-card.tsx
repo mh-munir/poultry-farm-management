@@ -15,7 +15,7 @@ interface StatCardProps {
 export function StatCard({ title, value, icon: Icon, accent, description, className }: StatCardProps) {
   return (
     <Card className={cn('p-5', className)}>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-form-label text-muted-foreground">{title}</p>
           <p className="mt-2 text-card-title text-slate-950">{value}</p>

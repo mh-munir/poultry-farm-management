@@ -31,7 +31,7 @@ export default async function MedicinePage() {
   });
 
   return (
-    <>
+    <div className="px-2 py-4 sm:px-4 sm:py-6">
       <StockManagement
         title="Medicine"
         description="Track medicine inventory, quantity, and pricing in one place."
@@ -42,6 +42,6 @@ export default async function MedicinePage() {
         useCompanySearch
         addButtonLabel="Add Medicine Stock"
       />
-    </>
+    </div>
   );
 }

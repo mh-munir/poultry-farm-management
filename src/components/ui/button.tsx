@@ -15,11 +15,12 @@ const buttonVariants = cva(
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/95 active:bg-destructive/90 shadow-sm'
       },
       size: {
-        default: 'h-[48px] px-5',
-        sm: 'h-[42px] rounded-[12px] px-4 text-sm',
-        lg: 'h-[52px] rounded-[12px] px-6',
+        default: 'min-h-[48px] h-auto px-5',
+        sm: 'min-h-[42px] h-auto rounded-[12px] px-4 text-sm',
+        lg: 'min-h-[52px] h-auto rounded-[12px] px-6',
         icon: 'h-[48px] w-[48px] rounded-[12px]',
-        fullWidth: 'h-[48px] w-full rounded-[12px] px-5'
+        fullWidth: 'min-h-[48px] h-auto w-full rounded-[12px] px-5',
+        responsive: 'w-full sm:w-auto min-h-[48px] h-auto px-5'
       }
     },
     defaultVariants: {
