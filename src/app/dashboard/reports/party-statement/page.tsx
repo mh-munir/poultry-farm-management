@@ -59,8 +59,8 @@ export default async function PartyStatementReportPage({
   const printDate = new Date();
 
   return (
-    <main className="mx-auto min-h-[80vh] max-w-5xl px-4 py-8">
-      <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <main className="mx-auto min-h-[80vh] max-w-5xl px-4 py-6 sm:py-8">
+      <div className="rounded-2xl border bg-card p-4 sm:p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold">Party Statement</h1>

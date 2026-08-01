@@ -50,7 +50,7 @@ export default async function SalesPage({
             Sell feed, medicine, or both, then print invoices and maintain customer ledger entries.
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
+        <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
           <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Back to Dashboard</Link>
         </Button>
       </div>
@@ -61,7 +61,7 @@ export default async function SalesPage({
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><ClipboardList className="h-5 w-5" />New Sale</div>
           <SaleForm customers={customers} products={saleProducts} />
@@ -93,7 +93,7 @@ export default async function SalesPage({
       </div>
 
       {/* Available Products for Sale/Purchase */}
-      <div className="mt-8 rounded-2xl border bg-card p-5 shadow-sm">
+      <div className="mt-8 rounded-2xl border bg-card p-5 shadow-sm overflow-x-auto">
         <div className="mb-6 flex items-center gap-2">
           <Package2 className="h-6 w-6" />
           <h2 className="text-xl font-semibold">Available Products Inventory</h2>
@@ -104,7 +104,7 @@ export default async function SalesPage({
             <Package2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
             <p className="text-sm font-medium text-muted-foreground">No products available yet</p>
             <p className="mt-1 text-xs text-muted-foreground">Create products from the Products section to display them here</p>
-            <Button asChild className="mt-4">
+            <Button asChild className="mt-4 w-full sm:w-auto">
               <Link href="/dashboard/products/new">Create Product</Link>
             </Button>
           </div>

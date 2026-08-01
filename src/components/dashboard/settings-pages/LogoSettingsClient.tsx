@@ -162,7 +162,7 @@ export default function LogoSettingsClient({ initialBranding }: LogoSettingsClie
           <p className="mt-1 text-xs text-muted-foreground">Accepted: PNG, JPEG, WebP, SVG, ICO</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button disabled={saving} onClick={save} className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
           <div className="text-sm text-muted-foreground">The branding settings are stored on the server and used by invoices and the app.</div>
         </div>

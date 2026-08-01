@@ -43,7 +43,7 @@ export default async function PurchasesPage({
             Purchase feed, medicine, eggs, or chicken with invoice, due tracking, and automatic inventory updates.
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
+                      <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
           <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Back to Dashboard</Link>
         </Button>
       </div>
@@ -54,7 +54,7 @@ export default async function PurchasesPage({
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><ClipboardList className="h-5 w-5" />New Purchase</div>
           <form action={createPurchaseTransaction} autoComplete="off" className="space-y-4">
@@ -116,7 +116,7 @@ export default async function PurchasesPage({
             <div className="rounded-2xl border bg-muted/20 p-4">
               <div className="mb-3 text-sm font-semibold">Items</div>
               {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="grid gap-4 md:grid-cols-[1.2fr_0.8fr_0.8fr_1fr]">
+                <div key={index} className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-[1.2fr_0.8fr_0.8fr_1fr]">
                   <select name="productId" className="rounded-md border bg-background px-3 py-2">
                     <option value="">Select product</option>
                     {products.map((product) => (
@@ -153,7 +153,7 @@ export default async function PurchasesPage({
                         <div>{formatCurrency(purchase.totalAmount)}</div>
                         <div className="text-xs text-muted-foreground">Due {formatCurrency(purchase.dueAmount)}</div>
                       </div>
-                      <Button asChild variant="outline" size="sm">
+<Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
                         <Link href={`/dashboard/transactions/${purchase.id}/print`} target="_blank" rel="noreferrer">
                           <Printer className="mr-2 h-4 w-4" />
                           Print
@@ -169,7 +169,7 @@ export default async function PurchasesPage({
       </div>
 
       {/* Available Products for Purchase/Stock */}
-      <div className="mt-8 rounded-2xl border bg-card p-5 shadow-sm">
+      <div className="mt-8 rounded-2xl border bg-card p-5 shadow-sm overflow-x-auto">
         <div className="mb-6 flex items-center gap-2">
           <Package2 className="h-6 w-6" />
           <h2 className="text-xl font-semibold">Available Products Inventory</h2>
@@ -180,7 +180,7 @@ export default async function PurchasesPage({
             <Package2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
             <p className="text-sm font-medium text-muted-foreground">No products available yet</p>
             <p className="mt-1 text-xs text-muted-foreground">Create products from the Products section to display them here</p>
-            <Button asChild className="mt-4">
+            <Button asChild className="mt-4 w-full sm:w-auto">
               <Link href="/dashboard/products/new">Create Product</Link>
             </Button>
           </div>

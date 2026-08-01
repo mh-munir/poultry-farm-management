@@ -79,7 +79,7 @@ export default function ExpensesManager() {
         <p className="mt-2 text-sm text-muted-foreground">Record daily expenses; totals will update for today and overall.</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <div className="md:col-span-2">
           <form onSubmit={addExpense} className="rounded-xl border bg-card p-6 shadow-sm">
             <div className="mb-3">
@@ -94,7 +94,7 @@ export default function ExpensesManager() {
               <label className="block text-sm">Date</label>
               <input value={date} onChange={(e) => setDate(e.target.value)} type="date" className="mt-1 w-full rounded border px-3 py-2" />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button type="submit" className="rounded bg-primary px-4 py-2 text-white">Add expense</button>
               <button type="button" onClick={() => { setDesc(''); setAmount(''); setDate(todayDateStr()) }} className="rounded border px-4 py-2">Reset</button>
             </div>

@@ -14,7 +14,7 @@ export default async function NewPartyPage() {
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
-      <div className="flex items-center justify-between rounded-2xl border bg-card p-6 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border bg-card p-6 shadow-sm">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Create Party</p>
           <h1 className="mt-2 text-3xl font-semibold">Add a new customer or party</h1>
@@ -28,7 +28,7 @@ export default async function NewPartyPage() {
       </div>
 
       <form action={createParty} encType="multipart/form-data" autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium">Party name</label>
             <input name="name" required className="w-full rounded-md border bg-background px-3 py-2" placeholder="Acme Poultry Ltd" />

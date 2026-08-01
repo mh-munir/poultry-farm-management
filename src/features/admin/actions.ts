@@ -2,6 +2,7 @@
 
 import { prisma } from '@/server/db';
 import { requireRole } from '@/lib/auth';
+import { revalidateTags, CACHE_TAGS } from '@/lib/cache';
 
 export async function resetDatabaseForTesting() {
   await requireRole(['ADMIN']);
@@ -43,6 +44,20 @@ export async function resetDatabaseForTesting() {
   for (const seq of sequences) {
     await prisma.$executeRawUnsafe(`ALTER SEQUENCE "${seq}" RESTART WITH 1`);
   }
+
+  revalidateTags([
+    CACHE_TAGS.branding,
+    CACHE_TAGS.settings,
+    CACHE_TAGS.companyProfile,
+    CACHE_TAGS.parties,
+    CACHE_TAGS.companies,
+    CACHE_TAGS.products,
+    CACHE_TAGS.categories,
+    CACHE_TAGS.stock,
+    CACHE_TAGS.transactions,
+    CACHE_TAGS.reports,
+    CACHE_TAGS.dashboard
+  ]);
 
   return { success: true, message: 'Database reset successfully.' };
 }

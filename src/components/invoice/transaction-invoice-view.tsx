@@ -95,7 +95,7 @@ export function TransactionInvoiceView({
   notes
 }: TransactionInvoiceViewProps) {
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-900 print:bg-white print:p-0">
+    <main className="min-h-screen bg-slate-100 px-4 py-6 sm:px-4 sm:py-8 text-slate-900 print:bg-white print:p-0">
       <InvoicePrintTrigger />
       <style>{`
         @page { size: A4; margin: 12mm; }
@@ -107,7 +107,7 @@ export function TransactionInvoiceView({
         }
       `}</style>
 
-      <section className="mx-auto max-w-4xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm print:max-w-none print:border-0 print:p-0 print:shadow-none">
+      <section className="mx-auto max-w-4xl rounded-lg border border-slate-200 bg-white p-4 sm:p-6 shadow-sm print:max-w-none print:border-0 print:p-0 print:shadow-none">
         <header className="flex flex-col gap-5 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white p-2">
@@ -132,15 +132,15 @@ export function TransactionInvoiceView({
           </div>
         </header>
 
-        <section className="mt-5 grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 print:bg-white">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Detail label="Transaction No" value={transactionNumber} />
+        <section className="mt-5 grid gap-4 grid-cols-1 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 print:bg-white">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+          <Detail label="Transaction No" value={transactionNumber} />
             <Detail label="Transaction Type" value={transactionType} />
             <Detail label="Transaction Date" value={formatDate(transactionDate)} />
             <Detail label="Print Date & Time" value={formatDateTime(printDate)} />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Detail label={party.label} value={party.name} />
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+          <Detail label={party.label} value={party.name} />
             <Detail label="Mobile" value={party.phone ?? '-'} />
             <div className="sm:col-span-2">
               <Detail label="Address" value={party.address ?? '-'} />
@@ -175,10 +175,10 @@ export function TransactionInvoiceView({
           </ResponsiveTable>
         </section>
 
-        <section className="mt-5 grid gap-5 sm:grid-cols-[1fr_320px]">
+        <section className="mt-5 grid gap-5 grid-cols-1 sm:grid-cols-[1fr_320px]">
           <div className="rounded-lg border border-slate-200 p-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Detail label="Payment Method" value={paymentMethod ?? '-'} />
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+            <Detail label="Payment Method" value={paymentMethod ?? '-'} />
               <Detail label="Reference Number" value={referenceNumber ?? '-'} />
               <div className="sm:col-span-2">
                 <Detail label="Notes" value={notes ?? '-'} />
@@ -201,7 +201,7 @@ export function TransactionInvoiceView({
           </div>
         </section>
 
-        <footer className="mt-12 grid grid-cols-2 gap-8 text-sm text-slate-700">
+        <footer className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-8 text-sm text-slate-700">
           <div>
             <div className="h-12 border-b border-slate-400" />
             <p className="mt-2 font-semibold">Receiver Signature</p>

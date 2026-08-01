@@ -82,9 +82,9 @@ export default function Invoice(props: InvoiceProps) {
   return (
     <div className="invoice-print-area max-w-3xl mx-auto bg-white print:bg-white">
       <div className="shadow-sm border rounded-md overflow-hidden">
-        <header className="flex items-center justify-between bg-white p-6">
+        <header className="flex flex-col gap-4 sm:items-center sm:justify-between bg-white p-4 sm:p-6">
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 flex items-center justify-center overflow-hidden rounded">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden rounded">
               {company?.logo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={company.logo} alt={company.name ?? 'Logo'} className="h-full w-full object-contain" />
@@ -102,8 +102,8 @@ export default function Invoice(props: InvoiceProps) {
             </div>
           </div>
 
-          <div className="text-right">
-            <div className="text-4xl font-extrabold tracking-wide text-slate-900">INVOICE</div>
+          <div className="text-left sm:text-right">
+            <div className="text-2xl sm:text-4xl font-extrabold tracking-wide text-slate-900">INVOICE</div>
             <div className="mt-2 text-sm text-slate-500">Invoice #{invoiceNumber}</div>
             <div className="text-sm text-slate-500">Date: {date}</div>
           </div>
@@ -111,8 +111,8 @@ export default function Invoice(props: InvoiceProps) {
 
         <div className="h-3 bg-yellow-400" />
 
-        <main className="p-6">
-          <div className="grid grid-cols-2 gap-6 mb-6">
+        <main className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
             <div>
               <div className="text-xs text-slate-500">Invoice to:</div>
               <div className="font-medium text-slate-900 text-lg">{billedTo}</div>
@@ -154,8 +154,8 @@ export default function Invoice(props: InvoiceProps) {
             </ResponsiveTable>
           </div>
 
-          <div className="mt-6 flex justify-end">
-            <div className="w-80">
+          <div className="mt-6 flex flex-col sm:items-end">
+            <div className="w-full max-w-xs sm:w-80">
               <div className="flex justify-between text-sm text-slate-600"><div>Sub Total:</div><div>৳{subTotal.toFixed(2)}</div></div>
               <div className="flex justify-between text-sm text-slate-600 mt-1"><div>Tax:</div><div>৳{tax.toFixed(2)}</div></div>
               <div className="mt-3 flex items-center justify-between bg-yellow-400 px-4 py-3">
@@ -165,7 +165,7 @@ export default function Invoice(props: InvoiceProps) {
             </div>
           </div>
 
-          <div className="mt-8 grid grid-cols-2 gap-6 text-sm text-slate-600">
+          <div className="mt-8 grid grid-cols-1 gap-6 text-sm text-slate-600 sm:grid-cols-2">
             <div>
               <div className="font-semibold text-slate-800 mb-2">Terms & Conditions</div>
               <div>Payment due within 15 days. Late payments may be subject to fees.</div>
@@ -178,16 +178,16 @@ export default function Invoice(props: InvoiceProps) {
           </div>
         </main>
 
-        <footer className="p-6 bg-white border-t text-sm text-slate-500 flex items-center justify-between">
+        <footer className="p-4 sm:p-6 bg-white border-t text-sm text-slate-500 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>Phone: {company?.phone ?? '—'} | Address: {company?.address ?? '—'} | {company?.website ?? ''}</div>
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <div className="font-semibold text-slate-800">Authorized Sign</div>
-            <div className="mt-4 h-8 w-48 border-b border-slate-300" />
+            <div className="mt-4 h-8 w-40 sm:w-48 border-b border-slate-300" />
           </div>
         </footer>
       </div>
 
-      <div className="mt-4 flex items-center justify-end gap-3 no-print">
+      <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 no-print">
         <PrintButton />
         <Button variant="outline" onClick={async () => {
           const el = document.querySelector('.invoice-print-area') as HTMLElement | null;

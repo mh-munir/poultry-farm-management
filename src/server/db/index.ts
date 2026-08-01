@@ -1,6 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { env } from '@/lib/env';
-import { QueryProfiler } from '@/lib/profiler';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -82,8 +81,7 @@ export async function dbQuery<T>(
   model: string,
   operation: string,
   timeoutMs = 30000,
-  fallback?: T,
-  profiler?: QueryProfiler
+  fallback?: T
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
@@ -96,24 +94,8 @@ export async function dbQuery<T>(
 
   try {
     const result = (await retryQuery(() => Promise.race([query, timeout]))) as T;
-    const duration = Date.now() - start;
-    const rows = getRowCount(result);
-    try {
-      const padding = '.'.repeat(Math.max(1, 32 - name.length));
-      console.debug(`[dbQuery] ${name} ${padding} ${duration}ms`);
-      console.debug(`  Model: ${model}`);
-      console.debug(`  Operation: ${operation}`);
-      console.debug(`  Rows: ${rows}`);
-    } catch {}
-    if (profiler) {
-      profiler.record(name, model, operation, rows, duration);
-    }
     return result;
   } catch (error) {
-    const duration = Date.now() - start;
-    try {
-      console.debug(`[dbQuery] ${name} failed after ${duration}ms - ${error instanceof Error ? error.message : String(error)}`);
-    } catch {}
     if (isDatabaseUnavailableError(error)) {
       if (process.env.NODE_ENV !== 'test') {
         console.warn(`[db] Falling back because the database is unavailable: ${error instanceof Error ? error.message : String(error)}`);
@@ -126,11 +108,4 @@ export async function dbQuery<T>(
       clearTimeout(timer);
     }
   }
-}
-
-function getRowCount(result: unknown): number {
-  if (result === null || result === undefined) return 0;
-  if (Array.isArray(result)) return result.length;
-  if (typeof result === 'number') return result;
-  return 1;
 }

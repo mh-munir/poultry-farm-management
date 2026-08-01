@@ -1,12 +1,13 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
+import { unstable_cache } from 'next/cache';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
+import { CACHE_TAGS, revalidatePurchaseData } from '@/lib/cache';
 
 const PURCHASE_TRANSACTION_TYPE = 'PURCHASE' as const;
 const PENDING_TRANSACTION_STATUS = 'PENDING' as const;
@@ -442,11 +443,7 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
       return purchase.id;
     });
 
-    revalidatePath(redirectPath);
-    revalidatePath('/dashboard');
-    revalidatePath('/dashboard/companies');
-    revalidatePath('/dashboard/stock/feed');
-    revalidatePath('/dashboard/stock/Medicine');
+    revalidatePurchaseData({ path: redirectPath });
 
     const productTypes = new Set(items.map((item) => item.productType));
     const stockProductTypes = new Set(['FEED', 'MEDICINE']);
@@ -692,6 +689,7 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
       });
     });
 
+    revalidatePurchaseData({ partyId });
     return { success: true, message: 'Party Supplier products recorded successfully.' };
   } catch (error) {
     console.error('Error recording party supplier products:', error);
@@ -702,47 +700,83 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
 export async function getPurchaseById(id: number) {
   return prisma.transaction.findFirst({
     where: { id, transactionType: PURCHASE_TRANSACTION_TYPE },
-    include: {
+    select: {
+      id: true,
+      invoiceNumber: true,
+      transactionDate: true,
+      status: true,
+      totalAmount: true,
+      paidAmount: true,
+      dueAmount: true,
+      subtotal: true,
+      discount: true,
+      tax: true,
+      referenceNumber: true,
+      notes: true,
       party: { select: { id: true, name: true, phone: true, email: true, address: true } },
       company: { select: { id: true, name: true, contactPerson: true, phone: true, email: true, address: true } },
       transactionItems: {
-        include: {
-          product: true
+        select: {
+          id: true,
+          quantity: true,
+          unitPrice: true,
+          lineTotal: true,
+          taxAmount: true,
+          description: true,
+          product: { select: { id: true, name: true, productType: true, unit: true } }
         }
       },
       payments: {
-        include: {
-          payment: true
+        select: {
+          id: true,
+          amount: true,
+          allocationDate: true,
+          payment: { select: { id: true, amount: true, paymentDate: true, paymentMethod: true, referenceNumber: true, status: true } }
         }
       },
-      ledgerEntries: true
+      ledgerEntries: {
+        select: {
+          id: true,
+          entryDate: true,
+          entryType: true,
+          amount: true,
+          runningBalance: true,
+          description: true,
+          referenceNumber: true
+        }
+      }
     }
   });
 }
 
-export async function getSuppliersForPurchases() {
-  const parties = await prisma.party.findMany({
-    where: {
-      isActive: true,
-      partyType: { in: ['PARTY', 'BOTH'] },
-      NOT: [{ farmName: null }, { farmName: '' }]
-    },
-    orderBy: { farmName: 'asc' },
-    select: { id: true, name: true, farmName: true, phone: true, email: true }
-  });
-
-  const companies = await prisma.company.findMany({
-    where: {
-      isActive: true
-    },
-    orderBy: { name: 'asc' },
-    select: { id: true, name: true, contactPerson: true, phone: true, email: true }
-  });
+const getSuppliersForPurchasesCached = unstable_cache(async () => {
+  const [parties, companies] = await Promise.all([
+    prisma.party.findMany({
+      where: {
+        isActive: true,
+        partyType: { in: ['PARTY', 'BOTH'] },
+        NOT: [{ farmName: null }, { farmName: '' }]
+      },
+      orderBy: { farmName: 'asc' },
+      select: { id: true, name: true, farmName: true, phone: true, email: true }
+    }),
+    prisma.company.findMany({
+      where: {
+        isActive: true
+      },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, contactPerson: true, phone: true, email: true }
+    })
+  ]);
 
   return {
     parties: parties.map((p) => ({ id: p.id, name: p.farmName ?? p.name, phone: p.phone, email: p.email, type: 'party' as const })),
     companies: companies.map((c) => ({ id: c.id, name: c.name, contactPerson: c.contactPerson, phone: c.phone, email: c.email, type: 'company' as const }))
   };
+}, ['purchase-supplier-options'], { tags: [CACHE_TAGS.parties, CACHE_TAGS.companies], revalidate: 300 });
+
+export async function getSuppliersForPurchases() {
+  return getSuppliersForPurchasesCached();
 }
 
 export async function getProductsForPurchases() {

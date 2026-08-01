@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, LifeBuoy, Lock, Settings, User, LogOut } from 'lucide-react';
 
 export function UserNav() {
@@ -21,6 +21,17 @@ export function UserNav() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const displayName = session?.user?.name ?? 'Admin';
+  const role = session?.user?.role ?? 'USER';
+  const initials = useMemo(() => {
+    return displayName
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  }, [displayName]);
+
   if (status === 'loading') {
     return <div className="text-sm text-muted-foreground">Loading...</div>;
   }
@@ -33,15 +44,6 @@ export function UserNav() {
     );
   }
 
-  const role = session.user.role ?? 'USER';
-  const name = session.user.name ?? 'Admin';
-  const initials = name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
   return (
     <div ref={ref} className="relative">
       <button
@@ -51,7 +53,7 @@ export function UserNav() {
         aria-label="Open user menu"
       >
         {session.user.image ? (
-          <img src={session.user.image} alt={name} className="h-11 w-11 rounded-full object-cover" />
+          <img src={session.user.image} alt={displayName} className="h-11 w-11 rounded-full object-cover" />
         ) : (
           <span>{initials}</span>
         )}
@@ -65,7 +67,7 @@ export function UserNav() {
                 {initials}
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-900">{name}</p>
+                <p className="text-sm font-semibold text-slate-900">{displayName}</p>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{role}</p>
               </div>
             </div>

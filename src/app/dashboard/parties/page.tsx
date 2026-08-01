@@ -100,7 +100,7 @@ export default async function PartiesPage({
 
       {/* Parties Stats */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-4 shadow-sm mb-6">
-        <div className="grid gap-4 md:grid-cols-4 flex-1">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 flex-1">
           <StatCard title="Total Parties" value={stats.total} icon={Users} accent="bg-indigo-50 text-indigo-600" />
           <StatCard title="Active Parties" value={stats.active} icon={Package2} accent="bg-emerald-50 text-emerald-600" />
           <StatCard title="Customers" value={stats.customers} icon={Receipt} accent="bg-sky-50 text-sky-600" />
@@ -173,7 +173,7 @@ export default async function PartiesPage({
                      <td className="px-4 py-3 text-sm font-medium text-slate-800">{formatCurrency(party.totalPaid ?? 0)}</td>
                      <td className="px-4 py-3">{formatCurrency(party.totalDue)}</td>
                      <td className="px-4 py-3 text-right">
-                       <div className="flex items-center justify-end gap-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                          <Link
                            href={`/dashboard/parties/${party.id}/print`}
                            target="_blank"

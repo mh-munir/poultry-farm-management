@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { revalidateTags, CACHE_TAGS } from '@/lib/cache';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth';
@@ -61,6 +62,7 @@ export async function createOrUpdateCategory(formData: FormData) {
     redirect(url.toString());
   }
 
+  revalidateTags([CACHE_TAGS.categories, CACHE_TAGS.products, CACHE_TAGS.dashboard]);
   revalidatePath('/dashboard/product-categories');
   const url = new URL('/dashboard/product-categories', 'http://localhost');
   url.searchParams.set('success', data.id ? 'Category updated successfully.' : 'Category created successfully.');
@@ -88,6 +90,7 @@ export async function deleteCategory(formData: FormData) {
     redirect(url.toString());
   }
 
+  revalidateTags([CACHE_TAGS.categories, CACHE_TAGS.products, CACHE_TAGS.dashboard]);
   revalidatePath('/dashboard/product-categories');
   const url = new URL('/dashboard/product-categories', 'http://localhost');
   url.searchParams.set('success', 'Category deleted successfully.');

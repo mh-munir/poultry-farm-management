@@ -83,8 +83,8 @@ export default async function ReportsPage() {
   };
 
   return (
-    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
-      <div className="rounded-xl border bg-card p-8 shadow-sm">
+    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4 sm:px-4">
+      <div className="rounded-xl border bg-card p-4 shadow-sm sm:p-6 lg:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Reports</p>
@@ -99,10 +99,10 @@ export default async function ReportsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
         {reportConfig.map((report) => (
           <div key={report.title} className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-semibold">{report.title}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">{report.description}</p>
@@ -127,7 +127,7 @@ export default async function ReportsPage() {
         ))}
       </div>
 
-      <div className="rounded-xl border bg-card p-6 shadow-sm">
+      <div className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold">Export & Print</h2>
@@ -140,9 +140,9 @@ export default async function ReportsPage() {
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-3">
-          <Button variant="outline">Export PDF</Button>
-          <Button variant="outline">Export Excel</Button>
-          <Link href="/dashboard/reports/party-statement" className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+          <Button variant="outline" className="w-full sm:w-auto">Export PDF</Button>
+          <Button variant="outline" className="w-full sm:w-auto">Export Excel</Button>
+          <Link href="/dashboard/reports/party-statement" className="w-full sm:w-auto inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
             Print Reports
           </Link>
         </div>

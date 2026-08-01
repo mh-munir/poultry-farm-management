@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -19,6 +20,7 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
   const [currentPayable, setCurrentPayable] = useState(0);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const router = useRouter();
   const { success, error: showError } = useToast();
 
   useEffect(() => {
@@ -61,12 +63,13 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
     }
 
     success(result.message);
+    router.refresh();
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title="Pay Supplier">
-      <form onSubmit={handleSubmit} className="mt-2 grid gap-5 md:grid-cols-2">
+      <form onSubmit={handleSubmit} className="mt-2 grid gap-4 md:gap-5 grid-cols-1 md:grid-cols-2">
         <input type="hidden" name="status" value="COMPLETED" />
         <input type="hidden" name="paymentMethod" value="Cash" />
 

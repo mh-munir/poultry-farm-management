@@ -1,11 +1,12 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
+import { unstable_cache } from 'next/cache';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
+import { CACHE_TAGS, revalidateSalesData } from '@/lib/cache';
 import { getSaleSmsSuccessMessage, queueSaleSmsNotification } from '@/lib/sms/service';
 import type { SmsSaleType } from '@/lib/sms/types';
 
@@ -273,9 +274,7 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
     dueAmount: formatSmsAmount(savedSale.dueAmount)
   });
 
-  revalidatePath('/dashboard/sales');
-  revalidatePath('/dashboard/parties');
-  revalidatePath('/dashboard');
+  revalidateSalesData(savedSale.partyId);
 
   return { sale: savedSale, sms: smsResult };
 }
@@ -378,41 +377,70 @@ export async function getSalesPageData({
   };
 }
 
-type SaleDetail = Prisma.TransactionGetPayload<{
-  include: {
-    party: { select: { id: true; name: true; phone: true; email: true; address: true } };
-    transactionItems: { include: { product: true } };
-    payments: { include: { payment: true } };
-    ledgerEntries: true;
-  };
-}>;
-
-export async function getSaleById(id: number): Promise<SaleDetail | null> {
+export async function getSaleById(id: number) {
   return prisma.transaction.findFirst({
     where: { id, transactionType: SALE_TRANSACTION_TYPE },
-    include: {
+    select: {
+      id: true,
+      invoiceNumber: true,
+      transactionDate: true,
+      status: true,
+      totalAmount: true,
+      paidAmount: true,
+      dueAmount: true,
+      subtotal: true,
+      discount: true,
+      tax: true,
+      referenceNumber: true,
+      notes: true,
       party: { select: { id: true, name: true, phone: true, email: true, address: true } },
       transactionItems: {
-        include: {
-          product: true
+        select: {
+          id: true,
+          quantity: true,
+          unitPrice: true,
+          lineTotal: true,
+          taxAmount: true,
+          description: true,
+          product: { select: { id: true, name: true, productType: true, unit: true } }
         }
       },
       payments: {
-        include: {
-          payment: true
+        select: {
+          id: true,
+          amount: true,
+          allocationDate: true,
+          payment: { select: { id: true, amount: true, paymentDate: true, paymentMethod: true, referenceNumber: true, status: true } }
         }
       },
-      ledgerEntries: true
+      ledgerEntries: {
+        select: {
+          id: true,
+          entryDate: true,
+          entryType: true,
+          amount: true,
+          runningBalance: true,
+          description: true,
+          referenceNumber: true
+        }
+      }
     }
   });
 }
 
+const getCustomersForSalesCached = unstable_cache(
+  async () =>
+    prisma.party.findMany({
+      where: { isActive: true, partyType: { in: ['CUSTOMER', 'BOTH'] } },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, phone: true, email: true }
+    }),
+  ['sales-customer-options'],
+  { tags: [CACHE_TAGS.parties], revalidate: 300 }
+);
+
 export async function getCustomersForSales() {
-  return prisma.party.findMany({
-    where: { isActive: true, partyType: { in: ['CUSTOMER', 'BOTH'] } },
-    orderBy: { name: 'asc' },
-    select: { id: true, name: true, phone: true, email: true }
-  });
+  return getCustomersForSalesCached();
 }
 
 export async function getProductsForSales() {

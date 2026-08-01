@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/server/db'
 import { requireUser } from '@/lib/auth'
+import { invalidateBrandingCache } from '@/lib/branding'
+import { revalidateSettingsData } from '@/lib/cache'
 
 const payloadSchema = z.object({ key: z.string().min(1), value: z.any() })
 
@@ -55,11 +57,9 @@ export async function POST(request: Request) {
       create: { key, value, updatedById: session.user.id ?? null }
     });
 
-    if (key === 'branding') {
-      revalidatePath('/');
-      revalidatePath('/dashboard');
-      revalidatePath('/dashboard/settings');
-      revalidatePath('/dashboard/settings/logo');
+    if (key === 'branding' || key === 'company_profile') {
+      invalidateBrandingCache();
+      revalidateSettingsData();
     }
 
     return NextResponse.json({ key: upserted.key, value: upserted.value });
@@ -86,6 +86,12 @@ export async function DELETE(request: Request) {
 
   try {
     await (prisma as any).setting.delete({ where: { key } });
+    if (key === 'branding' || key === 'company_profile') {
+      invalidateBrandingCache();
+    }
+    revalidateSettingsData();
+    revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard');
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     if (isMissingSettingsTableError(err)) {

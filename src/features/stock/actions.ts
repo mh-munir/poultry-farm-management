@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
+import { revalidatePartyData, revalidateStockData } from '@/lib/cache';
 
 const STOCK_MOVEMENT_TYPE_PREFIX = 'STOCK_MOVEMENT' as const;
 
@@ -130,7 +131,7 @@ export async function createStockMovement(formData: FormData) {
     redirect(url.toString());
   }
 
-  revalidatePath('/dashboard/stock');
+  revalidateStockData();
   const url = new URL('/dashboard/stock', 'http://localhost');
   url.searchParams.set('success', 'Stock movement recorded successfully.');
   // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
@@ -160,34 +161,111 @@ export async function getStockPageData({
     ] as Prisma.ProductWhereInput['OR'];
   }
 
-  try {
-    const products = await prisma.product.findMany({
-      where,
-      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
-      skip,
-      take,
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        unit: true,
-        barcode: true,
-        lowStockThreshold: true,
-        defaultPurchasePrice: true,
-        defaultSellingPrice: true,
-        stockBalance: { select: { quantityOnHand: true, reservedQuantity: true } },
-        category: { select: { id: true, name: true } }
-      }
-    });
+  const searchTerm = search?.trim()
+    ? `%${search.trim().replace(/%/g, '\\%').replace(/_/g, '\\_')}%`
+    : null;
 
-    const filtered = lowStockOnly
-      ? products.filter((product) => Number(product.stockBalance?.quantityOnHand ?? 0) <= Number(product.lowStockThreshold ?? 0))
-      : products;
-    const total = filtered.length;
-    const paginated = filtered.slice(skip, skip + take);
+  const searchFilter = searchTerm
+    ? Prisma.sql`AND (p."name" ILIKE ${searchTerm} ESCAPE '\\' OR p."code" ILIKE ${searchTerm} ESCAPE '\\' OR p."barcode" ILIKE ${searchTerm} ESCAPE '\\')`
+    : Prisma.sql``;
+
+  if (lowStockOnly) {
+    try {
+      const [products, countResult] = await Promise.all([
+        prisma.$queryRaw<
+          Array<{
+            id: number;
+            code: string | null;
+            name: string;
+            unit: string;
+            barcode: string | null;
+            lowStockThreshold: Prisma.Decimal | null;
+            defaultPurchasePrice: Prisma.Decimal | null;
+            defaultSellingPrice: Prisma.Decimal | null;
+            quantityOnHand: Prisma.Decimal | null;
+            reservedQuantity: Prisma.Decimal | null;
+            categoryId: number | null;
+            categoryName: string | null;
+          }>
+        >`
+          SELECT p."id", p."code", p."name", p."unit", p."barcode",
+                 p."lowStockThreshold", p."defaultPurchasePrice", p."defaultSellingPrice",
+                 sb."quantityOnHand", sb."reservedQuantity",
+                 c."id" AS "categoryId", c."name" AS "categoryName"
+          FROM "Product" p
+          JOIN "StockBalance" sb ON sb."productId" = p."id"
+          LEFT JOIN "ProductCategory" c ON c."id" = p."categoryId"
+          WHERE p."isActive" = true
+            AND p."lowStockThreshold" > 0
+            AND sb."quantityOnHand" <= p."lowStockThreshold"
+            ${searchFilter}
+          ORDER BY p."name" ASC
+          LIMIT ${take} OFFSET ${skip}
+        `,
+        prisma.$queryRaw<Array<{ count: number }>>`
+          SELECT COUNT(*) AS "count"
+          FROM "Product" p
+          JOIN "StockBalance" sb ON sb."productId" = p."id"
+          WHERE p."isActive" = true
+            AND p."lowStockThreshold" > 0
+            AND sb."quantityOnHand" <= p."lowStockThreshold"
+            ${searchFilter}
+        `
+      ]);
+
+      const total = Number(countResult[0]?.count ?? 0);
+      const mappedProducts = products.map((p) => ({
+        id: p.id,
+        code: p.code,
+        name: p.name,
+        unit: p.unit,
+        barcode: p.barcode,
+        lowStockThreshold: p.lowStockThreshold,
+        defaultPurchasePrice: p.defaultPurchasePrice,
+        defaultSellingPrice: p.defaultSellingPrice,
+        stockBalance: {
+          quantityOnHand: p.quantityOnHand,
+          reservedQuantity: p.reservedQuantity
+        },
+        category: p.categoryId ? { id: p.categoryId, name: p.categoryName } : null
+      }));
+
+      return {
+        products: mappedProducts,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / take)),
+        page: Math.min(page, Math.max(1, Math.ceil(total / take)))
+      };
+    } catch (error) {
+      return { products: [], total: 0, totalPages: 1, page: 1 };
+    }
+  }
+
+  try {
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+        skip,
+        take,
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          unit: true,
+          barcode: true,
+          lowStockThreshold: true,
+          defaultPurchasePrice: true,
+          defaultSellingPrice: true,
+          stockBalance: { select: { quantityOnHand: true, reservedQuantity: true } },
+          category: { select: { id: true, name: true } }
+        }
+      }),
+      prisma.product.count({ where })
+    ]);
 
     return {
-      products: paginated,
+      products,
       total,
       totalPages: Math.max(1, Math.ceil(total / take)),
       page: Math.min(page, Math.max(1, Math.ceil(total / take)))
@@ -216,20 +294,25 @@ export async function getStockHistory() {
 }
 
 export async function getLowStockAlerts() {
-  return prisma.product.findMany({
-    where: {
-      isActive: true
-    },
-    select: {
-      id: true,
-      name: true,
-      code: true,
-      unit: true,
-      lowStockThreshold: true,
-      stockBalance: { select: { quantityOnHand: true } }
-    },
-    orderBy: [{ name: 'asc' }]
-  });
+  return prisma.$queryRaw<
+    Array<{
+      id: number;
+      name: string;
+      code: string | null;
+      unit: string;
+      lowStockThreshold: Prisma.Decimal | null;
+      quantityOnHand: Prisma.Decimal | null;
+    }>
+  >`
+    SELECT p."id", p."name", p."code", p."unit",
+           p."lowStockThreshold", sb."quantityOnHand"
+    FROM "Product" p
+    JOIN "StockBalance" sb ON sb."productId" = p."id"
+    WHERE p."isActive" = true
+      AND p."lowStockThreshold" > 0
+      AND sb."quantityOnHand" <= p."lowStockThreshold"
+    ORDER BY p."name" ASC
+  `;
 }
 
 export async function getProductsForStock() {
@@ -250,7 +333,6 @@ export async function getProductsForStock() {
 export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE') {
   return prisma.product.findMany({
     where: { isActive: true, productType },
-    orderBy: { name: 'asc' },
     select: {
       id: true,
       name: true,
@@ -280,7 +362,8 @@ export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE') {
         },
         take: 1
       }
-    }
+    },
+    orderBy: { name: 'asc' }
   });
 }
 
@@ -327,8 +410,8 @@ export async function createSupplierForStock(formData: FormData) {
       select: { id: true, name: true, phone: true, email: true, address: true, farmName: true, partyType: true }
     });
 
-    revalidatePath('/dashboard/parties');
-    revalidatePath('/dashboard/stock');
+    revalidatePartyData(party.id);
+    revalidateStockData();
 
     return { success: true as const, message: `Party Supplier '${party.name}' created successfully.`, party };
   } catch (error) {
@@ -382,8 +465,8 @@ export async function createProductForStock(formData: FormData) {
       select: { id: true, name: true, code: true, productType: true, unit: true, defaultPurchasePrice: true, defaultSellingPrice: true }
     });
 
+    revalidateStockData();
     revalidatePath('/dashboard/products');
-    revalidatePath('/dashboard/stock');
 
     return { success: true as const, message: `Product '${product.name}' created successfully.`, product };
   } catch (error) {
@@ -409,7 +492,7 @@ export async function getFeedStockCompanyNames() {
 export async function getMedicineStockCompanyNames() {
   await requireUser();
 
-  const transactions = await prisma.transaction.findMany({
+  const companyIds = await prisma.transaction.findMany({
     where: {
       transactionType: 'PURCHASE',
       transactionItems: {
@@ -420,22 +503,29 @@ export async function getMedicineStockCompanyNames() {
         }
       }
     },
-    include: {
-      company: {
-        select: {
-          id: true,
-          name: true
-        }
-      }
+    select: {
+      companyId: true
     },
     distinct: ['companyId']
   });
 
-  return transactions
-    .map((tx) => ({
-      id: tx.company?.id ?? 0,
-      name: tx.company?.name ?? 'Unknown'
-    }))
-    .filter((item) => item.name !== 'Unknown')
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const ids = companyIds.map((c) => c.companyId).filter((id): id is number => id !== null && id !== undefined);
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const companies = await prisma.company.findMany({
+    where: {
+      id: { in: ids },
+      isActive: true
+    },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' }
+  });
+
+  return companies.map((c) => ({
+    id: c.id,
+    name: c.name
+  }));
 }

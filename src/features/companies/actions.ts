@@ -1,11 +1,12 @@
 'use server';
 
 import { notFound } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
+import { unstable_cache } from 'next/cache';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/server/db';
 import { requireUser } from '@/lib/auth';
+import { CACHE_TAGS, revalidateCompanyData } from '@/lib/cache';
 
 const companySchema = z.object({
   id: z.coerce.number().optional(),
@@ -19,7 +20,7 @@ const companySchema = z.object({
 });
 
 export async function createCompany(formData: FormData) {
-  await requireUser();
+  const session = await requireUser();
   const parsed = companySchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!parsed.success) {
@@ -39,14 +40,12 @@ export async function createCompany(formData: FormData) {
         companyType: data.companyType,
         isActive: data.isActive,
         createdBy: {
-          connect: { id: (await requireUser()).user.id ?? '' }
+          connect: { id: session.user.id ?? '' }
         }
       }
     });
 
-    revalidatePath('/dashboard/companies');
-    revalidatePath('/dashboard/stock');
-    revalidatePath('/dashboard/purchases');
+    revalidateCompanyData(company.id);
 
     return { success: true as const, message: `Company '${company.name}' created successfully.`, company };
   } catch (error) {
@@ -83,9 +82,7 @@ export async function updateCompany(formData: FormData) {
       }
     });
 
-    revalidatePath('/dashboard/companies');
-    revalidatePath('/dashboard/stock');
-    revalidatePath('/dashboard/purchases');
+    revalidateCompanyData(company.id);
 
     return { success: true as const, message: `Company '${company.name}' updated successfully.`, company };
   } catch (error) {
@@ -101,9 +98,7 @@ export async function deleteCompany(companyId: number) {
       where: { id: companyId }
     });
 
-    revalidatePath('/dashboard/companies');
-    revalidatePath('/dashboard/stock');
-    revalidatePath('/dashboard/purchases');
+    revalidateCompanyData(companyId);
 
     return { success: true as const, message: 'Company deleted successfully.' };
   } catch (error) {
@@ -135,13 +130,20 @@ export async function getCompanies() {
   });
 }
 
+const getCompanyNamesCached = unstable_cache(
+  async () =>
+    prisma.company.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' }
+    }),
+  ['company-name-options'],
+  { tags: [CACHE_TAGS.companies], revalidate: 300 }
+);
+
 export async function getCompanyNames() {
   await requireUser();
-  return prisma.company.findMany({
-    where: { isActive: true },
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' }
-  });
+  return getCompanyNamesCached();
 }
 
 export async function createOrUpdateCompany(formData: FormData) {
@@ -200,31 +202,50 @@ export async function getCompanyPageData(args: { page: number; search?: string; 
     prisma.company.count({ where })
   ]);
 
-  const companiesWithFinancials = await Promise.all(
-    companies.map(async (company) => {
-      const [purchaseAgg, paymentAgg] = await Promise.all([
-        prisma.transaction.aggregate({
-          where: { companyId: company.id, transactionType: 'PURCHASE' },
-          _sum: { totalAmount: true }
-        }),
-        prisma.payment.aggregate({
-          where: { companyId: company.id },
-          _sum: { amount: true }
-        })
-      ]);
+  const companyIds = companies.map((company) => company.id);
+  const financials = companyIds.length === 0
+    ? []
+    : await prisma.$queryRaw<Array<{ companyId: number; totalPurchase: any; totalPaid: any }>>`
+      SELECT
+        c."id" AS "companyId",
+        COALESCE(tp."totalPurchase", 0) AS "totalPurchase",
+        COALESCE(pp."totalPaid", 0) AS "totalPaid"
+      FROM "Company" c
+      LEFT JOIN (
+        SELECT "companyId", SUM("totalAmount") AS "totalPurchase"
+        FROM "Transaction"
+        WHERE "companyId" IN (${Prisma.join(companyIds)}) AND "transactionType" = 'PURCHASE'
+        GROUP BY "companyId"
+      ) tp ON tp."companyId" = c."id"
+      LEFT JOIN (
+        SELECT "companyId", SUM("amount") AS "totalPaid"
+        FROM "Payment"
+        WHERE "companyId" IN (${Prisma.join(companyIds)})
+        GROUP BY "companyId"
+      ) pp ON pp."companyId" = c."id"
+      WHERE c."id" IN (${Prisma.join(companyIds)})
+    `;
 
-      const totalPurchase = Number(purchaseAgg._sum.totalAmount ?? 0);
-      const totalPaid = Number(paymentAgg._sum.amount ?? 0);
-      const totalDue = totalPurchase - totalPaid;
-
-      return {
-        ...company,
-        totalPurchase,
-        totalPaid,
-        totalDue
-      };
-    })
+  const financialMap = new Map(
+    (financials as Array<{ companyId: number; totalPurchase: any; totalPaid: any }>).map((f) => [
+      f.companyId,
+      {
+        totalPurchase: Number(f.totalPurchase ?? 0),
+        totalPaid: Number(f.totalPaid ?? 0),
+        totalDue: Number(f.totalPurchase ?? 0) - Number(f.totalPaid ?? 0)
+      }
+    ])
   );
+
+  const companiesWithFinancials = companies.map((company) => {
+    const financial = financialMap.get(company.id) ?? { totalPurchase: 0, totalPaid: 0, totalDue: 0 };
+    return {
+      ...company,
+      totalPurchase: financial.totalPurchase,
+      totalPaid: financial.totalPaid,
+      totalDue: financial.totalDue
+    };
+  });
 
   const totalPages = Math.max(1, Math.ceil(total / take));
 
@@ -256,11 +277,17 @@ export async function getCompanyStats(args: { search?: string; companyType?: str
 
   const where = filters.length > 0 ? { AND: filters } : {};
 
-  const total = await prisma.company.count({ where });
-  const active = await prisma.company.count({ where: { ...where, isActive: true } });
-  const feed = await prisma.company.count({ where: { ...where, companyType: 'FEED' } });
-  const medicine = await prisma.company.count({ where: { ...where, companyType: 'MEDICINE' } });
-  const both = await prisma.company.count({ where: { ...where, companyType: 'BOTH' } });
+  const rows = await prisma.company.groupBy({
+    by: ['isActive', 'companyType'],
+    where,
+    _count: { _all: true }
+  });
+
+  const total = rows.reduce((sum, row) => sum + row._count._all, 0);
+  const active = rows.reduce((sum, row) => sum + (row.isActive ? row._count._all : 0), 0);
+  const feed = rows.reduce((sum, row) => sum + (row.companyType === 'FEED' ? row._count._all : 0), 0);
+  const medicine = rows.reduce((sum, row) => sum + (row.companyType === 'MEDICINE' ? row._count._all : 0), 0);
+  const both = rows.reduce((sum, row) => sum + (row.companyType === 'BOTH' ? row._count._all : 0), 0);
 
   return { total, active, feed, medicine, both };
 }
@@ -299,72 +326,53 @@ export async function getOrCreateCompany(name: string) {
 
 export async function getCompaniesByType(companyType: string) {
   await requireUser();
-  return prisma.company.findMany({
+  return unstable_cache(
+    async () => prisma.company.findMany({
     where: {
       isActive: true,
       companyType: { in: [companyType, 'BOTH'] }
     },
     select: { id: true, name: true },
     orderBy: { name: 'asc' }
-  });
+    }),
+    [`companies-by-type-${companyType}`],
+    { tags: [CACHE_TAGS.companies], revalidate: 300 }
+  )();
 }
 
 export async function getCompanyAccountSummary(companyId: number) {
   await requireUser();
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: {
-      companyType: true,
-      transactions: {
-        select: {
-          transactionType: true,
-          totalAmount: true,
-          paidAmount: true,
-          dueAmount: true,
-          transactionDate: true,
-          transactionItems: {
-            select: {
-              product: {
-                select: {
-                  name: true,
-                  unit: true,
-                  productType: true
-                }
-              }
-            }
-          }
-        }
-      },
-      payments: {
-        select: {
-          amount: true,
-          paymentDate: true,
-          paymentMethod: true,
-          referenceNumber: true,
-          status: true,
-          notes: true
-        }
-      }
-    }
+    select: { companyType: true }
   });
 
   if (!company) {
     notFound();
   }
 
-  const feedPurchases = company.transactions.filter((t) => t.transactionType === 'PURCHASE');
-  const medicinePurchases = company.transactions.filter((t) => t.transactionType === 'PURCHASE');
+  const [purchaseAgg, paymentAgg, lastTransaction, txnCount] = await Promise.all([
+    prisma.transaction.aggregate({
+      where: { companyId, transactionType: 'PURCHASE' },
+      _sum: { totalAmount: true }
+    }),
+    prisma.payment.aggregate({
+      where: { companyId },
+      _sum: { amount: true }
+    }),
+    prisma.transaction.findFirst({
+      where: { companyId },
+      orderBy: { transactionDate: 'desc' },
+      select: { transactionDate: true }
+    }),
+    prisma.transaction.count({ where: { companyId } })
+  ]);
 
-  const totalFeedPurchases = feedPurchases.reduce((sum, t) => sum + Number(t.totalAmount), 0);
-  const totalMedicinePurchases = medicinePurchases.reduce((sum, t) => sum + Number(t.totalAmount), 0);
-  const totalPayments = company.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalFeedPurchases = Number(purchaseAgg._sum.totalAmount ?? 0);
+  const totalMedicinePurchases = 0;
+  const totalPayments = Number(paymentAgg._sum.amount ?? 0);
   const totalPurchase = totalFeedPurchases + totalMedicinePurchases;
   const totalDue = totalPurchase - totalPayments;
-  const totalTransactions = company.transactions.length;
-
-  const lastTransactionDate = company.transactions.length > 0
-    ? new Date(Math.max(...company.transactions.map((t) => new Date(t.transactionDate).getTime())))
-    : null;
 
   return {
     companyType: company.companyType,
@@ -372,10 +380,8 @@ export async function getCompanyAccountSummary(companyId: number) {
     totalMedicinePurchases,
     totalPayments,
     totalDue,
-    totalTransactions,
-    lastTransactionDate,
-    transactions: company.transactions,
-    payments: company.payments
+    totalTransactions: txnCount,
+    lastTransactionDate: lastTransaction?.transactionDate ?? null
   };
 }
 
@@ -406,25 +412,19 @@ export async function getCompanyProfile(companyId: number) {
 
 export async function getCompanyCurrentDue(companyId: number) {
   await requireUser();
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: {
-      transactions: {
-        where: { transactionType: 'PURCHASE' },
-        select: { totalAmount: true }
-      },
-      payments: {
-        select: { amount: true }
-      }
-    }
-  });
+  const [purchaseAgg, paymentAgg] = await Promise.all([
+    prisma.transaction.aggregate({
+      where: { companyId, transactionType: 'PURCHASE' },
+      _sum: { totalAmount: true }
+    }),
+    prisma.payment.aggregate({
+      where: { companyId },
+      _sum: { amount: true }
+    })
+  ]);
 
-  if (!company) {
-    return 0;
-  }
-
-  const totalPurchase = company.transactions.reduce((sum, t) => sum + Number(t.totalAmount), 0);
-  const totalPaid = company.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalPurchase = Number(purchaseAgg._sum.totalAmount ?? 0);
+  const totalPaid = Number(paymentAgg._sum.amount ?? 0);
   return totalPurchase - totalPaid;
 }
 
@@ -488,8 +488,7 @@ export async function recordPaymentForCompany(formData: FormData) {
       }
     });
 
-    revalidatePath('/dashboard/companies');
-    revalidatePath(`/dashboard/companies/${companyId}`);
+    revalidateCompanyData(companyId);
 
     return { success: true, message: 'Payment recorded successfully.' };
   } catch (error) {

@@ -45,23 +45,23 @@ export default function InvoiceSettingsClient() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="rounded-xl border bg-card p-6 mb-6">
-        <h2 className="text-2xl font-semibold">Invoice Settings</h2>
-        <p className="text-sm text-muted-foreground">Configure invoice numbering prefix and footer notes.</p>
+    <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
+      <div className="rounded-xl border bg-card p-4 sm:p-6 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-semibold">Invoice Settings</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground">Configure invoice numbering prefix and footer notes.</p>
       </div>
 
-      <div className="rounded-xl border bg-card p-6">
-        <div className="mb-3">
+      <div className="rounded-xl border bg-card p-4 sm:p-6">
+        <div className="mb-3 sm:mb-4">
           <label className="block text-sm">Invoice Prefix</label>
-          <input className="mt-1 w-48 rounded border px-3 py-2" value={prefix} onChange={(e) => setPrefix(e.target.value)} />
+          <input className="mt-1 w-full sm:w-48 rounded border px-3 py-2" value={prefix} onChange={(e) => setPrefix(e.target.value)} />
         </div>
-        <div className="mb-3">
+        <div className="mb-3 sm:mb-4">
           <label className="block text-sm">Footer Note</label>
           <textarea className="mt-1 w-full rounded border px-3 py-2" value={footer} onChange={(e) => setFooter(e.target.value)} />
         </div>
         <div>
-          <button disabled={saving} onClick={save} className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+          <button disabled={saving} onClick={save} className="w-full sm:w-auto rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
         </div>
       </div>
     </div>
