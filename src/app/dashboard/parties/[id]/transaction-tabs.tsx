@@ -8,6 +8,7 @@ import { PartyPaymentsSection } from './party-payments-section';
 
 type ProductRow = {
   id: string;
+  transactionId: number;
   invoiceNumber: string;
   transactionDate: Date;
   transactionType: string;
@@ -170,6 +171,7 @@ function ProductItemsTable({ title, rows }: { title: string; rows: ProductRow[] 
               <th className="px-4 py-3 text-table-header">Unit</th>
               <th className="px-4 py-3 text-table-header text-right">Unit Price</th>
               <th className="px-4 py-3 text-table-header text-right">Line Total</th>
+              <th className="px-4 py-3 text-table-header">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -183,6 +185,19 @@ function ProductItemsTable({ title, rows }: { title: string; rows: ProductRow[] 
                 <td className="px-4 py-3">{row.unit}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.unitPrice)}</td>
                 <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.lineTotal)}</td>
+                <td className="px-4 py-3">
+                  <Button asChild variant="outline" size="icon" className="h-9 w-9">
+                    <a
+                      href={`/dashboard/transactions/${row.transactionId}/print`}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="Print transaction"
+                      title="Print transaction"
+                    >
+                      <Printer className="h-4 w-4" />
+                    </a>
+                  </Button>
+                </td>
               </tr>
             ))}
           </tbody>

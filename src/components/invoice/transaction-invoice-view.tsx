@@ -1,7 +1,5 @@
-import { Landmark } from 'lucide-react';
 import type { InvoiceCompanyProfile } from '@/lib/branding';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
-import { InvoicePrintTrigger } from './invoice-print-trigger';
 
 export type InvoiceLineItem = {
   id: string | number;
@@ -95,8 +93,7 @@ export function TransactionInvoiceView({
   notes
 }: TransactionInvoiceViewProps) {
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6 sm:px-4 sm:py-8 text-slate-900 print:bg-white print:p-0">
-      <InvoicePrintTrigger />
+    <div className="invoice-print-area max-w-4xl mx-auto bg-white print:bg-white">
       <style>{`
         @page { size: A4; margin: 12mm; }
         @media print {
@@ -107,111 +104,118 @@ export function TransactionInvoiceView({
         }
       `}</style>
 
-      <section className="mx-auto max-w-4xl rounded-lg border border-slate-200 bg-white p-4 sm:p-6 shadow-sm print:max-w-none print:border-0 print:p-0 print:shadow-none">
-        <header className="flex flex-col gap-5 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white p-2">
-              {company.logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={company.logo} alt={company.name ?? 'Logo'} className="h-full w-full object-contain" />
-              ) : (
-                <Landmark className="h-8 w-8 text-slate-600" />
-              )}
+      <div className="shadow-sm border rounded-md overflow-visible">
+        <header className="bg-white p-4 sm:p-6 border-b border-slate-100">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden rounded border bg-white">
+                {company.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={company.logo} alt={company.name ?? 'Company'} className="h-full w-full object-contain" />
+                ) : (
+                  <div className="h-8 w-8 bg-slate-100 rounded flex items-center justify-center text-slate-500 font-semibold">LOGO</div>
+                )}
+              </div>
+              <div>
+                <div className="text-sm text-slate-600 font-semibold">{company.name ?? 'Company'}</div>
+                <div className="text-xs text-slate-400">{company.address ?? ''}</div>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-950">{company.name ?? 'Poultry Farm Management'}</h1>
-              <p className="mt-1 text-sm text-slate-600">{company.address ?? '-'}</p>
-              <p className="text-sm text-slate-600">Mobile: {company.phone ?? '-'}</p>
-            </div>
-          </div>
 
-          <div className="text-left sm:text-right">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{title}</p>
-            <h2 className="mt-2 text-3xl font-bold text-slate-950">INVOICE</h2>
-            <p className="mt-2 text-sm text-slate-600">Invoice: {invoiceNumber}</p>
+            <div className="flex-1 mx-6 hidden md:block">
+              <div className="h-5 bg-yellow-400 w-full rounded" />
+            </div>
+
+            <div className="text-right">
+              <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">INVOICE</div>
+            </div>
           </div>
         </header>
 
-        <section className="mt-5 grid gap-4 grid-cols-1 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 print:bg-white">
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-          <Detail label="Transaction No" value={transactionNumber} />
-            <Detail label="Transaction Type" value={transactionType} />
-            <Detail label="Transaction Date" value={formatDate(transactionDate)} />
-            <Detail label="Print Date & Time" value={formatDateTime(printDate)} />
-          </div>
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-          <Detail label={party.label} value={party.name} />
-            <Detail label="Mobile" value={party.phone ?? '-'} />
-            <div className="sm:col-span-2">
-              <Detail label="Address" value={party.address ?? '-'} />
+        <div className="h-3 bg-yellow-400" />
+
+        <main className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
+            <div>
+              <div className="text-xs text-slate-500">Invoice to:</div>
+              <div className="font-medium text-slate-900 text-lg">{party.name}</div>
+              <div className="mt-1 text-sm text-slate-600">{party.address ?? ''}</div>
+            </div>
+
+            <div className="text-right">
+              <div className="text-xs text-slate-500">Invoice #</div>
+              <div className="font-medium text-slate-900">{invoiceNumber}</div>
+              <div className="mt-2 text-xs text-slate-500">Date</div>
+              <div className="font-medium text-slate-900">{formatDate(transactionDate)}</div>
             </div>
           </div>
-        </section>
 
-        <section className="mt-5 overflow-visible rounded-lg border border-slate-200">
-          <ResponsiveTable minWidth="720px">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-900 text-white">
-              <tr>
-                <th className="px-3 py-3 text-left font-semibold">Product Name</th>
-                <th className="px-3 py-3 text-right font-semibold">Quantity</th>
-                <th className="px-3 py-3 text-left font-semibold">Unit</th>
-                <th className="px-3 py-3 text-right font-semibold">Unit Price</th>
-                <th className="px-3 py-3 text-right font-semibold">Line Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 bg-white">
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td className="px-3 py-3">{item.productName}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{item.quantity.toFixed(2)}</td>
-                  <td className="px-3 py-3">{item.unit}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{formatCurrency(item.unitPrice)}</td>
-                  <td className="px-3 py-3 text-right font-semibold tabular-nums">{formatCurrency(item.lineTotal)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </ResponsiveTable>
-        </section>
+          <div className="overflow-hidden rounded-md border">
+            <ResponsiveTable minWidth="700px">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-900 text-white">
+                  <tr>
+                    <th className="px-4 py-3 text-left">SL.</th>
+                    <th className="px-4 py-3 text-left">Item Description</th>
+                    <th className="px-4 py-3 text-right">Price</th>
+                    <th className="px-4 py-3 text-center">Qty</th>
+                    <th className="px-4 py-3 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-200">
+                  {items.map((it, idx) => (
+                    <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                      <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
+                      <td className="px-4 py-3 text-slate-700">{it.productName}</td>
+                      <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(it.unitPrice)}</td>
+                      <td className="px-4 py-3 text-center text-slate-700">{it.quantity.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-900">{formatCurrency(it.lineTotal)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ResponsiveTable>
+          </div>
 
-        <section className="mt-5 grid gap-5 grid-cols-1 sm:grid-cols-[1fr_320px]">
-          <div className="rounded-lg border border-slate-200 p-4">
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-            <Detail label="Payment Method" value={paymentMethod ?? '-'} />
-              <Detail label="Reference Number" value={referenceNumber ?? '-'} />
-              <div className="sm:col-span-2">
-                <Detail label="Notes" value={notes ?? '-'} />
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_320px] gap-4">
+            <div>
+              <div className="text-sm text-slate-600">Thank you for your business</div>
+            </div>
+            <div className="flex justify-end">
+              <div className="w-full max-w-xs">
+                <div className="flex justify-between text-sm text-slate-600"><div>Sub Total:</div><div>{formatCurrency(subtotal)}</div></div>
+                <div className="flex justify-between text-sm text-slate-600 mt-1"><div>Tax:</div><div>{formatCurrency(0)}</div></div>
+                <div className="mt-3">
+                  <div className="flex items-center justify-between bg-yellow-400 px-4 py-3">
+                    <div className="text-sm font-semibold text-slate-900">Total:</div>
+                    <div className="text-xl font-extrabold text-slate-900">{formatCurrency(totalDueAfter ?? subtotal)}</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-200 p-4">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-              {discount ? <div className="flex justify-between"><span>Discount</span><span>{formatCurrency(discount)}</span></div> : null}
-              <div className="flex justify-between"><span>Paid Amount</span><span>{formatCurrency(paidAmount)}</span></div>
-              <div className="flex justify-between"><span>Due Amount</span><span>{formatCurrency(dueAmount)}</span></div>
-              <div className="flex justify-between"><span>Previous Due</span><span>{previousDue == null ? '-' : formatCurrency(previousDue)}</span></div>
-              <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold">
-                <span>Total Due After Transaction</span>
-                <span>{totalDueAfter == null ? '-' : formatCurrency(totalDueAfter)}</span>
-              </div>
+          <div className="mt-8 grid grid-cols-1 gap-6 text-sm text-slate-600 sm:grid-cols-2">
+            <div>
+              <div className="font-semibold text-slate-800 mb-2">Terms & Conditions</div>
+              <div>Payment due within 15 days. Late payments may be subject to fees.</div>
+            </div>
+            <div>
+              <div className="font-semibold text-slate-800 mb-2">Payment Info</div>
+              <div>Account #: 1234 5678 9012</div>
+              <div>Bank: Example Bank</div>
             </div>
           </div>
-        </section>
+        </main>
 
-        <footer className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-8 text-sm text-slate-700">
-          <div>
-            <div className="h-12 border-b border-slate-400" />
-            <p className="mt-2 font-semibold">Receiver Signature</p>
-          </div>
-          <div>
-            <div className="h-12 border-b border-slate-400" />
-            <p className="mt-2 font-semibold">Customer/Supplier Signature</p>
+        <footer className="p-4 sm:p-6 bg-white border-t text-sm text-slate-500 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>Phone: {company.phone ?? '—'} | Address: {company.address ?? '—'} | {company.website ?? ''}</div>
+          <div className="text-left sm:text-right">
+            <div className="font-semibold text-slate-800">Authorized Sign</div>
+            <div className="mt-4 h-8 w-40 sm:w-48 border-b border-slate-300" />
           </div>
         </footer>
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }

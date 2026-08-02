@@ -94,7 +94,17 @@ function getPageTitle(pathname: string): string[] {
 export default function LayoutShell({ children, theme, branding }: { children: React.ReactNode; theme?: string; branding: any }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname() || '';
-  const hideShell = useMemo(() => pathname.startsWith('/auth') || pathname === '/unauthorized', [pathname]);
+  const hideShell = useMemo(() => {
+    if (!pathname) return false;
+    // Hide the app chrome for auth/unauthorized pages and any print/invoice print routes
+    // Examples: /dashboard/parties/123/print, /dashboard/stock/print/123, /dashboard/transactions/123/print
+    return (
+      pathname.startsWith('/auth') ||
+      pathname === '/unauthorized' ||
+      pathname.endsWith('/print') ||
+      pathname.includes('/print/')
+    );
+  }, [pathname]);
   const breadcrumbs = useMemo(() => getPageTitle(pathname), [pathname]);
 
   if (hideShell) {
