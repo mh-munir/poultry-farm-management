@@ -125,6 +125,18 @@ export default async function DashboardPage() {
     }
   })();
 
+  // Defensive normalization: cached data may serialize Date -> string.
+  const normalizeMonths = <T extends { month: any }>(arr: T[] | undefined): Array<Omit<T, 'month'> & { month: Date | null }> => {
+    return (arr ?? []).map((r) => ({
+      ...r,
+      month: r.month == null ? null : (r.month instanceof Date ? r.month : new Date(String(r.month)))
+    }));
+  };
+
+  const monthlyRevenueRowsNorm = normalizeMonths(monthlyRevenueRows as Array<{ month: any; total: any }>);
+  const monthlyPurchaseRowsNorm = normalizeMonths(monthlyPurchaseRows as Array<{ month: any; total: any }>);
+  const expenseMonthlyGroupsNorm = normalizeMonths(expenseMonthlyGroups as Array<{ month: any; total: any }>);
+
   const transactionItemTotals = [
     {
       daily_feed_sale: summaryRow?.daily_feed_sale ?? 0,
@@ -186,13 +198,19 @@ export default async function DashboardPage() {
   const [paymentTotalsRow = { daily_party_payment: 0, total_party_payment: 0 }] = paymentTotals;
 
   const monthlyRevenueResults = monthRanges.map((range) => {
-    const row = monthlyRevenueRows.find((item: { month: Date; total: any }) => item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7));
+    const row = monthlyRevenueRowsNorm.find((item) =>
+      item.month instanceof Date && item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7)
+    );
     return { _sum: { lineTotal: row ? Number(row.total ?? 0) : 0 } };
   });
 
   const monthlyExpenseResults = monthRanges.map((range) => {
-    const purchaseRow = monthlyPurchaseRows.find((item: { month: Date; total: any }) => item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7));
-    const expenseRow = expenseMonthlyGroups.find((item: { month: Date; total: any }) => item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7));
+    const purchaseRow = monthlyPurchaseRowsNorm.find((item) =>
+      item.month instanceof Date && item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7)
+    );
+    const expenseRow = expenseMonthlyGroupsNorm.find((item) =>
+      item.month instanceof Date && item.month.toISOString().slice(0, 7) === range.start.toISOString().slice(0, 7)
+    );
     return { _sum: { totalAmount: Number(purchaseRow?.total ?? 0), amount: Number(expenseRow?.total ?? 0) } };
   });
 

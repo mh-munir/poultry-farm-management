@@ -150,7 +150,7 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
           </div>
         </div>
 
-        <div className="md:col-span-2 flex flex-wrap items-center gap-3">
+        <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-3">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>

@@ -8,6 +8,7 @@ import { prisma } from '@/server/db';
 import { requireUser } from '@/lib/auth';
 import { CACHE_TAGS, revalidatePartyData, revalidatePurchaseData } from '@/lib/cache';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { queueTransactionSmsNotification } from '@/lib/sms/service';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 
@@ -740,7 +741,7 @@ export async function recordPaymentForParty(formData: FormData) {
   const { partyId, amount, paymentDate, paymentMethod, referenceNumber, status, notes } = parsed.data;
 
   try {
-    await prisma.payment.create({
+    const payment = await prisma.payment.create({
       data: {
         partyId,
         paymentDate,
@@ -752,6 +753,20 @@ export async function recordPaymentForParty(formData: FormData) {
         createdById: session.user.id
       }
     });
+    const partyDetails = await prisma.party.findUnique({ where: { id: partyId }, select: { id: true, name: true, phone: true } });
+
+    if (partyDetails) {
+      await queueTransactionSmsNotification({
+        partyId: partyDetails.id,
+        transactionId: null,
+        phoneNumber: partyDetails.phone,
+        partyName: partyDetails.name,
+        message: `প্রিয় ${partyDetails.name}, আপনার payment received হয়েছে। Amount: ৳${Number(amount).toFixed(2)}. ধন্যবাদ।`,
+        saleType: 'MIXED',
+        transactionType: 'PAYMENT_RECEIVED'
+      });
+    }
+
     revalidatePartyData(partyId);
     return { success: true, message: 'Payment recorded successfully.' };
   } catch (error) {
@@ -824,6 +839,20 @@ export async function receiveCustomerPayment(formData: FormData) {
       }
     });
 
+    const partyDetails = await prisma.party.findUnique({ where: { id: partyId }, select: { id: true, name: true, phone: true } });
+
+    if (partyDetails) {
+      await queueTransactionSmsNotification({
+        partyId: partyDetails.id,
+        transactionId: null,
+        phoneNumber: partyDetails.phone,
+        partyName: partyDetails.name,
+        message: `প্রিয় ${partyDetails.name}, আপনার payment received হয়েছে। Amount: ৳${Number(amount).toFixed(2)}. ধন্যবাদ।`,
+        saleType: 'MIXED',
+        transactionType: 'PAYMENT_RECEIVED'
+      });
+    }
+
     revalidatePartyData(partyId);
     return { success: true, message: 'Customer payment recorded successfully.' };
   } catch (error) {
@@ -895,6 +924,20 @@ export async function paySupplierPayment(formData: FormData) {
         createdById: session.user.id
       }
     });
+
+    const partyDetails = await prisma.party.findUnique({ where: { id: partyId }, select: { id: true, name: true, phone: true } });
+
+    if (partyDetails) {
+      await queueTransactionSmsNotification({
+        partyId: partyDetails.id,
+        transactionId: null,
+        phoneNumber: partyDetails.phone,
+        partyName: partyDetails.name,
+        message: `প্রিয় ${partyDetails.name}, আপনার payment paid হয়েছে। Amount: ৳${Number(amount).toFixed(2)}. ধন্যবাদ।`,
+        saleType: 'MIXED',
+        transactionType: 'PAYMENT_PAID'
+      });
+    }
 
     revalidatePartyData(partyId);
     return { success: true, message: 'Supplier payment recorded successfully.' };

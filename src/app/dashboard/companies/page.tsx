@@ -140,7 +140,7 @@ export default async function CompaniesPage({
           <CompanySearchForm search={companySearch} companyType={companyType} status={companyStatus} />
         </div>
 
-        <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div className="overflow-visible rounded-2xl border bg-card shadow-sm">
           <div className="border-b px-4 py-4 bg-muted/20">
             <h2 className="text-lg font-semibold">Feeds and Medicine Companies</h2>
           </div>

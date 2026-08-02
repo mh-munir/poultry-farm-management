@@ -81,7 +81,7 @@ export default function Invoice(props: InvoiceProps) {
   const { toast: showToast, success: showSuccess, error: showError, info: showInfo } = useToast()
   return (
     <div className="invoice-print-area max-w-3xl mx-auto bg-white print:bg-white">
-      <div className="shadow-sm border rounded-md overflow-hidden">
+      <div className="shadow-sm border rounded-md overflow-visible">
         <header className="flex flex-col gap-4 sm:items-center sm:justify-between bg-white p-4 sm:p-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden rounded">

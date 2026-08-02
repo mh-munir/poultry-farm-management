@@ -2,7 +2,7 @@ import { Prisma, type SmsNotificationStatus } from '@prisma/client';
 import { env } from '@/lib/env';
 import { prisma } from '@/server/db';
 import { createSaleSmsMessage } from './templates';
-import type { QueueSaleSmsInput, QueueSaleSmsResult } from './types';
+import type { QueueSaleSmsInput, QueueTransactionSmsInput, QueueSaleSmsResult } from './types';
 import { getSmsProvider } from './providers';
 
 const NO_VALID_PHONE_REASON = 'Party has no valid mobile number';
@@ -25,12 +25,16 @@ async function safeUpdateSmsStatus({
   errorMessage,
   sentAt
 }: {
-  transactionId: number;
+  transactionId?: number | null;
   status: SmsNotificationStatus;
   providerMessageId?: string | null;
   errorMessage?: string | null;
   sentAt?: Date | null;
 }) {
+  if (!transactionId) {
+    return;
+  }
+
   try {
     await prisma.smsNotification.update({
       where: { transactionId },
@@ -46,16 +50,26 @@ async function safeUpdateSmsStatus({
   }
 }
 
-export async function queueSaleSmsNotification(input: QueueSaleSmsInput): Promise<QueueSaleSmsResult> {
+export async function queueTransactionSmsNotification(input: QueueTransactionSmsInput): Promise<QueueSaleSmsResult> {
   const providerName = env.SMS_PROVIDER || 'mock';
-  const message = createSaleSmsMessage(input);
+  const message = input.message;
   const normalizedPhoneNumber = normalizePhoneNumber(input.phoneNumber);
 
+  if (!input.partyId && input.companyId) {
+    return {
+      status: 'SKIPPED',
+      message,
+      errorMessage: 'Company notifications are disabled.'
+    };
+  }
+
   try {
-    const existingNotification = await prisma.smsNotification.findUnique({
-      where: { transactionId: input.transactionId },
-      select: { id: true, status: true, errorMessage: true }
-    });
+    const existingNotification = input.transactionId
+      ? await prisma.smsNotification.findUnique({
+          where: { transactionId: input.transactionId },
+          select: { id: true, status: true, errorMessage: true }
+        })
+      : null;
 
     if (existingNotification) {
       return {
@@ -69,10 +83,11 @@ export async function queueSaleSmsNotification(input: QueueSaleSmsInput): Promis
     if (!normalizedPhoneNumber) {
       const skippedNotification = await prisma.smsNotification.create({
         data: {
-          partyId: input.partyId,
-          transactionId: input.transactionId,
+          partyId: input.partyId ?? null,
+          companyId: input.companyId ?? null,
+          transactionId: input.transactionId ?? null,
           phoneNumber: input.phoneNumber?.trim() || null,
-          saleType: input.saleType,
+          saleType: input.saleType ?? 'MIXED',
           message,
           status: 'SKIPPED',
           provider: providerName,
@@ -92,10 +107,11 @@ export async function queueSaleSmsNotification(input: QueueSaleSmsInput): Promis
     const initialStatus: SmsNotificationStatus = env.SMS_ENABLED ? 'QUEUED' : 'PENDING';
     const notification = await prisma.smsNotification.create({
       data: {
-        partyId: input.partyId,
-        transactionId: input.transactionId,
+        partyId: input.partyId ?? null,
+        companyId: input.companyId ?? null,
+        transactionId: input.transactionId ?? null,
         phoneNumber: normalizedPhoneNumber,
-        saleType: input.saleType,
+        saleType: input.saleType ?? 'MIXED',
         message,
         status: initialStatus,
         provider: providerName,
@@ -151,10 +167,12 @@ export async function queueSaleSmsNotification(input: QueueSaleSmsInput): Promis
     const errorMessage = error instanceof Error ? error.message : 'SMS notification processing failed';
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      const existingNotification = await prisma.smsNotification.findUnique({
-        where: { transactionId: input.transactionId },
-        select: { id: true, status: true, errorMessage: true }
-      });
+      const existingNotification = input.transactionId
+        ? await prisma.smsNotification.findUnique({
+            where: { transactionId: input.transactionId },
+            select: { id: true, status: true, errorMessage: true }
+          })
+        : null;
 
       if (existingNotification) {
         return {
@@ -173,6 +191,20 @@ export async function queueSaleSmsNotification(input: QueueSaleSmsInput): Promis
       errorMessage
     };
   }
+}
+
+export async function queueSaleSmsNotification(input: QueueSaleSmsInput): Promise<QueueSaleSmsResult> {
+  const message = createSaleSmsMessage(input);
+
+  return queueTransactionSmsNotification({
+    partyId: input.partyId,
+    transactionId: input.transactionId,
+    phoneNumber: input.phoneNumber,
+    partyName: input.partyName,
+    message,
+    saleType: input.saleType,
+    transactionType: 'SALE'
+  });
 }
 
 export function getSaleSmsSuccessMessage(status: SmsNotificationStatus) {

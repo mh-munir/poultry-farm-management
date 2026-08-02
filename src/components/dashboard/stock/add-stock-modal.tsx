@@ -397,7 +397,7 @@ export function AddStockModal({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
             <button
               type="submit"
               disabled={isSubmitting}

@@ -402,7 +402,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                 No transactions or payments found for this company.
               </div>
             ) : (
-              <div className="mt-6 overflow-hidden rounded-xl border min-w-0">
+              <div className="mt-6 overflow-visible rounded-xl border min-w-0">
                 <ResponsiveTable minWidth="1120px">
                   <table className="min-w-full text-sm">
                     <thead className="bg-muted/40 text-left">

@@ -97,6 +97,74 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+@media (max-width: 767px) {
+  button:not([aria-label]):not([class*="p-2"]):not([class*="p-1"]):not([class*="w-auto"]):not([class*="w-fit"]):not([class*="rounded-full"]) {
+    width: 100%;
+  }
+}
+
+@media (max-width: 1023px) {
+  table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table thead,
+  table tbody,
+  table tr,
+  table th,
+  table td {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 639px) {
+  table {
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0 0.75rem;
+  }
+
+  table thead {
+    display: none;
+  }
+
+  table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  table tr {
+    display: block;
+    width: 100%;
+    margin-bottom: 0.75rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 16px;
+    background: hsl(var(--card));
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+  }
+
+  table th {
+    display: none;
+  }
+
+  table td {
+    display: block;
+    width: 100%;
+    border: 0;
+    padding: 0.7rem 1rem;
+    white-space: normal !important;
+  }
+
+  table td:last-child {
+    border-bottom: 0;
+  }
+}
+
 @layer components {
   .text-page-title {
     @apply text-[30px] font-[700] leading-tight tracking-tight;
@@ -229,7 +297,8 @@ input[type="number"] {
 .responsive-table-container td form,
 .responsive-table-container td button,
 .responsive-table-container td a {
-  min-width: max-content;
+  min-width: 40px;
+  white-space: nowrap
 }
 
 .responsive-table-container td button,
@@ -270,7 +339,7 @@ input[type="number"] {
 
   .responsive-table-container th,
   .responsive-table-container td {
-    min-width: 8rem;
+    min-width: 100% !important;
   }
 
   .responsive-table-container th:first-child,

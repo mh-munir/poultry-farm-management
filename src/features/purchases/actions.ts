@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
 import { CACHE_TAGS, revalidatePurchaseData } from '@/lib/cache';
+import { queueTransactionSmsNotification } from '@/lib/sms/service';
 
 const PURCHASE_TRANSACTION_TYPE = 'PURCHASE' as const;
 const PENDING_TRANSACTION_STATUS = 'PENDING' as const;
@@ -442,6 +443,25 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
 
       return purchase.id;
     });
+
+    const smsTarget = supplierType === 'company'
+      ? await prisma.company.findUnique({ where: { id: Number(data.companyId) }, select: { id: true, name: true, phone: true } })
+      : await prisma.party.findUnique({ where: { id: Number(data.partyId) }, select: { id: true, name: true, phone: true } });
+
+    if (supplierType === 'party' && smsTarget) {
+      const smsAmount = totalAmount.toFixed(2);
+      const smsMessage = `প্রিয় ${smsTarget.name}, আপনার Purchase invoice তৈরি হয়েছে। মোট: ৳${smsAmount}. ধন্যবাদ.`;
+
+      await queueTransactionSmsNotification({
+        partyId: smsTarget.id,
+        transactionId: purchaseId,
+        phoneNumber: smsTarget.phone,
+        partyName: smsTarget.name,
+        message: smsMessage,
+        saleType: 'MIXED',
+        transactionType: 'PURCHASE'
+      });
+    }
 
     revalidatePurchaseData({ path: redirectPath });
 
