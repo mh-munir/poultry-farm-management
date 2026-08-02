@@ -548,7 +548,7 @@ export function StockManagement({
           </div>
         </Dialog>
 
-        <div className="mt-6 overflow-hidden rounded-lg border">
+        <div className="mt-6 overflow-visible rounded-lg border">
           <ResponsiveTable stickyLastColumn minWidth="1120px">
             <table className="min-w-full divide-y divide-border text-sm">
               <thead className="bg-muted/50">

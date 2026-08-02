@@ -224,7 +224,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                 <h3 className="text-base font-semibold text-slate-900">Sales History</h3>
                 <span className="text-sm text-slate-500">{customerRows.length} entries</span>
               </div>
-              <div className="overflow-hidden rounded-xl border border-slate-200">
+              <div className="overflow-visible rounded-xl border border-slate-200">
                 <ResponsiveTable minWidth="900px">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-50">
@@ -261,7 +261,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                 <h3 className="text-base font-semibold text-slate-900">Supply History</h3>
                 <span className="text-sm text-slate-500">{supplierRows.length} entries</span>
               </div>
-              <div className="overflow-hidden rounded-xl border border-slate-200">
+              <div className="overflow-visible rounded-xl border border-slate-200">
                 <ResponsiveTable minWidth="900px">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-50">

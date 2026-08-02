@@ -100,7 +100,7 @@ export default function ExpensesManager() {
             </div>
           </form>
 
-          <div className="mt-6 rounded-xl border bg-card shadow-sm overflow-hidden">
+          <div className="mt-6 rounded-xl border bg-card shadow-sm overflow-visible">
             <div className="px-6 py-4 border-b">
               <h3 className="text-lg font-semibold">All Expenses</h3>
             </div>

@@ -15,7 +15,7 @@ export function Sidebar({ open, onClose, branding }: { open?: boolean; onClose?:
   const brandingName = branding?.name ?? null;
 
   return (
-    <aside className={`fixed inset-y-0 left-0 z-40 w-64 border-r border-slate-200 bg-white min-h-screen overflow-y-auto pb-8 px-3 py-4 md:px-4 md:py-6 md:static md:translate-x-0 md:z-auto md:w-64 md:border-r md:shadow-none transform transition-transform duration-300 shadow-2xl shadow-slate-200/40 ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+    <aside className={`fixed inset-y-0 left-0 top-0 z-40 w-64 border-r border-slate-200 bg-white min-h-screen overflow-y-auto pb-8 px-3 py-4 md:px-4 md:py-6 md:fixed md:top-0 md:left-0 md:translate-x-0 md:z-auto md:w-64 md:border-r md:shadow-none transform transition-transform duration-300 shadow-2xl shadow-slate-200/40 ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
       <div className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-5 ring-1 ring-slate-200/70 shadow-sm">
         <div className="flex flex-col items-center gap-2">
           <div className="h-16 w-16 rounded-full bg-cyan-500/10 ring-1 ring-cyan-200 flex items-center justify-center text-xl font-bold text-cyan-700 overflow-hidden">

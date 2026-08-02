@@ -121,7 +121,7 @@ export function PartyPaymentsSection({
         </form>
       )}
 
-      <div className="mt-6 overflow-hidden rounded-xl border bg-card">
+      <div className="mt-6 overflow-visible rounded-xl border bg-card">
         <div className="bg-muted/40 px-4 py-3 text-sm font-semibold">Payments</div>
         <ResponsiveTable stickyLastColumn minWidth="980px">
         <table className="min-w-full text-table-body">

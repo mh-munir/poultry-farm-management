@@ -192,7 +192,7 @@ export default async function StockPrintPage({
             {movements.length === 0 ? (
               <p className="text-sm text-muted-foreground">No movements recorded.</p>
             ) : (
-              <div className="overflow-hidden rounded-lg border border-slate-200">
+              <div className="overflow-visible rounded-lg border border-slate-200">
                 <ResponsiveTable minWidth="760px">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted/50">
@@ -244,7 +244,7 @@ export default async function StockPrintPage({
             {salesItems.length === 0 ? (
               <p className="text-sm text-muted-foreground">No sales recorded.</p>
             ) : (
-              <div className="overflow-hidden rounded-lg border border-slate-200">
+              <div className="overflow-visible rounded-lg border border-slate-200">
                 <ResponsiveTable minWidth="720px">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted/50">
@@ -283,7 +283,7 @@ export default async function StockPrintPage({
             {purchaseItems.length === 0 ? (
               <p className="text-sm text-muted-foreground">No purchases recorded.</p>
             ) : (
-              <div className="overflow-hidden rounded-lg border border-slate-200">
+              <div className="overflow-visible rounded-lg border border-slate-200">
                 <ResponsiveTable minWidth="720px">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted/50">

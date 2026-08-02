@@ -74,8 +74,10 @@ export const getDashboardDataCached = unstable_cache(
     `;
 
     // Heavier datasets in parallel
-    const [expenseMonthlyGroups, stockBalances, recentTransactions, monthlyRevenueRows, monthlyPurchaseRows] = await Promise.all([
-      prisma.$queryRaw<Array<{ month: Date; total: Prisma.Decimal | null }>>`
+    // Note: Postgres returns dates as strings via $queryRaw; use `string` here and
+    // convert to `Date` immediately after fetching to preserve runtime types.
+    const [expenseMonthlyGroupsRaw, stockBalances, recentTransactions, monthlyRevenueRowsRaw, monthlyPurchaseRowsRaw] = await Promise.all([
+      prisma.$queryRaw<Array<{ month: string; total: Prisma.Decimal | null }>>`
         SELECT date_trunc('month', "expenseDate") AS month, SUM(amount) AS total
         FROM "Expense"
         WHERE "expenseDate" >= ${sixMonthsAgo}
@@ -96,7 +98,7 @@ export const getDashboardDataCached = unstable_cache(
           transactionType: true
         }
       }),
-      prisma.$queryRaw<Array<{ month: Date; total: Prisma.Decimal | null }>>`
+      prisma.$queryRaw<Array<{ month: string; total: Prisma.Decimal | null }>>`
         SELECT date_trunc('month', tr."transactionDate") AS month, SUM(ti."lineTotal") AS total
         FROM "TransactionItem" ti
         JOIN "Transaction" tr ON tr.id = ti."transactionId"
@@ -105,7 +107,7 @@ export const getDashboardDataCached = unstable_cache(
         GROUP BY month
         ORDER BY month
       `,
-      prisma.$queryRaw<Array<{ month: Date; total: Prisma.Decimal | null }>>`
+      prisma.$queryRaw<Array<{ month: string; total: Prisma.Decimal | null }>>`
         SELECT date_trunc('month', "transactionDate") AS month, SUM("totalAmount") AS total
         FROM "Transaction"
         WHERE "transactionType" = 'PURCHASE'
@@ -114,6 +116,22 @@ export const getDashboardDataCached = unstable_cache(
         ORDER BY month
       `
     ]);
+
+    // Normalize month fields to real Date objects (preserves behaviour used by the dashboard)
+    const expenseMonthlyGroups = (expenseMonthlyGroupsRaw as Array<{ month: string; total: Prisma.Decimal | null }>).map((r) => ({
+      ...r,
+      month: new Date(r.month)
+    }));
+
+    const monthlyRevenueRows = (monthlyRevenueRowsRaw as Array<{ month: string; total: Prisma.Decimal | null }>).map((r) => ({
+      ...r,
+      month: new Date(r.month)
+    }));
+
+    const monthlyPurchaseRows = (monthlyPurchaseRowsRaw as Array<{ month: string; total: Prisma.Decimal | null }>).map((r) => ({
+      ...r,
+      month: new Date(r.month)
+    }));
 
     return { summaryRow, expenseMonthlyGroups, stockBalances, recentTransactions, monthlyRevenueRows, monthlyPurchaseRows };
   },

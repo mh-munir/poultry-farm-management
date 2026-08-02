@@ -97,7 +97,7 @@ export default function PaymentFormDialog({
 
           <input type="hidden" name="paymentMethod" value="Cash" />
 
-          <div className="md:col-span-2 flex flex-wrap items-center gap-3">
+          <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>

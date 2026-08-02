@@ -25,6 +25,19 @@ export type SaleSmsTemplateInput = {
   farmName?: string | null;
 };
 
+export type TransactionSmsType = 'SALE' | 'PURCHASE' | 'PAYMENT_RECEIVED' | 'PAYMENT_PAID';
+
+export type QueueTransactionSmsInput = {
+  partyId?: number | null;
+  companyId?: number | null;
+  transactionId?: number | null;
+  phoneNumber?: string | null;
+  partyName: string;
+  message: string;
+  saleType?: SmsSaleType;
+  transactionType?: TransactionSmsType;
+};
+
 export type QueueSaleSmsInput = SaleSmsTemplateInput & {
   partyId: number;
   transactionId: number;

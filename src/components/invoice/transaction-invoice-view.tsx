@@ -148,7 +148,7 @@ export function TransactionInvoiceView({
           </div>
         </section>
 
-        <section className="mt-5 overflow-hidden rounded-lg border border-slate-200">
+        <section className="mt-5 overflow-visible rounded-lg border border-slate-200">
           <ResponsiveTable minWidth="720px">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-900 text-white">

@@ -366,7 +366,8 @@ export async function getYearlyReportData(year: number) {
   const monthlyBreakdown = [];
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-  const monthlyRows = await prisma.$queryRaw<Array<{ month: Date; sales: any; purchases: any; costs: any }>>`
+  // `month` comes back as a string from $queryRaw; request string and convert below.
+  const monthlyRowsRaw = await prisma.$queryRaw<Array<{ month: string; sales: any; purchases: any; costs: any }>>`
     WITH months AS (
       SELECT generate_series(${start}, ${end} - interval '1 month', '1 month'::interval) AS "month"
     ),
@@ -404,6 +405,11 @@ export async function getYearlyReportData(year: number) {
     LEFT JOIN costs ON costs."month" = months."month"
     ORDER BY months."month"
   `;
+
+  const monthlyRows = (monthlyRowsRaw as Array<{ month: string; sales: any; purchases: any; costs: any }>).map((m) => ({
+    ...m,
+    month: new Date(m.month)
+  }));
 
   const monthlyMap = new Map((monthlyRows as Array<{ month: Date; sales: any; purchases: any; costs: any }>).map((m) => {
     const monthIndex = m.month.getMonth();

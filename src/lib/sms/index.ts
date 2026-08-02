@@ -1,4 +1,4 @@
-export { queueSaleSmsNotification, getSaleSmsSuccessMessage } from './service';
+export { queueSaleSmsNotification, queueTransactionSmsNotification, getSaleSmsSuccessMessage } from './service';
 export { createSaleSmsMessage } from './templates';
 export type {
   QueueSaleSmsInput,

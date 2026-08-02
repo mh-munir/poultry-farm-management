@@ -153,7 +153,7 @@ function ProductItemsTable({ title, rows }: { title: string; rows: ProductRow[] 
   if (rows.length === 0) return null;
 
   return (
-    <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-card">
+    <div className="mt-5 overflow-visible rounded-2xl border border-border bg-card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border bg-muted/30 px-4 py-3">
         <h3 className="text-card-title">{title}</h3>
         <span className="rounded-full bg-background px-3 py-1 text-badge text-muted-foreground">{rows.length} items</span>
@@ -292,7 +292,7 @@ export function TransactionTabs({
       </div>
 
       <div className="p-4 sm:p-5">
-        <div className="overflow-hidden rounded-2xl border border-border">
+      <div className="overflow-visible rounded-2xl border border-border">
           <ResponsiveTable stickyLastColumn minWidth="980px">
             <table className="min-w-[980px] w-full text-table-body">
               <thead className="bg-muted/30 text-left text-muted-foreground">
