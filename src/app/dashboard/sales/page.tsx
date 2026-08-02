@@ -75,14 +75,22 @@ export default async function SalesPage({
             ) : (
               data.sales.map((sale) => (
                 <div key={sale.id} className="rounded-lg border bg-background p-4">
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <div className="font-medium">{sale.invoiceNumber}</div>
                       <div className="text-xs text-muted-foreground">{sale.party?.name ?? 'Unknown'}</div>
                     </div>
-                    <div className="text-right text-sm">
-                      <div>{formatCurrency(sale.totalAmount)}</div>
-                      <div className="text-xs text-muted-foreground">Due {formatCurrency(sale.dueAmount)}</div>
+                    <div className="flex flex-col items-start gap-3 sm:items-end">
+                      <div className="text-right text-sm">
+                        <div>{formatCurrency(sale.totalAmount)}</div>
+                        <div className="text-xs text-muted-foreground">Due {formatCurrency(sale.dueAmount)}</div>
+                      </div>
+                      <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
+                        <Link href={`/dashboard/transactions/${sale.id}/print`} target="_blank" rel="noreferrer">
+                          <Printer className="mr-2 h-4 w-4" />
+                          Print
+                        </Link>
+                      </Button>
                     </div>
                   </div>
                 </div>

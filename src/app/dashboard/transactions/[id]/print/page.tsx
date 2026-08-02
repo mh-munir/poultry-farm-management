@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/auth';
 import { getInvoiceCompanyProfile } from '@/lib/branding';
 import { prisma } from '@/server/db';
 import { TransactionInvoiceView } from '@/components/invoice/transaction-invoice-view';
+import { InvoicePrintTrigger } from '@/components/invoice/invoice-print-trigger';
 
 function numberValue(value: unknown) {
   return Number((value as { toString?: () => string } | null | undefined)?.toString?.() ?? value ?? 0);
@@ -56,7 +57,9 @@ export default async function TransactionPrintPage({ params }: { params: Promise
   const counterparty = transaction.company ?? transaction.party;
 
   return (
-    <TransactionInvoiceView
+    <>
+      <InvoicePrintTrigger />
+      <TransactionInvoiceView
       company={companyProfile}
       title={`${titleCase(transaction.transactionType)} Transaction`}
       invoiceNumber={transaction.invoiceNumber}
@@ -88,5 +91,6 @@ export default async function TransactionPrintPage({ params }: { params: Promise
       referenceNumber={transaction.referenceNumber ?? firstPayment?.referenceNumber ?? null}
       notes={transaction.notes}
     />
+    </>
   );
 }

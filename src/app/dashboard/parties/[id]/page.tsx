@@ -275,6 +275,7 @@ export default async function PartyProfilePage({
   const productRows = transactions.flatMap((transaction) =>
     transaction.transactionItems.map((item) => ({
       id: `${transaction.id}-${item.id}`,
+      transactionId: transaction.id,
       invoiceNumber: transaction.invoiceNumber,
       transactionDate: transaction.transactionDate,
       transactionType: transaction.transactionType,

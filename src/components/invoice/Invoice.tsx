@@ -82,30 +82,30 @@ export default function Invoice(props: InvoiceProps) {
   return (
     <div className="invoice-print-area max-w-3xl mx-auto bg-white print:bg-white">
       <div className="shadow-sm border rounded-md overflow-visible">
-        <header className="flex flex-col gap-4 sm:items-center sm:justify-between bg-white p-4 sm:p-6">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden rounded">
-              {company?.logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={company.logo} alt={company.name ?? 'Logo'} className="h-full w-full object-contain" />
-              ) : (
-                <div className="w-12 h-12 bg-gray-100 flex items-center justify-center rounded">
-                  <svg className="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v4a1 1 0 001 1h3l3 3h6" />
-                  </svg>
-                </div>
-              )}
+        <header className="bg-white p-4 sm:p-6 border-b border-slate-100">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden rounded border bg-white">
+                {company?.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={company.logo} alt={company.name ?? 'Logo'} className="h-full w-full object-contain" />
+                ) : (
+                  <div className="w-12 h-12 bg-slate-100 flex items-center justify-center rounded text-slate-500 font-semibold">LOGO</div>
+                )}
+              </div>
+              <div>
+                <div className="text-sm text-slate-600 font-semibold">{company?.name ?? 'Brand Name'}</div>
+                <div className="text-xs text-slate-400">{(company as any)?.tagline ?? 'Tagline space here'}</div>
+              </div>
             </div>
-            <div>
-              <div className="text-sm text-slate-600 font-semibold">{company?.name ?? 'Brand Name'}</div>
-              <div className="text-xs text-slate-400">{(company as any)?.tagline ?? 'Tagline space here'}</div>
-            </div>
-          </div>
 
-          <div className="text-left sm:text-right">
-            <div className="text-2xl sm:text-4xl font-extrabold tracking-wide text-slate-900">INVOICE</div>
-            <div className="mt-2 text-sm text-slate-500">Invoice #{invoiceNumber}</div>
-            <div className="text-sm text-slate-500">Date: {date}</div>
+            <div className="flex-1 mx-6 hidden md:block">
+              <div className="h-5 bg-yellow-400 w-full rounded" />
+            </div>
+
+            <div className="text-right">
+              <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">INVOICE</div>
+            </div>
           </div>
         </header>
 
@@ -129,38 +129,45 @@ export default function Invoice(props: InvoiceProps) {
 
           <div className="overflow-hidden rounded-md border">
             <ResponsiveTable minWidth="700px">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-900 text-white">
-                <tr>
-                  <th className="px-4 py-3 text-left">SL.</th>
-                  <th className="px-4 py-3 text-left">Item Description</th>
-                  <th className="px-4 py-3 text-right">Price</th>
-                  <th className="px-4 py-3 text-center">Qty</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {items.map((it, idx) => (
-                  <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                    <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
-                    <td className="px-4 py-3 text-slate-700">{it.description}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">৳{it.price.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-center text-slate-700">{it.qty}</td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-900">৳{(it.price * it.qty).toFixed(2)}</td>
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-900 text-white">
+                  <tr>
+                    <th className="px-4 py-3 text-left">SL.</th>
+                    <th className="px-4 py-3 text-left">Item Description</th>
+                    <th className="px-4 py-3 text-right">Price</th>
+                    <th className="px-4 py-3 text-center">Qty</th>
+                    <th className="px-4 py-3 text-right">Total</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-200">
+                  {items.map((it, idx) => (
+                    <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                            <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
+                            <td className="px-4 py-3 text-slate-700">{it.description}</td>
+                            <td className="px-4 py-3 text-right text-slate-700">Tk {it.price.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-center text-slate-700">{it.qty}</td>
+                            <td className="px-4 py-3 text-right font-medium text-slate-900">Tk {(it.price * it.qty).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </ResponsiveTable>
           </div>
 
-          <div className="mt-6 flex flex-col sm:items-end">
-            <div className="w-full max-w-xs sm:w-80">
-              <div className="flex justify-between text-sm text-slate-600"><div>Sub Total:</div><div>৳{subTotal.toFixed(2)}</div></div>
-              <div className="flex justify-between text-sm text-slate-600 mt-1"><div>Tax:</div><div>৳{tax.toFixed(2)}</div></div>
-              <div className="mt-3 flex items-center justify-between bg-yellow-400 px-4 py-3">
-                <div className="text-sm font-semibold text-slate-900">Total:</div>
-                <div className="text-xl font-extrabold text-slate-900">৳{total.toFixed(2)}</div>
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_320px] gap-4">
+            <div>
+              <div className="text-sm text-slate-600">Thank you for your business</div>
+            </div>
+            <div className="flex justify-end">
+              <div className="w-full max-w-xs">
+                <div className="flex justify-between text-sm text-slate-600"><div>Sub Total:</div><div>Tk {subTotal.toFixed(2)}</div></div>
+                <div className="flex justify-between text-sm text-slate-600 mt-1"><div>Tax:</div><div>Tk {tax.toFixed(2)}</div></div>
+                <div className="mt-3">
+                  <div className="flex items-center justify-between bg-yellow-400 px-4 py-3">
+                    <div className="text-sm font-semibold text-slate-900">Total:</div>
+                    <div className="text-xl font-extrabold text-slate-900">Tk {total.toFixed(2)}</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

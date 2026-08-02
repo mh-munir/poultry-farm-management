@@ -118,38 +118,53 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
   return (
     <div className={`${styles.printPage} min-h-screen bg-slate-100 px-4 py-6 print:bg-white print:px-0 print:py-0`}>
       <PrintTrigger />
-      <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm print:max-w-none print:rounded-none print:border-0 print:shadow-none print:p-0">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 print:border-0 print:bg-white print:p-0">
-          <div className="flex flex-col gap-6 border-b border-slate-200 pb-6 md:flex-row md:items-start md:justify-between">
-            <div className="flex items-start gap-4">
-              {branding.logo ? (
-                <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 print:border-slate-300">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={branding.logo} alt={branding.name ?? 'Brand logo'} className="h-full w-full object-contain" />
+      <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-0 shadow-sm print:max-w-none print:rounded-none print:border-0 print:shadow-none print:p-0">
+        <div className="overflow-hidden">
+          <header className="bg-white p-6 border-b border-slate-100">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden rounded border bg-white">
+                  {branding.logo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={branding.logo} alt={branding.name ?? 'Brand logo'} className="h-full w-full object-contain" />
+                  ) : (
+                    <div className="w-12 h-12 bg-slate-100 flex items-center justify-center rounded text-slate-500 font-semibold">LOGO</div>
+                  )}
                 </div>
-              ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-700 print:border-slate-300">
-                  <Landmark className="h-8 w-8" />
+                <div>
+                  <div className="text-sm text-slate-600 font-semibold">{branding.name ?? 'Islamabad Feeds & Medicine Center'}</div>
+                  <div className="text-xs text-slate-400">{(branding.name ? '' : 'House 12, Sector G-10/4, Islamabad • +92 333 1234567')}</div>
                 </div>
-              )}
-              <div>
-                <h1 className="text-xl font-semibold text-slate-900">{branding.name ?? 'Islamabad Feeds & Medicine Center'}</h1>
-                <p className="mt-1 text-sm text-slate-600">House 12, Sector G-10/4, Islamabad</p>
-                <p className="text-sm text-slate-600">+92 333 1234567 • info@islamabadfeeds.com</p>
+              </div>
+
+              <div className="flex-1 mx-6 hidden md:block">
+                <div className="h-5 bg-yellow-400 w-full rounded" />
+              </div>
+
+              <div className="text-right">
+                <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">STATEMENT</div>
               </div>
             </div>
+          </header>
 
-            <div className="text-sm text-slate-600 md:text-right">
-              <p className="font-semibold text-slate-900">Printed {formatDate(printDate)}</p>
-              <p className="mt-1">Statement No: {party.id.toString().padStart(4, '0')}</p>
-              <p className="mt-1">Party Type: {party.partyType === 'CUSTOMER' ? 'Customer' : party.partyType === 'PARTY' ? 'Party Supplier (Eggs & Chicken)' : 'Customer + Party Supplier'}</p>
+          <div className="h-3 bg-yellow-400" />
+
+          <main className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6 items-start">
+              <div>
+                <div className="text-xs text-slate-500">Party</div>
+                <div className="font-medium text-slate-900 text-lg">{party.name}</div>
+                <div className="mt-1 text-sm text-slate-600">{party.address ?? '—'}</div>
+              </div>
+
+              <div className="text-right">
+                <div className="text-xs text-slate-500">Printed</div>
+                <div className="font-medium text-slate-900">{formatDate(printDate)}</div>
+                <div className="mt-2 text-xs text-slate-500">Statement No</div>
+                <div className="font-medium text-slate-900">{party.id.toString().padStart(4, '0')}</div>
+              </div>
             </div>
-          </div>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">Account Statement</p>
-            <h2 className="mt-2 text-3xl font-semibold text-slate-950">PARTY ACCOUNT STATEMENT</h2>
-          </div>
+          </main>
 
           <div className="mt-8 grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 md:grid-cols-[1.15fr_0.85fr] print:grid-cols-[1.15fr_0.85fr]">
             <div className="space-y-3">
@@ -203,9 +218,11 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                   <span>Party Supplier Payable</span>
                   <span className="font-medium text-slate-900">{formatCurrency(supplierPayable)}</span>
                 </div>
-                <div className="flex items-center justify-between border-t border-slate-200 pt-2">
-                  <span className="font-semibold text-slate-900">Net Balance</span>
-                  <span className="font-semibold text-slate-900">{formatCurrency(netBalance)}</span>
+                <div className="mt-3">
+                  <div className="flex items-center justify-between bg-yellow-400 px-4 py-3">
+                    <div className="text-sm font-semibold text-slate-900">Net Balance</div>
+                    <div className="text-xl font-extrabold text-slate-900">{formatCurrency(netBalance)}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -227,15 +244,15 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
               <div className="overflow-visible rounded-xl border border-slate-200">
                 <ResponsiveTable minWidth="900px">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-slate-900 text-white">
                     <tr>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Date</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Invoice</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Product</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Qty</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Unit</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Rate</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Amount</th>
+                      <th className="px-3 py-3 text-left">Date</th>
+                      <th className="px-3 py-3 text-left">Invoice</th>
+                      <th className="px-3 py-3 text-left">Product</th>
+                      <th className="px-3 py-3 text-left">Qty</th>
+                      <th className="px-3 py-3 text-left">Unit</th>
+                      <th className="px-3 py-3 text-left">Rate</th>
+                      <th className="px-3 py-3 text-left">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
@@ -264,15 +281,15 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
               <div className="overflow-visible rounded-xl border border-slate-200">
                 <ResponsiveTable minWidth="900px">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-slate-900 text-white">
                     <tr>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Date</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Invoice</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Product</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Qty</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Unit</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Rate</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Amount</th>
+                      <th className="px-3 py-3 text-left">Date</th>
+                      <th className="px-3 py-3 text-left">Invoice</th>
+                      <th className="px-3 py-3 text-left">Product</th>
+                      <th className="px-3 py-3 text-left">Qty</th>
+                      <th className="px-3 py-3 text-left">Unit</th>
+                      <th className="px-3 py-3 text-left">Rate</th>
+                      <th className="px-3 py-3 text-left">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
@@ -301,14 +318,14 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
               <div className="overflow-hidden rounded-xl border border-slate-200">
                 <ResponsiveTable minWidth="820px">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-slate-900 text-white">
                     <tr>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Date</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Type</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Amount</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Method</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Reference</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-700">Remarks</th>
+                      <th className="px-3 py-3 text-left">Date</th>
+                      <th className="px-3 py-3 text-left">Type</th>
+                      <th className="px-3 py-3 text-left">Amount</th>
+                      <th className="px-3 py-3 text-left">Method</th>
+                      <th className="px-3 py-3 text-left">Reference</th>
+                      <th className="px-3 py-3 text-left">Remarks</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
