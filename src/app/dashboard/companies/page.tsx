@@ -3,6 +3,8 @@ import { Factory, Package2 } from 'lucide-react';
 import type { Decimal } from '@prisma/client/runtime/library';
 import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { AddCompanyDialog } from '@/app/dashboard/parties/add-company-dialog';
@@ -12,9 +14,9 @@ import { CompanySearchForm } from '@/app/dashboard/parties/company-search-form';
 import { CompanyRowActions } from '@/app/dashboard/parties/company-row-actions';
 import { StockManagement, type StockItem } from '@/components/dashboard/stock/stock-management';
 import { AddStockModal } from '@/components/dashboard/stock/add-stock-modal';
-import { getCompanyNames, getCompanyPageData, getCompanyStats, getCompaniesByType } from '@/features/companies/actions';
-import { getStockItemsByType } from '@/features/stock/actions';
 import { type ComboboxOption } from '@/components/ui/combobox';
+import { getCompanyPageData, getCompanyStats, getCompaniesByType } from '@/features/companies/actions';
+import { getStockItemsByType } from '@/features/stock/actions';
 
 const COMPANY_TYPES = ['ALL', 'FEED', 'MEDICINE', 'BOTH'] as const;
 const COMPANY_STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
@@ -51,10 +53,9 @@ export default async function CompaniesPage({
   const companyStatus = params?.companyStatus ?? 'ALL';
   const companyError = params?.companyError ?? '';
 
-  const [companyData, companyStats, companyOptions, feedItems, feedCompanies, medicineItems, medicineCompanies] = await Promise.all([
+  const [companyData, companyStats, feedItems, feedCompanies, medicineItems, medicineCompanies] = await Promise.all([
     getCompanyPageData({ page: companyPage, search: companySearch, companyType, status: companyStatus }),
     getCompanyStats({ search: companySearch, companyType, status: companyStatus }),
-    getCompanyNames(),
     getStockItemsByType('FEED'),
     getCompaniesByType('FEED'),
     getStockItemsByType('MEDICINE'),
@@ -135,9 +136,24 @@ export default async function CompaniesPage({
               medicineCompanies={medicineCompanies}
               feedProducts={initialFeedItems}
               medicineProducts={initialMedicineItems}
+              stockTypeOptions={[
+                { value: 'FEED', label: 'Feed' },
+                { value: 'MEDICINE', label: 'Medicine' }
+              ]}
+              paymentMethodOptions={[
+                { value: 'CASH', label: 'Cash' },
+                { value: 'BANK_TRANSFER', label: 'Bank transfer' },
+                { value: 'CHEQUE', label: 'Cheque' },
+                { value: 'MOBILE_MONEY', label: 'Mobile money' },
+                { value: 'OTHER', label: 'Other' }
+              ]}
             />
           </div>
-          <CompanySearchForm search={companySearch} companyType={companyType} status={companyStatus} />
+          <CompanySearchForm
+            search={companySearch}
+            companyType={companyType}
+            status={companyStatus}
+          />
         </div>
 
         <div className="overflow-visible rounded-2xl border bg-card shadow-sm">
@@ -188,7 +204,11 @@ export default async function CompaniesPage({
                       </td>
                       <td className="px-4 py-3 text-right">{company.totalPurchase.toLocaleString()} TK</td>
                       <td className="px-4 py-3 text-right">{company.totalPaid.toLocaleString()} TK</td>
-                      <td className="px-4 py-3 text-right">{company.totalDue.toLocaleString()} TK</td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${company.totalDue > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {company.totalDue.toLocaleString()} TK
+                        </span>
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${company.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
                           {company.isActive ? 'Active' : 'Inactive'}

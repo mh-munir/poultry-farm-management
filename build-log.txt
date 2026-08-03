@@ -1,98 +1,96 @@
-﻿
-> poultry-farm-management@0.1.0 vercel-build
+
+> poultry-farm-management@0.1.0 build
 > prisma generate && next build
 
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-Γ£ö Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client in 371ms
+✔ Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client in 412ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Help us improve the Prisma ORM for everyone. Share your feedback in a short 2-min survey: https://pris.ly/orm/survey/release-5-22
+Tip: Curious about the SQL queries Prisma ORM generates? Optimize helps you enhance your visibility: https://pris.ly/tip-2-optimize
 
-   Γû▓ Next.js 15.5.21
+   ▲ Next.js 15.5.22
    - Environments: .env.local, .env
    - Experiments (use with caution):
-     ┬╖ serverActions
+     · serverActions
 
    Creating an optimized production build ...
- Γ£ô Compiled successfully in 9.8s
+ ✓ Compiled successfully in 10.0s
    Skipping linting
    Checking validity of types ...
    Collecting page data ...
-   Generating static pages (0/49) ...
-   Generating static pages (12/49) 
-   Generating static pages (24/49) 
-   Generating static pages (36/49) 
- Γ£ô Generating static pages (49/49)
+   Generating static pages (0/46) ...
+   Generating static pages (11/46) 
+   Generating static pages (22/46) 
+   Generating static pages (34/46) 
+ ✓ Generating static pages (46/46)
    Finalizing page optimization ...
    Collecting build traces ...
 
 Route (app)                                     Size  First Load JS
-Γöî ╞Æ /                                          170 B         103 kB
-Γö£ ╞Æ /_not-found                                 1 kB         104 kB
-Γö£ ╞Æ /admin                                   3.04 kB         114 kB
-Γö£ ╞Æ /api/admin/upload                          170 B         103 kB
-Γö£ ╞Æ /api/auth/[...nextauth]                    170 B         103 kB
-Γö£ ╞Æ /api/costs                                 170 B         103 kB
-Γö£ ╞Æ /api/settings                              170 B         103 kB
-Γö£ ╞Æ /api/stock/[stockType]                     170 B         103 kB
-Γö£ ╞Æ /auth/reset-admin                        1.76 kB         108 kB
-Γö£ ╞Æ /auth/sign-in                            1.36 kB         125 kB
-Γö£ ╞Æ /dashboard                                 170 B         103 kB
-Γö£ ╞Æ /dashboard/costs                         1.57 kB         104 kB
-Γö£ ╞Æ /dashboard/parties                       5.69 kB         145 kB
-Γö£ ╞Æ /dashboard/parties/[id]                  2.38 kB         142 kB
-Γö£ ╞Æ /dashboard/parties/[id]/edit             2.67 kB         137 kB
-Γö£ ╞Æ /dashboard/parties/[id]/print              289 B         103 kB
-Γö£ ╞Æ /dashboard/parties/clear-party-success     170 B         103 kB
-Γö£ ╞Æ /dashboard/parties/delete                  170 B         103 kB
-Γö£ ╞Æ /dashboard/parties/new                   1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/product-categories            1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/product-categories/[id]/edit  1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/product-categories/delete       170 B         103 kB
-Γö£ ╞Æ /dashboard/product-categories/new        1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/products                      1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/products/[id]/edit            1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/products/delete                 170 B         103 kB
-Γö£ ╞Æ /dashboard/products/new                  1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/purchases                     1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/purchases/[id]                1.45 kB         116 kB
-Γö£ ╞Æ /dashboard/reports                       1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/reports/daily                 1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/reports/monthly               1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/reports/party-statement       1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/reports/profit-loss           1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/reports/purchases             1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/reports/sales                 1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/reports/stock                 1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/reports/yearly                1.76 kB         108 kB
-Γö£ ╞Æ /dashboard/sales                         2.96 kB         117 kB
-Γö£ ╞Æ /dashboard/sales/[id]                    1.45 kB         116 kB
-Γö£ ╞Æ /dashboard/settings                      1.26 kB         104 kB
-Γö£ ╞Æ /dashboard/settings/backup                 687 B         103 kB
-Γö£ ╞Æ /dashboard/settings/company                986 B         104 kB
-Γö£ ╞Æ /dashboard/settings/invoice                749 B         103 kB
-Γö£ ╞Æ /dashboard/settings/logo                 1.42 kB         104 kB
-Γö£ ╞Æ /dashboard/settings/permissions            777 B         103 kB
-Γö£ ╞Æ /dashboard/settings/restore                771 B         103 kB
-Γö£ ╞Æ /dashboard/settings/roles                  771 B         103 kB
-Γö£ ╞Æ /dashboard/settings/users                  537 B         103 kB
-Γö£ ╞Æ /dashboard/stock                           170 B         103 kB
-Γö£ ╞Æ /dashboard/stock/feed                      122 B         107 kB
-Γö£ ╞Æ /dashboard/stock/Medicine                  123 B         107 kB
-Γö£ ╞Æ /dashboard/stock/reports                   170 B         103 kB
-Γö£ ╞Æ /invoices                                 3.3 kB         114 kB
-Γö£ ╞Æ /staff                                     170 B         103 kB
-Γöö ╞Æ /unauthorized                              170 B         103 kB
+┌ ƒ /                                          169 B         103 kB
+├ ƒ /_not-found                                999 B         104 kB
+├ ƒ /api/admin/reset-db                        169 B         103 kB
+├ ƒ /api/admin/upload                          169 B         103 kB
+├ ƒ /api/auth/[...nextauth]                    169 B         103 kB
+├ ƒ /api/expenses                              169 B         103 kB
+├ ƒ /api/settings                              169 B         103 kB
+├ ƒ /api/stock/[stockType]                     169 B         103 kB
+├ ƒ /auth/reset-admin                          214 B         106 kB
+├ ƒ /auth/sign-in                            4.13 kB         126 kB
+├ ƒ /dashboard                                 169 B         103 kB
+├ ƒ /dashboard/companies                     1.88 kB         130 kB
+├ ƒ /dashboard/companies/[id]                3.41 kB         125 kB
+├ ƒ /dashboard/expenses                      2.22 kB         112 kB
+├ ƒ /dashboard/parties                       6.29 kB         148 kB
+├ ƒ /dashboard/parties/[id]                  5.29 kB         147 kB
+├ ƒ /dashboard/parties/[id]/print            1.29 kB         104 kB
+├ ƒ /dashboard/parties/clear-party-success     169 B         103 kB
+├ ƒ /dashboard/parties/delete                  169 B         103 kB
+├ ƒ /dashboard/parties/new                     214 B         106 kB
+├ ƒ /dashboard/product-categories              214 B         106 kB
+├ ƒ /dashboard/product-categories/[id]/edit    214 B         106 kB
+├ ƒ /dashboard/product-categories/delete       169 B         103 kB
+├ ƒ /dashboard/product-categories/new          214 B         106 kB
+├ ƒ /dashboard/products                        214 B         106 kB
+├ ƒ /dashboard/products/[id]/edit              214 B         106 kB
+├ ƒ /dashboard/products/delete                 169 B         103 kB
+├ ƒ /dashboard/products/new                    214 B         106 kB
+├ ƒ /dashboard/purchases                       214 B         106 kB
+├ ƒ /dashboard/reports                         214 B         106 kB
+├ ƒ /dashboard/reports/daily                   214 B         106 kB
+├ ƒ /dashboard/reports/monthly                 214 B         106 kB
+├ ƒ /dashboard/reports/party-statement       3.02 kB         116 kB
+├ ƒ /dashboard/reports/profit-loss             214 B         106 kB
+├ ƒ /dashboard/reports/purchases               214 B         106 kB
+├ ƒ /dashboard/reports/sales                   214 B         106 kB
+├ ƒ /dashboard/reports/stock                   214 B         106 kB
+├ ƒ /dashboard/reports/yearly                  214 B         106 kB
+├ ƒ /dashboard/sales                         4.68 kB         117 kB
+├ ƒ /dashboard/settings                      1.17 kB         104 kB
+├ ƒ /dashboard/settings/backup                 982 B         104 kB
+├ ƒ /dashboard/settings/company              1.27 kB         104 kB
+├ ƒ /dashboard/settings/invoice              1.16 kB         104 kB
+├ ƒ /dashboard/settings/logo                 2.54 kB         105 kB
+├ ƒ /dashboard/settings/restore              1.11 kB         104 kB
+├ ƒ /dashboard/settings/users                8.28 kB         118 kB
+├ ƒ /dashboard/stock/clear-purchase-success    169 B         103 kB
+├ ƒ /dashboard/stock/feed                    1.13 kB         116 kB
+├ ƒ /dashboard/stock/Medicine                1.13 kB         116 kB
+├ ƒ /dashboard/stock/print/[id]              1.19 kB         104 kB
+├ ƒ /dashboard/stock/reports                   169 B         103 kB
+├ ƒ /dashboard/transactions/[id]/print       3.01 kB         112 kB
+├ ƒ /print-demo                                338 B         103 kB
+└ ƒ /unauthorized                              169 B         103 kB
 + First Load JS shared by all                 103 kB
-  Γö£ chunks/1255-612df69cb02f2021.js          46.3 kB
-  Γö£ chunks/4bd1b696-f785427dddbba9fb.js      54.2 kB
-  Γöö other shared chunks (total)                 2 kB
+  ├ chunks/1255-31f47ebe9b12c7e5.js          46.3 kB
+  ├ chunks/4bd1b696-f785427dddbba9fb.js      54.2 kB
+  └ other shared chunks (total)              2.01 kB
 
 
-╞Æ Middleware                                 33.9 kB
+ƒ Middleware                                 34.1 kB
 
-╞Æ  (Dynamic)  server-rendered on demand
+ƒ  (Dynamic)  server-rendered on demand
 

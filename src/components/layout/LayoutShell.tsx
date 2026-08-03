@@ -124,7 +124,7 @@ export default function LayoutShell({ children, theme, branding }: { children: R
       {open && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setOpen(false)} />}
 
       <div className="flex-1 min-h-screen md:pl-64">
-        <header className="sticky top-0 z-20 border-b border-border bg-surface/95 shadow-sm backdrop-blur-lg">
+        <header className="sticky top-0 z-40 border-b border-border bg-surface/95 shadow-sm backdrop-blur-lg">
           <div className="mx-auto flex max-w-screen-3xl flex-col gap-3 px-3 py-3 md:flex-row md:items-center md:justify-between md:px-8 md:py-4">
             <div className="flex items-center gap-3">
               <button className="md:hidden p-2 rounded-lg hover:bg-muted/60 transition-colors" onClick={() => setOpen(!open)} aria-label="Toggle menu">

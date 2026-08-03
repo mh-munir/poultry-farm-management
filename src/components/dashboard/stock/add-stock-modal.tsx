@@ -9,6 +9,7 @@ import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobo
 import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
 import { getCompanyCurrentDue } from '@/features/companies/actions';
 import { useToast } from '@/hooks/use-toast';
+import { STOCK_TYPE_OPTIONS, STOCK_PAYMENT_METHOD_OPTIONS } from '@/config/stock';
 import type { StockItem } from './stock-management';
 
 interface AddStockModalProps {
@@ -16,6 +17,11 @@ interface AddStockModalProps {
   medicineCompanies: { id: number; name: string }[];
   feedProducts: StockItem[];
   medicineProducts: StockItem[];
+  stockTypeOptions?: ComboboxOption[];
+  paymentMethodOptions?: ReadonlyArray<{ value: string; label: string }>;
+  preselectedCompanyId?: number;
+  preselectedCompanyType?: 'FEED' | 'MEDICINE';
+  preselectedCompanyName?: string;
 }
 
 interface StockRow {
@@ -28,22 +34,23 @@ interface StockRow {
   unit?: string;
 }
 
-const STOCK_TYPE_OPTIONS: ComboboxOption[] = [
-  { value: 'FEED', label: 'Feed' },
-  { value: 'MEDICINE', label: 'Medicine' },
-];
 
 export function AddStockModal({
   feedCompanies,
   medicineCompanies,
   feedProducts,
   medicineProducts,
+  stockTypeOptions = STOCK_TYPE_OPTIONS,
+  paymentMethodOptions = STOCK_PAYMENT_METHOD_OPTIONS,
+  preselectedCompanyId,
+  preselectedCompanyType,
+  preselectedCompanyName,
 }: AddStockModalProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [stockType, setStockType] = useState<'FEED' | 'MEDICINE'>('FEED');
+  const [stockType, setStockType] = useState<'FEED' | 'MEDICINE'>(preselectedCompanyType ?? 'FEED');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [companyName, setCompanyName] = useState('');
-  const [companyId, setCompanyId] = useState(0);
+  const [companyName, setCompanyName] = useState(preselectedCompanyName ?? '');
+  const [companyId, setCompanyId] = useState(preselectedCompanyId ?? 0);
   const [previousDue, setPreviousDue] = useState(0);
   const transactionDate = new Date().toISOString().slice(0, 10);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
@@ -178,6 +185,9 @@ export function AddStockModal({
   };
 
   const handleStockTypeChange = (value: string) => {
+    // Only allow type change if not preselected from company profile
+    if (preselectedCompanyType) return;
+    
     const newType = value === 'MEDICINE' ? 'MEDICINE' : 'FEED';
     setStockType(newType);
     setCompanyName('');
@@ -199,41 +209,52 @@ export function AddStockModal({
       <Dialog open={isOpen} onOpenChange={setIsOpen} title="Add Stock">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Stock Type *</label>
-              <SearchableCombobox
-                options={STOCK_TYPE_OPTIONS}
-                value={stockType === 'MEDICINE' ? 'MEDICINE' : 'FEED'}
-                onValueChange={handleStockTypeChange}
-                placeholder="Select stock type..."
-                emptyText="No stock type found"
-                name="stockType"
-                required
-              />
-            </div>
+            {!preselectedCompanyType && (
+              <div>
+                <label className="mb-1 block text-sm font-medium">Stock Type *</label>
+                <SearchableCombobox
+                  options={stockTypeOptions}
+                  value={stockType}
+                  onValueChange={handleStockTypeChange}
+                  placeholder="Select stock type..."
+                  emptyText="No stock type found"
+                  name="stockType"
+                  required
+                />
+              </div>
+            )}
+            {preselectedCompanyType && (
+              <input type="hidden" name="stockType" value={preselectedCompanyType} />
+            )}
             <div>
               <label className="mb-1 block text-sm font-medium">Company *</label>
-              <SearchableCombobox
-                options={companyOptions}
-                value={companyName}
-                onValueChange={(value) => {
-                  setCompanyName(value);
-                  const matched = (stockType === 'FEED' ? feedCompanies : medicineCompanies).find(
-                    (s) => s.name.toLowerCase() === value.toLowerCase()
-                  );
-                  if (matched) {
-                    setCompanyId(matched.id);
-                  } else {
-                    setCompanyId(0);
-                  }
-                }}
-                placeholder="Search company..."
-                emptyText="No company found"
-                name="companyName"
-                required
-              />
-              <input type="hidden" name="companyId" value={String(companyId)} />
-              <input type="hidden" name="newCompanyName" value={companyName} />
+              {preselectedCompanyName ? (
+                <div className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium">
+                  {preselectedCompanyName}
+                </div>
+              ) : (
+                <SearchableCombobox
+                  options={companyOptions}
+                  value={companyName}
+                  onValueChange={(value) => {
+                    setCompanyName(value);
+                    const matched = (stockType === 'FEED' ? feedCompanies : medicineCompanies).find(
+                      (s) => s.name.toLowerCase() === value.toLowerCase()
+                    );
+                    if (matched) {
+                      setCompanyId(matched.id);
+                    } else {
+                      setCompanyId(0);
+                    }
+                  }}
+                  placeholder="Search company..."
+                  emptyText="No company found"
+                  name="companyName"
+                  required
+                />
+              )}
+              <input type="hidden" name="companyId" value={String(preselectedCompanyId ?? companyId)} />
+              <input type="hidden" name="newCompanyName" value={preselectedCompanyName ?? companyName} />
             </div>
           </div>
 
@@ -365,11 +386,11 @@ export function AddStockModal({
                 onChange={(event) => setPaymentMethod(event.target.value)}
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               >
-                <option value="CASH">Cash</option>
-                <option value="BANK_TRANSFER">Bank Transfer</option>
-                <option value="CHEQUE">Cheque</option>
-                <option value="MOBILE_MONEY">Mobile Money</option>
-                <option value="OTHER">Other</option>
+                {paymentMethodOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div>

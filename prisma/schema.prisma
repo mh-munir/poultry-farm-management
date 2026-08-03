@@ -176,6 +176,8 @@ model Product {
   imageUrl             String?
   lowStockThreshold    Decimal?
   isActive             Boolean           @default(true)
+  isArchived           Boolean           @default(false)
+  deletedAt            DateTime?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   createdById          String?
@@ -262,7 +264,7 @@ model TransactionItem {
   lineTotal     Decimal
   taxAmount     Decimal     @default(0)
   description   String?
-  product       Product     @relation(fields: [productId], references: [id])
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([transactionId])

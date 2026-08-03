@@ -108,6 +108,7 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
   const items = data.items;
   const { subtotal, totalAmount, discount, paymentAmount } = validateSaleAmounts(data);
 
+  const invoiceNumber = generateInvoiceNumber();
   const savedSale = await prisma.$transaction(async (tx) => {
     const party = await tx.party.findUnique({ where: { id: data.partyId } });
     if (!party) {
@@ -126,7 +127,6 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
     }
 
     const saleType = determineSaleType(items.map((item) => productTypes.get(item.productId) ?? ''));
-    const invoiceNumber = generateInvoiceNumber();
     const dueAmount = totalAmount.minus(paymentAmount);
     const status = dueAmount.gt(0) ? PENDING_TRANSACTION_STATUS : COMPLETED_TRANSACTION_STATUS;
 
@@ -259,7 +259,7 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
       paidAmount: paymentAmount,
       dueAmount
     };
-  });
+  }, { timeout: 15000 });
 
   const smsResult = await queueSaleSmsNotification({
     transactionId: savedSale.transactionId,
@@ -445,7 +445,7 @@ export async function getCustomersForSales() {
 
 export async function getProductsForSales() {
   return prisma.product.findMany({
-    where: { isActive: true, productType: { in: ['FEED', 'MEDICINE'] } },
+    where: { isActive: true, isArchived: false, productType: { in: ['FEED', 'MEDICINE'] } },
     orderBy: { name: 'asc' },
     select: {
       id: true,

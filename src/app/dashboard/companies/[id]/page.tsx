@@ -1,13 +1,20 @@
-import { MapPin, Phone, ReceiptText, Wallet2, Package2, Factory, Printer } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, BadgeDollarSign, CheckCircle2, CircleDollarSign, CreditCard, FileText, MapPin, Phone, ReceiptText, Wallet2, Package2, Factory, Printer, TrendingUp, UserRound, Wallet } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
+import { Button } from '@/components/ui/button';
 import { prisma } from '@/server/db';
 import { getCompanyAccountSummary, getCompanyProfile } from '@/features/companies/actions';
 import { CompanyRowActions } from '@/app/dashboard/parties/company-row-actions';
 import { CompanyProfileActions } from './company-profile-actions';
 import { CompanyProfilePayButton } from './company-profile-pay-button';
 import ToastRedirect from '../toast-redirect';
+import { AddStockModal } from '@/components/dashboard/stock/add-stock-modal';
+import { getStockItemsByType } from '@/features/stock/actions';
+import { getCompaniesByType } from '@/features/companies/actions';
 
 type CompanyProfileRecord = {
   id: number;
@@ -75,6 +82,44 @@ function formatDate(value: Date | string) {
   });
 }
 
+function SummaryMiniCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/30 p-4">
+      <p className="text-form-label text-muted-foreground">{label}</p>
+      <p className="mt-2 text-lg font-bold text-foreground tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function KpiCard({
+  title,
+  value,
+  description,
+  icon: Icon,
+  accent
+}: {
+  title: string;
+  value: string;
+  description: string;
+  icon: typeof Wallet;
+  accent: string;
+}) {
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-form-label font-semibold text-muted-foreground">{title}</p>
+          <p className="mt-3 text-2xl font-bold leading-none text-foreground tabular-nums">{value}</p>
+          <p className="mt-2 text-card-subtitle">{description}</p>
+        </div>
+        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${accent}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default async function CompanyProfilePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ success?: string; error?: string }> }) {
   await requireUser();
   const { id } = await params;
@@ -101,7 +146,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
 
   if (!company) notFound();
 
-  const [transactions, payments, summary] = await Promise.all([
+  const [transactions, payments, summary, feedItems, medicineItems, feedCompanies, medicineCompanies] = await Promise.all([
     prisma.transaction.findMany({
       where: { companyId },
       orderBy: { transactionDate: 'desc' },
@@ -145,7 +190,11 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
         notes: true
       }
     }) as Promise<CompanyPaymentRecord[]>,
-    getCompanyAccountSummary(companyId)
+    getCompanyAccountSummary(companyId),
+    getStockItemsByType('FEED'),
+    getStockItemsByType('MEDICINE'),
+    getCompaniesByType('FEED'),
+    getCompaniesByType('MEDICINE')
   ]);
 
   const sortedTransactions = [...transactions].sort((a, b) =>
@@ -235,6 +284,34 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
       ? 'bg-rose-100 text-rose-800'
       : 'bg-violet-100 text-violet-800';
 
+  const initialFeedItems = feedItems.map((item) => ({
+    id: item.id,
+    name: item.name,
+    unit: item.unit,
+    quantity: Number(item.stockBalance?.quantityOnHand ?? 0),
+    buyRate: Number(item.defaultPurchasePrice ?? 0),
+    salesRate: Number(item.defaultSellingPrice ?? 0),
+    productType: item.productType,
+    lastTransactionDate: item.transactionItems[0]?.transaction?.transactionDate,
+    companyName: item.transactionItems[0]?.transaction?.company?.name ?? item.transactionItems[0]?.transaction?.party?.name,
+    paidAmount: Number(item.transactionItems[0]?.transaction?.paidAmount ?? 0),
+    dueAmount: Number(item.transactionItems[0]?.transaction?.dueAmount ?? 0)
+  }));
+
+  const initialMedicineItems = medicineItems.map((item) => ({
+    id: item.id,
+    name: item.name,
+    unit: item.unit,
+    quantity: Number(item.stockBalance?.quantityOnHand ?? 0),
+    buyRate: Number(item.defaultPurchasePrice ?? 0),
+    salesRate: Number(item.defaultSellingPrice ?? 0),
+    productType: item.productType,
+    lastTransactionDate: item.transactionItems[0]?.transaction?.transactionDate,
+    companyName: item.transactionItems[0]?.transaction?.company?.name ?? item.transactionItems[0]?.transaction?.party?.name,
+    paidAmount: Number(item.transactionItems[0]?.transaction?.paidAmount ?? 0),
+    dueAmount: Number(item.transactionItems[0]?.transaction?.dueAmount ?? 0)
+  }));
+
   const exportCsv = [
     ['Company Profile', company.name],
     ['Contact Person', company.contactPerson ?? ''],
@@ -266,73 +343,55 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
     .join('\n');
 
   return (
-    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
+    <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-3 py-5 sm:px-5 lg:px-6">
       <ToastRedirect initialSuccess={success ?? undefined} initialError={error ?? undefined} />
-      <div className="min-w-0 grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
-        <aside className="min-w-0 space-y-6">
-          <div className="rounded-2xl border bg-card p-6 shadow-sm">
-            <div className="flex flex-col items-center text-center">
-              <div className="flex h-24 w-24 items-center justify-center rounded-full border bg-muted text-3xl font-semibold text-muted-foreground">
-                {company.name.charAt(0).toUpperCase()}
+
+      <div className="mb-5">
+        <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+          <Link href="/dashboard/companies">
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Link>
+        </Button>
+      </div>
+
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-primary/10 text-3xl font-bold text-primary shadow-sm">
+              {company.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-3xl font-bold leading-tight text-foreground sm:text-4xl">{company.name}</h1>
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-badge font-semibold ${companyTypeBadgeClass}`}>
+                  {company.companyType === 'FEED' ? 'Feed Company' : company.companyType === 'MEDICINE' ? 'Medicine Company' : 'Feed & Medicine'}
+                </span>
               </div>
-              <h1 className="mt-4 text-2xl font-semibold leading-tight">{company.name}</h1>
-              <span className={`mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${companyTypeBadgeClass}`}>
-                {company.companyType === 'FEED' ? 'Feed Company' : company.companyType === 'MEDICINE' ? 'Medicine Company' : 'Feed & Medicine'}
+              <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Phone className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="truncate font-medium text-foreground">{company.phone || '-'}</span>
+                </div>
+                <div className="flex min-w-0 items-center gap-2">
+                  <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="truncate">{company.address || '-'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 xl:items-end">
+            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+              <span className={`inline-flex h-9 items-center gap-2 rounded-full px-3 text-badge font-semibold ${summary.totalDue > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                <CheckCircle2 className="h-4 w-4" />
+                {summary.totalDue > 0 ? 'Due' : 'Cleared'}
+              </span>
+              <span className={`inline-flex h-9 items-center rounded-full px-3 text-badge font-semibold ${company.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                {company.isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
-
-            <div className="mt-6 space-y-3">
-              {company.contactPerson && (
-                <div className="flex items-start gap-3 rounded-xl border bg-background p-3">
-                  <Phone className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">Contact Person</p>
-                    <p className="mt-0.5 truncate text-sm font-semibold">{company.contactPerson}</p>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-start gap-3 rounded-xl border bg-background p-3">
-                <Phone className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-muted-foreground">Mobile Number</p>
-                  <p className="mt-0.5 truncate text-sm font-semibold">{company.phone}</p>
-                </div>
-              </div>
-              {company.address && (
-                <div className="flex items-start gap-3 rounded-xl border bg-background p-3">
-                  <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">Address</p>
-                    <p className="mt-0.5 truncate text-sm font-semibold">{company.address}</p>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-start gap-3 rounded-xl border bg-background p-3">
-                <ReceiptText className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-muted-foreground">Total Transactions</p>
-                  <p className="mt-0.5 truncate text-sm font-semibold">{summary.totalTransactions}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 rounded-xl border bg-background p-3">
-                <Package2 className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-muted-foreground">Company Since</p>
-                  <p className="mt-0.5 truncate text-sm font-semibold">{formatDate(company.createdAt)}</p>
-                </div>
-              </div>
-              {summary.lastTransactionDate && (
-                <div className="flex items-start gap-3 rounded-xl border bg-background p-3">
-                  <ReceiptText className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">Last Transaction Date</p>
-                    <p className="mt-0.5 truncate text-sm font-semibold">{formatDate(summary.lastTransactionDate)}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
               <CompanyRowActions
                 company={{
                   id: company.id,
@@ -344,49 +403,95 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                   companyType: company.companyType,
                   isActive: company.isActive
                 }}
+                editButtonLabel="Edit Profile"
+                editButtonClassName="h-[42px] bg-secondary text-secondary-foreground hover:bg-secondary/80"
               />
               <CompanyProfilePayButton companyId={company.id} />
+              <AddStockModal
+                feedCompanies={feedCompanies}
+                medicineCompanies={medicineCompanies}
+                feedProducts={initialFeedItems}
+                medicineProducts={initialMedicineItems}
+                stockTypeOptions={[
+                  { value: 'FEED', label: 'Feed' },
+                  { value: 'MEDICINE', label: 'Medicine' }
+                ]}
+                paymentMethodOptions={[
+                  { value: 'CASH', label: 'Cash' },
+                  { value: 'BANK_TRANSFER', label: 'Bank transfer' },
+                  { value: 'CHEQUE', label: 'Cheque' },
+                  { value: 'MOBILE_MONEY', label: 'Mobile money' },
+                  { value: 'OTHER', label: 'Other' }
+                ]}
+                preselectedCompanyId={company.id}
+                preselectedCompanyType={company.companyType === 'FEED' ? 'FEED' : company.companyType === 'MEDICINE' ? 'MEDICINE' : 'FEED'}
+                preselectedCompanyName={company.name}
+              />
             </div>
           </div>
-        </aside>
+        </div>
+      </section>
 
-        <div className="min-w-0 space-y-6">
-          <section className="rounded-2xl border bg-card p-6 shadow-sm">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">Financial Overview</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Quick summary of the company account</p>
-              </div>
-              <span className={`rounded-full px-3 py-1 text-sm font-medium ${summary.totalDue > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                {summary.totalDue > 0 ? 'Due' : 'Cleared'}
-              </span>
-            </div>
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryMiniCard label="Feed Purchases" value={formatCurrency(summary.totalFeedPurchases)} />
+        <SummaryMiniCard label="Medicine Purchases" value={formatCurrency(summary.totalMedicinePurchases)} />
+        <SummaryMiniCard label="Payments" value={formatCurrency(summary.totalPayments)} />
+        <SummaryMiniCard label="Transactions" value={String(summary.totalTransactions)} />
+      </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-xl border bg-background p-4">
-                <p className="text-sm text-muted-foreground">Total Feed Purchases</p>
-                <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalFeedPurchases)}</p>
-              </div>
-              <div className="rounded-xl border bg-background p-4">
-                <p className="text-sm text-muted-foreground">Total Medicine Purchases</p>
-                <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalMedicinePurchases)}</p>
-              </div>
-              <div className="rounded-xl border bg-background p-4">
-                <p className="text-sm text-muted-foreground">Total Payments</p>
-                <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalPayments)}</p>
-              </div>
-              <div className="rounded-xl border bg-background p-4">
-                <p className="text-sm text-muted-foreground">Current Due</p>
-                <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalDue)}</p>
-              </div>
-              <div className="rounded-xl border bg-background p-4">
-                <p className="text-sm text-muted-foreground">Total Transactions</p>
-                <p className="mt-2 text-2xl font-semibold">{summary.totalTransactions}</p>
-              </div>
-            </div>
-          </section>
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <KpiCard
+          title="Current Due"
+          value={formatCurrency(summary.totalDue)}
+          description="Outstanding balance for this company"
+          icon={Wallet}
+          accent="bg-amber-100 text-amber-700"
+        />
+        <KpiCard
+          title="Company Since"
+          value={formatDate(company.createdAt)}
+          description="Account opened on this date"
+          icon={Factory}
+          accent="bg-sky-100 text-sky-700"
+        />
+      </div>
 
-          <section>
+      <section className="my-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Financial Overview</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Quick summary of the company account</p>
+          </div>
+          <span className={`rounded-full px-3 py-1 text-sm font-medium ${summary.totalDue > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+            {summary.totalDue > 0 ? 'Due' : 'Cleared'}
+          </span>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-xl border bg-background p-4">
+            <p className="text-sm text-muted-foreground">Total Feed Purchases</p>
+            <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalFeedPurchases)}</p>
+          </div>
+          <div className="rounded-xl border bg-background p-4">
+            <p className="text-sm text-muted-foreground">Total Medicine Purchases</p>
+            <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalMedicinePurchases)}</p>
+          </div>
+          <div className="rounded-xl border bg-background p-4">
+            <p className="text-sm text-muted-foreground">Total Payments</p>
+            <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalPayments)}</p>
+          </div>
+          <div className="rounded-xl border bg-background p-4">
+            <p className="text-sm text-muted-foreground">Current Due</p>
+            <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalDue)}</p>
+          </div>
+          <div className="rounded-xl border bg-background p-4">
+            <p className="text-sm text-muted-foreground">Total Transactions</p>
+            <p className="mt-2 text-2xl font-semibold">{summary.totalTransactions}</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-xl font-semibold">Transaction history</h2>
@@ -459,9 +564,8 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                 </ResponsiveTable>
               </div>
             )}
-          </section>
-        </div>
-      </div>
+      </section>
+        
     </main>
   );
 }

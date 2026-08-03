@@ -162,7 +162,11 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
   }
 
   try {
-    const purchaseId = await prisma.$transaction(async (tx) => {
+    const invoiceNumber = generatePurchaseInvoiceNumber();
+    const dueAmount = totalAmount - data.paymentAmount;
+    const status = dueAmount > 0 ? PENDING_TRANSACTION_STATUS : COMPLETED_TRANSACTION_STATUS;
+
+    const purchaseResult = await prisma.$transaction(async (tx) => {
       const resolvedItems: Array<typeof items[number] & { productId: number }> = [];
 
       for (const item of items) {
@@ -200,10 +204,6 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
           productId: productId ?? 0
         });
       }
-
-      const invoiceNumber = generatePurchaseInvoiceNumber();
-      const dueAmount = totalAmount - data.paymentAmount;
-      const status = dueAmount > 0 ? PENDING_TRANSACTION_STATUS : COMPLETED_TRANSACTION_STATUS;
 
       let companyIdToUse: number | undefined;
       let partyIdToUse: number | undefined;
@@ -441,12 +441,16 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
         });
       }
 
-      return purchase.id;
-    });
+      return {
+        purchaseId: purchase.id,
+        supplier: supplierType === 'company'
+          ? await tx.company.findUnique({ where: { id: companyIdToUse }, select: { id: true, name: true, phone: true } })
+          : await tx.party.findUnique({ where: { id: partyIdToUse }, select: { id: true, name: true, phone: true } })
+      };
+    }, { timeout: 15000 });
 
-    const smsTarget = supplierType === 'company'
-      ? await prisma.company.findUnique({ where: { id: Number(data.companyId) }, select: { id: true, name: true, phone: true } })
-      : await prisma.party.findUnique({ where: { id: Number(data.partyId) }, select: { id: true, name: true, phone: true } });
+    const purchaseId = purchaseResult.purchaseId;
+    const smsTarget = purchaseResult.supplier;
 
     if (supplierType === 'party' && smsTarget) {
       const smsAmount = totalAmount.toFixed(2);
@@ -707,7 +711,7 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
           referenceNumber: invoiceNumber
         }
       });
-    });
+    }, { timeout: 10000 });
 
     revalidatePurchaseData({ partyId });
     return { success: true, message: 'Party Supplier products recorded successfully.' };
@@ -801,7 +805,7 @@ export async function getSuppliersForPurchases() {
 
 export async function getProductsForPurchases() {
   return prisma.product.findMany({
-    where: { isActive: true },
+    where: { isActive: true, isArchived: false },
     orderBy: { name: 'asc' },
     select: {
       id: true,

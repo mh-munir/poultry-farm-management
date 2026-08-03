@@ -11,6 +11,7 @@ import { PartyToast } from './party-toast';
 import { PartySearchForm } from './search-form';
 import { PartyRowActions } from './party-row-actions';
 import { getPartyNames, getPartyPageData, getPartyStats } from '@/features/parties/actions';
+import type { ProductOption } from '@/app/dashboard/parties/add-party-dialog';
 import { getProductsForSales } from '@/features/sales/actions';
 
 const PARTY_TYPES = ['ALL', 'CUSTOMER', 'PARTY', 'BOTH'] as const;
@@ -42,7 +43,7 @@ function formatLastTransactionDate(date: Date | null | undefined) {
   if (dateDay.getTime() === yesterday.getTime()) {
     return 'Yesterday';
   }
-  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export default async function PartiesPage({
@@ -77,7 +78,7 @@ export default async function PartiesPage({
     getProductsForSales()
   ]);
 
-  const productOptions = products.map((product) => ({
+  const productOptions: ProductOption[] = products.map((product) => ({
     id: product.id,
     name: product.name,
     code: product.code,
@@ -111,7 +112,11 @@ export default async function PartiesPage({
       {/* Parties Header */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-6 justify-between">
         <AddPartyDialog partyOptions={partyOptions} productOptions={productOptions} />
-        <PartySearchForm search={search} partyType={partyType} status={status} />
+        <PartySearchForm
+          search={search}
+          partyType={partyType}
+          status={status}
+        />
       </div>
 
       <PartyToast success={success} error={error} />

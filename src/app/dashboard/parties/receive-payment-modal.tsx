@@ -17,6 +17,7 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partyOptions, setPartyOptions] = useState<ComboboxOption[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState<number | null>(null);
+  const [partyName, setPartyName] = useState('');
   const [currentDue, setCurrentDue] = useState(0);
   const [receiveAmount, setReceiveAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -29,6 +30,7 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
         setPartyOptions(options.map((o) => ({ value: String(o.id), label: o.name })));
       });
       setSelectedPartyId(null);
+      setPartyName('');
       setCurrentDue(0);
       setReceiveAmount('');
       setPaymentDate(new Date().toISOString().slice(0, 10));
@@ -36,14 +38,28 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
   }, [open]);
 
   const handlePartyChange = async (value: string) => {
-    const id = Number(value);
-    setSelectedPartyId(id);
-    if (id) {
+    const numericMatch = /^\d+$/.test(value);
+    if (numericMatch) {
+      const id = Number(value);
+      setSelectedPartyId(id);
       const due = await getCustomerCurrentDue(id);
       setCurrentDue(due);
+      const opt = partyOptions.find((o) => o.value === value.toString());
+      setPartyName(opt ? opt.label : '');
     } else {
+      setSelectedPartyId(null);
       setCurrentDue(0);
+      setPartyName(value);
     }
+    setReceiveAmount('');
+  };
+
+  const handlePartySelect = async (option: ComboboxOption) => {
+    const id = Number(option.value);
+    setSelectedPartyId(id);
+    setPartyName(option.label);
+    const due = await getCustomerCurrentDue(id);
+    setCurrentDue(due);
     setReceiveAmount('');
   };
 
@@ -77,8 +93,9 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
           <label className="mb-2 block text-sm font-medium text-slate-700">Party</label>
           <SearchableCombobox
             options={partyOptions}
-            value={String(selectedPartyId ?? '')}
+            value={selectedPartyId ? String(selectedPartyId) : partyName}
             onValueChange={handlePartyChange}
+            onOptionSelect={handlePartySelect}
             placeholder="Search customer..."
             emptyText="No customer found"
             required

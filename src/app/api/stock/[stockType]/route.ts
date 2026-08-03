@@ -57,7 +57,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sto
   const products = await prisma.product.findMany({
     where: {
       productType,
-      isActive: true
+      isActive: true,
+      isArchived: false
     },
     include: {
       stockBalance: true

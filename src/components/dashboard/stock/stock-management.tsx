@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/ui/dialog';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
+import { deleteStockItem, updateStockItem } from '@/features/stock/actions';
 import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Printer } from 'lucide-react';
@@ -16,6 +17,8 @@ export interface StockItem {
   buyRate: number;
   salesRate: number;
   unit?: string;
+  productType?: string;
+  companyId?: number | null;
   lastTransactionDate?: Date | string | null;
   companyName?: string | null;
   paidAmount?: number;
@@ -70,8 +73,13 @@ export function StockManagement({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [editProductName, setEditProductName] = useState('');
+  const [editCompanyName, setEditCompanyName] = useState('');
+  const [editCompanyId, setEditCompanyId] = useState<number | null>(null);
   const [editBuyRate, setEditBuyRate] = useState('');
   const [editSaleRate, setEditSaleRate] = useState('');
+  const [editQuantity, setEditQuantity] = useState('');
+  const [editUnit, setEditUnit] = useState('');
   const [partyId, setPartyId] = useState<number>(0);
   const [partyName, setPartyName] = useState<string>('');
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -122,23 +130,94 @@ export function StockManagement({
 
   const openEditModal = useCallback((item: StockItem) => {
     setEditingItemId(item.id ?? null);
+    setEditProductName(item.name ?? '');
+    setEditCompanyName(item.companyName ?? '');
+    const matchedCompany = suppliers.find((supplier) => supplier.name.toLowerCase() === String(item.companyName ?? '').toLowerCase());
+    setEditCompanyId(matchedCompany?.id ?? null);
     setEditBuyRate(String(item.buyRate ?? '0'));
     setEditSaleRate(String(item.salesRate ?? '0'));
+    setEditQuantity(String(item.quantity ?? '0'));
+    setEditUnit(String(item.unit ?? (title === 'Medicine' ? 'gm' : 'bag')));
     setIsEditModalOpen(true);
-  }, []);
+  }, [suppliers, title]);
 
-  const handleSaveEdit = useCallback(() => {
+  const handleSaveEdit = useCallback(async () => {
     if (editingItemId === null) return;
-    
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === editingItemId
-          ? { ...item, buyRate: Number(editBuyRate), salesRate: Number(editSaleRate) }
-          : item
-      )
-    );
-    setIsEditModalOpen(false);
-  }, [editBuyRate, editSaleRate, editingItemId]);
+
+    if (!editProductName.trim()) {
+      showToastError('Product name is required.');
+      return;
+    }
+
+    if (!editCompanyName.trim()) {
+      showToastError('Company is required.');
+      return;
+    }
+
+    const matchedCompany = suppliers.find((supplier) => supplier.name.toLowerCase() === editCompanyName.toLowerCase());
+    if (useCompanySearch && companyNames && !matchedCompany) {
+      showToastError('Please select a valid company from the list.');
+      return;
+    }
+
+    try {
+      const result = await updateStockItem(
+        editingItemId,
+        editProductName,
+        Number(editBuyRate),
+        Number(editSaleRate),
+        title === 'Medicine' ? editUnit || 'gm' : undefined,
+        matchedCompany?.id ?? null
+      );
+
+      if (!result.success) {
+        showToastError(result.message);
+        return;
+      }
+
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === editingItemId
+            ? {
+                ...item,
+                name: editProductName,
+                quantity: Number(editQuantity) || 0,
+                buyRate: Number(editBuyRate),
+                salesRate: Number(editSaleRate),
+                unit: title === 'Medicine' ? editUnit || 'gm' : item.unit,
+                companyName: editCompanyName
+              }
+            : item
+        )
+      );
+
+      success(result.message);
+      setIsEditModalOpen(false);
+      setEditingItemId(null);
+    } catch (error) {
+      showToastError(error instanceof Error ? error.message : 'Failed to save stock changes.');
+    }
+  }, [companyNames, editCompanyName, editBuyRate, editProductName, editQuantity, editSaleRate, editUnit, editingItemId, showToastError, success, suppliers, title]);
+
+  const handleDeleteItem = useCallback(async () => {
+    if (editingItemId === null) return;
+
+    try {
+      const result = await deleteStockItem(editingItemId);
+
+      if (result.success) {
+        setItems((prev) => prev.filter((item) => item.id !== editingItemId));
+        success(result.message);
+      } else {
+        showToastError(result.message);
+      }
+    } catch (err) {
+      showToastError(err instanceof Error ? err.message : 'An unknown error occurred.');
+    } finally {
+      setIsEditModalOpen(false);
+      setEditingItemId(null);
+    }
+  }, [editingItemId, success, showToastError]);
 
   const removeRow = useCallback((rowId: number) => {
     setRows((prev) => prev.filter((row) => row.rowId !== rowId));
@@ -505,45 +584,130 @@ export function StockManagement({
           </form>
         </Dialog>
 
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen} title={`Edit ${title} Rates`}>
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen} title={`Edit ${title}`}>
           <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium">Buy Rate</label>
+              <label className="mb-1 block text-sm font-medium">Product Name</label>
+              <input
+                type="text"
+                value={editProductName}
+                onChange={(event) => setEditProductName(event.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                placeholder="Edit product name"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Company</label>
+              {useCompanySearch && companyNames ? (
+                <SearchableCombobox
+                  options={companyNames}
+                  value={editCompanyName}
+                  onValueChange={(value) => {
+                    setEditCompanyName(value);
+                    const matched = suppliers.find((supplier) => supplier.name.toLowerCase() === value.toLowerCase());
+                    setEditCompanyId(matched?.id ?? null);
+                  }}
+                  placeholder="Search company..."
+                  emptyText="No company found"
+                  name="editCompanyName"
+                  required
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={editCompanyName}
+                  onChange={(event) => setEditCompanyName(event.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  placeholder="Company"
+                />
+              )}
+            </div>
+          </div>
+          {title === 'Medicine' ? (
+            <>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Gram</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editUnit}
+                  onChange={(event) => setEditUnit(event.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Quantity</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editQuantity}
+                  onChange={(event) => setEditQuantity(event.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="mb-1 block text-sm font-medium">Quantity</label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
-                value={editBuyRate}
-                onChange={(event) => setEditBuyRate(event.target.value)}
+                value={editQuantity}
+                onChange={(event) => setEditQuantity(event.target.value)}
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Sale Rate</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={editSaleRate}
-                onChange={(event) => setEditSaleRate(event.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
+          )}
+          <div>
+            <label className="mb-1 block text-sm font-medium">Buy Rate</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={editBuyRate}
+              onChange={(event) => setEditBuyRate(event.target.value)}
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Sale Rate</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={editSaleRate}
+              onChange={(event) => setEditSaleRate(event.target.value)}
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            />
+          </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={handleSaveEdit}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                onClick={handleDeleteItem}
+                className="rounded-md border border-rose-300 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50"
               >
-                Save Changes
+                Delete
               </button>
-              <button
-                type="button"
-                onClick={() => setIsEditModalOpen(false)}
-                className="rounded-md border px-4 py-2 text-sm"
-              >
-                Cancel
-              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                >
+                  Save Changes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="rounded-md border px-4 py-2 text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </Dialog>
@@ -567,7 +731,7 @@ export function StockManagement({
               <tbody className="divide-y divide-border bg-background">
                 {items.map((item) => (
                   <tr key={`${item.id ?? item.name}-${item.buyRate}`} className="hover:bg-muted/30">
-                    <td className="px-2 py-2 sm:px-4 sm:py-3">{item.lastTransactionDate ? new Date(item.lastTransactionDate).toLocaleDateString() : '-'}</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3">{item.lastTransactionDate ? new Date(item.lastTransactionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</td>
                     <td className="px-2 py-2 sm:px-4 sm:py-3">{item.companyName || '-'}</td>
                     <td className="px-2 py-2 sm:px-4 sm:py-3">{item.name}</td>
                     <td className="px-2 py-2 sm:px-4 sm:py-3">{item.unit || '-'}</td>

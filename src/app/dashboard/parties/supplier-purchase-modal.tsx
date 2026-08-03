@@ -26,6 +26,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partyOptions, setPartyOptions] = useState<ComboboxOption[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState<number | null>(null);
+  const [partyName, setPartyName] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [productCategory, setProductCategory] = useState<'EGG' | 'CHICKEN' | 'BOTH'>('EGG');
   const [eggQuantity, setEggQuantity] = useState('');
@@ -68,6 +69,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
     });
 
     setSelectedPartyId(null);
+    setPartyName('');
     setPurchaseDate(new Date().toISOString().slice(0, 10));
     setProductCategory('EGG');
     setEggQuantity('');
@@ -245,18 +247,29 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
           <label className="mb-2 block text-sm font-medium">Supplier *</label>
           <SearchableCombobox
             options={partyOptions}
-            value={String(selectedPartyId ?? '')}
-            onValueChange={(value) => {
-    const id = Number(value) || null;
-    setSelectedPartyId(id);
-    if (id) {
-      getSupplierCurrentPayable(id).then((payable) => {
-        setPreviousDue(payable);
-      });
-    } else {
-      setPreviousDue(0);
-    }
-  }}
+            value={selectedPartyId ? String(selectedPartyId) : partyName}
+            onValueChange={async (value) => {
+              const numericMatch = /^\d+$/.test(value);
+              if (numericMatch) {
+                const id = Number(value);
+                setSelectedPartyId(id);
+                const payable = await getSupplierCurrentPayable(id);
+                setPreviousDue(payable);
+                const opt = partyOptions.find((o) => o.value === String(id));
+                setPartyName(opt ? opt.label : '');
+              } else {
+                setSelectedPartyId(null);
+                setPreviousDue(0);
+                setPartyName(value);
+              }
+            }}
+            onOptionSelect={async (option) => {
+              const id = Number(option.value);
+              setSelectedPartyId(id);
+              setPartyName(option.label);
+              const payable = await getSupplierCurrentPayable(id);
+              setPreviousDue(payable);
+            }}
             placeholder="Search supplier..."
             emptyText="No supplier found"
             required
