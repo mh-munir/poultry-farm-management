@@ -11,6 +11,7 @@ interface SearchableComboboxProps {
   options: ComboboxOption[];
   value?: string;
   onValueChange: (value: string) => void;
+  onOptionSelect?: (option: ComboboxOption) => void;
   placeholder?: string;
   emptyText?: string;
   createNewLabel?: string;
@@ -22,6 +23,7 @@ export function SearchableCombobox({
   options,
   value,
   onValueChange,
+  onOptionSelect,
   placeholder = 'Search...',
   emptyText = 'No results found',
   createNewLabel,
@@ -35,8 +37,10 @@ export function SearchableCombobox({
   const listRef = useRef<HTMLUListElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const selectedOption = options.find((option) => option.value === value);
-  const displayValue = selectedOption?.label ?? '';
+  const normalizedValue = value == null ? '' : String(value);
+  const cleanValue = normalizedValue === 'NaN' || normalizedValue === 'undefined' ? '' : normalizedValue;
+  const selectedOption = options.find((option) => option.value === cleanValue);
+  const displayValue = open ? search : (selectedOption ? selectedOption.label : cleanValue ?? '');
 
   const filteredOptions = options.filter((option) =>
     option.label.toLowerCase().includes(search.toLowerCase())
@@ -93,7 +97,7 @@ export function SearchableCombobox({
 
   function handleInputFocus() {
     setOpen(true);
-    setSearch('');
+    setSearch(selectedOption ? selectedOption.label : (value ?? ''));
     setHighlightedIndex(0);
   }
 
@@ -107,7 +111,7 @@ export function SearchableCombobox({
         if (exactMatch) {
           onValueChange(exactMatch.value);
         } else if (search.trim() !== '') {
-          onValueChange('');
+          onValueChange(search);
         }
         setOpen(false);
         setSearch('');
@@ -118,6 +122,9 @@ export function SearchableCombobox({
 
   function handleOptionClick(option: ComboboxOption) {
     onValueChange(option.value);
+    if (typeof onOptionSelect === 'function') {
+      onOptionSelect(option);
+    }
     setOpen(false);
     setSearch('');
     setHighlightedIndex(-1);
@@ -151,10 +158,13 @@ export function SearchableCombobox({
         });
         break;
       case 'Enter':
-        event.preventDefault();
         if (highlightedIndex >= 0 && highlightedIndex < allOptions.length) {
+          event.preventDefault();
           const selected = allOptions[highlightedIndex];
           onValueChange(selected.value);
+          if (typeof onOptionSelect === 'function') {
+            onOptionSelect(selected);
+          }
           setOpen(false);
           setSearch('');
           setHighlightedIndex(-1);

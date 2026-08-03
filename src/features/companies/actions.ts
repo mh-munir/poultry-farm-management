@@ -7,12 +7,17 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/server/db';
 import { requireUser } from '@/lib/auth';
 import { CACHE_TAGS, revalidateCompanyData } from '@/lib/cache';
+import { logCompanyAction } from '@/lib/debug-log';
 
 const companySchema = z.object({
   id: z.coerce.number().optional(),
   name: z.string().min(1, 'Company name is required.'),
   contactPerson: z.string().optional(),
-  phone: z.string().regex(/^\d{11}$/, 'Mobile number must be exactly 11 numeric digits.'),
+  phone: z.preprocess((val) => {
+    if (val === null || val === undefined) return undefined;
+    if (typeof val === 'string' && val.trim() === '') return undefined;
+    return val;
+  }, z.string().regex(/^\d{11}$/, 'Mobile number must be exactly 11 numeric digits.').optional()),
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
   companyType: z.enum(['FEED', 'MEDICINE', 'BOTH']).default('FEED'),
@@ -58,6 +63,7 @@ export async function updateCompany(formData: FormData) {
   const parsed = companySchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!parsed.success) {
+    logCompanyAction('updateCompany:validation_failed', { issues: parsed.error.issues });
     return { success: false as const, message: parsed.error.issues[0]?.message ?? 'Invalid company data.' };
   }
 
@@ -65,10 +71,12 @@ export async function updateCompany(formData: FormData) {
   const id = Number(formData.get('id'));
 
   if (!id) {
+    logCompanyAction('updateCompany:missing_id', {});
     return { success: false as const, message: 'Company ID is required.' };
   }
 
   try {
+    logCompanyAction('updateCompany:before_prisma', { id, name: data.name });
     const company = await prisma.company.update({
       where: { id },
       data: {
@@ -81,11 +89,13 @@ export async function updateCompany(formData: FormData) {
         isActive: data.isActive
       }
     });
+    logCompanyAction('updateCompany:prisma_success', { id, updatedName: company.name });
 
     revalidateCompanyData(company.id);
 
     return { success: true as const, message: `Company '${company.name}' updated successfully.`, company };
   } catch (error) {
+    logCompanyAction('updateCompany:prisma_error', { id, error: error instanceof Error ? error.message : String(error) });
     return { success: false as const, message: error instanceof Error ? error.message : 'Failed to update company.' };
   }
 }
@@ -94,14 +104,114 @@ export async function deleteCompany(companyId: number) {
   await requireUser();
 
   try {
-    await prisma.company.delete({
-      where: { id: companyId }
-    });
+    logCompanyAction('deleteCompany:before_transaction', { companyId });
+    // Use a transaction to delete all related records in the correct order
+    await prisma.$transaction(async (tx) => {
+      // Get all transactions for this company first
+      const transactions = await tx.transaction.findMany({
+        where: { companyId },
+        select: { id: true }
+      });
+      const transactionIds = transactions.map(t => t.id);
 
+      // Get all payments for this company
+      const payments = await tx.payment.findMany({
+        where: { companyId },
+        select: { id: true }
+      });
+      const paymentIds = payments.map(p => p.id);
+
+      // Get all products for this company
+      const products = await tx.product.findMany({
+        where: { companyId },
+        select: { id: true }
+      });
+      const productIds = products.map(p => p.id);
+
+      // Now delete in order of dependencies:
+      // 1. SMS Notifications (depends on transactions)
+      if (transactionIds.length > 0) {
+        await tx.smsNotification.deleteMany({
+          where: { transactionId: { in: transactionIds } }
+        });
+      }
+
+      // 2. Payment Allocations (depends on payments and transactions)
+      if (paymentIds.length > 0) {
+        await tx.paymentAllocation.deleteMany({
+          where: { paymentId: { in: paymentIds } }
+        });
+      }
+
+      // 3. Ledger Entries (depends on company, transactions, and payments)
+      await tx.ledgerEntry.deleteMany({
+        where: { companyId }
+      });
+
+      // 4. Due Adjustments (depends on company and transactions)
+      await tx.dueAdjustment.deleteMany({
+        where: { companyId }
+      });
+
+      // 5. Stock Movements (depends on products and transactions)
+      if (transactionIds.length > 0 || productIds.length > 0) {
+        await tx.stockMovement.deleteMany({
+          where: {
+            OR: [
+              { transactionId: { in: transactionIds } },
+              { productId: { in: productIds } }
+            ]
+          }
+        });
+      }
+
+      // 6. Transaction Items (depends on transactions)
+      if (transactionIds.length > 0) {
+        await tx.transactionItem.deleteMany({
+          where: { transactionId: { in: transactionIds } }
+        });
+      }
+
+      // 7. Transactions
+      if (transactionIds.length > 0) {
+        await tx.transaction.deleteMany({
+          where: { companyId }
+        });
+      }
+
+      // 8. Payments
+      if (paymentIds.length > 0) {
+        await tx.payment.deleteMany({
+          where: { companyId }
+        });
+      }
+
+      // 9. Stock Balances (depends on products)
+      if (productIds.length > 0) {
+        await tx.stockBalance.deleteMany({
+          where: { productId: { in: productIds } }
+        });
+      }
+
+      // 10. Products
+      if (productIds.length > 0) {
+        await tx.product.deleteMany({
+          where: { companyId }
+        });
+      }
+
+      // 11. Finally, delete the Company
+      await tx.company.delete({
+        where: { id: companyId }
+      });
+    }, { timeout: 15000 });
+
+    logCompanyAction('deleteCompany:transaction_committed', { companyId });
     revalidateCompanyData(companyId);
 
-    return { success: true as const, message: 'Company deleted successfully.' };
+    return { success: true as const, message: 'Company and all related records deleted successfully.' };
   } catch (error) {
+    logCompanyAction('deleteCompany:transaction_error', { companyId, error: error instanceof Error ? error.message : String(error) });
     return { success: false as const, message: error instanceof Error ? error.message : 'Failed to delete company.' };
   }
 }
@@ -351,7 +461,7 @@ export async function getCompanyAccountSummary(companyId: number) {
     notFound();
   }
 
-  const [purchaseAgg, paymentAgg, lastTransaction, txnCount] = await Promise.all([
+  const [purchaseAgg, paymentAgg, purchaseByType, lastTransaction, txnCount] = await Promise.all([
     prisma.transaction.aggregate({
       where: { companyId, transactionType: 'PURCHASE' },
       _sum: { totalAmount: true }
@@ -360,6 +470,14 @@ export async function getCompanyAccountSummary(companyId: number) {
       where: { companyId },
       _sum: { amount: true }
     }),
+    prisma.$queryRaw<Array<{ productType: string; total: string }>>`
+      SELECT p."productType" AS "productType", SUM(ti."lineTotal") AS "total"
+      FROM "TransactionItem" ti
+      JOIN "Product" p ON p.id = ti."productId"
+      JOIN "Transaction" t ON t.id = ti."transactionId"
+      WHERE t."companyId" = ${companyId} AND t."transactionType" = 'PURCHASE'
+      GROUP BY p."productType"
+    `,
     prisma.transaction.findFirst({
       where: { companyId },
       orderBy: { transactionDate: 'desc' },
@@ -368,10 +486,25 @@ export async function getCompanyAccountSummary(companyId: number) {
     prisma.transaction.count({ where: { companyId } })
   ]);
 
-  const totalFeedPurchases = Number(purchaseAgg._sum.totalAmount ?? 0);
-  const totalMedicinePurchases = 0;
+  const totalsByType = purchaseByType.reduce(
+    (acc, row) => {
+      const total = Number(row.total ?? 0);
+      if (row.productType === 'FEED') {
+        acc.feed += total;
+      } else if (row.productType === 'MEDICINE') {
+        acc.medicine += total;
+      } else {
+        acc.other += total;
+      }
+      return acc;
+    },
+    { feed: 0, medicine: 0, other: 0 }
+  );
+
+  const totalFeedPurchases = totalsByType.feed;
+  const totalMedicinePurchases = totalsByType.medicine;
+  const totalPurchase = Number(purchaseAgg._sum.totalAmount ?? 0);
   const totalPayments = Number(paymentAgg._sum.amount ?? 0);
-  const totalPurchase = totalFeedPurchases + totalMedicinePurchases;
   const totalDue = totalPurchase - totalPayments;
 
   return {

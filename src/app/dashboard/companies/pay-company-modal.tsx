@@ -52,7 +52,10 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
   }, [open, preselectedCompanyId]);
 
   const handleCompanyChange = async (value: string) => {
-    const matched = companyOptions.find((c) => c.label.toLowerCase() === value.toLowerCase());
+    const matchedByValue = companyOptions.find((c) => c.value === value);
+    const matchedByLabel = companyOptions.find((c) => c.label.toLowerCase() === value.toLowerCase());
+    const matched = matchedByValue ?? matchedByLabel;
+
     if (matched) {
       const id = Number(matched.value);
       setSelectedCompanyId(id);

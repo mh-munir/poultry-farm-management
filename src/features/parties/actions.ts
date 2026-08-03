@@ -1149,7 +1149,7 @@ export async function createSupplierPurchase(formData: FormData) {
           }
         });
       }
-    });
+    }, { timeout: 15000 });
 
     revalidatePurchaseData({ partyId });
     return { success: true, message: 'Supplier purchase recorded successfully.' };

@@ -5,7 +5,7 @@ import { Client } from 'pg';
 import { execSync } from 'child_process';
 
 dotenv.config({ path: '.env.local' });
-const outDir = path.resolve('tmp');
+const outDir = path.resolve('debug', 'reports');
 const outPath = path.join(outDir, 'pg-verification.json');
 const report = {
   connection: { status: null, errorCategory: null },

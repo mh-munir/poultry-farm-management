@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Eye, MoreHorizontal, Pencil, Printer, Trash2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { createOrUpdateCompany, deleteCompany } from '@/features/companies/actions';
@@ -25,12 +25,14 @@ type CompanyRowActionsProps = {
   company: CompanyRowEditPayload;
   editOnly?: boolean;
   printHref?: string;
+  editButtonLabel?: string;
   editButtonClassName?: string;
   printButtonClassName?: string;
 };
 
-export function CompanyRowActions({ company, editOnly = false, printHref, editButtonClassName, printButtonClassName }: CompanyRowActionsProps) {
+export function CompanyRowActions({ company, editOnly = false, printHref, editButtonLabel = 'Edit Company', editButtonClassName, printButtonClassName }: CompanyRowActionsProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { success, error: showToastError } = useToast();
   const [actionOpen, setActionOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -80,7 +82,11 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
       if (result.success) {
         success(result.message);
         setActionOpen(false);
-        router.refresh();
+        if (pathname?.startsWith('/dashboard/companies/') && pathname !== '/dashboard/companies') {
+          router.push('/dashboard/companies');
+        } else {
+          router.refresh();
+        }
       } else {
         showToastError(result.message);
       }
@@ -99,7 +105,7 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
         <div className="inline-flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" onClick={() => setEditOpen(true)} className={editButtonClassName}>
             <Pencil className="mr-2 h-4 w-4" />
-            Edit Company
+            {editButtonLabel}
           </Button>
 {printHref ? (
           <Button asChild size="sm" className={printButtonClassName}>
@@ -174,14 +180,14 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
             <label className="mb-2 block text-sm font-medium">Phone</label>
             <input
               name="phone"
-              required
               inputMode="numeric"
               pattern="[0-9]{11}"
               maxLength={11}
               defaultValue={company.phone ?? ''}
+              placeholder="Optional"
               className="w-full rounded-md border bg-background px-3 py-2"
             />
-            <p className="mt-1 text-xs text-muted-foreground">Enter exactly 11 numeric digits.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Mobile number is optional for companies.</p>
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Email</label>

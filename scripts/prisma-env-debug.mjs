@@ -3,7 +3,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { execSync } from 'child_process';
 
-const outDir = path.resolve('tmp');
+const outDir = path.resolve('debug', 'reports');
 const outPath = path.join(outDir, 'prisma-env-debug.json');
 const report = { loaded: {}, cli: {}, prismaPrint: null, errors: [] };
 
@@ -32,4 +32,4 @@ try {
 
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(outPath, JSON.stringify(report, null, 2));
-console.log('wrote tmp/prisma-env-debug.json');
+console.log('wrote debug/reports/prisma-env-debug.json');

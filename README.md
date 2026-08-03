@@ -17,6 +17,9 @@ This project provides a production-ready architectural foundation for a poultry 
 - src/lib: utilities, schemes, environment helpers
 - src/server: Prisma and Auth.js server infrastructure
 - src/styles: global design tokens and Tailwind entrypoint
+- scripts: production-safe helper scripts and operational utilities
+- debug: build logs, environment reports, and other non-source diagnostics
+- tests: fixtures and helper utilities for local validation
 
 ## Coding standards
 

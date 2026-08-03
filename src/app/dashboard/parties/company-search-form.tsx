@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 
 interface CompanySearchFormProps {
@@ -9,38 +11,61 @@ interface CompanySearchFormProps {
 }
 
 export function CompanySearchForm({ search, companyType, status }: CompanySearchFormProps) {
+  const router = useRouter();
+  const [searchValue, setSearchValue] = useState(search);
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setSearchValue(search);
+  }, [search]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current);
+      }
+    };
+  }, []);
+
+  const handleChange = (value: string) => {
+    setSearchValue(value);
+
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+    }
+
+    debounceTimeout.current = setTimeout(() => {
+      const params = new URLSearchParams();
+
+      if (value.trim() !== '') {
+        params.set('companySearch', value.trim());
+      }
+
+      if (companyType && companyType !== 'ALL') {
+        params.set('companyType', companyType);
+      }
+
+      if (status && status !== 'ALL') {
+        params.set('companyStatus', status);
+      }
+
+      params.set('companyPage', '1');
+      router.replace(`/dashboard/companies?${params.toString()}`, { scroll: false });
+    }, 250);
+  };
+
   return (
-    <form method="get" action="/dashboard/companies" className="flex items-center gap-2 w-full max-w-lg md:w-96">
+    <div className="relative w-full max-w-lg md:w-96">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <input
-        type="hidden"
-        name="companyType"
-        value={companyType ?? 'ALL'}
+        type="search"
+        name="companySearch"
+        value={searchValue}
+        onChange={(event) => handleChange(event.target.value)}
+        placeholder="Search company name..."
+        autoComplete="off"
+        className="w-full rounded-md border bg-background px-10 py-2 text-sm"
       />
-      <input
-        type="hidden"
-        name="companyStatus"
-        value={status ?? 'ALL'}
-      />
-      <div className="relative flex items-center w-full">
-        <input
-          name="companySearch"
-          placeholder="Search company name..."
-          className="w-full rounded-lg border-2 border-gray-200 px-4 py-3 pl-12 text-base focus:border-blue-500 focus:outline-none transition-colors shadow-sm hover:shadow-md"
-          aria-label="Search company"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.currentTarget.form?.submit();
-            }
-          }}
-        />
-        <button
-          type="submit"
-          className="absolute left-3.5 text-gray-400 hover:text-blue-600 transition-colors cursor-pointer"
-          aria-label="Search"
-        >
-          <Search size={22} />
-        </button>
-      </div>
-    </form>
+    </div>
   );
 }

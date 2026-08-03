@@ -4,7 +4,9 @@ import dotenv from 'dotenv';
 import { Client } from 'pg';
 
 dotenv.config({ path: '.env.local' });
-const outPath = path.resolve('tmp', 'pg-inspect.json');
+const outDir = path.resolve('debug', 'reports');
+fs.mkdirSync(outDir, { recursive: true });
+const outPath = path.join(outDir, 'pg-inspect.json');
 try {
   const DATABASE_URL = process.env.DATABASE_URL;
   if (!DATABASE_URL) {

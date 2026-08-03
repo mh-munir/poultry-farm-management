@@ -114,10 +114,25 @@ export async function deleteProduct(formData: FormData) {
   }
 
   try {
-    await prisma.product.delete({ where: { id: productId } });
+    const [transactionItemCount, stockMovementCount] = await Promise.all([
+      prisma.transactionItem.count({ where: { productId } }),
+      prisma.stockMovement.count({ where: { productId } })
+    ]);
+
+    if (transactionItemCount > 0 || stockMovementCount > 0) {
+      const url = new URL('/dashboard/products', 'http://localhost');
+      url.searchParams.set('error', 'This product cannot be deleted because it has transaction history.');
+      // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
+      redirect(url.toString());
+    }
+
+    await prisma.product.update({
+      where: { id: productId },
+      data: { isArchived: true, deletedAt: new Date() }
+    });
   } catch (error) {
     const url = new URL('/dashboard/products', 'http://localhost');
-    url.searchParams.set('error', 'Product deletion failed.');
+    url.searchParams.set('error', error instanceof Error ? error.message : 'Product deletion failed.');
     // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
     redirect(url.toString());
   }
@@ -143,7 +158,7 @@ export async function getProductPageData({
   const take = 8;
   const skip = (Math.max(page, 1) - 1) * take;
 
-  const where: Prisma.ProductWhereInput = {};
+  const where: Prisma.ProductWhereInput = { isArchived: false };
 
   if (search?.trim()) {
     const term = search.trim();
@@ -213,9 +228,9 @@ export async function getProductPageData({
 export async function getProductStats() {
   try {
     const [total, active, lowStock] = await Promise.all([
-      prisma.product.count(),
-      prisma.product.count({ where: { isActive: true } }),
-      prisma.product.count({ where: { lowStockThreshold: { gt: 0 }, stockBalance: { quantityOnHand: { lte: 0 } } } })
+      prisma.product.count({ where: { isArchived: false } }),
+      prisma.product.count({ where: { isActive: true, isArchived: false } }),
+      prisma.product.count({ where: { isArchived: false, lowStockThreshold: { gt: 0 }, stockBalance: { quantityOnHand: { lte: 0 } } } })
     ]);
 
     return { total, active, lowStock };

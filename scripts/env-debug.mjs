@@ -16,5 +16,7 @@ for (const file of files) {
 report.shell.DOTENV_CONFIG_PATH = process.env.DOTENV_CONFIG_PATH || null;
 report.shell.DATABASE_URL = process.env.DATABASE_URL ? { masked: true, scheme: process.env.DATABASE_URL.split(':')[0] } : null;
 
-fs.writeFileSync(path.resolve('tmp', 'env-debug.json'), JSON.stringify(report, null, 2));
-console.log('env-debug.json written');
+const outDir = path.resolve('debug', 'reports');
+fs.mkdirSync(outDir, { recursive: true });
+fs.writeFileSync(path.join(outDir, 'env-debug.json'), JSON.stringify(report, null, 2));
+console.log('debug/reports/env-debug.json written');

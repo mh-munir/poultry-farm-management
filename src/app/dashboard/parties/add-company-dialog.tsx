@@ -58,14 +58,13 @@ export function AddCompanyDialog() {
             <label className="mb-2 block text-sm font-medium">Phone</label>
             <input
               name="phone"
-              required
               inputMode="numeric"
               pattern="[0-9]{11}"
               maxLength={11}
-              placeholder="01712345678"
+              placeholder="Optional: 01712345678"
               className="w-full rounded-md border bg-background px-3 py-2"
             />
-            <p className="mt-1 text-xs text-muted-foreground">Enter exactly 11 numeric digits.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Mobile number is optional for companies.</p>
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Email</label>

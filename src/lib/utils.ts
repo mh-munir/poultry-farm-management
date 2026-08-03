@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(value: Date | string) {
-  return new Intl.DateTimeFormat('en', {
+  return new Intl.DateTimeFormat('en-GB', {
     year: 'numeric',
     month: 'short',
     day: 'numeric'

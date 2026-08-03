@@ -17,6 +17,7 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partyOptions, setPartyOptions] = useState<ComboboxOption[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState<number | null>(null);
+  const [partyName, setPartyName] = useState('');
   const [currentPayable, setCurrentPayable] = useState(0);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -29,6 +30,7 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
         setPartyOptions(options.map((o) => ({ value: String(o.id), label: o.name })));
       });
       setSelectedPartyId(null);
+      setPartyName('');
       setCurrentPayable(0);
       setPaymentAmount('');
       setPaymentDate(new Date().toISOString().slice(0, 10));
@@ -36,14 +38,31 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
   }, [open]);
 
   const handlePartyChange = async (value: string) => {
-    const id = Number(value);
-    setSelectedPartyId(id);
-    if (id) {
+    // If combobox passes a numeric id string, use it as selectedPartyId.
+    const numericMatch = /^\d+$/.test(value);
+    if (numericMatch) {
+      const id = Number(value);
+      setSelectedPartyId(id);
       const payable = await getSupplierCurrentPayable(id);
       setCurrentPayable(payable);
+      // set the partyName from options
+      const opt = partyOptions.find((o) => o.value === value.toString());
+      setPartyName(opt ? opt.label : '');
     } else {
+      // It's search text; clear selected id until user picks an option
+      setSelectedPartyId(null);
       setCurrentPayable(0);
+      setPartyName(value);
     }
+    setPaymentAmount('');
+  };
+
+  const handlePartySelect = async (option: ComboboxOption) => {
+    const id = Number(option.value);
+    setSelectedPartyId(id);
+    setPartyName(option.label);
+    const payable = await getSupplierCurrentPayable(id);
+    setCurrentPayable(payable);
     setPaymentAmount('');
   };
 
@@ -77,8 +96,9 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
           <label className="mb-2 block text-sm font-medium text-slate-700">Party</label>
           <SearchableCombobox
             options={partyOptions}
-            value={String(selectedPartyId ?? '')}
+            value={selectedPartyId ? String(selectedPartyId) : partyName}
             onValueChange={handlePartyChange}
+            onOptionSelect={handlePartySelect}
             placeholder="Search supplier..."
             emptyText="No supplier found"
             required

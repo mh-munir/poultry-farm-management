@@ -150,7 +150,7 @@ export async function getStockPageData({
   const take = 8;
   const skip = (Math.max(page, 1) - 1) * take;
 
-  const where: Prisma.ProductWhereInput = {};
+  const where: Prisma.ProductWhereInput = { isArchived: false };
 
   if (search?.trim()) {
     const term = search.trim();
@@ -196,6 +196,7 @@ export async function getStockPageData({
           JOIN "StockBalance" sb ON sb."productId" = p."id"
           LEFT JOIN "ProductCategory" c ON c."id" = p."categoryId"
           WHERE p."isActive" = true
+            AND p."isArchived" = false
             AND p."lowStockThreshold" > 0
             AND sb."quantityOnHand" <= p."lowStockThreshold"
             ${searchFilter}
@@ -207,6 +208,7 @@ export async function getStockPageData({
           FROM "Product" p
           JOIN "StockBalance" sb ON sb."productId" = p."id"
           WHERE p."isActive" = true
+            AND p."isArchived" = false
             AND p."lowStockThreshold" > 0
             AND sb."quantityOnHand" <= p."lowStockThreshold"
             ${searchFilter}
@@ -317,7 +319,7 @@ export async function getLowStockAlerts() {
 
 export async function getProductsForStock() {
   return prisma.product.findMany({
-    where: { isActive: true },
+    where: { isActive: true, isArchived: false },
     orderBy: { name: 'asc' },
     select: {
       id: true,
@@ -332,7 +334,7 @@ export async function getProductsForStock() {
 
 export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE') {
   return prisma.product.findMany({
-    where: { isActive: true, productType },
+    where: { isActive: true, isArchived: false, productType },
     select: {
       id: true,
       name: true,
@@ -529,3 +531,91 @@ export async function getMedicineStockCompanyNames() {
     name: c.name
   }));
 }
+
+export async function updateStockItem(
+  itemId: number,
+  name: string,
+  buyRate: number,
+  salesRate: number,
+  unit?: string,
+  companyId?: number | null
+) {
+  await requireUser();
+
+  if (!itemId || !name.trim()) {
+    return { success: false as const, message: 'Product name and item id are required.' };
+  }
+
+  try {
+    const updateData: Record<string, unknown> = {
+      name: name.trim(),
+      defaultPurchasePrice: new Prisma.Decimal(buyRate),
+      defaultSellingPrice: new Prisma.Decimal(salesRate)
+    };
+
+    if (unit !== undefined) {
+      updateData.unit = unit.trim();
+    }
+
+    if (companyId !== undefined) {
+      updateData.companyId = companyId ?? null;
+    }
+
+    const updatedProduct = await prisma.product.update({
+      where: { id: itemId },
+      data: updateData,
+      include: { company: { select: { name: true } } }
+    });
+
+    revalidateStockData();
+    revalidatePath('/dashboard/stock/feed');
+    revalidatePath('/dashboard/stock/Medicine');
+
+    return {
+      success: true as const,
+      message: 'Stock item updated successfully.',
+      item: {
+        id: updatedProduct.id,
+        name: updatedProduct.name,
+        buyRate: Number(updatedProduct.defaultPurchasePrice ?? 0),
+        salesRate: Number(updatedProduct.defaultSellingPrice ?? 0),
+        unit: updatedProduct.unit,
+        companyName: updatedProduct.company?.name ?? null
+      }
+    };
+  } catch (error) {
+    return { success: false as const, message: error instanceof Error ? error.message : 'Failed to update stock item.' };
+  }
+}
+
+export async function deleteStockItem(itemId: number) {
+  console.log('deleteStockItem called with itemId:', itemId);
+  await requireUser();
+
+  try {
+      const [transactionItemCount, stockMovementCount] = await Promise.all([
+        prisma.transactionItem.count({ where: { productId: itemId } }),
+        prisma.stockMovement.count({ where: { productId: itemId } })
+      ]);
+
+      if (transactionItemCount > 0 || stockMovementCount > 0) {
+        return { success: false, message: 'This product cannot be deleted because it has transaction history.' };
+      }
+
+      const updateResult = await prisma.product.update({
+        where: { id: itemId },
+        data: { isArchived: true, deletedAt: new Date() }
+      });
+      console.log('prisma.product.update result:', updateResult);
+
+      revalidateStockData();
+      revalidatePath('/dashboard/stock/feed');
+      revalidatePath('/dashboard/stock/Medicine');
+
+      return { success: true, message: 'Stock item archived successfully.' };
+    } catch (error) {
+      console.error('Failed to archive stock item:', error);
+      return { success: false, message: error instanceof Error ? error.message : 'Failed to archive stock item.' };
+    }
+}
+

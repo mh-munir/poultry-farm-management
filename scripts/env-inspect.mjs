@@ -14,5 +14,7 @@ for (const file of files) {
 }
 const shellUrl = process.env.DATABASE_URL ? 'MASKED' : null;
 out.shell = { DATABASE_URL: shellUrl, DOTENV_CONFIG_PATH: process.env.DOTENV_CONFIG_PATH || null };
-fs.writeFileSync(path.resolve('tmp', 'env-inspect.json'), JSON.stringify(out, null, 2));
-console.log('wrote tmp/env-inspect.json');
+const outDir = path.resolve('debug', 'reports');
+fs.mkdirSync(outDir, { recursive: true });
+fs.writeFileSync(path.join(outDir, 'env-inspect.json'), JSON.stringify(out, null, 2));
+console.log('wrote debug/reports/env-inspect.json');
