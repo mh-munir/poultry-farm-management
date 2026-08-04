@@ -26,6 +26,8 @@ type CompanyProfileRecord = {
   address: string | null;
   companyType: string;
   isActive: boolean;
+  openingBalance: unknown;
+  openingBalanceDescription: string | null;
   createdAt: Date;
   updatedAt: Date;
   _count: {
@@ -73,6 +75,23 @@ function formatCurrency(value: number | string | { toString(): string } | null |
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(number)}`;
+}
+
+function toSerializableNumber(value: unknown) {
+  if (value == null || value === '') return 0;
+
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsedValue = Number(value);
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
+  }
+
+  if (typeof value === 'object' && 'toString' in value) {
+    const parsedValue = Number((value as { toString: () => string }).toString());
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
+  }
+
+  return 0;
 }
 
 function formatDate(value: Date | string) {
@@ -140,6 +159,8 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
       address: true,
       companyType: true,
       isActive: true,
+      openingBalance: true,
+      openingBalanceDescription: true,
       createdAt: true,
       updatedAt: true
     }
@@ -404,7 +425,9 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                   email: company.email,
                   address: company.address,
                   companyType: company.companyType,
-                  isActive: company.isActive
+                  isActive: company.isActive,
+                  openingBalance: toSerializableNumber(company.openingBalance),
+                  openingBalanceDescription: company.openingBalanceDescription
                 }}
                 editButtonLabel="Edit Profile"
                 editButtonClassName="h-[42px] bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -441,6 +464,13 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <KpiCard
+          title="Current Balance"
+          value={Number(summary.currentBalance ?? 0) > 0 ? `🔴 Payable • ${formatCurrency(Number(summary.currentBalance ?? 0))}` : Number(summary.currentBalance ?? 0) < 0 ? `🟢 Advance • ${formatCurrency(Number(summary.currentBalance ?? 0))}` : '⚪ Clear'}
+          description="Opening balance plus purchases and payments"
+          icon={Wallet}
+          accent="bg-violet-100 text-violet-700"
+        />
         <KpiCard
           title="Current Due"
           value={formatCurrency(summary.totalDue)}

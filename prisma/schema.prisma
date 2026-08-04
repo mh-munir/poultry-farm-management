@@ -46,28 +46,28 @@ model Setting {
 }
 
 model User {
-  id              String        @id @default(cuid())
-  updatedSettings Setting[]     @relation("SettingUpdatedBy")
-  name            String?
-  email           String?       @unique
-  phone           String?
-  emailVerified   DateTime?
-  image           String?
-  password        String?
-  role            String        @default("USER")
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  accounts        Account[]
-  ledgerEntries   LedgerEntry[]
-  parties         Party[]
-  payments        Payment[]
-  products        Product[]
-  reports         Report[]
-  expenses        Expense[]     @relation("ExpenseCreatedBy")
-  sessions        Session[]
-  transactions    Transaction[]
+  id                String             @id @default(cuid())
+  name              String?
+  email             String?            @unique
+  emailVerified     DateTime?
+  image             String?
+  password          String?
+  role              String             @default("USER")
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  phone             String?
+  accounts          Account[]
   adminCreationOtps AdminCreationOtp[]
-  companiesCreated Company[]    @relation("CompanyCreatedBy")
+  companiesCreated  Company[]          @relation("CompanyCreatedBy")
+  expenses          Expense[]          @relation("ExpenseCreatedBy")
+  ledgerEntries     LedgerEntry[]
+  parties           Party[]
+  payments          Payment[]
+  products          Product[]
+  reports           Report[]
+  sessions          Session[]
+  updatedSettings   Setting[]          @relation("SettingUpdatedBy")
+  transactions      Transaction[]
 }
 
 model VerificationToken {
@@ -79,72 +79,73 @@ model VerificationToken {
 }
 
 model AdminCreationOtp {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   superAdminId   String
-  contact        String   @unique
-  deliveryMethod String   @default("EMAIL")
+  contact        String    @unique
+  deliveryMethod String    @default("EMAIL")
   otpHash        String
-  attempts       Int      @default(0)
-  maxAttempts    Int      @default(5)
-  resendCooldown DateTime    @default(now())
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(5)
+  resendCooldown DateTime  @default(now())
   expiresAt      DateTime
   verifiedAt     DateTime?
-  createdAt      DateTime @default(now())
-
-  superAdmin User @relation(fields: [superAdminId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
+  superAdmin     User      @relation(fields: [superAdminId], references: [id], onDelete: Cascade)
 
   @@index([contact])
 }
 
 model Party {
-  id                        Int               @id @default(autoincrement())
-  name                      String
-  phone                     String            @unique
-  email                     String?
-  address                   String?
-  partyType                 String            @default("BOTH")
-  taxNumber                 String?
-  creditLimit               Decimal?
-  openingBalance            Decimal           @default(0)
-  openingBalanceType        String            @default("CUSTOMER_DUE")
+  id               Int               @id @default(autoincrement())
+  name             String
+  phone            String            @unique
+  email            String?
+  address          String?
+  partyType        String            @default("BOTH")
+  taxNumber        String?
+  creditLimit      Decimal?
+  openingBalance   Decimal           @default(0)
+  openingBalanceType String           @default("CUSTOMER_DUE")
   openingBalanceDescription String?
-  imageUrl                  String?
-  mediaName                 String?
-  farmName                  String?
-  isActive                  Boolean           @default(true)
-  createdAt                 DateTime          @default(now())
-  updatedAt                 DateTime          @updatedAt
-  createdById               String?
-  dueAdjustments            DueAdjustment[]
-  ledgerEntries             LedgerEntry[]
-  createdBy                 User?             @relation(fields: [createdById], references: [id])
-  payments                  Payment[]
-  smsNotifications          SmsNotification[]
-  transactions              Transaction[]
+  imageUrl         String?
+  mediaName        String?
+  farmName         String?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  createdById      String?
+  dueAdjustments   DueAdjustment[]
+  ledgerEntries    LedgerEntry[]
+  createdBy        User?             @relation(fields: [createdById], references: [id])
+  payments         Payment[]
+  smsNotifications SmsNotification[]
+  transactions     Transaction[]
 
   @@index([name])
   @@index([isActive, partyType, name])
 }
 
 model Company {
-  id               Int               @id @default(autoincrement())
-  name             String            @unique
-  contactPerson    String?
-  phone            String?
-  email            String?
-  address          String?
-  companyType      String            @default("FEED")
-  isActive         Boolean           @default(true)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  createdById      String?
-  createdBy        User?             @relation("CompanyCreatedBy", fields: [createdById], references: [id])
-  products         Product[]
-  transactions     Transaction[]     @relation("CompanyTransactions")
-  payments         Payment[]         @relation("CompanyPayments")
-  ledgerEntries    LedgerEntry[]     @relation("CompanyLedgerEntries")
-  dueAdjustments   DueAdjustment[]
-  smsNotifications SmsNotification[]
+  id                       Int               @id @default(autoincrement())
+  name                     String            @unique
+  contactPerson            String?
+  phone                    String?
+  email                    String?
+  address                  String?
+  companyType              String            @default("FEED")
+  isActive                 Boolean           @default(true)
+  openingBalance           Decimal           @default(0)
+  openingBalanceDescription String?
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+  createdById              String?
+  createdBy                User?             @relation("CompanyCreatedBy", fields: [createdById], references: [id])
+  dueAdjustments           DueAdjustment[]
+  ledgerEntries            LedgerEntry[]     @relation("CompanyLedgerEntries")
+  payments                 Payment[]         @relation("CompanyPayments")
+  products                 Product[]
+  smsNotifications         SmsNotification[]
+  transactions             Transaction[]     @relation("CompanyTransactions")
 
   @@index([name])
   @@index([isActive, companyType, name])
@@ -171,21 +172,21 @@ model Product {
   productType          String
   unit                 String
   categoryId           Int?
-  companyId            Int?
   defaultPurchasePrice Decimal?
   defaultSellingPrice  Decimal?
   barcode              String?
   imageUrl             String?
   lowStockThreshold    Decimal?
   isActive             Boolean           @default(true)
-  isArchived           Boolean           @default(false)
-  deletedAt            DateTime?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   createdById          String?
+  companyId            Int?
+  deletedAt            DateTime?
+  isArchived           Boolean           @default(false)
   category             ProductCategory?  @relation(fields: [categoryId], references: [id])
-  createdBy            User?             @relation(fields: [createdById], references: [id])
   company              Company?          @relation(fields: [companyId], references: [id])
+  createdBy            User?             @relation(fields: [createdById], references: [id])
   stockBalance         StockBalance?
   stockMovements       StockMovement[]
   transactionItems     TransactionItem[]
@@ -225,7 +226,6 @@ model Transaction {
   id               Int                 @id @default(autoincrement())
   transactionType  String
   partyId          Int?
-  companyId        Int?
   transactionDate  DateTime            @default(now())
   invoiceNumber    String              @unique
   referenceNumber  String?
@@ -241,14 +241,15 @@ model Transaction {
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   createdById      String?
+  companyId        Int?
   dueAdjustments   DueAdjustment[]
   ledgerEntries    LedgerEntry[]
   payments         PaymentAllocation[]
   smsNotifications SmsNotification?
   stockMovements   StockMovement[]
+  company          Company?            @relation("CompanyTransactions", fields: [companyId], references: [id])
   createdBy        User?               @relation(fields: [createdById], references: [id])
   party            Party?              @relation(fields: [partyId], references: [id])
-  company          Company?            @relation("CompanyTransactions", fields: [companyId], references: [id])
   transactionItems TransactionItem[]
 
   @@index([partyId, transactionDate])
@@ -258,16 +259,17 @@ model Transaction {
 }
 
 model TransactionItem {
-  id            Int         @id @default(autoincrement())
-  transactionId Int
-  productId     Int
-  quantity      Decimal
-  unitPrice     Decimal
-  lineTotal     Decimal
-  taxAmount     Decimal     @default(0)
-  description   String?
-  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  id              Int         @id @default(autoincrement())
+  transactionId   Int
+  productId       Int
+  quantity        Decimal
+  chickenQuantity Decimal?
+  unitPrice       Decimal
+  lineTotal       Decimal
+  taxAmount       Decimal     @default(0)
+  description     String?
+  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([transactionId])
   @@index([productId])
@@ -276,7 +278,6 @@ model TransactionItem {
 model SmsNotification {
   id                Int                   @id @default(autoincrement())
   partyId           Int?
-  companyId         Int?
   transactionId     Int?                  @unique
   phoneNumber       String?
   saleType          String
@@ -288,8 +289,9 @@ model SmsNotification {
   sentAt            DateTime?
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
-  party             Party?                @relation(fields: [partyId], references: [id])
+  companyId         Int?
   company           Company?              @relation(fields: [companyId], references: [id])
+  party             Party?                @relation(fields: [partyId], references: [id])
   transaction       Transaction?          @relation(fields: [transactionId], references: [id])
 
   @@index([partyId, createdAt])
@@ -300,7 +302,6 @@ model SmsNotification {
 model Payment {
   id              Int                 @id @default(autoincrement())
   partyId         Int?
-  companyId       Int?
   paymentDate     DateTime            @default(now())
   paymentMethod   String
   amount          Decimal
@@ -309,10 +310,11 @@ model Payment {
   notes           String?
   createdAt       DateTime            @default(now())
   createdById     String?
+  companyId       Int?
   ledgerEntries   LedgerEntry[]
+  company         Company?            @relation("CompanyPayments", fields: [companyId], references: [id])
   createdBy       User?               @relation(fields: [createdById], references: [id])
   party           Party?              @relation(fields: [partyId], references: [id])
-  company         Company?            @relation("CompanyPayments", fields: [companyId], references: [id])
   allocations     PaymentAllocation[]
 
   @@index([partyId, paymentDate])
@@ -336,7 +338,6 @@ model LedgerEntry {
   id              Int          @id @default(autoincrement())
   entryDate       DateTime     @default(now())
   partyId         Int?
-  companyId       Int?
   transactionId   Int?
   paymentId       Int?
   entryType       String
@@ -345,9 +346,10 @@ model LedgerEntry {
   description     String?
   referenceNumber String?
   createdById     String?
+  companyId       Int?
+  company         Company?     @relation("CompanyLedgerEntries", fields: [companyId], references: [id])
   createdBy       User?        @relation(fields: [createdById], references: [id])
   party           Party?       @relation(fields: [partyId], references: [id])
-  company         Company?     @relation("CompanyLedgerEntries", fields: [companyId], references: [id])
   payment         Payment?     @relation(fields: [paymentId], references: [id])
   transaction     Transaction? @relation(fields: [transactionId], references: [id])
 
@@ -361,14 +363,14 @@ model DueAdjustment {
   id             Int         @id @default(autoincrement())
   transactionId  Int
   partyId        Int?
-  companyId      Int?
   adjustmentType String
   amount         Decimal
   reason         String?
   isAuto         Boolean     @default(true)
   createdAt      DateTime    @default(now())
-  party          Party?      @relation(fields: [partyId], references: [id])
+  companyId      Int?
   company        Company?    @relation(fields: [companyId], references: [id])
+  party          Party?      @relation(fields: [partyId], references: [id])
   transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([partyId])
@@ -392,7 +394,7 @@ model Expense {
   id          Int       @id @default(autoincrement())
   amount      Decimal
   description String?
-  expenseDate    DateTime?
+  expenseDate DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   createdById String?

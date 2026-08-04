@@ -20,6 +20,8 @@ export type CompanyRowEditPayload = {
   address: string | null;
   companyType: string;
   isActive: boolean;
+  openingBalance?: number | string | null;
+  openingBalanceDescription?: string | null;
 };
 
 type CompanyRowActionsProps = {
@@ -202,6 +204,19 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
               <option value="MEDICINE">Medicine Company</option>
               <option value="BOTH">Both</option>
             </select>
+          </div>
+          <div className="md:col-span-2 rounded-lg border bg-muted/20 p-4">
+            <p className="mb-3 text-sm font-semibold">Opening Balance</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium">Opening Balance Amount</label>
+                <input type="number" step="0.01" name="openingBalanceAmount" defaultValue={Number(company.openingBalance ?? 0)} className="w-full rounded-md border bg-background px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium">Description</label>
+                <input name="openingBalanceDescription" defaultValue={company.openingBalanceDescription ?? ''} placeholder="Optional" className="w-full rounded-md border bg-background px-3 py-2" />
+              </div>
+            </div>
           </div>
           <div className="md:col-span-2 flex items-center gap-2 rounded-md border bg-background px-3 py-3">
             <input id={`isActive-${company.id}`} name="isActive" type="checkbox" defaultChecked={company.isActive} className="h-4 w-4" />

@@ -9,6 +9,7 @@ import { requireUser } from '@/lib/auth';
 import { CACHE_TAGS, revalidatePartyData, revalidatePurchaseData } from '@/lib/cache';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
+import { createPaymentPaidSmsMessage, createPaymentReceivedSmsMessage } from '@/lib/sms/templates';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 
@@ -847,7 +848,11 @@ export async function recordPaymentForParty(formData: FormData) {
         transactionId: null,
         phoneNumber: partyDetails.phone,
         partyName: partyDetails.name,
-        message: `প্রিয় ${partyDetails.name}, আপনার payment received হয়েছে। Amount: ৳${Number(amount).toFixed(2)}. ধন্যবাদ।`,
+        message: createPaymentReceivedSmsMessage({
+          partyName: partyDetails.name,
+          amount: Number(amount).toFixed(2),
+          referenceNumber
+        }),
         saleType: 'MIXED',
         transactionType: 'PAYMENT_RECEIVED'
       });
@@ -933,7 +938,12 @@ export async function receiveCustomerPayment(formData: FormData) {
         transactionId: null,
         phoneNumber: partyDetails.phone,
         partyName: partyDetails.name,
-        message: `প্রিয় ${partyDetails.name}, আপনার payment received হয়েছে। Amount: ৳${Number(amount).toFixed(2)}. ধন্যবাদ।`,
+        message: createPaymentReceivedSmsMessage({
+          partyName: partyDetails.name,
+          amount: Number(amount).toFixed(2),
+          remainingDue: newBalance.gt(0) ? newBalance.toFixed(2) : undefined,
+          referenceNumber
+        }),
         saleType: 'MIXED',
         transactionType: 'PAYMENT_RECEIVED'
       });
@@ -1019,7 +1029,12 @@ export async function paySupplierPayment(formData: FormData) {
         transactionId: null,
         phoneNumber: partyDetails.phone,
         partyName: partyDetails.name,
-        message: `প্রিয় ${partyDetails.name}, আপনার payment paid হয়েছে। Amount: ৳${Number(amount).toFixed(2)}. ধন্যবাদ।`,
+        message: createPaymentPaidSmsMessage({
+          partyName: partyDetails.name,
+          amount: Number(amount).toFixed(2),
+          remainingDue: newBalance.gt(0) ? newBalance.toFixed(2) : undefined,
+          referenceNumber
+        }),
         saleType: 'MIXED',
         transactionType: 'PAYMENT_PAID'
       });
@@ -1090,6 +1105,7 @@ const supplierPurchaseSchema = z.object({
   productCategory: z.enum(['EGG', 'CHICKEN'], { required_error: 'Product category is required.' }),
   productName: z.string().min(1, 'Product name is required.'),
   quantity: z.coerce.number().min(0.0001, 'Quantity must be greater than zero.'),
+  chickenQuantity: z.coerce.number().min(0).default(0),
   unit: z.string().min(1, 'Unit is required.'),
   unitPrice: z.coerce.number().min(0.01, 'Unit price must be greater than zero.'),
   totalAmount: z.coerce.number().min(0.01, 'Total amount must be greater than zero.'),
@@ -1108,7 +1124,7 @@ export async function createSupplierPurchase(formData: FormData) {
     return { success: false, message: parsed.error.issues[0]?.message ?? 'Invalid data.' };
   }
 
-  const { partyId, purchaseDate, productCategory, productName, quantity, unit, unitPrice, totalAmount, paidAmount, paymentMethod, referenceNumber, notes } = parsed.data;
+  const { partyId, purchaseDate, productCategory, productName, quantity, chickenQuantity, unit, unitPrice, totalAmount, paidAmount, paymentMethod, referenceNumber, notes } = parsed.data;
 
   const party = await prisma.party.findUnique({
     where: { id: partyId },
@@ -1160,6 +1176,18 @@ export async function createSupplierPurchase(formData: FormData) {
         productId = newProduct.id;
       }
 
+      const transactionItemData = {
+        productId: productId,
+        quantity: new Prisma.Decimal(quantity),
+        unitPrice: new Prisma.Decimal(unitPrice),
+        lineTotal: new Prisma.Decimal(totalAmount),
+        taxAmount: new Prisma.Decimal(0),
+        description: `${productCategory} - ${productName} (${quantity} ${unit})`,
+        ...(productCategory === 'CHICKEN' && chickenQuantity > 0 ? {
+          chickenQuantity: new Prisma.Decimal(chickenQuantity)
+        } : {})
+      };
+
       const purchase = await tx.transaction.create({
         data: {
           transactionType: 'PURCHASE',
@@ -1176,14 +1204,7 @@ export async function createSupplierPurchase(formData: FormData) {
           referenceNumber: referenceNumber || null,
           notes: notes || null,
           transactionItems: {
-            create: {
-              productId: productId,
-              quantity: new Prisma.Decimal(quantity),
-              unitPrice: new Prisma.Decimal(unitPrice),
-              lineTotal: new Prisma.Decimal(totalAmount),
-              taxAmount: new Prisma.Decimal(0),
-              description: `${productCategory} - ${productName} (${quantity} ${unit})`
-            }
+            create: transactionItemData
           }
         }
       });

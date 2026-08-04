@@ -7,6 +7,33 @@ import { getSmsProvider } from './providers';
 
 const NO_VALID_PHONE_REASON = 'Recipient has no valid mobile number';
 
+function getSmsRuntimeConfig(providerName: string) {
+  const normalizedProviderName = providerName?.trim().toLowerCase() || 'mock';
+  const hasBulkSmsBdCredentials = Boolean(
+    env.BULKSMSBD_API_KEY?.trim() &&
+    env.BULKSMSBD_SENDER_ID?.trim() &&
+    env.BULKSMSBD_API_URL?.trim()
+  );
+
+  const providerConfigured = normalizedProviderName === 'bulksmsbd' ? hasBulkSmsBdCredentials : false;
+  const shouldAttemptSend = Boolean(env.SMS_ENABLED && providerConfigured);
+
+  const reason = !providerConfigured
+    ? normalizedProviderName === 'mock'
+      ? 'SMS provider is set to mock and will not send real messages.'
+      : 'SMS provider is not configured. Missing BulkSMSBD credentials or endpoint.'
+    : !env.SMS_ENABLED
+      ? 'SMS is disabled in the environment.'
+      : null;
+
+  return {
+    providerName: normalizedProviderName,
+    providerConfigured,
+    shouldAttemptSend,
+    reason
+  };
+}
+
 function normalizePhoneNumber(phoneNumber?: string | null) {
   const normalized = phoneNumber?.replace(/[^\d+]/g, '').trim() ?? '';
   const digitCount = normalized.replace(/\D/g, '').length;
@@ -81,10 +108,55 @@ async function safeQueueTransactionSmsNotification(input: QueueTransactionSmsInp
   }
 }
 
+async function sendSmsNotificationInBackground({
+  notificationId,
+  transactionId,
+  normalizedPhoneNumber,
+  message,
+  providerName
+}: {
+  notificationId: number;
+  transactionId?: number | null;
+  normalizedPhoneNumber: string;
+  message: string;
+  providerName: string;
+}) {
+  try {
+    const provider = getSmsProvider(providerName);
+    const providerResult = await provider.sendSms(normalizedPhoneNumber, message);
+
+    await safeUpdateSmsStatus({
+      notificationId,
+      transactionId,
+      status: providerResult.status,
+      providerMessageId: providerResult.providerMessageId,
+      errorMessage: providerResult.errorMessage,
+      sentAt: providerResult.status === 'SENT' ? new Date() : null
+    });
+  } catch (providerError) {
+    const providerErrorMessage = providerError instanceof Error ? providerError.message : 'SMS provider failed';
+
+    await safeUpdateSmsStatus({
+      notificationId,
+      transactionId,
+      status: 'FAILED',
+      errorMessage: providerErrorMessage
+    });
+
+    console.error('[SMS] Background SMS send failed.', {
+      notificationId,
+      transactionId,
+      providerName,
+      providerErrorMessage
+    });
+  }
+}
+
 export async function queueTransactionSmsNotification(input: QueueTransactionSmsInput): Promise<QueueSaleSmsResult> {
-  const providerName = env.SMS_PROVIDER || 'mock';
+  const providerName = (env.SMS_PROVIDER || 'mock').trim().toLowerCase();
   const message = input.message;
   const normalizedPhoneNumber = normalizePhoneNumber(input.phoneNumber);
+  const smsRuntimeConfig = getSmsRuntimeConfig(providerName);
 
   try {
     const existingNotification = input.transactionId
@@ -119,6 +191,14 @@ export async function queueTransactionSmsNotification(input: QueueTransactionSms
         select: { id: true, status: true, errorMessage: true }
       });
 
+      console.warn('[SMS] Skipping SMS due to invalid or missing recipient phone.', {
+        notificationId: skippedNotification.id,
+        transactionId: input.transactionId,
+        phoneNumber: input.phoneNumber,
+        providerName,
+        errorMessage: skippedNotification.errorMessage
+      });
+
       return {
         status: skippedNotification.status,
         message,
@@ -127,7 +207,7 @@ export async function queueTransactionSmsNotification(input: QueueTransactionSms
       };
     }
 
-    const initialStatus: SmsNotificationStatus = env.SMS_ENABLED ? 'QUEUED' : 'PENDING';
+    const initialStatus: SmsNotificationStatus = smsRuntimeConfig.shouldAttemptSend ? 'QUEUED' : 'PENDING';
     const notification = await prisma.smsNotification.create({
       data: {
         partyId: input.partyId ?? null,
@@ -138,12 +218,29 @@ export async function queueTransactionSmsNotification(input: QueueTransactionSms
         message,
         status: initialStatus,
         provider: providerName,
-        errorMessage: env.SMS_ENABLED ? null : 'SMS is currently disabled'
+        errorMessage: smsRuntimeConfig.shouldAttemptSend ? null : (smsRuntimeConfig.reason ?? 'SMS delivery is unavailable')
       },
       select: { id: true, status: true, errorMessage: true }
     });
 
-    if (!env.SMS_ENABLED) {
+    console.info('[SMS] Notification queued.', {
+      notificationId: notification.id,
+      partyId: input.partyId,
+      companyId: input.companyId,
+      transactionId: input.transactionId,
+      phoneNumber: normalizedPhoneNumber,
+      providerName,
+      status: notification.status,
+      errorMessage: notification.errorMessage
+    });
+
+    if (!smsRuntimeConfig.shouldAttemptSend) {
+      console.warn('[SMS] Skipping SMS delivery.', {
+        transactionId: input.transactionId,
+        providerName,
+        reason: smsRuntimeConfig.reason
+      });
+
       return {
         status: notification.status,
         message,
@@ -152,42 +249,20 @@ export async function queueTransactionSmsNotification(input: QueueTransactionSms
       };
     }
 
-    try {
-      const provider = getSmsProvider(providerName);
-      const providerResult = await provider.sendSms(normalizedPhoneNumber, message);
+    void sendSmsNotificationInBackground({
+      notificationId: notification.id,
+      transactionId: input.transactionId,
+      normalizedPhoneNumber,
+      message,
+      providerName
+    });
 
-      await safeUpdateSmsStatus({
-        notificationId: notification.id,
-        transactionId: input.transactionId,
-        status: providerResult.status,
-        providerMessageId: providerResult.providerMessageId,
-        errorMessage: providerResult.errorMessage,
-        sentAt: providerResult.status === 'SENT' ? new Date() : null
-      });
-
-      return {
-        status: providerResult.status,
-        message,
-        notificationId: notification.id,
-        errorMessage: providerResult.errorMessage ?? null
-      };
-    } catch (providerError) {
-      const providerErrorMessage = providerError instanceof Error ? providerError.message : 'SMS provider failed';
-
-      await safeUpdateSmsStatus({
-        notificationId: notification.id,
-        transactionId: input.transactionId,
-        status: 'FAILED',
-        errorMessage: providerErrorMessage
-      });
-
-      return {
-        status: 'FAILED',
-        message,
-        notificationId: notification.id,
-        errorMessage: providerErrorMessage
-      };
-    }
+    return {
+      status: notification.status,
+      message,
+      notificationId: notification.id,
+      errorMessage: notification.errorMessage
+    };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'SMS notification processing failed';
 
@@ -237,13 +312,13 @@ export function getSaleSmsSuccessMessage(status: SmsNotificationStatus) {
     return 'Sale completed successfully. SMS skipped because the Party has no valid mobile number.';
   }
 
-  if (!env.SMS_ENABLED) {
-    return 'Sale completed successfully. SMS is currently disabled. The notification has been saved for future API integration.';
+  if (status === 'PENDING') {
+    return 'Sale completed successfully. SMS delivery is pending because the provider is unavailable or not configured.';
   }
 
   if (status === 'FAILED') {
-    return 'Sale completed successfully. SMS notification could not be queued, but the sale was saved.';
+    return 'Sale completed successfully. SMS notification could not be sent, but the sale was saved.';
   }
 
-  return 'Sale completed successfully. SMS notification queued for future sending.';
+  return 'Sale completed successfully. SMS notification has been queued for delivery.';
 }

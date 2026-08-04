@@ -69,3 +69,32 @@ function getEnv() {
 }
 
 export const env = getEnv();
+
+export function isSmsProviderConfigured() {
+  const providerName = env.SMS_PROVIDER?.trim().toLowerCase() ?? 'mock';
+  if (providerName !== 'bulksmsbd') {
+    return false;
+  }
+
+  return Boolean(
+    env.BULKSMSBD_API_KEY?.trim() &&
+    env.BULKSMSBD_SENDER_ID?.trim() &&
+    env.BULKSMSBD_API_URL?.trim()
+  );
+}
+
+export function getSmsProviderStatusMessage() {
+  if (env.SMS_PROVIDER?.trim().toLowerCase() === 'mock') {
+    return 'SMS is currently disabled because the SMS provider is configured as mock.';
+  }
+
+  if (!isSmsProviderConfigured()) {
+    return 'SMS provider is not fully configured. Add BulkSMSBD credentials and endpoint to enable SMS notifications.';
+  }
+
+  if (!env.SMS_ENABLED) {
+    return 'SMS is disabled in environment configuration.';
+  }
+
+  return 'SMS provider is configured and enabled.';
+}

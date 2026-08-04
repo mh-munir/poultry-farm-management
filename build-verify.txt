@@ -1,0 +1,22 @@
+ ⚠ Linting is disabled.
+   ▲ Next.js 15.5.22
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     · serverActions
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 9.1s
+   Checking validity of types ...
+Failed to compile.
+
+./src/app/dashboard/parties/[id]/page.tsx:191:7
+Type error: Object literal may only specify known properties, but 'openingBalanceType' does not exist in type 'PartySelect<DefaultArgs>'. Did you mean to write 'openingBalance'?
+
+[0m [90m 189 |[39m       creditLimit[33m:[39m [36mtrue[39m[33m,[39m
+ [90m 190 |[39m       openingBalance[33m:[39m [36mtrue[39m[33m,[39m
+[31m[1m>[22m[39m[90m 191 |[39m       openingBalanceType[33m:[39m [36mtrue[39m[33m,[39m
+ [90m     |[39m       [31m[1m^[22m[39m
+ [90m 192 |[39m       openingBalanceDescription[33m:[39m [36mtrue[39m[33m,[39m
+ [90m 193 |[39m       imageUrl[33m:[39m [36mtrue[39m[33m,[39m
+ [90m 194 |[39m       mediaName[33m:[39m [36mtrue[39m[33m,[39m[0m
+Next.js build worker exited with code: 1 and signal: null
