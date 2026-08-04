@@ -31,7 +31,8 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
   const [productCategory, setProductCategory] = useState<'EGG' | 'CHICKEN' | 'BOTH'>('EGG');
   const [eggQuantity, setEggQuantity] = useState('');
   const [eggUnitPrice, setEggUnitPrice] = useState('');
-  const [chickenQuantity, setChickenQuantity] = useState('');
+  const [chickenTotalQuantity, setChickenTotalQuantity] = useState('');
+  const [chickenTotalKg, setChickenTotalKg] = useState('');
   const [chickenUnitPrice, setChickenUnitPrice] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [previousDue, setPreviousDue] = useState(0);
@@ -40,7 +41,8 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
   const { success, error: showError } = useToast();
 
   const eggTotal = useMemo(() => Number(eggQuantity || 0) * Number(eggUnitPrice || 0), [eggQuantity, eggUnitPrice]);
-  const chickenTotal = useMemo(() => Number(chickenQuantity || 0) * Number(chickenUnitPrice || 0), [chickenQuantity, chickenUnitPrice]);
+  const chickenTotal = useMemo(() => Number(chickenTotalKg || 0) * Number(chickenUnitPrice || 0), [chickenTotalKg, chickenUnitPrice]);
+  const chickenWeightTotal = useMemo(() => Number(chickenTotalKg || 0), [chickenTotalKg]);
 
   const totalAmount = useMemo(() => {
     if (productCategory === 'EGG') {
@@ -74,7 +76,8 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
     setProductCategory('EGG');
     setEggQuantity('');
     setEggUnitPrice('');
-    setChickenQuantity('');
+    setChickenTotalQuantity('');
+    setChickenTotalKg('');
     setChickenUnitPrice('');
     setPaidAmount('');
     setPreviousDue(0);
@@ -95,11 +98,11 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
       });
     }
 
-    if (showChicken && Number(chickenQuantity || 0) > 0) {
+    if (showChicken && Number(chickenTotalKg || 0) > 0) {
       lines.push({
         productCategory: 'CHICKEN',
         productName: 'Chicken',
-        quantity: Number(chickenQuantity || 0),
+        quantity: Number(chickenTotalQuantity || 0),
         unit: 'kg',
         unitPrice: Number(chickenUnitPrice || 0),
         totalAmount: chickenTotal
@@ -140,14 +143,14 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
     }
 
     if (productCategory === 'CHICKEN') {
-      if (Number(chickenQuantity || 0) <= 0 || Number(chickenUnitPrice || 0) <= 0) {
-        return 'Please enter chicken quantity and unit price.';
+      if (Number(chickenTotalQuantity || 0) <= 0 || Number(chickenTotalKg || 0) <= 0 || Number(chickenUnitPrice || 0) <= 0) {
+        return 'Please enter chicken total quantity, total kg, and unit price.';
       }
     }
 
     if (productCategory === 'BOTH') {
       const hasEgg = Number(eggQuantity || 0) > 0;
-      const hasChicken = Number(chickenQuantity || 0) > 0;
+      const hasChicken = Number(chickenTotalKg || 0) > 0;
 
       if (!hasEgg && !hasChicken) {
         return 'Please enter egg or chicken quantity.';
@@ -155,6 +158,10 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
 
       if (hasEgg && Number(eggUnitPrice || 0) <= 0) {
         return 'Please enter a valid egg unit price.';
+      }
+
+      if (hasChicken && (Number(chickenTotalQuantity || 0) <= 0 || Number(chickenTotalKg || 0) <= 0)) {
+        return 'Please enter chicken total quantity and total kg.';
       }
 
       if (hasChicken && Number(chickenUnitPrice || 0) <= 0) {
@@ -201,6 +208,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
       formData.set('productCategory', line.productCategory);
       formData.set('productName', line.productName);
       formData.set('quantity', String(line.quantity));
+      formData.set('chickenQuantity', String(line.productCategory === 'CHICKEN' ? Number(chickenTotalKg || 0) : 0));
       formData.set('unit', line.unit);
       formData.set('unitPrice', String(line.unitPrice));
       formData.set('totalAmount', String(line.totalAmount));
@@ -230,8 +238,8 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
     totalAmount <= 0 ||
     Number(paidAmount || 0) > totalAmount ||
     (productCategory === 'EGG' && (Number(eggQuantity || 0) <= 0 || Number(eggUnitPrice || 0) <= 0)) ||
-    (productCategory === 'CHICKEN' && (Number(chickenQuantity || 0) <= 0 || Number(chickenUnitPrice || 0) <= 0)) ||
-    (productCategory === 'BOTH' && !(Number(eggQuantity || 0) > 0 || Number(chickenQuantity || 0) > 0));
+    (productCategory === 'CHICKEN' && (Number(chickenTotalQuantity || 0) <= 0 || Number(chickenTotalKg || 0) <= 0 || Number(chickenUnitPrice || 0) <= 0)) ||
+    (productCategory === 'BOTH' && !(Number(eggQuantity || 0) > 0 || Number(chickenTotalKg || 0) > 0));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title="Supplier Purchase">
@@ -339,16 +347,30 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
         {showChicken && (
           <>
             <div>
+              <label className="mb-2 block text-sm font-medium">Chicken Total Quantity *</label>
+              <input
+                type="number"
+                name="chickenTotalQuantity"
+                min="0"
+                step="1"
+                value={chickenTotalQuantity}
+                onChange={(e) => setChickenTotalQuantity(e.target.value)}
+                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                placeholder="Enter total quantity"
+              />
+            </div>
+
+            <div>
               <label className="mb-2 block text-sm font-medium">Chicken Total KG *</label>
               <input
                 type="number"
-                name="chickenQuantity"
+                name="chickenTotalKg"
                 min="0"
                 step="0.01"
-                value={chickenQuantity}
-                onChange={(e) => setChickenQuantity(e.target.value)}
+                value={chickenTotalKg}
+                onChange={(e) => setChickenTotalKg(e.target.value)}
                 className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                placeholder="Enter chicken total kg"
+                placeholder="Enter total kg"
               />
             </div>
 
@@ -407,6 +429,15 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
               type="text"
               readOnly
               value={`৳ ${chickenTotal.toFixed(2)}`}
+              className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
+            />
+          </div>
+          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <label className="text-xs font-medium text-slate-500">Chicken Total KG</label>
+            <input
+              type="text"
+              readOnly
+              value={`${chickenWeightTotal.toFixed(2)} kg`}
               className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
             />
           </div>

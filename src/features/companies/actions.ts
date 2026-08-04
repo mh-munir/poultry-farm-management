@@ -23,8 +23,66 @@ const companySchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
   companyType: z.enum(['FEED', 'MEDICINE', 'BOTH']).default('FEED'),
-  isActive: z.preprocess((val) => val === 'on' || val === true, z.boolean())
+  isActive: z.preprocess((val) => val === 'on' || val === true, z.boolean()),
+  openingBalanceAmount: z.coerce.number().default(0),
+  openingBalanceDescription: z.string().optional().or(z.literal(''))
 });
+
+function normalizeCompanyOpeningBalance(amountInput: number) {
+  if (!Number.isFinite(amountInput)) {
+    return 0;
+  }
+
+  return amountInput;
+}
+
+async function syncOpeningBalanceLedger({
+  companyId,
+  amount,
+  description,
+  createdById
+}: {
+  companyId: number;
+  amount: number;
+  description?: string | null;
+  createdById: string;
+}) {
+  if (amount === 0) {
+    return;
+  }
+
+  const existingLedger = await prisma.ledgerEntry.findFirst({
+    where: {
+      companyId,
+      entryType: 'OPENING_BALANCE'
+    },
+    orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
+  });
+
+  const normalizedDescription = description?.trim() || 'Opening balance';
+  const ledgerPayload = {
+    companyId,
+    entryType: 'OPENING_BALANCE' as const,
+    amount: new Prisma.Decimal(amount),
+    runningBalance: new Prisma.Decimal(amount),
+    description: normalizedDescription,
+    referenceNumber: null,
+    createdById
+  };
+
+  if (existingLedger) {
+    await prisma.ledgerEntry.update({
+      where: { id: existingLedger.id },
+      data: {
+        ...ledgerPayload,
+        entryDate: new Date()
+      }
+    });
+    return;
+  }
+
+  await prisma.ledgerEntry.create({ data: ledgerPayload });
+}
 
 export async function createCompany(formData: FormData) {
   const session = await requireUser();
@@ -35,6 +93,7 @@ export async function createCompany(formData: FormData) {
   }
 
   const data = parsed.data;
+  const openingBalanceAmount = normalizeCompanyOpeningBalance(Number(data.openingBalanceAmount ?? 0));
 
   try {
     const company = await prisma.company.create({
@@ -46,11 +105,22 @@ export async function createCompany(formData: FormData) {
         address: data.address || null,
         companyType: data.companyType,
         isActive: data.isActive,
+        openingBalance: new Prisma.Decimal(openingBalanceAmount),
+        openingBalanceDescription: data.openingBalanceDescription?.trim() || null,
         createdBy: {
           connect: { id: session.user.id ?? '' }
         }
       }
     });
+
+    if (session.user.id) {
+      await syncOpeningBalanceLedger({
+        companyId: company.id,
+        amount: openingBalanceAmount,
+        description: data.openingBalanceDescription,
+        createdById: session.user.id
+      });
+    }
 
     revalidateCompanyData(company.id);
 
@@ -61,7 +131,7 @@ export async function createCompany(formData: FormData) {
 }
 
 export async function updateCompany(formData: FormData) {
-  await requireUser();
+  const session = await requireUser();
   const parsed = companySchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!parsed.success) {
@@ -71,6 +141,7 @@ export async function updateCompany(formData: FormData) {
 
   const data = parsed.data;
   const id = Number(formData.get('id'));
+  const openingBalanceAmount = normalizeCompanyOpeningBalance(Number(data.openingBalanceAmount ?? 0));
 
   if (!id) {
     logCompanyAction('updateCompany:missing_id', {});
@@ -88,10 +159,21 @@ export async function updateCompany(formData: FormData) {
         email: data.email || null,
         address: data.address || null,
         companyType: data.companyType,
-        isActive: data.isActive
+        isActive: data.isActive,
+        openingBalance: new Prisma.Decimal(openingBalanceAmount),
+        openingBalanceDescription: data.openingBalanceDescription?.trim() || null
       }
     });
     logCompanyAction('updateCompany:prisma_success', { id, updatedName: company.name });
+
+    if (session.user.id) {
+      await syncOpeningBalanceLedger({
+        companyId: company.id,
+        amount: openingBalanceAmount,
+        description: data.openingBalanceDescription,
+        createdById: session.user.id
+      });
+    }
 
     revalidateCompanyData(company.id);
 
@@ -303,6 +385,8 @@ export async function getCompanyPageData(args: { page: number; search?: string; 
         address: true,
         companyType: true,
         isActive: true,
+        openingBalance: true,
+        openingBalanceDescription: true,
         createdAt: true,
         updatedAt: true,
         _count: { select: { transactions: true, products: true } }
@@ -355,7 +439,8 @@ export async function getCompanyPageData(args: { page: number; search?: string; 
       ...company,
       totalPurchase: financial.totalPurchase,
       totalPaid: financial.totalPaid,
-      totalDue: financial.totalDue
+      totalDue: financial.totalDue,
+      currentBalance: Number(company.openingBalance ?? 0) + financial.totalDue
     };
   });
 
@@ -508,6 +593,7 @@ export async function getCompanyAccountSummary(companyId: number) {
   const totalPurchase = Number(purchaseAgg._sum.totalAmount ?? 0);
   const totalPayments = Number(paymentAgg._sum.amount ?? 0);
   const totalDue = totalPurchase - totalPayments;
+  const openingBalance = Number((await prisma.company.findUnique({ where: { id: companyId }, select: { openingBalance: true } }))?.openingBalance ?? 0);
 
   return {
     companyType: company.companyType,
@@ -515,6 +601,8 @@ export async function getCompanyAccountSummary(companyId: number) {
     totalMedicinePurchases,
     totalPayments,
     totalDue,
+    openingBalance,
+    currentBalance: openingBalance + totalDue,
     totalTransactions: txnCount,
     lastTransactionDate: lastTransaction?.transactionDate ?? null
   };
@@ -547,7 +635,7 @@ export async function getCompanyProfile(companyId: number) {
 
 export async function getCompanyCurrentDue(companyId: number) {
   await requireUser();
-  const [purchaseAgg, paymentAgg] = await Promise.all([
+  const [purchaseAgg, paymentAgg, company] = await Promise.all([
     prisma.transaction.aggregate({
       where: { companyId, transactionType: 'PURCHASE' },
       _sum: { totalAmount: true }
@@ -555,12 +643,17 @@ export async function getCompanyCurrentDue(companyId: number) {
     prisma.payment.aggregate({
       where: { companyId },
       _sum: { amount: true }
+    }),
+    prisma.company.findUnique({
+      where: { id: companyId },
+      select: { openingBalance: true }
     })
   ]);
 
   const totalPurchase = Number(purchaseAgg._sum.totalAmount ?? 0);
   const totalPaid = Number(paymentAgg._sum.amount ?? 0);
-  return totalPurchase - totalPaid;
+  const openingBalance = Number(company?.openingBalance ?? 0);
+  return openingBalance + totalPurchase - totalPaid;
 }
 
 function formatSmsAmount(value: number | Prisma.Decimal) {

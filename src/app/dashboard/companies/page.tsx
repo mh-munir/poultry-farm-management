@@ -28,6 +28,23 @@ function formatCompanyType(type: string) {
   return type.replace('_', ' ');
 }
 
+function toSerializableNumber(value: unknown) {
+  if (value == null || value === '') return 0;
+
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsedValue = Number(value);
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
+  }
+
+  if (typeof value === 'object' && 'toString' in value) {
+    const parsedValue = Number((value as { toString: () => string }).toString());
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
+  }
+
+  return 0;
+}
+
 export default async function CompaniesPage({
   searchParams
 }: {
@@ -167,6 +184,7 @@ export default async function CompaniesPage({
                   <th className="px-4 py-3 font-medium text-right">Total Purchase</th>
                   <th className="px-4 py-3 font-medium text-right">Total Paid</th>
                   <th className="px-4 py-3 font-medium text-right">Total Due</th>
+                  <th className="px-4 py-3 font-medium text-right">Balance</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 text-right font-medium">Action</th>
                 </tr>
@@ -174,7 +192,7 @@ export default async function CompaniesPage({
               <tbody>
                 {companyData.companies.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                       No companies found. Create your first company to get started.
                     </td>
                   </tr>
@@ -207,6 +225,23 @@ export default async function CompaniesPage({
                           {company.totalDue.toLocaleString()} TK
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        {Number(company.currentBalance ?? 0) > 0 ? (
+                          <span className="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">
+                            🔴 Payable
+                            <span className="ml-2 font-semibold">৳{Math.abs(Number(company.currentBalance ?? 0)).toLocaleString()}</span>
+                          </span>
+                        ) : Number(company.currentBalance ?? 0) < 0 ? (
+                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                            🟢 Advance
+                            <span className="ml-2 font-semibold">৳{Math.abs(Number(company.currentBalance ?? 0)).toLocaleString()}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                            ⚪ Clear
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${company.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
                           {company.isActive ? 'Active' : 'Inactive'}
@@ -222,7 +257,9 @@ export default async function CompaniesPage({
                             email: company.email,
                             address: company.address,
                             companyType: company.companyType,
-                            isActive: company.isActive
+                            isActive: company.isActive,
+                            openingBalance: toSerializableNumber(company.openingBalance),
+                            openingBalanceDescription: company.openingBalanceDescription
                           }}
                         />
                       </td>

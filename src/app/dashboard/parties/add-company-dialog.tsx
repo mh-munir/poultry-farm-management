@@ -78,6 +78,19 @@ export function AddCompanyDialog() {
               <option value="BOTH">Both</option>
             </select>
           </div>
+          <div className="md:col-span-2 rounded-lg border bg-muted/20 p-4">
+            <p className="mb-3 text-sm font-semibold">Opening Balance</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium">Opening Balance Amount</label>
+                <input type="number" step="0.01" name="openingBalanceAmount" defaultValue={0} className="w-full rounded-md border bg-background px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium">Description</label>
+                <input name="openingBalanceDescription" placeholder="Optional" className="w-full rounded-md border bg-background px-3 py-2" />
+              </div>
+            </div>
+          </div>
           <div className="md:col-span-2 flex items-center gap-2 rounded-md border bg-background px-3 py-3">
             <input id="company-isActive" name="isActive" type="checkbox" defaultChecked={true} className="h-4 w-4" />
             <label htmlFor="company-isActive" className="text-sm">Active company</label>
