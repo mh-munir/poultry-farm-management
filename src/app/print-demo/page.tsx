@@ -1,5 +1,6 @@
 import React from 'react';
 import { PrintDemoTrigger } from '@/components/print-demo-trigger';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 
 function formatCurrency(value: number | null | undefined) {
   return `Tk ${new Intl.NumberFormat('en-US', {
@@ -67,28 +68,30 @@ export default function PrintDemoPage() {
           </div>
 
           <div className="overflow-hidden rounded-md border">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-900 text-white">
-                <tr>
-                  <th className="px-4 py-3 text-left">SL.</th>
-                  <th className="px-4 py-3 text-left">Item Description</th>
-                  <th className="px-4 py-3 text-right">Price</th>
-                  <th className="px-4 py-3 text-center">Qty</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {items.map((it, idx) => (
-                  <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                    <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
-                    <td className="px-4 py-3 text-slate-700">{it.productName}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(it.unitPrice)}</td>
-                    <td className="px-4 py-3 text-center text-slate-700">{it.quantity}</td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-900">{formatCurrency(it.lineTotal)}</td>
+            <ResponsiveTable minWidth="700px">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-900 text-white">
+                  <tr>
+                    <th className="px-4 py-3 text-left">SL.</th>
+                    <th className="px-4 py-3 text-left">Item Description</th>
+                    <th className="px-4 py-3 text-right">Price</th>
+                    <th className="px-4 py-3 text-center">Qty</th>
+                    <th className="px-4 py-3 text-right">Total</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-200">
+                  {items.map((it, idx) => (
+                    <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                      <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
+                      <td className="px-4 py-3 text-slate-700">{it.productName}</td>
+                      <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(it.unitPrice)}</td>
+                      <td className="px-4 py-3 text-center text-slate-700">{it.quantity}</td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-900">{formatCurrency(it.lineTotal)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ResponsiveTable>
           </div>
 
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_320px] gap-4">

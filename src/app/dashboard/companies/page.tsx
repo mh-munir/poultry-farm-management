@@ -6,7 +6,7 @@ import { requireUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 import { StatCard } from '@/components/dashboard/stat-card';
-import { ResponsiveTable } from '@/components/ui/responsive-table';
+import { DataTable } from '@/components/ui/responsive-table';
 import { AddCompanyDialog } from '@/app/dashboard/parties/add-company-dialog';
 import { PayCompanyButton } from './pay-company-button';
 import { CompanyToast } from '@/app/dashboard/parties/company-toast';
@@ -175,100 +175,98 @@ export default async function CompaniesPage({
           <div className="border-b px-4 py-4 bg-muted/20">
             <h2 className="text-lg font-semibold">Feeds and Medicine Companies</h2>
           </div>
-          <ResponsiveTable minWidth="920px">
-            <table className="min-w-full text-sm">
-              <thead className="bg-muted/40 text-left">
+          <DataTable minWidth="920px">
+            <thead className="bg-muted/40 text-left">
+              <tr>
+                <th className="px-4 py-3 font-medium">Company Name</th>
+                <th className="px-4 py-3 font-medium">Type</th>
+                <th className="px-4 py-3 font-medium text-right">Total Purchase</th>
+                <th className="px-4 py-3 font-medium text-right">Total Paid</th>
+                <th className="px-4 py-3 font-medium text-right">Total Due</th>
+                <th className="px-4 py-3 font-medium text-right">Balance</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 text-right font-medium">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {companyData.companies.length === 0 ? (
                 <tr>
-                  <th className="px-4 py-3 font-medium">Company Name</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium text-right">Total Purchase</th>
-                  <th className="px-4 py-3 font-medium text-right">Total Paid</th>
-                  <th className="px-4 py-3 font-medium text-right">Total Due</th>
-                  <th className="px-4 py-3 font-medium text-right">Balance</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 text-right font-medium">Action</th>
+                  <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                    No companies found. Create your first company to get started.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {companyData.companies.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
-                      No companies found. Create your first company to get started.
+              ) : (
+                companyData.companies.map((company) => (
+                  <tr key={company.id} className="border-t">
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col">
+                        <Link
+                          href={`/dashboard/companies/${company.id}` as any}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {company.name}
+                        </Link>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        company.companyType === 'FEED' ? 'bg-amber-100 text-amber-800' :
+                        company.companyType === 'MEDICINE' ? 'bg-rose-100 text-rose-800' :
+                        'bg-violet-100 text-violet-800'
+                      }`}>
+                        {formatCompanyType(company.companyType)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">{company.totalPurchase.toLocaleString()} TK</td>
+                    <td className="px-4 py-3 text-right">{company.totalPaid.toLocaleString()} TK</td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${company.totalDue > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {company.totalDue.toLocaleString()} TK
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {Number(company.currentBalance ?? 0) > 0 ? (
+                        <span className="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">
+                          🔴 Payable
+                          <span className="ml-2 font-semibold">৳{Math.abs(Number(company.currentBalance ?? 0)).toLocaleString()}</span>
+                        </span>
+                      ) : Number(company.currentBalance ?? 0) < 0 ? (
+                        <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                          🟢 Advance
+                          <span className="ml-2 font-semibold">৳{Math.abs(Number(company.currentBalance ?? 0)).toLocaleString()}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                          ⚪ Clear
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${company.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                        {company.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <CompanyRowActions
+                        company={{
+                          id: company.id,
+                          name: company.name,
+                          contactPerson: company.contactPerson,
+                          phone: company.phone,
+                          email: company.email,
+                          address: company.address,
+                          companyType: company.companyType,
+                          isActive: company.isActive,
+                          openingBalance: toSerializableNumber(company.openingBalance),
+                          openingBalanceDescription: company.openingBalanceDescription
+                        }}
+                      />
                     </td>
                   </tr>
-                ) : (
-                  companyData.companies.map((company) => (
-                    <tr key={company.id} className="border-t">
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col">
-                          <Link
-                            href={`/dashboard/companies/${company.id}` as any}
-                            className="font-medium text-primary hover:underline"
-                          >
-                            {company.name}
-                          </Link>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          company.companyType === 'FEED' ? 'bg-amber-100 text-amber-800' :
-                          company.companyType === 'MEDICINE' ? 'bg-rose-100 text-rose-800' :
-                          'bg-violet-100 text-violet-800'
-                        }`}>
-                          {formatCompanyType(company.companyType)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">{company.totalPurchase.toLocaleString()} TK</td>
-                      <td className="px-4 py-3 text-right">{company.totalPaid.toLocaleString()} TK</td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${company.totalDue > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}`}>
-                          {company.totalDue.toLocaleString()} TK
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {Number(company.currentBalance ?? 0) > 0 ? (
-                          <span className="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">
-                            🔴 Payable
-                            <span className="ml-2 font-semibold">৳{Math.abs(Number(company.currentBalance ?? 0)).toLocaleString()}</span>
-                          </span>
-                        ) : Number(company.currentBalance ?? 0) < 0 ? (
-                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                            🟢 Advance
-                            <span className="ml-2 font-semibold">৳{Math.abs(Number(company.currentBalance ?? 0)).toLocaleString()}</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                            ⚪ Clear
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${company.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                          {company.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <CompanyRowActions
-                          company={{
-                            id: company.id,
-                            name: company.name,
-                            contactPerson: company.contactPerson,
-                            phone: company.phone,
-                            email: company.email,
-                            address: company.address,
-                            companyType: company.companyType,
-                            isActive: company.isActive,
-                            openingBalance: toSerializableNumber(company.openingBalance),
-                            openingBalanceDescription: company.openingBalanceDescription
-                          }}
-                        />
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </ResponsiveTable>
+                ))
+              )}
+            </tbody>
+          </DataTable>
 
           <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
