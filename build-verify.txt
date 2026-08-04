@@ -1,22 +1,71 @@
- ⚠ Linting is disabled.
    ▲ Next.js 15.5.22
    - Environments: .env.local, .env
    - Experiments (use with caution):
      · serverActions
 
    Creating an optimized production build ...
- ✓ Compiled successfully in 9.1s
+ ✓ Compiled successfully in 11.2s
+   Skipping linting
    Checking validity of types ...
-Failed to compile.
+   Collecting page data ...
+   Generating static pages (0/38) ...
+   Generating static pages (9/38) 
+   Generating static pages (18/38) 
+   Generating static pages (28/38) 
+ ✓ Generating static pages (38/38)
+   Finalizing page optimization ...
+   Collecting build traces ...
 
-./src/app/dashboard/parties/[id]/page.tsx:191:7
-Type error: Object literal may only specify known properties, but 'openingBalanceType' does not exist in type 'PartySelect<DefaultArgs>'. Did you mean to write 'openingBalance'?
+Route (app)                                    Size  First Load JS
+┌ ƒ /                                         162 B         103 kB
+├ ƒ /_not-found                                1 kB         104 kB
+├ ƒ /api/admin/reset-db                       162 B         103 kB
+├ ƒ /api/admin/upload                         162 B         103 kB
+├ ƒ /api/auth/[...nextauth]                   162 B         103 kB
+├ ƒ /api/expenses                             162 B         103 kB
+├ ƒ /api/settings                             162 B         103 kB
+├ ƒ /api/sms/test                             162 B         103 kB
+├ ƒ /auth/reset-admin                         198 B         106 kB
+├ ƒ /auth/sign-in                           4.12 kB         126 kB
+├ ƒ /dashboard                                162 B         103 kB
+├ ƒ /dashboard/companies                    1.99 kB         156 kB
+├ ƒ /dashboard/companies/[id]               1.44 kB         156 kB
+├ ƒ /dashboard/expenses                     2.47 kB         112 kB
+├ ƒ /dashboard/parties                      7.33 kB         177 kB
+├ ƒ /dashboard/parties/[id]                 5.55 kB         175 kB
+├ ƒ /dashboard/parties/[id]/print           1.29 kB         104 kB
+├ ƒ /dashboard/parties/clear-party-success    162 B         103 kB
+├ ƒ /dashboard/parties/delete                 162 B         103 kB
+├ ƒ /dashboard/parties/new                    198 B         106 kB
+├ ƒ /dashboard/purchases                      198 B         106 kB
+├ ƒ /dashboard/reports                        198 B         106 kB
+├ ƒ /dashboard/reports/daily                  198 B         106 kB
+├ ƒ /dashboard/reports/monthly                198 B         106 kB
+├ ƒ /dashboard/reports/party-statement      3.05 kB         116 kB
+├ ƒ /dashboard/reports/profit-loss            198 B         106 kB
+├ ƒ /dashboard/reports/purchases              198 B         106 kB
+├ ƒ /dashboard/reports/sales                  198 B         106 kB
+├ ƒ /dashboard/reports/stock                  198 B         106 kB
+├ ƒ /dashboard/reports/yearly                 198 B         106 kB
+├ ƒ /dashboard/sales                         4.7 kB         117 kB
+├ ƒ /dashboard/settings                     1.17 kB         104 kB
+├ ƒ /dashboard/settings/backup                983 B         104 kB
+├ ƒ /dashboard/settings/company             1.27 kB         104 kB
+├ ƒ /dashboard/settings/invoice             1.16 kB         104 kB
+├ ƒ /dashboard/settings/logo                2.54 kB         105 kB
+├ ƒ /dashboard/settings/restore             1.11 kB         104 kB
+├ ƒ /dashboard/settings/users               8.59 kB         118 kB
+├ ƒ /dashboard/stock/reports                  162 B         103 kB
+├ ƒ /dashboard/transactions/[id]/print      3.05 kB         112 kB
+├ ƒ /print-demo                               338 B         103 kB
+└ ƒ /unauthorized                             162 B         103 kB
++ First Load JS shared by all                103 kB
+  ├ chunks/1255-31f47ebe9b12c7e5.js         46.3 kB
+  ├ chunks/4bd1b696-f785427dddbba9fb.js     54.2 kB
+  └ other shared chunks (total)             2.01 kB
 
-[0m [90m 189 |[39m       creditLimit[33m:[39m [36mtrue[39m[33m,[39m
- [90m 190 |[39m       openingBalance[33m:[39m [36mtrue[39m[33m,[39m
-[31m[1m>[22m[39m[90m 191 |[39m       openingBalanceType[33m:[39m [36mtrue[39m[33m,[39m
- [90m     |[39m       [31m[1m^[22m[39m
- [90m 192 |[39m       openingBalanceDescription[33m:[39m [36mtrue[39m[33m,[39m
- [90m 193 |[39m       imageUrl[33m:[39m [36mtrue[39m[33m,[39m
- [90m 194 |[39m       mediaName[33m:[39m [36mtrue[39m[33m,[39m[0m
-Next.js build worker exited with code: 1 and signal: null
+
+ƒ Middleware                                33.9 kB
+
+ƒ  (Dynamic)  server-rendered on demand
+
