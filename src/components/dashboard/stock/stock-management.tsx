@@ -90,6 +90,7 @@ export function StockManagement({
   const [partyName, setPartyName] = useState<string>(defaultCompanyName);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [companyDiscount, setCompanyDiscount] = useState('');
   const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rows, setRows] = useState<StockRow[]>([{ rowId: 1, productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: '' }]);
@@ -121,10 +122,15 @@ export function StockManagement({
     }, 0);
   }, [rows]);
 
+  const discountedTotalAmount = useMemo(() => {
+    const discount = Number(companyDiscount) || 0;
+    return Math.max(0, totalAmount - discount);
+  }, [companyDiscount, totalAmount]);
+
   const dueAmount = useMemo(() => {
     const payment = Number(paymentAmount) || 0;
-    return Math.max(0, totalAmount - payment);
-  }, [paymentAmount, totalAmount]);
+    return Math.max(0, discountedTotalAmount - payment);
+  }, [paymentAmount, discountedTotalAmount]);
 
   const updateRow = useCallback((rowId: number, field: keyof StockRow, value: string) => {
     setRows((prev) => prev.map((row) => (row.rowId === rowId ? { ...row, [field]: value } : row)));
@@ -316,6 +322,11 @@ export function StockManagement({
 
     if (Number(paymentAmount) < 0) {
       showToastError('Payment amount cannot be negative.');
+      return;
+    }
+
+    if (Number(companyDiscount) < 0) {
+      showToastError('Company discount cannot be negative.');
       return;
     }
 
@@ -581,18 +592,29 @@ export function StockManagement({
               </div>
             </div>
 
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium">Company Discount</label>
+                <input
+                  type="number"
+                  name="discount"
+                  min="0"
+                  step="0.01"
+                  value={companyDiscount}
+                  onChange={(event) => setCompanyDiscount(event.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  placeholder="0.00"
+                />
+              </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Total Amount</label>
-                <div className="rounded-md border bg-background px-3 py-2 text-sm">{totalAmount.toFixed(2)}</div>
+                <div className="rounded-md border bg-background px-3 py-2 text-sm">{discountedTotalAmount.toFixed(2)}</div>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Due Amount</label>
                 <div className="rounded-md border bg-background px-3 py-2 text-sm">{dueAmount.toFixed(2)}</div>
               </div>
             </div>
-
-            <input type="hidden" name="discount" value="0" />
             <input type="hidden" name="referenceNumber" value="" />
             <input type="hidden" name="dueDate" value="" />
             <input type="hidden" name="notes" value="" />

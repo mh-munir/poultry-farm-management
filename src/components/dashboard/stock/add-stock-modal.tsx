@@ -55,6 +55,7 @@ export function AddStockModal({
   const transactionDate = new Date().toISOString().slice(0, 10);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [companyDiscount, setCompanyDiscount] = useState('');
   const [rows, setRows] = useState<StockRow[]>([
     { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: '' },
   ]);
@@ -80,10 +81,15 @@ export function AddStockModal({
     }, 0);
   }, [rows]);
 
+  const discountedTotalAmount = useMemo(() => {
+    const discount = Number(companyDiscount) || 0;
+    return Math.max(0, totalAmount - discount);
+  }, [companyDiscount, totalAmount]);
+
   const dueAmount = useMemo(() => {
     const payment = Number(paymentAmount) || 0;
-    return Math.max(0, totalAmount - payment);
-  }, [paymentAmount, totalAmount]);
+    return Math.max(0, discountedTotalAmount - payment);
+  }, [paymentAmount, discountedTotalAmount]);
 
   const updateRow = (rowId: number, field: keyof StockRow, value: string) => {
     setRows((prev) => prev.map((row) => (row.rowId === rowId ? { ...row, [field]: value } : row)));
@@ -160,6 +166,11 @@ export function AddStockModal({
 
     if (Number(paymentAmount) < 0) {
       showToastError('Payment amount cannot be negative.');
+      return;
+    }
+
+    if (Number(companyDiscount) < 0) {
+      showToastError('Company discount cannot be negative.');
       return;
     }
 
@@ -260,7 +271,6 @@ export function AddStockModal({
 
           <input type="hidden" name="companyType" value={stockType} />
           <input type="hidden" name="transactionDate" value={transactionDate} />
-          <input type="hidden" name="discount" value="0" />
           <input type="hidden" name="referenceNumber" value="" />
           <input type="hidden" name="dueDate" value="" />
           <input type="hidden" name="notes" value="" />
@@ -399,10 +409,23 @@ export function AddStockModal({
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium">Company Discount</label>
+              <input
+                type="number"
+                name="discount"
+                min="0"
+                step="0.01"
+                value={companyDiscount}
+                onChange={(event) => setCompanyDiscount(event.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                placeholder="0.00"
+              />
+            </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Total Amount</label>
-              <div className="rounded-md border bg-background px-3 py-2 text-sm">{totalAmount.toFixed(2)}</div>
+              <div className="rounded-md border bg-background px-3 py-2 text-sm">{discountedTotalAmount.toFixed(2)}</div>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Due Amount</label>
