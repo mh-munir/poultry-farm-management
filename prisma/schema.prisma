@@ -97,28 +97,30 @@ model AdminCreationOtp {
 }
 
 model Party {
-  id               Int               @id @default(autoincrement())
-  name             String
-  phone            String            @unique
-  email            String?
-  address          String?
-  partyType        String            @default("BOTH")
-  taxNumber        String?
-  creditLimit      Decimal?
-  openingBalance   Decimal           @default(0)
-  imageUrl         String?
-  mediaName        String?
-  farmName         String?
-  isActive         Boolean           @default(true)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  createdById      String?
-  dueAdjustments   DueAdjustment[]
-  ledgerEntries    LedgerEntry[]
-  createdBy        User?             @relation(fields: [createdById], references: [id])
-  payments         Payment[]
-  smsNotifications SmsNotification[]
-  transactions     Transaction[]
+  id                        Int               @id @default(autoincrement())
+  name                      String
+  phone                     String            @unique
+  email                     String?
+  address                   String?
+  partyType                 String            @default("BOTH")
+  taxNumber                 String?
+  creditLimit               Decimal?
+  openingBalance            Decimal           @default(0)
+  openingBalanceType        String            @default("CUSTOMER_DUE")
+  openingBalanceDescription String?
+  imageUrl                  String?
+  mediaName                 String?
+  farmName                  String?
+  isActive                  Boolean           @default(true)
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
+  createdById               String?
+  dueAdjustments            DueAdjustment[]
+  ledgerEntries             LedgerEntry[]
+  createdBy                 User?             @relation(fields: [createdById], references: [id])
+  payments                  Payment[]
+  smsNotifications          SmsNotification[]
+  transactions              Transaction[]
 
   @@index([name])
   @@index([isActive, partyType, name])

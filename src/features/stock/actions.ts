@@ -1,336 +1,10 @@
 'use server';
 
-import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
-import { revalidatePartyData, revalidateStockData } from '@/lib/cache';
-
-const STOCK_MOVEMENT_TYPE_PREFIX = 'STOCK_MOVEMENT' as const;
-
-const movementSchema = z.object({
-  productId: z.coerce.number().int().positive(),
-  movementType: z.enum(['OPENING', 'PURCHASE', 'SALE', 'RETURN', 'ADJUSTMENT', 'WASTAGE', 'PRODUCTION']),
-  quantity: z.coerce.number().min(0.0001, 'Quantity must be greater than zero.'),
-  unitCost: z.coerce.number().min(0).optional().default(0),
-  adjustmentMode: z.enum(['INCREASE', 'DECREASE']).optional(),
-  notes: z.string().trim().max(250).optional().or(z.literal(''))
-}).superRefine((data, ctx) => {
-  if (data.movementType === 'ADJUSTMENT' && !data.adjustmentMode) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['adjustmentMode'],
-      message: 'Adjustment direction is required for stock adjustment.'
-    });
-  }
-});
-
-function normalizeMovementInput(formData: FormData) {
-  return {
-    productId: formData.get('productId')?.toString() ?? '',
-    movementType: formData.get('movementType')?.toString() ?? 'ADJUSTMENT',
-    quantity: formData.get('quantity')?.toString() ?? '0',
-    unitCost: formData.get('unitCost')?.toString() ?? '0',
-    adjustmentMode: formData.get('adjustmentMode')?.toString() ?? undefined,
-    notes: formData.get('notes')?.toString() ?? ''
-  };
-}
-
-export async function createStockMovement(formData: FormData) {
-  await requireUser();
-  const parsed = movementSchema.safeParse(normalizeMovementInput(formData));
-
-  if (!parsed.success) {
-    const message = parsed.error.issues[0]?.message ?? 'Validation failed.';
-    const url = new URL('/dashboard/stock', 'http://localhost');
-    url.searchParams.set('error', message);
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
-  }
-
-  const data = parsed.data;
-  const quantity = Number(data.quantity);
-  const unitCost = Number(data.unitCost);
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      const product = await tx.product.findUnique({ where: { id: data.productId } });
-      if (!product) {
-        throw new Error('Product not found.');
-      }
-
-      const balance = await tx.stockBalance.findUnique({ where: { productId: data.productId } });
-      const currentQuantity = Number(balance?.quantityOnHand ?? 0);
-      const currentAverageCost = Number(balance?.averageCost ?? 0);
-      const inboundTypes = new Set(['OPENING', 'PURCHASE', 'RETURN', 'PRODUCTION']);
-      const outboundTypes = new Set(['SALE', 'WASTAGE']);
-      const isIncrease = inboundTypes.has(data.movementType) || data.movementType === 'ADJUSTMENT' && data.adjustmentMode === 'INCREASE';
-      const isDecrease = outboundTypes.has(data.movementType) || data.movementType === 'ADJUSTMENT' && data.adjustmentMode === 'DECREASE';
-
-      if (!isIncrease && !isDecrease) {
-        throw new Error('Invalid stock movement direction.');
-      }
-
-      if (!balance && isDecrease) {
-        throw new Error('Cannot remove stock when no stock exists for this product.');
-      }
-
-      const newQuantity = isIncrease
-        ? currentQuantity + quantity
-        : currentQuantity - quantity;
-
-      if (newQuantity < 0) {
-        throw new Error('Stock cannot go below zero.');
-      }
-
-      await tx.stockMovement.create({
-        data: {
-          productId: data.productId,
-          movementType: data.movementType,
-          quantity: new Prisma.Decimal(quantity),
-          unitCost: new Prisma.Decimal(unitCost),
-          notes: (data.notes ?? '').trim() || null
-        }
-      });
-
-      const stockBalanceData: { quantityOnHand: Prisma.Decimal; averageCost?: Prisma.Decimal | null } = {
-        quantityOnHand: new Prisma.Decimal(newQuantity)
-      };
-
-      if (isIncrease) {
-        const previousValue = currentQuantity * (currentAverageCost || 0);
-        const nextValue = previousValue + quantity * unitCost;
-        const nextAverageCost = newQuantity > 0 ? nextValue / newQuantity : 0;
-        stockBalanceData.averageCost = new Prisma.Decimal(nextAverageCost);
-      } else if (balance?.averageCost) {
-        stockBalanceData.averageCost = balance.averageCost;
-      }
-
-      if (balance) {
-        await tx.stockBalance.update({
-          where: { productId: data.productId },
-          data: stockBalanceData
-        });
-      } else {
-        await tx.stockBalance.create({
-          data: {
-            productId: data.productId,
-            quantityOnHand: new Prisma.Decimal(newQuantity),
-            reservedQuantity: new Prisma.Decimal(0),
-            averageCost: stockBalanceData.averageCost ?? null
-          }
-        });
-      }
-    });
-  } catch (error) {
-    const url = new URL('/dashboard/stock', 'http://localhost');
-    url.searchParams.set('error', error instanceof Error ? error.message : 'Stock movement failed.');
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
-  }
-
-  revalidateStockData();
-  const url = new URL('/dashboard/stock', 'http://localhost');
-  url.searchParams.set('success', 'Stock movement recorded successfully.');
-  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-  redirect(url.toString());
-}
-
-export async function getStockPageData({
-  page,
-  search,
-  lowStockOnly
-}: {
-  page: number;
-  search?: string;
-  lowStockOnly?: boolean;
-}) {
-  const take = 8;
-  const skip = (Math.max(page, 1) - 1) * take;
-
-  const where: Prisma.ProductWhereInput = { isArchived: false };
-
-  if (search?.trim()) {
-    const term = search.trim();
-    where.OR = [
-      { name: { contains: term } },
-      { code: { contains: term } },
-      { barcode: { contains: term } }
-    ] as Prisma.ProductWhereInput['OR'];
-  }
-
-  const searchTerm = search?.trim()
-    ? `%${search.trim().replace(/%/g, '\\%').replace(/_/g, '\\_')}%`
-    : null;
-
-  const searchFilter = searchTerm
-    ? Prisma.sql`AND (p."name" ILIKE ${searchTerm} ESCAPE '\\' OR p."code" ILIKE ${searchTerm} ESCAPE '\\' OR p."barcode" ILIKE ${searchTerm} ESCAPE '\\')`
-    : Prisma.sql``;
-
-  if (lowStockOnly) {
-    try {
-      const [products, countResult] = await Promise.all([
-        prisma.$queryRaw<
-          Array<{
-            id: number;
-            code: string | null;
-            name: string;
-            unit: string;
-            barcode: string | null;
-            lowStockThreshold: Prisma.Decimal | null;
-            defaultPurchasePrice: Prisma.Decimal | null;
-            defaultSellingPrice: Prisma.Decimal | null;
-            quantityOnHand: Prisma.Decimal | null;
-            reservedQuantity: Prisma.Decimal | null;
-            categoryId: number | null;
-            categoryName: string | null;
-          }>
-        >`
-          SELECT p."id", p."code", p."name", p."unit", p."barcode",
-                 p."lowStockThreshold", p."defaultPurchasePrice", p."defaultSellingPrice",
-                 sb."quantityOnHand", sb."reservedQuantity",
-                 c."id" AS "categoryId", c."name" AS "categoryName"
-          FROM "Product" p
-          JOIN "StockBalance" sb ON sb."productId" = p."id"
-          LEFT JOIN "ProductCategory" c ON c."id" = p."categoryId"
-          WHERE p."isActive" = true
-            AND p."isArchived" = false
-            AND p."lowStockThreshold" > 0
-            AND sb."quantityOnHand" <= p."lowStockThreshold"
-            ${searchFilter}
-          ORDER BY p."name" ASC
-          LIMIT ${take} OFFSET ${skip}
-        `,
-        prisma.$queryRaw<Array<{ count: number }>>`
-          SELECT COUNT(*) AS "count"
-          FROM "Product" p
-          JOIN "StockBalance" sb ON sb."productId" = p."id"
-          WHERE p."isActive" = true
-            AND p."isArchived" = false
-            AND p."lowStockThreshold" > 0
-            AND sb."quantityOnHand" <= p."lowStockThreshold"
-            ${searchFilter}
-        `
-      ]);
-
-      const total = Number(countResult[0]?.count ?? 0);
-      const mappedProducts = products.map((p) => ({
-        id: p.id,
-        code: p.code,
-        name: p.name,
-        unit: p.unit,
-        barcode: p.barcode,
-        lowStockThreshold: p.lowStockThreshold,
-        defaultPurchasePrice: p.defaultPurchasePrice,
-        defaultSellingPrice: p.defaultSellingPrice,
-        stockBalance: {
-          quantityOnHand: p.quantityOnHand,
-          reservedQuantity: p.reservedQuantity
-        },
-        category: p.categoryId ? { id: p.categoryId, name: p.categoryName } : null
-      }));
-
-      return {
-        products: mappedProducts,
-        total,
-        totalPages: Math.max(1, Math.ceil(total / take)),
-        page: Math.min(page, Math.max(1, Math.ceil(total / take)))
-      };
-    } catch (error) {
-      return { products: [], total: 0, totalPages: 1, page: 1 };
-    }
-  }
-
-  try {
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where,
-        orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
-        skip,
-        take,
-        select: {
-          id: true,
-          code: true,
-          name: true,
-          unit: true,
-          barcode: true,
-          lowStockThreshold: true,
-          defaultPurchasePrice: true,
-          defaultSellingPrice: true,
-          stockBalance: { select: { quantityOnHand: true, reservedQuantity: true } },
-          category: { select: { id: true, name: true } }
-        }
-      }),
-      prisma.product.count({ where })
-    ]);
-
-    return {
-      products,
-      total,
-      totalPages: Math.max(1, Math.ceil(total / take)),
-      page: Math.min(page, Math.max(1, Math.ceil(total / take)))
-    };
-  } catch (error) {
-    return { products: [], total: 0, totalPages: 1, page: 1 };
-  }
-}
-
-export async function getStockHistory() {
-  return prisma.stockMovement.findMany({
-    take: 20,
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      movementType: true,
-      quantity: true,
-      unitCost: true,
-      notes: true,
-      createdAt: true,
-      product: {
-        select: { id: true, name: true, code: true }
-      }
-    }
-  });
-}
-
-export async function getLowStockAlerts() {
-  return prisma.$queryRaw<
-    Array<{
-      id: number;
-      name: string;
-      code: string | null;
-      unit: string;
-      lowStockThreshold: Prisma.Decimal | null;
-      quantityOnHand: Prisma.Decimal | null;
-    }>
-  >`
-    SELECT p."id", p."name", p."code", p."unit",
-           p."lowStockThreshold", sb."quantityOnHand"
-    FROM "Product" p
-    JOIN "StockBalance" sb ON sb."productId" = p."id"
-    WHERE p."isActive" = true
-      AND p."lowStockThreshold" > 0
-      AND sb."quantityOnHand" <= p."lowStockThreshold"
-    ORDER BY p."name" ASC
-  `;
-}
-
-export async function getProductsForStock() {
-  return prisma.product.findMany({
-    where: { isActive: true, isArchived: false },
-    orderBy: { name: 'asc' },
-    select: {
-      id: true,
-      name: true,
-      code: true,
-      unit: true,
-      productType: true,
-      stockBalance: { select: { quantityOnHand: true } }
-    }
-  });
-}
+import { revalidateStockData } from '@/lib/cache';
 
 export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE') {
   return prisma.product.findMany({
@@ -342,6 +16,8 @@ export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE') {
       productType: true,
       defaultPurchasePrice: true,
       defaultSellingPrice: true,
+      lowStockThreshold: true,
+      company: { select: { id: true, name: true } },
       stockBalance: { select: { quantityOnHand: true } },
       transactionItems: {
         select: {
@@ -369,176 +45,13 @@ export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE') {
   });
 }
 
-const partySupplierSchema = z.object({
-  name: z.string().min(1, 'Party / Company name is required.'),
-  phone: z.string().min(1, 'Phone number is required.'),
-  partyType: z.enum(['PARTY', 'COMPANY', 'BOTH']).default('PARTY'),
-  email: z.string().optional().or(z.literal('')),
-  address: z.string().optional().or(z.literal('')),
-  farmName: z.string().optional().or(z.literal(''))
-});
-
-export async function createSupplierForStock(formData: FormData) {
-  await requireUser();
-
-  const raw = {
-    name: formData.get('name')?.toString() ?? '',
-    phone: formData.get('phone')?.toString() ?? '',
-    partyType: formData.get('partyType')?.toString() ?? 'PARTY',
-    email: formData.get('email')?.toString() ?? '',
-    address: formData.get('address')?.toString() ?? '',
-    farmName: formData.get('farmName')?.toString() ?? ''
-  };
-
-  const parsed = partySupplierSchema.safeParse(raw);
-  if (!parsed.success) {
-    return { success: false as const, message: parsed.error.issues[0]?.message ?? 'Invalid party supplier data.' };
-  }
-
-  const data = parsed.data;
-
-  try {
-    const party = await prisma.party.create({
-      data: {
-        name: data.name,
-        phone: data.phone,
-        partyType: data.partyType,
-        email: data.email || null,
-        address: data.address || null,
-        farmName: data.farmName || null,
-        isActive: true,
-        openingBalance: 0
-      },
-      select: { id: true, name: true, phone: true, email: true, address: true, farmName: true, partyType: true }
-    });
-
-    revalidatePartyData(party.id);
-    revalidateStockData();
-
-    return { success: true as const, message: `Party Supplier '${party.name}' created successfully.`, party };
-  } catch (error) {
-    return { success: false as const, message: error instanceof Error ? error.message : 'Failed to create party supplier.' };
-  }
-}
-
-const stockProductSchema = z.object({
-  name: z.string().min(1, 'Product name is required.'),
-  productType: z.enum(['FEED', 'MEDICINE']),
-  unit: z.string().min(1, 'Unit is required.'),
-  code: z.string().optional().or(z.literal('')),
-  defaultPurchasePrice: z.coerce.number().min(0).optional().default(0),
-  defaultSellingPrice: z.coerce.number().min(0).optional().default(0)
-});
-
-export async function createProductForStock(formData: FormData) {
-  await requireUser();
-
-  const raw = {
-    name: formData.get('name')?.toString() ?? '',
-    productType: formData.get('productType')?.toString() ?? 'FEED',
-    unit: formData.get('unit')?.toString() ?? '',
-    code: formData.get('code')?.toString() ?? '',
-    defaultPurchasePrice: formData.get('defaultPurchasePrice')?.toString() ?? '0',
-    defaultSellingPrice: formData.get('defaultSellingPrice')?.toString() ?? '0'
-  };
-
-  const parsed = stockProductSchema.safeParse(raw);
-  if (!parsed.success) {
-    return { success: false as const, message: parsed.error.issues[0]?.message ?? 'Invalid product data.' };
-  }
-
-  const data = parsed.data;
-
-  try {
-    const existingCount = await prisma.product.count({
-      where: { productType: data.productType, isActive: true }
-    });
-
-    const product = await prisma.product.create({
-      data: {
-        code: data.code || `${data.productType}-${String(existingCount + 1).padStart(3, '0')}`,
-        name: data.name,
-        productType: data.productType,
-        unit: data.unit,
-        defaultPurchasePrice: new Prisma.Decimal(data.defaultPurchasePrice),
-        defaultSellingPrice: new Prisma.Decimal(data.defaultSellingPrice),
-        isActive: true
-      },
-      select: { id: true, name: true, code: true, productType: true, unit: true, defaultPurchasePrice: true, defaultSellingPrice: true }
-    });
-
-    revalidateStockData();
-    revalidatePath('/dashboard/products');
-
-    return { success: true as const, message: `Product '${product.name}' created successfully.`, product };
-  } catch (error) {
-    return { success: false as const, message: error instanceof Error ? error.message : 'Failed to create product.' };
-  }
-}
-
-export async function getFeedStockCompanyNames() {
-  await requireUser();
-
-  const companies = await prisma.company.findMany({
-    where: { isActive: true },
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' }
-  });
-
-  return companies.map((c) => ({
-    id: c.id,
-    name: c.name
-  }));
-}
-
-export async function getMedicineStockCompanyNames() {
-  await requireUser();
-
-  const companyIds = await prisma.transaction.findMany({
-    where: {
-      transactionType: 'PURCHASE',
-      transactionItems: {
-        some: {
-          product: {
-            productType: 'MEDICINE'
-          }
-        }
-      }
-    },
-    select: {
-      companyId: true
-    },
-    distinct: ['companyId']
-  });
-
-  const ids = companyIds.map((c) => c.companyId).filter((id): id is number => id !== null && id !== undefined);
-
-  if (ids.length === 0) {
-    return [];
-  }
-
-  const companies = await prisma.company.findMany({
-    where: {
-      id: { in: ids },
-      isActive: true
-    },
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' }
-  });
-
-  return companies.map((c) => ({
-    id: c.id,
-    name: c.name
-  }));
-}
-
 export async function updateStockItem(
   itemId: number,
   name: string,
   buyRate: number,
-  salesRate: number,
   unit?: string,
-  companyId?: number | null
+  companyId?: number | null,
+  quantityOnHand?: number
 ) {
   await requireUser();
 
@@ -546,41 +59,178 @@ export async function updateStockItem(
     return { success: false as const, message: 'Product name and item id are required.' };
   }
 
+  if (quantityOnHand !== undefined && quantityOnHand < 0) {
+    return { success: false as const, message: 'Quantity cannot be negative.' };
+  }
+
+  const payload = {
+    itemId,
+    name: name.trim(),
+    buyRate,
+    unit: unit?.trim(),
+    companyId: companyId ?? null,
+    quantityOnHand
+  };
+
+  console.log('[updateStockItem] payload', payload);
+
   try {
-    const updateData: Record<string, unknown> = {
-      name: name.trim(),
-      defaultPurchasePrice: new Prisma.Decimal(buyRate),
-      defaultSellingPrice: new Prisma.Decimal(salesRate)
-    };
+    const transactionResult = await prisma.$transaction(async (tx) => {
+      const product = await tx.product.findUnique({
+        where: { id: itemId },
+        include: { stockBalance: true }
+      });
 
-    if (unit !== undefined) {
-      updateData.unit = unit.trim();
-    }
+      if (!product) {
+        throw new Error('Product not found.');
+      }
 
-    if (companyId !== undefined) {
-      updateData.companyId = companyId ?? null;
-    }
+      const previousCompanyId = product.companyId ?? null;
+      const previousQuantityOnHand = Number(product.stockBalance?.quantityOnHand ?? 0);
+      const normalizedCompanyId = companyId !== undefined ? companyId ?? null : previousCompanyId;
+      const normalizedUnit = unit !== undefined ? unit.trim() : product.unit;
+      const nextPurchasePrice = new Prisma.Decimal(buyRate);
+      const productChanged =
+        product.name !== payload.name ||
+        !new Prisma.Decimal(product.defaultPurchasePrice ?? 0).equals(nextPurchasePrice) ||
+        (unit !== undefined && product.unit !== normalizedUnit) ||
+        (companyId !== undefined && previousCompanyId !== normalizedCompanyId);
 
-    const updatedProduct = await prisma.product.update({
-      where: { id: itemId },
-      data: updateData,
-      include: { company: { select: { name: true } } }
+      const quantityChanged = quantityOnHand !== undefined
+        ? new Prisma.Decimal(previousQuantityOnHand).comparedTo(new Prisma.Decimal(quantityOnHand)) !== 0
+        : false;
+
+      const changed = productChanged || quantityChanged;
+
+      if (quantityOnHand !== undefined) {
+        const stockBalanceData = {
+          quantityOnHand: new Prisma.Decimal(quantityOnHand)
+        };
+
+        if (product.stockBalance) {
+          await tx.stockBalance.update({
+            where: { productId: itemId },
+            data: stockBalanceData
+          });
+        } else {
+          await tx.stockBalance.create({
+            data: {
+              productId: itemId,
+              quantityOnHand: new Prisma.Decimal(quantityOnHand),
+              reservedQuantity: new Prisma.Decimal(0),
+              averageCost: product.defaultPurchasePrice ?? null
+            }
+          });
+        }
+      }
+
+      const updatedProduct = await tx.product.update({
+        where: { id: itemId },
+        data: {
+          name: name.trim(),
+          defaultPurchasePrice: nextPurchasePrice,
+          ...(unit !== undefined ? { unit: normalizedUnit } : {}),
+          ...(companyId !== undefined ? { companyId: normalizedCompanyId } : {})
+        },
+        include: { company: { select: { name: true } } }
+      });
+
+      const readBackProduct = await tx.product.findUnique({
+        where: { id: itemId },
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          companyId: true,
+          defaultPurchasePrice: true,
+          defaultSellingPrice: true
+        }
+      });
+
+      const readBackBalance = await tx.stockBalance.findUnique({
+        where: { productId: itemId },
+        select: { quantityOnHand: true }
+      });
+
+      if (!readBackProduct) {
+        throw new Error('Product not found after update.');
+      }
+
+      const productMismatch =
+        readBackProduct.name !== name.trim() ||
+        readBackProduct.companyId !== normalizedCompanyId ||
+        (unit !== undefined && readBackProduct.unit !== normalizedUnit) ||
+        Number(readBackProduct.defaultPurchasePrice ?? 0) !== buyRate;
+
+      const quantityPersisted = quantityOnHand !== undefined
+        ? Number(readBackBalance?.quantityOnHand ?? 0) === quantityOnHand
+        : true;
+
+      if (productMismatch || !quantityPersisted) {
+        throw new Error('Stock item update did not persist correctly.');
+      }
+
+      const previous = {
+        name: product.name,
+        unit: product.unit,
+        companyId: previousCompanyId,
+        defaultPurchasePrice: Number(product.defaultPurchasePrice ?? 0),
+        quantityOnHand: previousQuantityOnHand
+      };
+
+      const actual = {
+        name: readBackProduct.name,
+        unit: readBackProduct.unit,
+        companyId: readBackProduct.companyId,
+        defaultPurchasePrice: Number(readBackProduct.defaultPurchasePrice ?? 0),
+        quantityOnHand: Number(readBackBalance?.quantityOnHand ?? 0)
+      };
+
+      const persisted = !productMismatch && quantityPersisted;
+
+      console.log('[updateStockItem] readback', {
+        itemId,
+        previous,
+        expected: payload,
+        actual,
+        persisted,
+        changed,
+        productChanged,
+        quantityChanged
+      });
+
+      return {
+        updatedProduct,
+        previousCompanyId,
+        changed
+      };
     });
 
+    if (!transactionResult.changed) {
+      return { success: false as const, message: 'No product changes were applied.' };
+    }
+
     revalidateStockData();
-    revalidatePath('/dashboard/stock/feed');
-    revalidatePath('/dashboard/stock/Medicine');
+    revalidatePath('/dashboard/companies');
+
+    if (transactionResult.previousCompanyId !== null) {
+      revalidatePath(`/dashboard/companies/${transactionResult.previousCompanyId}`);
+    }
+
+    if (transactionResult.updatedProduct.companyId !== null) {
+      revalidatePath(`/dashboard/companies/${transactionResult.updatedProduct.companyId}`);
+    }
 
     return {
       success: true as const,
       message: 'Stock item updated successfully.',
       item: {
-        id: updatedProduct.id,
-        name: updatedProduct.name,
-        buyRate: Number(updatedProduct.defaultPurchasePrice ?? 0),
-        salesRate: Number(updatedProduct.defaultSellingPrice ?? 0),
-        unit: updatedProduct.unit,
-        companyName: updatedProduct.company?.name ?? null
+        id: transactionResult.updatedProduct.id,
+        name: transactionResult.updatedProduct.name,
+        buyRate: Number(transactionResult.updatedProduct.defaultPurchasePrice ?? 0),
+        unit: transactionResult.updatedProduct.unit,
+        companyName: transactionResult.updatedProduct.company?.name ?? null,
+        quantity: quantityOnHand !== undefined ? quantityOnHand : undefined
       }
     };
   } catch (error) {
@@ -609,8 +259,6 @@ export async function deleteStockItem(itemId: number) {
       console.log('prisma.product.update result:', updateResult);
 
       revalidateStockData();
-      revalidatePath('/dashboard/stock/feed');
-      revalidatePath('/dashboard/stock/Medicine');
 
       return { success: true, message: 'Stock item archived successfully.' };
     } catch (error) {
@@ -618,4 +266,3 @@ export async function deleteStockItem(itemId: number) {
       return { success: false, message: error instanceof Error ? error.message : 'Failed to archive stock item.' };
     }
 }
-

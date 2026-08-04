@@ -1,0 +1,7 @@
+   ▲ Next.js 15.5.22
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     · serverActions
+
+Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? 
+^C

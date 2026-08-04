@@ -8,6 +8,8 @@ import { prisma } from '@/server/db';
 import { requireUser } from '@/lib/auth';
 import { CACHE_TAGS, revalidateCompanyData } from '@/lib/cache';
 import { logCompanyAction } from '@/lib/debug-log';
+import { queueTransactionSmsNotification } from '@/lib/sms/service';
+import { createPaymentPaidSmsMessage } from '@/lib/sms/templates';
 
 const companySchema = z.object({
   id: z.coerce.number().optional(),
@@ -561,6 +563,10 @@ export async function getCompanyCurrentDue(companyId: number) {
   return totalPurchase - totalPaid;
 }
 
+function formatSmsAmount(value: number | Prisma.Decimal) {
+  return Number(value.toString()).toFixed(2);
+}
+
 const companyPaymentSchema = z.object({
   companyId: z.coerce.number().int().positive('Company is required.'),
   amount: z.coerce.number().min(0.01, 'Payment amount must be greater than zero.'),
@@ -588,38 +594,64 @@ export async function recordPaymentForCompany(formData: FormData) {
   }
 
   try {
-    const payment = await prisma.payment.create({
-      data: {
-        companyId,
-        paymentDate,
-        paymentMethod,
-        amount: new Prisma.Decimal(amount),
-        referenceNumber: referenceNumber || null,
-        status: 'COMPLETED',
-        notes: notes || null,
-        createdById: session.user.id
-      }
+    const paymentResult = await prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.create({
+        data: {
+          companyId,
+          paymentDate,
+          paymentMethod,
+          amount: new Prisma.Decimal(amount),
+          referenceNumber: referenceNumber || null,
+          status: 'COMPLETED',
+          notes: notes || null,
+          createdById: session.user.id
+        }
+      });
+
+      const lastLedger = await tx.ledgerEntry.findFirst({
+        where: { companyId },
+        orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
+      });
+      const previousBalance = new Prisma.Decimal(lastLedger?.runningBalance ?? 0);
+      const newBalance = previousBalance.minus(new Prisma.Decimal(amount));
+
+      await tx.ledgerEntry.create({
+        data: {
+          companyId,
+          paymentId: payment.id,
+          entryType: 'PAYMENT_PAID',
+          amount: new Prisma.Decimal(-amount),
+          runningBalance: newBalance,
+          description: `Payment made to company`,
+          referenceNumber: referenceNumber || undefined,
+          createdById: session.user.id
+        }
+      });
+
+      const company = await tx.company.findUnique({
+        where: { id: companyId },
+        select: { id: true, name: true, phone: true }
+      });
+
+      return { payment, company, remainingDue: Math.max(0, currentDue - amount) };
     });
 
-    const lastLedger = await prisma.ledgerEntry.findFirst({
-      where: { companyId },
-      orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
-    });
-    const previousBalance = new Prisma.Decimal(lastLedger?.runningBalance ?? 0);
-    const newBalance = previousBalance.minus(new Prisma.Decimal(amount));
-
-    await prisma.ledgerEntry.create({
-      data: {
-        companyId,
-        paymentId: payment.id,
-        entryType: 'PAYMENT_PAID',
-        amount: new Prisma.Decimal(-amount),
-        runningBalance: newBalance,
-        description: `Payment made to company`,
-        referenceNumber: referenceNumber || undefined,
-        createdById: session.user.id
-      }
-    });
+    if (paymentResult.company) {
+      await queueTransactionSmsNotification({
+        companyId: paymentResult.company.id,
+        transactionId: null,
+        phoneNumber: paymentResult.company.phone,
+        partyName: paymentResult.company.name,
+        message: createPaymentPaidSmsMessage({
+          partyName: paymentResult.company.name,
+          amount: formatSmsAmount(amount),
+          remainingDue: formatSmsAmount(paymentResult.remainingDue),
+          referenceNumber
+        }),
+        saleType: 'MIXED',
+        transactionType: 'PAYMENT_PAID'
+      });
+    }
 
     revalidateCompanyData(companyId);
 

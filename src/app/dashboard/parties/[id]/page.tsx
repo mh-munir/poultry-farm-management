@@ -44,6 +44,8 @@ type PartyProfileRecord = {
   taxNumber: string | null;
   creditLimit: { toString(): string } | null;
   openingBalance: { toString(): string };
+  openingBalanceType: string | null;
+  openingBalanceDescription: string | null;
   imageUrl: string | null;
   mediaName: string | null;
   farmName: string | null;
@@ -186,6 +188,8 @@ export default async function PartyProfilePage({
       taxNumber: true,
       creditLimit: true,
       openingBalance: true,
+      openingBalanceType: true,
+      openingBalanceDescription: true,
       imageUrl: true,
       mediaName: true,
       farmName: true,
@@ -293,8 +297,15 @@ export default async function PartyProfilePage({
   const customerProductRows = productRows.filter((row) => row.transactionType === 'SALE');
   const supplierProductRows = productRows.filter((row) => row.transactionType === 'PURCHASE');
 
+  const openingBalanceLedger = ledgerEntries.find((entry) => entry.entryType === 'OPENING_BALANCE');
   const latestLedger = ledgerEntries[0];
   const latestTransactionDate = latestLedger?.entryDate ?? transactions[0]?.transactionDate ?? payments[0]?.paymentDate ?? null;
+  const currentCustomerBalance = Number(party.openingBalance ?? 0) + summary.netCustomerDue;
+  const currentBalanceLabel = currentCustomerBalance > 0
+    ? '🔴 Customer Due'
+    : currentCustomerBalance < 0
+      ? '🟢 Customer Advance'
+      : '⚪ No Balance';
   const dueStatus = summary.netCustomerDue <= 0 && summary.netSupplierDue <= 0
     ? 'Cleared'
     : summary.netCustomerDue > 0 && summary.netSupplierDue > 0
@@ -380,6 +391,8 @@ export default async function PartyProfilePage({
                   taxNumber: party.taxNumber,
                   creditLimit: party.creditLimit?.toString() ?? null,
                   openingBalance: party.openingBalance.toString(),
+                  openingBalanceType: party.openingBalanceType,
+                  openingBalanceDescription: party.openingBalanceDescription,
                   imageUrl: party.imageUrl,
                   isActive: party.isActive
                 }}
@@ -438,6 +451,13 @@ export default async function PartyProfilePage({
       </section>
 
       <section className="mt-5 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          title="Current Balance"
+          value={currentBalanceLabel === '⚪ No Balance' ? 'No Balance' : formatCurrency(Math.abs(currentCustomerBalance))}
+          description={currentBalanceLabel}
+          icon={CircleDollarSign}
+          accent="bg-rose-50 text-rose-600"
+        />
         <KpiCard
           title="Customer Due"
           value={formatCurrency(summary.netCustomerDue)}
@@ -538,6 +558,24 @@ export default async function PartyProfilePage({
             <SummaryMiniCard label="Last Transaction" value={latestTransactionDate ? formatDate(latestTransactionDate) : '-'} />
             <SummaryMiniCard label="Total Transactions" value={String(transactions.length)} />
           </div>
+        </div>
+      </section>
+
+      <section className="mt-5 rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
+            <CircleDollarSign className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-card-title">Opening Balance Information</h2>
+            <p className="text-card-subtitle">Initial customer balance snapshot</p>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryMiniCard label="Opening Balance Amount" value={formatCurrency(openingBalanceLedger?.amount ?? party.openingBalance)} />
+          <SummaryMiniCard label="Balance Type" value={party.openingBalanceType === 'CUSTOMER_ADVANCE' ? 'Customer Advance' : 'Customer Due'} />
+          <SummaryMiniCard label="Created Date" value={formatDate(openingBalanceLedger?.entryDate ?? party.createdAt)} />
+          <SummaryMiniCard label="Description" value={openingBalanceLedger?.description ?? party.openingBalanceDescription ?? '—'} />
         </div>
       </section>
 

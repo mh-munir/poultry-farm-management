@@ -65,9 +65,36 @@ export default async function NewPartyPage() {
             <label className="mb-2 block text-sm font-medium">Credit limit</label>
             <input type="number" step="0.01" min="0" name="creditLimit" defaultValue="" className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Opening balance</label>
-            <input type="number" step="0.01" name="openingBalance" defaultValue="" className="w-full rounded-md border bg-background px-3 py-2" />
+          <div className="md:col-span-2 rounded-xl border bg-background p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Opening Balance</p>
+                <p className="text-xs text-muted-foreground">Creates an opening ledger entry when the amount is non-zero.</p>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium">Opening Balance Amount</label>
+                <input type="number" step="0.01" min="0" name="openingBalanceAmount" defaultValue={0} className="w-full rounded-md border bg-background px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium">Balance Type</label>
+                <div className="flex flex-col gap-2 rounded-md border bg-background px-3 py-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="openingBalanceType" value="CUSTOMER_DUE" defaultChecked className="h-4 w-4" />
+                    Customer Due
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="openingBalanceType" value="CUSTOMER_ADVANCE" className="h-4 w-4" />
+                    Customer Advance
+                  </label>
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium">Description</label>
+                <textarea name="openingBalanceDescription" rows={2} className="w-full rounded-md border bg-background px-3 py-2" placeholder="Opening balance note..." />
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-3">
             <input id="isActive" name="isActive" type="checkbox" defaultChecked className="h-4 w-4" />

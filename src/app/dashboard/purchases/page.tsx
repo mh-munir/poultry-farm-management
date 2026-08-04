@@ -181,7 +181,7 @@ export default async function PurchasesPage({
             <p className="text-sm font-medium text-muted-foreground">No products available yet</p>
             <p className="mt-1 text-xs text-muted-foreground">Create products from the Products section to display them here</p>
             <Button asChild className="mt-4 w-full sm:w-auto">
-              <Link href="/dashboard/products/new">Create Product</Link>
+              <Link href={'/dashboard/products/new' as any}>Create Product</Link>
             </Button>
           </div>
         ) : (

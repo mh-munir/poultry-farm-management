@@ -25,6 +25,9 @@ const partySchema = z.object({
   taxNumber: z.string().optional(),
   creditLimit: z.coerce.number().min(0).optional(),
   openingBalance: z.coerce.number().default(0),
+  openingBalanceAmount: z.coerce.number().min(0).default(0),
+  openingBalanceType: z.enum(['CUSTOMER_DUE', 'CUSTOMER_ADVANCE']).default('CUSTOMER_DUE'),
+  openingBalanceDescription: z.string().optional().or(z.literal('')),
   mediaName: z.string().optional(),
   farmName: z.string().optional(),
   isActive: z.preprocess((val) => val === 'on' || val === true, z.boolean()),
@@ -163,7 +166,12 @@ function getStandalonePaymentTotal(payments: PartySummaryPayment[]) {
   }, 0);
 }
 
-function summarizePartyAccount(partyType: string, transactions: PartySummaryTransaction[], payments: PartySummaryPayment[] = []) {
+function summarizePartyAccount(
+  partyType: string,
+  transactions: PartySummaryTransaction[],
+  payments: PartySummaryPayment[] = [],
+  openingBalance = 0
+) {
   let customerInvoiced = 0;
   let customerPaid = 0;
   let customerDue = 0;
@@ -199,6 +207,7 @@ function summarizePartyAccount(partyType: string, transactions: PartySummaryTran
     partySupplierDue = Math.max(0, partySupplierDue - standalonePayment);
   } else {
     customerPaid += standalonePayment;
+    customerDue += openingBalance;
     customerDue = Math.max(0, customerDue - standalonePayment);
   }
 
@@ -222,8 +231,66 @@ function summarizePartyAccount(partyType: string, transactions: PartySummaryTran
   };
 }
 
+function normalizeOpeningBalanceValue(amountInput: number, type: 'CUSTOMER_DUE' | 'CUSTOMER_ADVANCE') {
+  if (!Number.isFinite(amountInput) || amountInput <= 0) {
+    return 0;
+  }
+
+  return type === 'CUSTOMER_ADVANCE'
+    ? -Math.abs(amountInput)
+    : Math.abs(amountInput);
+}
+
+async function syncOpeningBalanceLedger({
+  partyId,
+  amount,
+  description,
+  createdById
+}: {
+  partyId: number;
+  amount: number;
+  description?: string | null;
+  createdById: string;
+}) {
+  if (amount === 0) {
+    return;
+  }
+
+  const existingLedger = await prisma.ledgerEntry.findFirst({
+    where: {
+      partyId,
+      entryType: 'OPENING_BALANCE'
+    },
+    orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
+  });
+
+  const normalizedDescription = description?.trim() || 'Opening balance';
+  const ledgerPayload = {
+    partyId,
+    entryType: 'OPENING_BALANCE' as const,
+    amount: new Prisma.Decimal(amount),
+    runningBalance: new Prisma.Decimal(amount),
+    description: normalizedDescription,
+    referenceNumber: null,
+    createdById
+  };
+
+  if (existingLedger) {
+    await prisma.ledgerEntry.update({
+      where: { id: existingLedger.id },
+      data: {
+        ...ledgerPayload,
+        entryDate: new Date()
+      }
+    });
+    return;
+  }
+
+  await prisma.ledgerEntry.create({ data: ledgerPayload });
+}
+
 export async function createOrUpdateParty(formData: FormData) {
-  await requireUser();
+  const session = await requireUser();
 
   const rawData = Object.fromEntries(formData.entries());
   const parsed = partySchema.safeParse(rawData);
@@ -233,19 +300,36 @@ export async function createOrUpdateParty(formData: FormData) {
     return { success: false, message: firstError?.message ?? 'Invalid data provided.' };
   }
 
-  const { id, existingImageUrl, ...data } = parsed.data;
+  const { id, existingImageUrl, openingBalanceAmount, openingBalanceType, openingBalanceDescription, ...data } = parsed.data;
   const imageFile = formData.get('image') as File | null;
+  const normalizedOpeningBalance = normalizeOpeningBalanceValue(
+    Number(openingBalanceAmount ?? data.openingBalance ?? 0),
+    openingBalanceType
+  );
 
   try {
     const party = await prisma.party.upsert({
       where: { id: id ?? -1 },
       create: {
         ...data,
+        openingBalance: normalizedOpeningBalance,
         imageUrl: null // Set to null initially, will be updated after upload
       },
       update: {
-        ...data
+        ...data,
+        openingBalance: normalizedOpeningBalance
       }
+    });
+
+    if (!session.user.id) {
+      throw new Error('Authenticated user is required to store an opening balance.');
+    }
+
+    await syncOpeningBalanceLedger({
+      partyId: party.id,
+      amount: normalizedOpeningBalance,
+      description: openingBalanceDescription,
+      createdById: session.user.id
     });
 
     let newImageUrl = existingImageUrl || party.imageUrl;
@@ -327,7 +411,7 @@ export async function getPartyAccountSummary(partyId: number) {
   await requireUser();
   const party = await prisma.party.findUnique({
     where: { id: partyId },
-    select: { partyType: true }
+    select: { partyType: true, openingBalance: true }
   });
 
   if (!party) {
@@ -381,6 +465,7 @@ export async function getPartyAccountSummary(partyId: number) {
     partySupplierDue = Math.max(0, partySupplierDue - standalonePayment);
   } else {
     customerPaid += standalonePayment;
+    customerDue += Number(party.openingBalance ?? 0);
     customerDue = Math.max(0, customerDue - standalonePayment);
   }
 
@@ -541,7 +626,7 @@ export async function getPartyPageData({
     return {
       ...party,
       lastTransactionDate,
-      ...summarizePartyAccount(party.partyType, transactions, payments)
+      ...summarizePartyAccount(party.partyType, transactions, payments, Number(party.openingBalance ?? 0))
     };
   }).sort((a, b) => {
     if (a.lastTransactionDate && b.lastTransactionDate) {
@@ -643,7 +728,7 @@ export async function getCustomerCurrentDue(partyId: number) {
   await requireUser();
   const party = await prisma.party.findUnique({
     where: { id: partyId },
-    select: { partyType: true }
+    select: { partyType: true, openingBalance: true }
   });
 
   if (!party) {
@@ -667,12 +752,13 @@ export async function getCustomerCurrentDue(partyId: number) {
 
   const customerDue = Number(saleAgg._sum.dueAmount ?? 0);
   const standalonePayment = Number(paymentAgg[0]?.totalPaid ?? 0);
+  const openingBalance = Number(party.openingBalance ?? 0);
 
   if (party.partyType === 'PARTY') {
     return Math.max(0, customerDue);
   }
 
-  return Math.max(0, customerDue - standalonePayment);
+  return Math.max(0, customerDue + openingBalance - standalonePayment);
 }
 
 export async function getSupplierCurrentPayable(partyId: number) {

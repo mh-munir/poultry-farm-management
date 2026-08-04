@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
-import { Home, Users, Factory, BarChart2, Settings, LogOut, Package2, Wallet } from 'lucide-react';
+import { Home, Users, Factory, BarChart2, Settings, LogOut, Wallet } from 'lucide-react';
 
 export function Sidebar({ open, onClose, branding }: { open?: boolean; onClose?: () => void; branding: any }) {
   const pathname = usePathname() || '';
@@ -52,12 +52,12 @@ export function Sidebar({ open, onClose, branding }: { open?: boolean; onClose?:
           <li>
             <Link href="/dashboard/companies" onClick={() => onClose?.()} className={linkClass('/dashboard/companies')}>
               <Factory size={16} className="text-cyan-500" />
-              <span className="text-sidebar-menu">Company's Stock</span>
+              <span className="text-sidebar-menu">Companies</span>
             </Link>
           </li>
           <li>
             <Link href="/dashboard/stock/reports" onClick={() => onClose?.()} className={linkClass('/dashboard/stock/reports')}>
-              <Package2 size={16} className="text-cyan-500" />
+              <BarChart2 size={16} className="text-cyan-500" />
               <span className="text-sidebar-menu">Stock Reports</span>
             </Link>
           </li>

@@ -136,13 +136,14 @@ export default async function PartiesPage({
                  <th className="px-4 py-3 font-medium">Sales</th>
                  <th className="px-4 py-3 font-medium">Paid</th>
                  <th className="px-4 py-3 font-medium">Due</th>
+                 <th className="px-4 py-3 font-medium">Balance</th>
                  <th className="px-4 py-3 text-right font-medium">Action</th>
                </tr>
              </thead>
              <tbody>
                {data.parties.length === 0 ? (
                  <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                      No parties found. Create your first party to get started.
                    </td>
                  </tr>
@@ -177,6 +178,16 @@ export default async function PartiesPage({
                      <td className="px-4 py-3 text-sm font-medium text-slate-800">{formatCurrency(party.customerInvoiced ?? 0)}</td>
                      <td className="px-4 py-3 text-sm font-medium text-slate-800">{formatCurrency(party.totalPaid ?? 0)}</td>
                      <td className="px-4 py-3">{formatCurrency(party.totalDue)}</td>
+                     <td className="px-4 py-3">
+                       {party.partyType === 'CUSTOMER' || party.partyType === 'BOTH' ? (
+                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${Number(party.openingBalance ?? 0) > 0 ? 'bg-rose-100 text-rose-700' : Number(party.openingBalance ?? 0) < 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                           {Number(party.openingBalance ?? 0) > 0 ? '🔴 Due' : Number(party.openingBalance ?? 0) < 0 ? '🟢 Advance' : '⚪ Clear'}
+                           <span className="ml-2 font-semibold">{formatCurrency(Math.abs(Number(party.openingBalance ?? 0)))}</span>
+                         </span>
+                       ) : (
+                         <span className="text-xs text-muted-foreground">—</span>
+                       )}
+                     </td>
                      <td className="px-4 py-3 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-2">
                          <Link
@@ -215,6 +226,7 @@ export default async function PartiesPage({
                     <td className="px-4 py-3 text-sm">{formatCurrency(totalSales)}</td>
                     <td className="px-4 py-3 text-sm">{formatCurrency(totalPaid)}</td>
                     <td className="px-4 py-3 text-sm">{formatCurrency(totalDue)}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">—</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">—</td>
                   </tr>
                 </tfoot>
