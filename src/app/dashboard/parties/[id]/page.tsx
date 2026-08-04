@@ -271,6 +271,7 @@ export default async function PartyProfilePage({
     productType: p.productType,
     unit: p.unit,
     defaultSellingPrice: Number(p.defaultSellingPrice ?? 0),
+    defaultPurchasePrice: Number(p.stockMovements?.[0]?.unitCost ?? p.defaultPurchasePrice ?? 0),
     stockQuantity: Number(p.stockBalance?.quantityOnHand ?? 0)
   }));
   const isCustomer = party.partyType === 'CUSTOMER' || party.partyType === 'BOTH';
