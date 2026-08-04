@@ -455,7 +455,13 @@ export async function getProductsForSales() {
       unit: true,
       defaultSellingPrice: true,
       defaultPurchasePrice: true,
-      stockBalance: { select: { quantityOnHand: true } }
+      stockBalance: { select: { quantityOnHand: true } },
+      stockMovements: {
+        where: { movementType: 'PURCHASE' },
+        orderBy: { createdAt: 'asc' },
+        take: 1,
+        select: { unitCost: true }
+      }
     }
   });
 }

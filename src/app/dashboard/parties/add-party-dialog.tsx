@@ -25,6 +25,7 @@ export type ProductOption = {
   productType: string;
   unit: string;
   defaultSellingPrice: number;
+  defaultPurchasePrice?: number | null;
   stockQuantity: number;
 };
 

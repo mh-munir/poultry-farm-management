@@ -85,6 +85,7 @@ export default async function PartiesPage({
     productType: product.productType,
     unit: product.unit,
     defaultSellingPrice: Number(product.defaultSellingPrice ?? 0),
+    defaultPurchasePrice: Number(product.stockMovements?.[0]?.unitCost ?? product.defaultPurchasePrice ?? 0),
     stockQuantity: Number(product.stockBalance?.quantityOnHand ?? 0)
   }));
 

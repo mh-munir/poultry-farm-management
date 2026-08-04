@@ -2,7 +2,7 @@
 
 import { useState, useMemo, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Trash } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -353,14 +353,16 @@ export function AddStockModal({
                         required
                       />
                     </div>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon"
                       onClick={() => removeRow(row.rowId)}
                       aria-label="Remove stock item"
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-white text-rose-700 transition hover:bg-rose-50"
+                      className="h-10 w-10 shrink-0 bg-white text-slate-600 hover:bg-slate-100"
                     >
-                      <Trash className="h-4 w-4" />
-                    </button>
+                      <Trash2 className="h-8 w-8" />
+                    </Button>
                   </div>
                 </div>
               ))}

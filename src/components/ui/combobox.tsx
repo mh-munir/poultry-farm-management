@@ -10,7 +10,7 @@ export interface ComboboxOption {
 interface SearchableComboboxProps {
   options?: ComboboxOption[];
   value?: string;
-  onValueChange: (value: string) => void;
+  onValueChange?: (value: string) => void;
   onOptionSelect?: (option: ComboboxOption) => void;
   placeholder?: string;
   emptyText?: string;
@@ -23,7 +23,7 @@ interface SearchableComboboxProps {
 export function SearchableCombobox({
   options = [],
   value,
-  onValueChange,
+  onValueChange = () => {},
   onOptionSelect,
   placeholder = 'Search...',
   emptyText = 'No results found',

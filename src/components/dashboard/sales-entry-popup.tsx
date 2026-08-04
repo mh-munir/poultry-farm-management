@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { createSaleTransactionWithToast } from '@/features/sales/actions';
@@ -21,6 +21,7 @@ export type ProductOption = {
   productType: string;
   unit: string;
   defaultSellingPrice: number;
+  defaultPurchasePrice?: number | null;
   stockQuantity: number;
 };
 
@@ -330,7 +331,8 @@ export function SalesEntryPopup({
               <p className="mt-2 text-sm text-red-600">{salesNameError}</p>
             ) : null}
           </div>
-          <div className="sm:col-span-2">
+          <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
+            <div>
               <label className="mb-2 block text-sm font-medium">Media name</label>
               <input
                 name="mediaName"
@@ -341,19 +343,20 @@ export function SalesEntryPopup({
                 placeholder="Media name"
               />
             </div>
-          <div className="sm:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Select Product</label>
-            <select
-              name="salesProduct"
-              autoComplete="off"
-              value={salesProduct}
-              onChange={(event) => handleSalesProductTypeChange(event.target.value as 'feeds' | 'medicin' | 'both')}
-              className="w-full rounded-md border bg-background px-3 py-2"
-            >
-              <option value="feeds">Feeds</option>
-              <option value="medicin">Medicin</option>
-              <option value="both">Both</option>
-            </select>
+            <div>
+              <label className="mb-2 block text-sm font-medium">Select Product</label>
+              <select
+                name="salesProduct"
+                autoComplete="off"
+                value={salesProduct}
+                onChange={(event) => handleSalesProductTypeChange(event.target.value as 'feeds' | 'medicin' | 'both')}
+                className="w-full rounded-md border bg-background px-3 py-2"
+              >
+                <option value="feeds">Feeds</option>
+                <option value="medicin">Medicin</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
           </div>
 
           <div className="sm:col-span-2 space-y-3 rounded-xl border bg-muted/10 p-4">
@@ -368,15 +371,15 @@ export function SalesEntryPopup({
               const selectedProduct = productsById.get(row.productId);
 
               return (
-                <div key={row.rowId} className="grid gap-3 rounded-lg border bg-white p-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-[1.4fr_0.55fr_0.65fr_auto]">
-                  <div>
+                <div key={row.rowId} className="flex flex-col gap-3 rounded-lg border bg-white p-3 xl:flex-row xl:items-top">
+                  <div className="w-full xl:w-[230px] xl:flex-none">
                     <label className="mb-1 block text-xs font-medium text-muted-foreground">Product</label>
                     <select
                       name="productId"
                       required={index === 0}
                       value={row.productId}
                       onChange={(event) => handleProductRowChange(row.rowId, 'productId', event.target.value)}
-                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                      className="w-full h-10 rounded-md border bg-background px-3 py-2 text-sm truncate"
                     >
                       <option value="">Select stock product</option>
                       {visibleProductOptions.map((product) => (
@@ -385,14 +388,12 @@ export function SalesEntryPopup({
                         </option>
                       ))}
                     </select>
-                    {selectedProduct ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Stock: {selectedProduct.stockQuantity} {selectedProduct.unit}
-                      </p>
-                    ) : null}
+                    <p className="mt-1 text-xs text-muted-foreground" aria-hidden={!selectedProduct}>
+                      {selectedProduct ? `Stock: ${selectedProduct.stockQuantity} ${selectedProduct.unit}` : '\u00A0'}
+                    </p>
                   </div>
 
-                  <div>
+                  <div className="w-full xl:w-[110px]">
                     <label className="mb-1 block text-xs font-medium text-muted-foreground">Quantity</label>
                     <input
                       name="quantity"
@@ -407,7 +408,16 @@ export function SalesEntryPopup({
                     />
                   </div>
 
-                  <div>
+                  <div className="w-full xl:w-[110px]">
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Buy Rate</label>
+                    <div className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                      <p className="font-semibold text-slate-900">
+                        {selectedProduct?.defaultPurchasePrice != null ? `${Number(selectedProduct.defaultPurchasePrice).toLocaleString('en-BD', { maximumFractionDigits: 2 })}` : '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="w-full xl:w-[110px]">
                     <label className="mb-1 block text-xs font-medium text-muted-foreground">Sale Price</label>
                     <input
                       name="unitPrice"
@@ -422,15 +432,19 @@ export function SalesEntryPopup({
                     />
                   </div>
 
-                  <div className="flex items-end">
+                  
+
+                  <div className="flex items-center xl:w-[40px]">
                     <Button
                       type="button"
-                      variant="outline"
-                      size="sm"
+                      variant="ghost"
+                      size="icon"
                       onClick={() => removeSalesProductRow(row.rowId)}
                       disabled={salesProductRows.length === 1}
+                      className="h-10 w-10 shrink-0 bg-white text-slate-600 hover:bg-slate-100"
+                      aria-label="Remove item"
                     >
-                      Remove
+                      <Trash2 className="h-8 w-8" />
                     </Button>
                   </div>
                 </div>
