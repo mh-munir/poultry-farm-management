@@ -11,9 +11,6 @@ const PAGE_TITLES: Record<string, string[]> = {
   '/dashboard': ['Dashboard'],
   '/dashboard/parties': ['Parties'],
   '/dashboard/parties/new': ['Parties', 'New'],
-  '/dashboard/stock': ['Stock'],
-  '/dashboard/stock/feed': ['Stock', 'Feed'],
-  '/dashboard/stock/Medicine': ['Stock', 'Medicine'],
   '/dashboard/stock/reports': ['Stock Reports'],
   '/dashboard/expenses': ['Expenses'],
   '/dashboard/sales': ['Sales'],
@@ -74,6 +71,9 @@ function getPageTitle(pathname: string): string[] {
   if (parts[0] === 'dashboard' && parts[1] === 'products' && parts[2] === 'new') {
     return ['Products', 'New'];
   }
+  if (parts[0] === 'dashboard' && parts[1] === 'companies' && parts[2] && parts[2] !== 'new') {
+    return ['Companies', 'Profile'];
+  }
   if (parts[0] === 'dashboard' && parts[1] === 'products' && parts[3] === 'edit') {
     return ['Products', 'Edit'];
   }
@@ -97,7 +97,7 @@ export default function LayoutShell({ children, theme, branding }: { children: R
   const hideShell = useMemo(() => {
     if (!pathname) return false;
     // Hide the app chrome for auth/unauthorized pages and any print/invoice print routes
-    // Examples: /dashboard/parties/123/print, /dashboard/stock/print/123, /dashboard/transactions/123/print
+    // Examples: /dashboard/parties/123/print, /dashboard/transactions/123/print
     return (
       pathname.startsWith('/auth') ||
       pathname === '/unauthorized' ||

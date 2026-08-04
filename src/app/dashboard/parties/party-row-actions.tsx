@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import imageCompression from 'browser-image-compression';
-import { Eye, MoreHorizontal, Pencil, Trash2, Printer } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { MoreHorizontal, Pencil, Trash2, Printer } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -21,6 +22,8 @@ export type PartyRowEditPayload = {
   taxNumber: string | null;
   creditLimit: string | null;
   openingBalance: string;
+  openingBalanceType?: string | null;
+  openingBalanceDescription?: string | null;
   imageUrl: string | null;
   isActive: boolean;
 };
@@ -129,7 +132,7 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
   };
 
   return (
-    <div className="inline-flex justify-end">
+    <div className="relative z-[70] inline-flex justify-end">
       {editOnly ? (
         <div className="inline-flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" onClick={() => setEditOpen(true)} className={editButtonClassName}>
@@ -146,53 +149,54 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
           ) : null}
         </div>
       ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setActionOpen(true)}
-          aria-label={`Actions for ${party.name}`}
-          className="h-9 w-9 p-0"
-        >
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      )}
-
-      {!editOnly ? (
-        <Dialog open={actionOpen} onOpenChange={setActionOpen} title="Party Actions">
-          <div className="grid gap-3">
-            <Link
-              href={`/dashboard/parties/${party.id}`}
-              className="flex w-full items-center gap-2 rounded-md border px-4 py-3 text-left text-sm font-medium hover:bg-muted"
-              onClick={() => setActionOpen(false)}
-            >
-              <Eye className="h-4 w-4" />
-              Profile
-            </Link>
-            <button
+        <DropdownMenu.Root open={actionOpen} onOpenChange={setActionOpen}>
+          <DropdownMenu.Trigger asChild>
+            <Button
               type="button"
-              className="flex w-full items-center gap-2 rounded-md border px-4 py-3 text-left text-sm font-medium hover:bg-muted"
-              onClick={() => {
-                setEditOpen(true);
-                setActionOpen(false);
-              }}
+              variant="ghost"
+              size="sm"
+              aria-label={`Actions for ${party.name}`}
+              className="h-9 w-9 p-0"
             >
-              <Pencil className="h-4 w-4" />
-              Edit
-            </button>
-            <form onSubmit={handleDeleteSubmit}>
-              <input type="hidden" name="partyId" value={party.id} />
-              <button
-                type="submit"
-                className="flex w-full items-center gap-2 rounded-md border border-red-200 px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenu.Trigger>
+
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              side="bottom"
+              align="end"
+              sideOffset={8}
+              collisionPadding={12}
+              className="z-[100] w-[180px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10"
+            >
+              <DropdownMenu.Item
+                className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-slate-900 outline-none data-[highlighted]:bg-slate-100"
+                onSelect={() => {
+                  setEditOpen(true);
+                  setActionOpen(false);
+                }}
               >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </button>
-            </form>
-          </div>
-        </Dialog>
-      ) : null}
+                <Pencil className="h-4 w-4" />
+                Edit
+              </DropdownMenu.Item>
+              <DropdownMenu.Separator className="mx-2 h-px bg-slate-200" />
+              <form onSubmit={handleDeleteSubmit}>
+                <input type="hidden" name="partyId" value={party.id} />
+                <DropdownMenu.Item asChild>
+                  <button
+                    type="submit"
+                    className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-red-600 outline-none data-[highlighted]:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </DropdownMenu.Item>
+              </form>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      )}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen} title="Edit Party">
         <form onSubmit={handleEditSubmit} encType="multipart/form-data" autoComplete="off" className="grid gap-4 md:grid-cols-2">
@@ -234,9 +238,36 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
             <label className="mb-2 block text-sm font-medium">Credit limit</label>
             <input type="number" step="0.01" min="0" name="creditLimit" defaultValue={party.creditLimit ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Opening balance</label>
-            <input type="number" step="0.01" name="openingBalance" defaultValue={party.openingBalance} className="w-full rounded-md border bg-background px-3 py-2" />
+          <div className="md:col-span-2 rounded-xl border bg-background p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Opening Balance</p>
+                <p className="text-xs text-muted-foreground">Creates an opening ledger entry when the amount is non-zero.</p>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium">Opening Balance Amount</label>
+                <input type="number" step="0.01" min="0" name="openingBalanceAmount" defaultValue={Number(party.openingBalance ?? 0) === 0 ? 0 : Math.abs(Number(party.openingBalance ?? 0))} className="w-full rounded-md border bg-background px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium">Balance Type</label>
+                <div className="flex flex-col gap-2 rounded-md border bg-background px-3 py-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="openingBalanceType" value="CUSTOMER_DUE" defaultChecked={party.openingBalanceType !== 'CUSTOMER_ADVANCE'} className="h-4 w-4" />
+                    Customer Due
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="openingBalanceType" value="CUSTOMER_ADVANCE" defaultChecked={party.openingBalanceType === 'CUSTOMER_ADVANCE'} className="h-4 w-4" />
+                    Customer Advance
+                  </label>
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium">Description</label>
+                <textarea name="openingBalanceDescription" rows={2} defaultValue={party.openingBalanceDescription ?? ''} className="w-full rounded-md border bg-background px-3 py-2" placeholder="Opening balance note..." />
+              </div>
+            </div>
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Party image</label>

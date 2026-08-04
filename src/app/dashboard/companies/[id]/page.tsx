@@ -13,6 +13,7 @@ import { CompanyProfileActions } from './company-profile-actions';
 import { CompanyProfilePayButton } from './company-profile-pay-button';
 import ToastRedirect from '../toast-redirect';
 import { AddStockModal } from '@/components/dashboard/stock/add-stock-modal';
+import { StockManagement } from '@/components/dashboard/stock/stock-management';
 import { getStockItemsByType } from '@/features/stock/actions';
 import { getCompaniesByType } from '@/features/companies/actions';
 
@@ -291,9 +292,10 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
     quantity: Number(item.stockBalance?.quantityOnHand ?? 0),
     buyRate: Number(item.defaultPurchasePrice ?? 0),
     salesRate: Number(item.defaultSellingPrice ?? 0),
+    lowStockThreshold: Number(item.lowStockThreshold ?? 0),
     productType: item.productType,
     lastTransactionDate: item.transactionItems[0]?.transaction?.transactionDate,
-    companyName: item.transactionItems[0]?.transaction?.company?.name ?? item.transactionItems[0]?.transaction?.party?.name,
+    companyName: item.company?.name ?? item.transactionItems[0]?.transaction?.company?.name ?? item.transactionItems[0]?.transaction?.party?.name,
     paidAmount: Number(item.transactionItems[0]?.transaction?.paidAmount ?? 0),
     dueAmount: Number(item.transactionItems[0]?.transaction?.dueAmount ?? 0)
   }));
@@ -305,9 +307,10 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
     quantity: Number(item.stockBalance?.quantityOnHand ?? 0),
     buyRate: Number(item.defaultPurchasePrice ?? 0),
     salesRate: Number(item.defaultSellingPrice ?? 0),
+    lowStockThreshold: Number(item.lowStockThreshold ?? 0),
     productType: item.productType,
     lastTransactionDate: item.transactionItems[0]?.transaction?.transactionDate,
-    companyName: item.transactionItems[0]?.transaction?.company?.name ?? item.transactionItems[0]?.transaction?.party?.name,
+    companyName: item.company?.name ?? item.transactionItems[0]?.transaction?.company?.name ?? item.transactionItems[0]?.transaction?.party?.name,
     paidAmount: Number(item.transactionItems[0]?.transaction?.paidAmount ?? 0),
     dueAmount: Number(item.transactionItems[0]?.transaction?.dueAmount ?? 0)
   }));
@@ -407,26 +410,24 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                 editButtonClassName="h-[42px] bg-secondary text-secondary-foreground hover:bg-secondary/80"
               />
               <CompanyProfilePayButton companyId={company.id} />
-              <AddStockModal
-                feedCompanies={feedCompanies}
-                medicineCompanies={medicineCompanies}
-                feedProducts={initialFeedItems}
-                medicineProducts={initialMedicineItems}
-                stockTypeOptions={[
-                  { value: 'FEED', label: 'Feed' },
-                  { value: 'MEDICINE', label: 'Medicine' }
-                ]}
-                paymentMethodOptions={[
-                  { value: 'CASH', label: 'Cash' },
-                  { value: 'BANK_TRANSFER', label: 'Bank transfer' },
-                  { value: 'CHEQUE', label: 'Cheque' },
-                  { value: 'MOBILE_MONEY', label: 'Mobile money' },
-                  { value: 'OTHER', label: 'Other' }
-                ]}
-                preselectedCompanyId={company.id}
-                preselectedCompanyType={company.companyType === 'FEED' ? 'FEED' : company.companyType === 'MEDICINE' ? 'MEDICINE' : 'FEED'}
-                preselectedCompanyName={company.name}
-              />
+              {company.companyType !== 'MEDICINE' && (
+                <AddStockModal
+                  feedCompanies={feedCompanies}
+                  medicineCompanies={medicineCompanies}
+                  feedProducts={initialFeedItems}
+                  medicineProducts={initialMedicineItems}
+                  paymentMethodOptions={[
+                    { value: 'CASH', label: 'Cash' },
+                    { value: 'BANK_TRANSFER', label: 'Bank transfer' },
+                    { value: 'CHEQUE', label: 'Cheque' },
+                    { value: 'MOBILE_MONEY', label: 'Mobile money' },
+                    { value: 'OTHER', label: 'Other' }
+                  ]}
+                  preselectedCompanyId={company.id}
+                  preselectedCompanyName={company.name}
+                  {...(company.companyType === 'FEED' ? { preselectedCompanyType: 'FEED' } : {})}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -488,6 +489,48 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
             <p className="text-sm text-muted-foreground">Total Transactions</p>
             <p className="mt-2 text-2xl font-semibold">{summary.totalTransactions}</p>
           </div>
+        </div>
+      </section>
+
+      <section className="my-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">Feed & Medicine Products</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Manage products, stock quantity, pricing, and status from this company profile.</p>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-6 xl:grid-cols-2">
+          <StockManagement
+            title="Feed"
+            description="Manage company feed products, stock quantity, pricing, and status."
+            initialItems={initialFeedItems}
+            availableProducts={initialFeedItems}
+            suppliers={feedCompanies}
+            companyNames={feedCompanies.map((supplier) => ({ value: supplier.name, label: supplier.name }))}
+            useCompanySearch
+            allowCreateCompany={false}
+            addButtonLabel="Add Product"
+            asSection
+            showAddButton
+            defaultCompanyName={company.name}
+            defaultCompanyId={company.id}
+          />
+          <StockManagement
+            title="Medicine"
+            description="Manage company medicine products, stock quantity, pricing, and status."
+            initialItems={initialMedicineItems}
+            availableProducts={initialMedicineItems}
+            suppliers={medicineCompanies}
+            companyNames={medicineCompanies.map((supplier) => ({ value: supplier.name, label: supplier.name }))}
+            useCompanySearch
+            allowCreateCompany={false}
+            addButtonLabel="Add Product"
+            asSection
+            showAddButton
+            defaultCompanyName={company.name}
+            defaultCompanyId={company.id}
+          />
         </div>
       </section>
 

@@ -45,7 +45,6 @@ const purchaseItemSchema = z.object({
   quantity: z.coerce.number().min(0.0001, 'Quantity must be greater than zero.'),
   unitPrice: z.coerce.number().min(0, 'Rate cannot be negative.'),
   buyRate: z.coerce.number().min(0, 'Buy rate cannot be negative.').optional().default(0),
-  saleRate: z.coerce.number().min(0, 'Sale rate cannot be negative.').optional().default(0),
   description: z.string().trim().max(250).optional().or(z.literal('')),
   unit: z.string().trim().max(20).optional().or(z.literal(''))
 }).refine((data) => data.productId || data.productName, {
@@ -76,7 +75,6 @@ function normalizePurchaseInput(formData: FormData) {
   const quantities = formData.getAll('quantity').map((value) => value?.toString() ?? '0');
   const units = formData.getAll('unit').map((value) => value?.toString() ?? '');
   const buyRates = formData.getAll('buyRate').map((value) => value?.toString() ?? '0');
-  const saleRates = formData.getAll('saleRate').map((value) => value?.toString() ?? '0');
   const unitPrices = formData.getAll('unitPrice').map((value) => value?.toString() ?? '0');
   const descriptions = formData.getAll('description').map((value) => value?.toString() ?? '');
 
@@ -87,7 +85,6 @@ function normalizePurchaseInput(formData: FormData) {
     quantity: quantities[index] ?? '0',
     unitPrice: unitPrices[index] ?? buyRates[index] ?? '0',
     buyRate: buyRates[index] ?? '0',
-    saleRate: saleRates[index] ?? '0',
     description: descriptions[index] ?? '',
     unit: units[index] ?? ''
   })).filter((item) => (item.productId.trim() || item.productName.trim()) && Number(item.quantity) > 0);
@@ -400,7 +397,6 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
         const newQuantity = currentQuantity.plus(quantity);
         const matchedItem = resolvedItems.find((item) => item.productId === productId);
         const unitCost = matchedItem?.buyRate ?? matchedItem?.unitPrice ?? 0;
-        const saleRate = matchedItem?.saleRate ?? 0;
 
         await tx.stockMovement.create({
           data: {
@@ -435,8 +431,7 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
         await tx.product.update({
           where: { id: productId },
           data: {
-            defaultPurchasePrice: new Prisma.Decimal(unitCost),
-            defaultSellingPrice: saleRate ? new Prisma.Decimal(saleRate) : undefined
+            defaultPurchasePrice: new Prisma.Decimal(unitCost)
           }
         });
       }

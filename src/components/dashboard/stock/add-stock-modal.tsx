@@ -2,7 +2,7 @@
 
 import { useState, useMemo, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { Plus, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -283,10 +283,14 @@ export function AddStockModal({
             </div>
 
             <div className="space-y-3">
-              {  rows.map((row) => (
-                <div key={row.rowId} className="border rounded-lg p-4 bg-white space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+              {rows.map((row) => (
+                <div key={row.rowId} className="rounded-lg border border-border bg-white p-4">
+                  <div
+                    className={`grid gap-3 items-end ${stockType === 'MEDICINE'
+                      ? 'md:grid-cols-[1.4fr_0.7fr_0.9fr_0.9fr_auto]'
+                      : 'md:grid-cols-[1.8fr_0.9fr_0.9fr_auto]'}`}
+                  >
+                    <div>
                       <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? 'Stock Medicine' : 'Product'}</label>
                       <input
                         list={`add-stock-products-${stockType}`}
@@ -309,7 +313,7 @@ export function AddStockModal({
                       )}
                     </div>
                     {stockType === 'MEDICINE' && (
-                      <div className="w-24 ml-4">
+                      <div>
                         <label className="mb-1 block text-sm font-medium">Gm</label>
                         <input
                           type="number"
@@ -323,8 +327,6 @@ export function AddStockModal({
                         />
                       </div>
                     )}
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_0.6fr] items-end">
                     <div>
                       <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? 'Quantity' : 'Quantity Of Sack'}</label>
                       <input
@@ -351,25 +353,13 @@ export function AddStockModal({
                         required
                       />
                     </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Sale Rate</label>
-                      <input
-                        type="number"
-                        name="saleRate"
-                        min="0"
-                        step="0.01"
-                        value={row.saleRate}
-                        onChange={(event) => handleRowChange(row.rowId, 'saleRate', event.target.value)}
-                        className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-                        required
-                      />
-                    </div>
                     <button
                       type="button"
                       onClick={() => removeRow(row.rowId)}
-                      className="rounded-md border px-3 py-2 text-sm h-10 flex items-center justify-center hover:bg-muted/10"
+                      aria-label="Remove stock item"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-white text-rose-700 transition hover:bg-rose-50"
                     >
-                      Remove
+                      <Trash className="h-4 w-4" />
                     </button>
                   </div>
                 </div>

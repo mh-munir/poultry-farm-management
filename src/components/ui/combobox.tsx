@@ -8,7 +8,7 @@ export interface ComboboxOption {
 }
 
 interface SearchableComboboxProps {
-  options: ComboboxOption[];
+  options?: ComboboxOption[];
   value?: string;
   onValueChange: (value: string) => void;
   onOptionSelect?: (option: ComboboxOption) => void;
@@ -17,10 +17,11 @@ interface SearchableComboboxProps {
   createNewLabel?: string;
   name?: string;
   required?: boolean;
+  className?: string;
 }
 
 export function SearchableCombobox({
-  options,
+  options = [],
   value,
   onValueChange,
   onOptionSelect,
@@ -28,19 +29,29 @@ export function SearchableCombobox({
   emptyText = 'No results found',
   createNewLabel,
   name,
-  required
+  required,
+  className
 }: SearchableComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [selectedLabel, setSelectedLabel] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const selectionInProgressRef = useRef(false);
 
-  const normalizedValue = value == null ? '' : String(value);
-  const cleanValue = normalizedValue === 'NaN' || normalizedValue === 'undefined' ? '' : normalizedValue;
-  const selectedOption = options.find((option) => option.value === cleanValue);
-  const displayValue = open ? search : (selectedOption ? selectedOption.label : cleanValue ?? '');
+  const selectedOption = options.find((option) => {
+    if (typeof value !== 'string') return false;
+    const normalizedValue = value.trim().toLowerCase();
+    return (
+      option.value.toLowerCase() === normalizedValue ||
+      option.label.toLowerCase() === normalizedValue
+    );
+  });
+  const displayValue = open
+    ? search
+    : selectedOption?.label ?? selectedLabel ?? value ?? '';
 
   const filteredOptions = options.filter((option) =>
     option.label.toLowerCase().includes(search.toLowerCase())
@@ -90,6 +101,7 @@ export function SearchableCombobox({
   function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
     const nextValue = event.target.value;
     setSearch(nextValue);
+    setSelectedLabel('');
     setOpen(true);
     setHighlightedIndex(0);
     onValueChange(nextValue);
@@ -97,11 +109,16 @@ export function SearchableCombobox({
 
   function handleInputFocus() {
     setOpen(true);
-    setSearch(selectedOption ? selectedOption.label : (value ?? ''));
+    setSearch('');
     setHighlightedIndex(0);
   }
 
   function handleInputBlur() {
+    if (selectionInProgressRef.current) {
+      selectionInProgressRef.current = false;
+      return;
+    }
+
     // Delay to allow click events on options to fire first
     setTimeout(() => {
       if (open) {
@@ -109,8 +126,10 @@ export function SearchableCombobox({
           (option) => option.label.toLowerCase() === search.toLowerCase()
         );
         if (exactMatch) {
+          setSelectedLabel(exactMatch.label);
           onValueChange(exactMatch.value);
         } else if (search.trim() !== '') {
+          setSelectedLabel(search);
           onValueChange(search);
         }
         setOpen(false);
@@ -121,12 +140,14 @@ export function SearchableCombobox({
   }
 
   function handleOptionClick(option: ComboboxOption) {
+    selectionInProgressRef.current = true;
+    setSelectedLabel(option.label);
+    setSearch(option.label);
     onValueChange(option.value);
     if (typeof onOptionSelect === 'function') {
       onOptionSelect(option);
     }
     setOpen(false);
-    setSearch('');
     setHighlightedIndex(-1);
     inputRef.current?.blur();
   }
@@ -161,12 +182,12 @@ export function SearchableCombobox({
         if (highlightedIndex >= 0 && highlightedIndex < allOptions.length) {
           event.preventDefault();
           const selected = allOptions[highlightedIndex];
+          setSearch(selected.label);
           onValueChange(selected.value);
           if (typeof onOptionSelect === 'function') {
             onOptionSelect(selected);
           }
           setOpen(false);
-          setSearch('');
           setHighlightedIndex(-1);
           inputRef.current?.blur();
         }
@@ -194,7 +215,7 @@ export function SearchableCombobox({
         placeholder={placeholder}
         required={required}
         autoComplete="off"
-        className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+        className={`w-full rounded-md border bg-background px-3 py-2 text-sm ${className ?? ''}`}
       />
       {open && (
         <ul
@@ -209,6 +230,12 @@ export function SearchableCombobox({
                 key={option.value}
                 onMouseDown={(event) => {
                   event.preventDefault();
+                  event.stopPropagation();
+                  handleOptionClick(option);
+                }}
+                onTouchStart={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
                   handleOptionClick(option);
                 }}
                 className={`cursor-pointer px-3 py-2 ${

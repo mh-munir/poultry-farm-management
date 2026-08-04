@@ -1,60 +1,33 @@
 import type { SmsProvider } from '../types';
+import { sendSMS } from '../bulksmsbd';
 
-const API_KEY = process.env.BULKSMSBD_API_KEY!;
-const SENDER_ID = process.env.BULKSMSBD_SENDER_ID!;
-const API_URL = process.env.BULKSMSBD_API_URL?.replace('/getBalanceApi', '/api') || 'https://bulksmsbd.net/api';
+function extractProviderMessageId(response: unknown) {
+  if (!response || typeof response !== 'object' || Array.isArray(response)) {
+    return undefined;
+  }
+
+  const body = response as Record<string, unknown>;
+  const messageId = body.message_id ?? body.messageId ?? body.sms_id ?? body.smsId ?? body.response_code;
+
+  return messageId === undefined || messageId === null ? undefined : String(messageId);
+}
 
 export const BulkSmsBdProvider: SmsProvider = {
   name: 'bulksmsbd',
 
   async sendSms(phoneNumber: string, message: string) {
-    try {
-      if (!API_KEY) {
-        return {
-          status: 'FAILED',
-          errorMessage: 'BULKSMSBD_API_KEY is missing',
-        };
-      }
+    const result = await sendSMS(phoneNumber, message);
 
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          api_key: API_KEY,
-          senderid: SENDER_ID,
-          number: phoneNumber,
-          message,
-        }),
-      });
-
-      const text = await response.text();
-      let data: any = null;
-
-      try {
-        data = JSON.parse(text);
-      } catch {
-        data = { raw: text };
-      }
-
-      if (!response.ok) {
-        return {
-          status: 'FAILED',
-          errorMessage: data?.message ?? data?.response_message ?? data?.error ?? 'SMS sending failed',
-        };
-      }
-
-      return {
-        status: 'SENT',
-        providerMessageId: String(data?.message_id ?? data?.response_code ?? ''),
-      };
-    } catch (error) {
+    if (!result.success) {
       return {
         status: 'FAILED',
-        errorMessage:
-          error instanceof Error ? error.message : 'Unknown SMS error',
+        errorMessage: result.error ?? 'BulkSMSBD SMS sending failed'
       };
     }
+
+    return {
+      status: 'SENT',
+      providerMessageId: extractProviderMessageId(result.response)
+    };
   },
 };

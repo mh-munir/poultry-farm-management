@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { deleteStockItem, updateStockItem } from '@/features/stock/actions';
 import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
-import { Printer } from 'lucide-react';
 
 export interface StockItem {
   id?: number;
@@ -43,6 +44,8 @@ interface StockManagementProps {
   createNewLabel?: string;
   asSection?: boolean;
   showAddButton?: boolean;
+  defaultCompanyName?: string;
+  defaultCompanyId?: number;
 }
 
 interface StockRow {
@@ -68,11 +71,14 @@ export function StockManagement({
   createNewLabel,
   asSection = false,
   showAddButton = true,
+  defaultCompanyName = '',
+  defaultCompanyId,
 }: StockManagementProps) {
   const [items, setItems] = useState<StockItem[]>(initialItems);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [openActionRowId, setOpenActionRowId] = useState<number | null>(null);
   const [editProductName, setEditProductName] = useState('');
   const [editCompanyName, setEditCompanyName] = useState('');
   const [editCompanyId, setEditCompanyId] = useState<number | null>(null);
@@ -80,8 +86,8 @@ export function StockManagement({
   const [editSaleRate, setEditSaleRate] = useState('');
   const [editQuantity, setEditQuantity] = useState('');
   const [editUnit, setEditUnit] = useState('');
-  const [partyId, setPartyId] = useState<number>(0);
-  const [partyName, setPartyName] = useState<string>('');
+  const [partyId, setPartyId] = useState<number>(defaultCompanyId ?? 0);
+  const [partyName, setPartyName] = useState<string>(defaultCompanyName);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -93,6 +99,15 @@ export function StockManagement({
   useEffect(() => {
     setItems(initialItems);
   }, [initialItems]);
+
+  useEffect(() => {
+    if (defaultCompanyName) {
+      setPartyName(defaultCompanyName);
+    }
+    if (typeof defaultCompanyId === 'number') {
+      setPartyId(defaultCompanyId);
+    }
+  }, [defaultCompanyId, defaultCompanyName]);
 
   const totalStockValue = useMemo(() => {
     return items.reduce((total, item) => total + item.quantity * item.buyRate, 0);
@@ -165,9 +180,9 @@ export function StockManagement({
         editingItemId,
         editProductName,
         Number(editBuyRate),
-        Number(editSaleRate),
         title === 'Medicine' ? editUnit || 'gm' : undefined,
-        matchedCompany?.id ?? null
+        matchedCompany?.id ?? null,
+        Number(editQuantity) || 0
       );
 
       if (!result.success) {
@@ -218,6 +233,24 @@ export function StockManagement({
       setEditingItemId(null);
     }
   }, [editingItemId, success, showToastError]);
+
+  const handleDeleteItemRow = useCallback(async (itemId: number | undefined) => {
+    if (!itemId) return;
+    const confirmed = window.confirm('Delete this stock item? This cannot be undone.');
+    if (!confirmed) return;
+
+    try {
+      const result = await deleteStockItem(itemId);
+      if (result.success) {
+        setItems((prev) => prev.filter((item) => item.id !== itemId));
+        success(result.message);
+      } else {
+        showToastError(result.message);
+      }
+    } catch (err) {
+      showToastError(err instanceof Error ? err.message : 'An unknown error occurred.');
+    }
+  }, [success, showToastError]);
 
   const removeRow = useCallback((rowId: number) => {
     setRows((prev) => prev.filter((row) => row.rowId !== rowId));
@@ -584,7 +617,16 @@ export function StockManagement({
           </form>
         </Dialog>
 
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen} title={`Edit ${title}`}>
+        <Dialog
+          open={isEditModalOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsEditModalOpen(false);
+              setEditingItemId(null);
+            }
+          }}
+          title={`Edit ${title}`}
+        >
           <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -729,38 +771,69 @@ export function StockManagement({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border bg-background">
-                {items.map((item) => (
-                  <tr key={`${item.id ?? item.name}-${item.buyRate}`} className="hover:bg-muted/30">
-                    <td className="px-2 py-2 sm:px-4 sm:py-3">{item.lastTransactionDate ? new Date(item.lastTransactionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3">{item.companyName || '-'}</td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3">{item.name}</td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3">{item.unit || '-'}</td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3">{item.quantity}</td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3">{Number(item.paidAmount ?? 0).toFixed(2)} TK</td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3">{Number(item.dueAmount ?? 0).toFixed(2)} TK</td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3 font-medium">{(item.quantity * item.buyRate).toFixed(2)} TK</td>
-                    <td className="px-2 py-2 sm:px-4 sm:py-3">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(item)}
-                          className="rounded-md bg-blue-500 px-3 py-1 text-xs font-medium text-white hover:bg-blue-600"
+                {items.map((item, index) => {
+                  const rowKey = item.id ?? index;
+                  return (
+                    <tr key={`${rowKey}-${item.buyRate}`} className="hover:bg-muted/30">
+                      <td className="px-2 py-2 sm:px-4 sm:py-3">{item.lastTransactionDate ? new Date(item.lastTransactionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</td>
+                      <td className="px-2 py-2 sm:px-4 sm:py-3">{item.companyName || '-'}</td>
+                      <td className="px-2 py-2 sm:px-4 sm:py-3">{item.name}</td>
+                      <td className="px-2 py-2 sm:px-4 sm:py-3">{item.unit || '-'}</td>
+                      <td className="px-2 py-2 sm:px-4 sm:py-3">{item.quantity}</td>
+                      <td className="px-2 py-2 sm:px-4 sm:py-3">{Number(item.paidAmount ?? 0).toFixed(2)} TK</td>
+                      <td className="px-2 py-2 sm:px-4 sm:py-3">{Number(item.dueAmount ?? 0).toFixed(2)} TK</td>
+                      <td className="px-2 py-2 sm:px-4 sm:py-3 font-medium">{(item.quantity * item.buyRate).toFixed(2)} TK</td>
+                      <td className="relative px-2 py-2 sm:px-4 sm:py-3 overflow-visible">
+                        <DropdownMenu.Root
+                          open={openActionRowId === rowKey}
+                          onOpenChange={(open) => setOpenActionRowId(open ? rowKey : null)}
                         >
-                          Edit
-                        </button>
-                        <a
-                          href={`/dashboard/stock/print/${item.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600"
-                        >
-                          <Printer className="h-3 w-3" />
-                          Print
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <DropdownMenu.Trigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 shadow-sm transition hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                              aria-label={`Actions for ${item.name}`}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                          </DropdownMenu.Trigger>
+
+                          <DropdownMenu.Portal>
+                            <DropdownMenu.Content
+                              side="bottom"
+                              align="end"
+                              sideOffset={8}
+                              collisionPadding={12}
+                              className="z-[100] w-[180px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10"
+                            >
+                              <DropdownMenu.Item
+                                className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-slate-900 outline-none data-[highlighted]:bg-slate-100"
+                                onSelect={() => {
+                                  setOpenActionRowId(null);
+                                  openEditModal(item);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                                Edit
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Separator className="mx-2 h-px bg-slate-200" />
+                              <DropdownMenu.Item
+                                className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-rose-600 outline-none data-[highlighted]:bg-rose-50"
+                                onSelect={() => {
+                                  setOpenActionRowId(null);
+                                  handleDeleteItemRow(item.id);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </DropdownMenu.Item>
+                            </DropdownMenu.Content>
+                          </DropdownMenu.Portal>
+                        </DropdownMenu.Root>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {items.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">

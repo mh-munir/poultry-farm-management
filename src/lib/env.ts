@@ -13,14 +13,23 @@ const envSchema = z.object({
   ADMIN_RESET_TOKEN: z.string().min(1).optional(),
   SMS_ENABLED: z
     .enum(['true', 'false'])
-    .default('false')
+    .optional()
     .transform((value) => value === 'true'),
   SMS_PROVIDER: z.string().trim().min(1).default('mock'),
+  BULKSMSBD_API_KEY: z.string().optional(),
+  BULKSMSBD_SENDER_ID: z.string().optional(),
+  BULKSMSBD_API_URL: z.string().optional(),
   EMAIL_PROVIDER: z.string().trim().min(1).default('mock')
 }).transform((env) => ({
   ...env,
   DIRECT_URL: env.DIRECT_URL ?? env.DATABASE_URL,
-  AUTH_URL: env.AUTH_URL ?? env.NEXTAUTH_URL ?? env.NEXT_PUBLIC_APP_URL
+  AUTH_URL: env.AUTH_URL ?? env.NEXTAUTH_URL ?? env.NEXT_PUBLIC_APP_URL,
+  SMS_ENABLED:
+    env.SMS_ENABLED ??
+    (env.SMS_PROVIDER.toLowerCase() !== 'mock' &&
+      Boolean(env.BULKSMSBD_API_KEY) &&
+      Boolean(env.BULKSMSBD_SENDER_ID) &&
+      Boolean(env.BULKSMSBD_API_URL))
 }));
 
 function getEnv() {
@@ -45,8 +54,16 @@ function getEnv() {
     ADMIN_EMAIL: process.env.ADMIN_EMAIL,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     ADMIN_RESET_TOKEN: process.env.ADMIN_RESET_TOKEN,
-    SMS_ENABLED: process.env.SMS_ENABLED === 'true',
+    SMS_ENABLED:
+      process.env.SMS_ENABLED === 'true' ||
+      ((process.env.SMS_PROVIDER ?? 'mock').toLowerCase() !== 'mock' &&
+        Boolean(process.env.BULKSMSBD_API_KEY) &&
+        Boolean(process.env.BULKSMSBD_SENDER_ID) &&
+        Boolean(process.env.BULKSMSBD_API_URL)),
     SMS_PROVIDER: process.env.SMS_PROVIDER ?? 'mock',
+    BULKSMSBD_API_KEY: process.env.BULKSMSBD_API_KEY,
+    BULKSMSBD_SENDER_ID: process.env.BULKSMSBD_SENDER_ID,
+    BULKSMSBD_API_URL: process.env.BULKSMSBD_API_URL,
   EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? 'mock'
   } as z.infer<typeof envSchema>;
 }

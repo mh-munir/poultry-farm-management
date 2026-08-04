@@ -1,5 +1,7 @@
 export { queueSaleSmsNotification, queueTransactionSmsNotification, getSaleSmsSuccessMessage } from './service';
-export { createSaleSmsMessage } from './templates';
+export { sendSMS } from './bulksmsbd';
+export { createPaymentPaidSmsMessage, createPaymentReceivedSmsMessage, createSaleSmsMessage } from './templates';
+export type { BulkSmsBdResponse } from './bulksmsbd';
 export type {
   QueueSaleSmsInput,
   QueueSaleSmsResult,

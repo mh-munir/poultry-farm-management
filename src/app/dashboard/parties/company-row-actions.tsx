@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Eye, MoreHorizontal, Pencil, Printer, Trash2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -100,70 +101,71 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
   };
 
   return (
-    <div className="inline-flex justify-end">
+    <div className="relative z-[70] inline-flex justify-end">
       {editOnly ? (
         <div className="inline-flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" onClick={() => setEditOpen(true)} className={editButtonClassName}>
             <Pencil className="mr-2 h-4 w-4" />
             {editButtonLabel}
           </Button>
-{printHref ? (
-          <Button asChild size="sm" className={printButtonClassName}>
-            <a href={printHref} target="_blank" rel="noreferrer">
-              <Printer className="mr-2 h-4 w-4" />
-              Print
-            </a>
-          </Button>
-        ) : null}
+          {printHref ? (
+            <Button asChild size="sm" className={printButtonClassName}>
+              <a href={printHref} target="_blank" rel="noreferrer">
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+              </a>
+            </Button>
+          ) : null}
         </div>
       ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setActionOpen(true)}
-          aria-label={`Actions for ${company.name}`}
-          className="h-9 w-9 p-0"
-        >
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      )}
-
-      {!editOnly ? (
-        <Dialog open={actionOpen} onOpenChange={setActionOpen} title="Company Actions">
-          <div className="grid gap-3">
-            <Link
-              href={`/dashboard/companies/${company.id}` as any}
-              className="flex w-full items-center gap-2 rounded-md border px-4 py-3 text-left text-sm font-medium hover:bg-muted"
-              onClick={() => setActionOpen(false)}
-            >
-              <Eye className="h-4 w-4" />
-              Profile
-            </Link>
-            <button
+        <DropdownMenu.Root open={actionOpen} onOpenChange={setActionOpen}>
+          <DropdownMenu.Trigger asChild>
+            <Button
               type="button"
-              className="flex w-full items-center gap-2 rounded-md border px-4 py-3 text-left text-sm font-medium hover:bg-muted"
-              onClick={() => {
-                setEditOpen(true);
-                setActionOpen(false);
-              }}
+              variant="outline"
+              size="sm"
+              aria-label={`Actions for ${company.name}`}
+              className="h-9 w-9 p-0"
             >
-              <Pencil className="h-4 w-4" />
-              Edit
-            </button>
-            <form onSubmit={handleDeleteSubmit}>
-              <input type="hidden" name="companyId" value={company.id} />
-              <button
-                type="submit"
-                className="flex w-full items-center gap-2 rounded-md border border-red-200 px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenu.Trigger>
+
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              side="bottom"
+              align="end"
+              sideOffset={8}
+              collisionPadding={12}
+              className="z-[100] w-[180px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10"
+            >
+              <DropdownMenu.Item
+                className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-slate-900 outline-none data-[highlighted]:bg-slate-100"
+                onSelect={() => {
+                  setEditOpen(true);
+                  setActionOpen(false);
+                }}
               >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </button>
-            </form>
-          </div>
-        </Dialog>
-      ) : null}
+                <Pencil className="h-4 w-4" />
+                Edit
+              </DropdownMenu.Item>
+              <DropdownMenu.Separator className="mx-2 h-px bg-slate-200" />
+              <form onSubmit={handleDeleteSubmit}>
+                <input type="hidden" name="companyId" value={company.id} />
+                <DropdownMenu.Item asChild>
+                  <button
+                    type="submit"
+                    className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-red-600 outline-none data-[highlighted]:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </DropdownMenu.Item>
+              </form>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      )}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen} title="Edit Company">
         <form onSubmit={handleEditSubmit} autoComplete="off" className="grid gap-4 md:grid-cols-2">

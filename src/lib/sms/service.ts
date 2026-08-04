@@ -5,7 +5,7 @@ import { createSaleSmsMessage } from './templates';
 import type { QueueSaleSmsInput, QueueTransactionSmsInput, QueueSaleSmsResult } from './types';
 import { getSmsProvider } from './providers';
 
-const NO_VALID_PHONE_REASON = 'Party has no valid mobile number';
+const NO_VALID_PHONE_REASON = 'Recipient has no valid mobile number';
 
 function normalizePhoneNumber(phoneNumber?: string | null) {
   const normalized = phoneNumber?.replace(/[^\d+]/g, '').trim() ?? '';
@@ -19,34 +19,65 @@ function normalizePhoneNumber(phoneNumber?: string | null) {
 }
 
 async function safeUpdateSmsStatus({
+  notificationId,
   transactionId,
   status,
   providerMessageId,
   errorMessage,
   sentAt
 }: {
+  notificationId?: number | null;
   transactionId?: number | null;
   status: SmsNotificationStatus;
   providerMessageId?: string | null;
   errorMessage?: string | null;
   sentAt?: Date | null;
 }) {
-  if (!transactionId) {
+  if (!notificationId && !transactionId) {
     return;
   }
 
   try {
-    await prisma.smsNotification.update({
-      where: { transactionId },
-      data: {
-        status,
-        providerMessageId: providerMessageId ?? null,
-        errorMessage: errorMessage ?? null,
-        sentAt: sentAt ?? null
-      }
-    });
+    if (notificationId) {
+      await prisma.smsNotification.update({
+        where: { id: notificationId },
+        data: {
+          status,
+          providerMessageId: providerMessageId ?? null,
+          errorMessage: errorMessage ?? null,
+          sentAt: sentAt ?? null
+        }
+      });
+      return;
+    }
+
+    if (transactionId) {
+      await prisma.smsNotification.update({
+        where: { transactionId },
+        data: {
+          status,
+          providerMessageId: providerMessageId ?? null,
+          errorMessage: errorMessage ?? null,
+          sentAt: sentAt ?? null
+        }
+      });
+    }
   } catch (error) {
     console.error('Failed to update SMS notification status.', error);
+  }
+}
+
+async function safeQueueTransactionSmsNotification(input: QueueTransactionSmsInput): Promise<QueueSaleSmsResult> {
+  try {
+    return await queueTransactionSmsNotification(input);
+  } catch (error) {
+    console.error('SMS notification failed after business transaction completed.', error);
+
+    return {
+      status: 'FAILED',
+      message: input.message,
+      errorMessage: error instanceof Error ? error.message : 'SMS notification failed'
+    };
   }
 }
 
@@ -54,14 +85,6 @@ export async function queueTransactionSmsNotification(input: QueueTransactionSms
   const providerName = env.SMS_PROVIDER || 'mock';
   const message = input.message;
   const normalizedPhoneNumber = normalizePhoneNumber(input.phoneNumber);
-
-  if (!input.partyId && input.companyId) {
-    return {
-      status: 'SKIPPED',
-      message,
-      errorMessage: 'Company notifications are disabled.'
-    };
-  }
 
   try {
     const existingNotification = input.transactionId
@@ -134,6 +157,7 @@ export async function queueTransactionSmsNotification(input: QueueTransactionSms
       const providerResult = await provider.sendSms(normalizedPhoneNumber, message);
 
       await safeUpdateSmsStatus({
+        notificationId: notification.id,
         transactionId: input.transactionId,
         status: providerResult.status,
         providerMessageId: providerResult.providerMessageId,
@@ -151,6 +175,7 @@ export async function queueTransactionSmsNotification(input: QueueTransactionSms
       const providerErrorMessage = providerError instanceof Error ? providerError.message : 'SMS provider failed';
 
       await safeUpdateSmsStatus({
+        notificationId: notification.id,
         transactionId: input.transactionId,
         status: 'FAILED',
         errorMessage: providerErrorMessage
@@ -196,7 +221,7 @@ export async function queueTransactionSmsNotification(input: QueueTransactionSms
 export async function queueSaleSmsNotification(input: QueueSaleSmsInput): Promise<QueueSaleSmsResult> {
   const message = createSaleSmsMessage(input);
 
-  return queueTransactionSmsNotification({
+  return safeQueueTransactionSmsNotification({
     partyId: input.partyId,
     transactionId: input.transactionId,
     phoneNumber: input.phoneNumber,

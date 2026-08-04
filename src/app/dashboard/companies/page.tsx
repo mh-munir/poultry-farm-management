@@ -81,9 +81,10 @@ export default async function CompaniesPage({
       quantity: Number(item.stockBalance?.quantityOnHand ?? 0),
       buyRate: Number(item.defaultPurchasePrice ?? 0),
       salesRate: Number(item.defaultSellingPrice ?? 0),
+      lowStockThreshold: Number(item.lowStockThreshold ?? 0),
       productType: item.productType,
       lastTransactionDate: lastTransaction?.transactionDate,
-      companyName: lastTransaction?.company?.name ?? lastTransaction?.party?.name,
+      companyName: item.company?.name ?? lastTransaction?.company?.name ?? lastTransaction?.party?.name,
       paidAmount: Number(lastTransaction?.paidAmount ?? 0),
       dueAmount: Number(lastTransaction?.dueAmount ?? 0)
     };
@@ -98,9 +99,10 @@ export default async function CompaniesPage({
       quantity: Number(item.stockBalance?.quantityOnHand ?? 0),
       buyRate: Number(item.defaultPurchasePrice ?? 0),
       salesRate: Number(item.defaultSellingPrice ?? 0),
+      lowStockThreshold: Number(item.lowStockThreshold ?? 0),
       productType: item.productType,
       lastTransactionDate: lastTransaction?.transactionDate,
-      companyName: lastTransaction?.company?.name ?? lastTransaction?.party?.name,
+      companyName: item.company?.name ?? lastTransaction?.company?.name ?? lastTransaction?.party?.name,
       paidAmount: Number(lastTransaction?.paidAmount ?? 0),
       dueAmount: Number(lastTransaction?.dueAmount ?? 0)
     };
@@ -136,10 +138,6 @@ export default async function CompaniesPage({
               medicineCompanies={medicineCompanies}
               feedProducts={initialFeedItems}
               medicineProducts={initialMedicineItems}
-              stockTypeOptions={[
-                { value: 'FEED', label: 'Feed' },
-                { value: 'MEDICINE', label: 'Medicine' }
-              ]}
               paymentMethodOptions={[
                 { value: 'CASH', label: 'Cash' },
                 { value: 'BANK_TRANSFER', label: 'Bank transfer' },
@@ -160,7 +158,7 @@ export default async function CompaniesPage({
           <div className="border-b px-4 py-4 bg-muted/20">
             <h2 className="text-lg font-semibold">Feeds and Medicine Companies</h2>
           </div>
-          <ResponsiveTable stickyLastColumn minWidth="920px">
+          <ResponsiveTable minWidth="920px">
             <table className="min-w-full text-sm">
               <thead className="bg-muted/40 text-left">
                 <tr>

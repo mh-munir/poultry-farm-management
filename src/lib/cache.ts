@@ -42,7 +42,6 @@ export function revalidatePurchaseData(args: { partyId?: number | null; companyI
   ]);
   revalidatePath(args.path ?? '/dashboard/purchases');
   revalidatePath('/dashboard');
-  revalidatePath('/dashboard/stock');
   revalidatePath('/dashboard/reports');
   if (args.partyId) {
     revalidatePath('/dashboard/parties');
@@ -69,7 +68,6 @@ export function revalidateCompanyData(companyId?: number) {
   revalidateTags([CACHE_TAGS.companies, CACHE_TAGS.products, CACHE_TAGS.reports, CACHE_TAGS.dashboard]);
   revalidatePath('/dashboard/companies');
   revalidatePath('/dashboard/purchases');
-  revalidatePath('/dashboard/stock');
   revalidatePath('/dashboard');
   if (companyId) {
     revalidatePath(`/dashboard/companies/${companyId}`);
@@ -78,9 +76,6 @@ export function revalidateCompanyData(companyId?: number) {
 
 export function revalidateStockData() {
   revalidateTags([CACHE_TAGS.stock, CACHE_TAGS.products, CACHE_TAGS.reports, CACHE_TAGS.dashboard]);
-  revalidatePath('/dashboard/stock');
-  revalidatePath('/dashboard/stock/feed');
-  revalidatePath('/dashboard/stock/Medicine');
   revalidatePath('/dashboard/reports/stock');
   revalidatePath('/dashboard');
 }
