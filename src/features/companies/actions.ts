@@ -213,10 +213,15 @@ export async function deleteCompany(companyId: number) {
       const productIds = products.map(p => p.id);
 
       // Now delete in order of dependencies:
-      // 1. SMS Notifications (depends on transactions)
-      if (transactionIds.length > 0) {
+      // 1. SMS Notifications (depends on transactions and company records)
+      if (transactionIds.length > 0 || companyId) {
         await tx.smsNotification.deleteMany({
-          where: { transactionId: { in: transactionIds } }
+          where: {
+            OR: [
+              { transactionId: { in: transactionIds } },
+              { companyId }
+            ]
+          }
         });
       }
 

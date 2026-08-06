@@ -103,22 +103,44 @@ export async function updateStockItem(
       const changed = productChanged || quantityChanged;
 
       if (quantityOnHand !== undefined) {
+        const nextQuantityOnHand = new Prisma.Decimal(quantityOnHand);
         const stockBalanceData = {
-          quantityOnHand: new Prisma.Decimal(quantityOnHand)
+          quantityOnHand: nextQuantityOnHand
         };
 
         if (product.stockBalance) {
+          const adjustmentQuantity = nextQuantityOnHand.minus(new Prisma.Decimal(previousQuantityOnHand));
           await tx.stockBalance.update({
             where: { productId: itemId },
             data: stockBalanceData
+          });
+
+          await tx.stockMovement.create({
+            data: {
+              productId: itemId,
+              movementType: 'ADJUSTMENT',
+              quantity: adjustmentQuantity,
+              unitCost: product.defaultPurchasePrice ?? null,
+              notes: 'Manual stock adjustment'
+            }
           });
         } else {
           await tx.stockBalance.create({
             data: {
               productId: itemId,
-              quantityOnHand: new Prisma.Decimal(quantityOnHand),
+              quantityOnHand: nextQuantityOnHand,
               reservedQuantity: new Prisma.Decimal(0),
               averageCost: product.defaultPurchasePrice ?? null
+            }
+          });
+
+          await tx.stockMovement.create({
+            data: {
+              productId: itemId,
+              movementType: 'ADJUSTMENT',
+              quantity: nextQuantityOnHand,
+              unitCost: product.defaultPurchasePrice ?? null,
+              notes: 'Initial stock adjustment'
             }
           });
         }
