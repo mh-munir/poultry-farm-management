@@ -30,7 +30,6 @@ interface StockRow {
   productName: string;
   quantity: string;
   buyRate: string;
-  saleRate: string;
   unit?: string;
 }
 
@@ -57,7 +56,7 @@ export function AddStockModal({
   const [paymentAmount, setPaymentAmount] = useState('');
   const [companyDiscount, setCompanyDiscount] = useState('');
   const [rows, setRows] = useState<StockRow[]>([
-    { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: '' },
+    { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: '' },
   ]);
   const router = useRouter();
   const { success, error: showToastError } = useToast();
@@ -96,7 +95,7 @@ export function AddStockModal({
   };
 
   const addRow = () => {
-    setRows((prev) => [...prev, { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: defaultUnit }]);
+    setRows((prev) => [...prev, { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: defaultUnit }]);
   };
 
   const removeRow = (rowId: number) => {
@@ -113,7 +112,6 @@ export function AddStockModal({
       if (product) {
         updateRow(rowId, 'productId', String(product.id ?? ''));
         updateRow(rowId, 'buyRate', String(product.buyRate ?? '0'));
-        updateRow(rowId, 'saleRate', String(product.salesRate ?? '0'));
         if (product.unit) {
           updateRow(rowId, 'unit', product.unit);
         }
@@ -158,10 +156,6 @@ export function AddStockModal({
         showToastError('Buy rate cannot be negative.');
         return;
       }
-      if (Number(row.saleRate) < 0) {
-        showToastError('Sale rate cannot be negative.');
-        return;
-      }
     }
 
     if (Number(paymentAmount) < 0) {
@@ -203,7 +197,7 @@ export function AddStockModal({
     setStockType(newType);
     setCompanyName('');
     setCompanyId(0);
-    setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: '' }]);
+    setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: '' }]);
   };
 
   return (

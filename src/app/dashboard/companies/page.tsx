@@ -21,6 +21,49 @@ import { getStockItemsByType } from '@/features/stock/actions';
 const COMPANY_TYPES = ['ALL', 'FEED', 'MEDICINE', 'BOTH'] as const;
 const COMPANY_STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
 
+type CompanyRow = {
+  id: number;
+  name: string;
+  companyType: string;
+  totalPurchase: number;
+  totalPaid: number;
+  totalDue: number;
+  currentBalance?: Decimal | number | string | null;
+  openingBalance?: Decimal | number | string | null;
+  openingBalanceDescription?: string | null;
+  contactPerson?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  isActive: boolean;
+};
+
+type CompanyOption = {
+  id?: number;
+  name: string;
+};
+
+type StockItemRecord = {
+  id: number;
+  name: string;
+  unit: string | null;
+  stockBalance?: { quantityOnHand?: Decimal | number | string | null } | null;
+  defaultPurchasePrice?: Decimal | number | string | null;
+  defaultSellingPrice?: Decimal | number | string | null;
+  lowStockThreshold?: Decimal | number | string | null;
+  productType?: string | null;
+  transactionItems?: Array<{
+    transaction?: {
+      transactionDate?: Date | string | null;
+      paidAmount?: Decimal | number | string | null;
+      dueAmount?: Decimal | number | string | null;
+      company?: { name?: string | null } | null;
+      party?: { name?: string | null } | null;
+    } | null;
+  }>;
+  company?: { name?: string | null } | null;
+};
+
 function formatCompanyType(type: string) {
   if (type === 'FEED') return 'Feed Company';
   if (type === 'MEDICINE') return 'Medicine Company';
@@ -79,27 +122,28 @@ export default async function CompaniesPage({
     getCompaniesByType('MEDICINE')
   ]);
 
-  const feedCompanyOptions: ComboboxOption[] = feedCompanies.map((company) => ({
+  const feedCompanyOptions: ComboboxOption[] = feedCompanies.map((company: CompanyOption) => ({
     value: company.name,
     label: company.name
   }));
 
-  const medicineCompanyOptions: ComboboxOption[] = medicineCompanies.map((company) => ({
+  const medicineCompanyOptions: ComboboxOption[] = medicineCompanies.map((company: CompanyOption) => ({
     value: company.name,
     label: company.name
   }));
 
-  const initialFeedItems: StockItem[] = feedItems.map((item) => {
-    const lastTransaction = item.transactionItems[0]?.transaction;
+  const initialFeedItems: StockItem[] = feedItems.map((item: StockItemRecord) => {
+    const transactionItems = item.transactionItems ?? [];
+    const lastTransaction = transactionItems[0]?.transaction;
     return {
       id: item.id,
       name: item.name,
-      unit: item.unit,
+      unit: item.unit ?? undefined,
       quantity: Number(item.stockBalance?.quantityOnHand ?? 0),
       buyRate: Number(item.defaultPurchasePrice ?? 0),
       salesRate: Number(item.defaultSellingPrice ?? 0),
       lowStockThreshold: Number(item.lowStockThreshold ?? 0),
-      productType: item.productType,
+      productType: item.productType ?? undefined,
       lastTransactionDate: lastTransaction?.transactionDate,
       companyName: item.company?.name ?? lastTransaction?.company?.name ?? lastTransaction?.party?.name,
       paidAmount: Number(lastTransaction?.paidAmount ?? 0),
@@ -107,17 +151,18 @@ export default async function CompaniesPage({
     };
   });
 
-  const initialMedicineItems: StockItem[] = medicineItems.map((item) => {
-    const lastTransaction = item.transactionItems[0]?.transaction;
+  const initialMedicineItems: StockItem[] = medicineItems.map((item: StockItemRecord) => {
+    const transactionItems = item.transactionItems ?? [];
+    const lastTransaction = transactionItems[0]?.transaction;
     return {
       id: item.id,
       name: item.name,
-      unit: item.unit,
+      unit: item.unit ?? undefined,
       quantity: Number(item.stockBalance?.quantityOnHand ?? 0),
       buyRate: Number(item.defaultPurchasePrice ?? 0),
       salesRate: Number(item.defaultSellingPrice ?? 0),
       lowStockThreshold: Number(item.lowStockThreshold ?? 0),
-      productType: item.productType,
+      productType: item.productType ?? undefined,
       lastTransactionDate: lastTransaction?.transactionDate,
       companyName: item.company?.name ?? lastTransaction?.company?.name ?? lastTransaction?.party?.name,
       paidAmount: Number(lastTransaction?.paidAmount ?? 0),
@@ -171,8 +216,8 @@ export default async function CompaniesPage({
           />
         </div>
 
-        <div className="overflow-visible rounded-2xl border bg-card shadow-sm">
-          <div className="border-b px-4 py-4 bg-muted/20">
+        <div className="overflow-visible rounded-2xl boreder-0 sm:border bg-card shadow-sm">
+          <div className="border-1 sm:border-b px-4 py-4 bg-muted/20">
             <h2 className="text-lg font-semibold">Feeds and Medicine Companies</h2>
           </div>
           <DataTable minWidth="920px">
@@ -196,7 +241,7 @@ export default async function CompaniesPage({
                   </td>
                 </tr>
               ) : (
-                companyData.companies.map((company) => (
+                companyData.companies.map((company: CompanyRow) => (
                   <tr key={company.id} className="border-t">
                     <td className="px-4 py-3">
                       <div className="flex flex-col">
@@ -251,10 +296,10 @@ export default async function CompaniesPage({
                         company={{
                           id: company.id,
                           name: company.name,
-                          contactPerson: company.contactPerson,
-                          phone: company.phone,
-                          email: company.email,
-                          address: company.address,
+                          contactPerson: company.contactPerson ?? null,
+                          phone: company.phone ?? null,
+                          email: company.email ?? null,
+                          address: company.address ?? null,
                           companyType: company.companyType,
                           isActive: company.isActive,
                           openingBalance: toSerializableNumber(company.openingBalance),
@@ -274,7 +319,7 @@ export default async function CompaniesPage({
             </p>
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-2">
-                {Array.from({ length: companyData.totalPages }, (_, index) => index + 1).map((pageNumber) => {
+                {Array.from({ length: companyData.totalPages }, (_, index: number) => index + 1).map((pageNumber: number) => {
                   const params = new URLSearchParams({
                     ...(companySearch ? { companySearch } : {}),
                     ...(companyType && companyType !== 'ALL' ? { companyType } : {}),

@@ -17,6 +17,37 @@ import { getProductsForSales } from '@/features/sales/actions';
 const PARTY_TYPES = ['ALL', 'CUSTOMER', 'PARTY', 'BOTH'] as const;
 const PARTY_STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
 
+type PartySummary = {
+  id: number;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  partyType: string;
+  taxNumber?: string | null;
+  creditLimit?: Decimal | number | string | null;
+  openingBalance?: Decimal | number | string | null;
+  imageUrl?: string | null;
+  isActive?: boolean | null;
+  lastTransactionDate?: Date | null;
+  supplierInvoiced?: Decimal | number | string | null;
+  customerInvoiced?: Decimal | number | string | null;
+  totalPaid?: Decimal | number | string | null;
+  totalDue?: Decimal | number | string | null;
+};
+
+type PartyProduct = {
+  id: number;
+  name: string;
+  code: string;
+  productType: string;
+  unit: string | null;
+  defaultSellingPrice: Decimal | number | string | null;
+  defaultPurchasePrice: Decimal | number | string | null;
+  stockBalance?: { quantityOnHand: Decimal | number | string | null } | null;
+  stockMovements?: Array<{ unitCost: Decimal | number | string | null }> | null;
+};
+
 function formatCurrency(value: number | string | Decimal | null | undefined) {
   const number = Number(value ?? 0);
   return `৳ ${number.toFixed(2)}`;
@@ -78,21 +109,22 @@ export default async function PartiesPage({
     getProductsForSales()
   ]);
 
-  const productOptions: ProductOption[] = products.map((product) => ({
+  const productOptions: ProductOption[] = (products as PartyProduct[]).map((product: PartyProduct) => ({
     id: product.id,
     name: product.name,
     code: product.code,
     productType: product.productType,
-    unit: product.unit,
+    unit: product.unit ?? 'pcs',
     defaultSellingPrice: Number(product.defaultSellingPrice ?? 0),
     defaultPurchasePrice: Number(product.stockMovements?.[0]?.unitCost ?? product.defaultPurchasePrice ?? 0),
     stockQuantity: Number(product.stockBalance?.quantityOnHand ?? 0)
   }));
 
-  const totalPurchase = data.parties.reduce((sum, p) => sum + Number(p.supplierInvoiced ?? 0), 0);
-  const totalSales = data.parties.reduce((sum, p) => sum + Number(p.customerInvoiced ?? 0), 0);
-  const totalPaid = data.parties.reduce((sum, p) => sum + Number(p.totalPaid ?? 0), 0);
-  const totalDue = data.parties.reduce((sum, p) => sum + Number(p.totalDue ?? 0), 0);
+  const parties = data.parties as PartySummary[];
+  const totalPurchase = parties.reduce<number>((sum: number, p: PartySummary) => sum + Number(p.supplierInvoiced ?? 0), 0);
+  const totalSales = parties.reduce<number>((sum: number, p: PartySummary) => sum + Number(p.customerInvoiced ?? 0), 0);
+  const totalPaid = parties.reduce<number>((sum: number, p: PartySummary) => sum + Number(p.totalPaid ?? 0), 0);
+  const totalDue = parties.reduce<number>((sum: number, p: PartySummary) => sum + Number(p.totalDue ?? 0), 0);
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
@@ -111,7 +143,7 @@ export default async function PartiesPage({
       </div>
 
       {/* Parties Header */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-6 justify-between">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-2 sm:mb-6 justify-between">
         <AddPartyDialog partyOptions={partyOptions} productOptions={productOptions} />
         <PartySearchForm
           search={search}
@@ -123,8 +155,8 @@ export default async function PartiesPage({
       <PartyToast success={success} error={error} />
 
       {/* Parties Table */}
-      <div className="overflow-visible rounded-2xl border bg-card shadow-sm">
-        <div className="border-b px-4 py-4 bg-muted/20">
+      <div className="overflow-visible rounded-2xl border-0 sm:border bg-card shadow-sm">
+        <div className="border-1 sm:border-b px-4 py-4 bg-muted/20">
           <h2 className="text-lg font-semibold">Parties</h2>
         </div>
         <ResponsiveTable stickyLastColumn minWidth="980px">
@@ -142,14 +174,14 @@ export default async function PartiesPage({
                </tr>
              </thead>
              <tbody>
-               {data.parties.length === 0 ? (
+               {parties.length === 0 ? (
                  <tr>
                     <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                      No parties found. Create your first party to get started.
                    </td>
                  </tr>
                ) : (
-                 data.parties.map((party) => (
+                 parties.map((party: PartySummary) => (
                    <tr key={party.id} className="border-t">
                      <td className="px-4 py-3">
                        <div className="flex flex-col">
@@ -203,14 +235,14 @@ export default async function PartiesPage({
                              id: party.id,
                              name: party.name,
                              phone: party.phone ?? '',
-                             email: party.email,
-                             address: party.address,
+                             email: party.email ?? null,
+                             address: party.address ?? null,
                              partyType: party.partyType,
-                             taxNumber: party.taxNumber,
+                             taxNumber: party.taxNumber ?? null,
                              creditLimit: party.creditLimit?.toString() ?? null,
-                             openingBalance: party.openingBalance.toString(),
-                             imageUrl: party.imageUrl,
-                             isActive: party.isActive
+                             openingBalance: String(party.openingBalance ?? 0),
+                             imageUrl: party.imageUrl ?? null,
+                             isActive: party.isActive ?? true
                            }}
                          />
                        </div>
@@ -219,7 +251,7 @@ export default async function PartiesPage({
                  ))
                )}
               </tbody>
-              {data.parties.length > 0 && (
+              {parties.length > 0 && (
                 <tfoot>
                   <tr className="border-t bg-muted/40 font-semibold">
                     <td colSpan={2} className="px-4 py-3 text-sm">TOTAL</td>
@@ -237,7 +269,7 @@ export default async function PartiesPage({
 
         <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing {data.parties.length} of {data.total} parties
+            Showing {parties.length} of {data.total} parties
           </p>
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-2">

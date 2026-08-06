@@ -14,7 +14,12 @@ const envSchema = z.object({
   SMS_ENABLED: z
     .enum(['true', 'false'])
     .optional()
-    .transform((value) => value === 'true'),
+    .transform((value) =>
+      value === 'true' ? true : value === 'false' ? false : undefined
+    ),
+  ENABLE_SMS: z
+    .enum(['true', 'false'])
+    .optional(),
   SMS_PROVIDER: z.string().trim().min(1).default('mock'),
   BULKSMSBD_API_KEY: z.string().optional(),
   BULKSMSBD_SENDER_ID: z.string().optional(),
@@ -26,6 +31,7 @@ const envSchema = z.object({
   AUTH_URL: env.AUTH_URL ?? env.NEXTAUTH_URL ?? env.NEXT_PUBLIC_APP_URL,
   SMS_ENABLED:
     env.SMS_ENABLED ??
+    (env.ENABLE_SMS ? env.ENABLE_SMS.toLowerCase() === 'true' : undefined) ??
     (env.SMS_PROVIDER.toLowerCase() !== 'mock' &&
       Boolean(env.BULKSMSBD_API_KEY) &&
       Boolean(env.BULKSMSBD_SENDER_ID) &&

@@ -39,6 +39,10 @@ export const getDashboardDataCached = unstable_cache(
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
         ), 0) AS "total_feed_sale",
         COALESCE((
+          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} THEN ti."quantity" ELSE 0 END)
+          FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId"
+        ), 0) AS "daily_products_sold",
+        COALESCE((
           SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
         ), 0) AS "total_medicine_sale",
@@ -140,3 +144,105 @@ export const getDashboardDataCached = unstable_cache(
 );
 
 export default getDashboardDataCached;
+
+export type ProfitSummary = {
+  totalSales: number;
+  totalCost: number;
+  grossProfit: number;
+  profitMargin: number;
+};
+
+export type TopProductRow = {
+  productId: number;
+  productName: string;
+  quantitySold: number;
+  totalSales: number;
+  totalCost: number;
+  grossProfit: number;
+  profitMargin: number;
+};
+
+export async function getProfitAnalytics({ start, end }: { start: Date; end: Date }) {
+  // Summary aggregates: compute using transaction items joined with latest purchase unitCost per product before sale date
+  const [summaryRow] = await prisma.$queryRaw<Array<{ total_sales: Prisma.Decimal | null; total_cost: Prisma.Decimal | null; gross_profit: Prisma.Decimal | null }>>`
+    SELECT
+      COALESCE(SUM(ti."quantity" * ti."unitPrice"), 0) AS total_sales,
+      COALESCE(SUM(ti."quantity" * COALESCE(sm."unitCost", p."defaultPurchasePrice", 0)), 0) AS total_cost,
+      COALESCE(SUM((ti."unitPrice" - COALESCE(sm."unitCost", p."defaultPurchasePrice", 0)) * ti."quantity"), 0) AS gross_profit
+    FROM "TransactionItem" ti
+    JOIN "Transaction" tr ON tr.id = ti."transactionId"
+    JOIN "Product" p ON p.id = ti."productId"
+    LEFT JOIN LATERAL (
+      SELECT sm."unitCost" FROM "StockMovement" sm
+      WHERE sm."productId" = ti."productId" AND sm."createdAt" <= tr."transactionDate"
+      ORDER BY sm."createdAt" DESC
+      LIMIT 1
+    ) sm ON true
+    WHERE tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end}
+  `;
+
+  const totalSales = Number(summaryRow?.total_sales ?? 0);
+  const totalCost = Number(summaryRow?.total_cost ?? 0);
+  const grossProfit = Number(summaryRow?.gross_profit ?? 0);
+  const profitMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
+
+  // Top products by gross profit (top 10)
+  const topRows = await prisma.$queryRaw<Array<{
+    product_id: number | null;
+    product_name: string | null;
+    quantity_sold: Prisma.Decimal | null;
+    total_sales: Prisma.Decimal | null;
+    total_cost: Prisma.Decimal | null;
+    gross_profit: Prisma.Decimal | null;
+  }>>`
+    SELECT
+      p.id AS product_id,
+      p.name AS product_name,
+      COALESCE(SUM(ti."quantity"), 0) AS quantity_sold,
+      COALESCE(SUM(ti."quantity" * ti."unitPrice"), 0) AS total_sales,
+      COALESCE(SUM(ti."quantity" * COALESCE(sm."unitCost", p."defaultPurchasePrice", 0)), 0) AS total_cost,
+      COALESCE(SUM((ti."unitPrice" - COALESCE(sm."unitCost", p."defaultPurchasePrice", 0)) * ti."quantity"), 0) AS gross_profit
+    FROM "TransactionItem" ti
+    JOIN "Transaction" tr ON tr.id = ti."transactionId"
+    JOIN "Product" p ON p.id = ti."productId"
+    LEFT JOIN LATERAL (
+      SELECT sm."unitCost" FROM "StockMovement" sm
+      WHERE sm."productId" = ti."productId" AND sm."createdAt" <= tr."transactionDate"
+      ORDER BY sm."createdAt" DESC
+      LIMIT 1
+    ) sm ON true
+    WHERE tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end}
+    GROUP BY p.id, p.name
+    ORDER BY gross_profit DESC
+    LIMIT 10
+  `;
+
+  const topProducts: TopProductRow[] = topRows.map((r) => {
+    const totalSales = Number(r.total_sales ?? 0);
+    const totalCost = Number(r.total_cost ?? 0);
+    const grossProfit = Number(r.gross_profit ?? 0);
+    return {
+      productId: Number(r.product_id ?? 0),
+      productName: String(r.product_name ?? ''),
+      quantitySold: Number(r.quantity_sold ?? 0),
+      totalSales,
+      totalCost,
+      grossProfit,
+      profitMargin: totalSales > 0 ? (grossProfit / totalSales) * 100 : 0
+    };
+  });
+
+  return {
+    summary: {
+      totalSales,
+      totalCost,
+      grossProfit,
+      profitMargin
+    },
+    pieChart: {
+      profit: grossProfit,
+      cost: totalCost
+    },
+    topProducts
+  } as const;
+}

@@ -54,7 +54,6 @@ interface StockRow {
   productName: string;
   quantity: string;
   buyRate: string;
-  saleRate: string;
   unit?: string;
 }
 
@@ -83,7 +82,6 @@ export function StockManagement({
   const [editCompanyName, setEditCompanyName] = useState('');
   const [editCompanyId, setEditCompanyId] = useState<number | null>(null);
   const [editBuyRate, setEditBuyRate] = useState('');
-  const [editSaleRate, setEditSaleRate] = useState('');
   const [editQuantity, setEditQuantity] = useState('');
   const [editUnit, setEditUnit] = useState('');
   const [partyId, setPartyId] = useState<number>(defaultCompanyId ?? 0);
@@ -93,7 +91,7 @@ export function StockManagement({
   const [companyDiscount, setCompanyDiscount] = useState('');
   const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [rows, setRows] = useState<StockRow[]>([{ rowId: 1, productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: '' }]);
+  const [rows, setRows] = useState<StockRow[]>([{ rowId: 1, productId: '', productName: '', quantity: '', buyRate: '', unit: '' }]);
   const router = useRouter();
   const { success, error: showToastError } = useToast();
 
@@ -137,14 +135,14 @@ export function StockManagement({
   }, []);
 
   const addRow = useCallback(() => {
-    setRows((prev) => [...prev, { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: title === 'Medicine' ? 'gm' : 'bag' }]);
+    setRows((prev) => [...prev, { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: title === 'Medicine' ? 'gm' : 'bag' }]);
   }, [title]);
 
   const openForm = useCallback(() => {
     if (title === 'Medicine') {
-      setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: 'gm' }]);
+      setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: 'gm' }]);
     } else {
-      setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', saleRate: '', unit: 'bag' }]);
+      setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: 'bag' }]);
     }
     setIsFormOpen(true);
   }, [title]);
@@ -156,7 +154,6 @@ export function StockManagement({
     const matchedCompany = suppliers.find((supplier) => supplier.name.toLowerCase() === String(item.companyName ?? '').toLowerCase());
     setEditCompanyId(matchedCompany?.id ?? null);
     setEditBuyRate(String(item.buyRate ?? '0'));
-    setEditSaleRate(String(item.salesRate ?? '0'));
     setEditQuantity(String(item.quantity ?? '0'));
     setEditUnit(String(item.unit ?? (title === 'Medicine' ? 'gm' : 'bag')));
     setIsEditModalOpen(true);
@@ -204,7 +201,6 @@ export function StockManagement({
                 name: editProductName,
                 quantity: Number(editQuantity) || 0,
                 buyRate: Number(editBuyRate),
-                salesRate: Number(editSaleRate),
                 unit: title === 'Medicine' ? editUnit || 'gm' : item.unit,
                 companyName: editCompanyName
               }
@@ -218,7 +214,7 @@ export function StockManagement({
     } catch (error) {
       showToastError(error instanceof Error ? error.message : 'Failed to save stock changes.');
     }
-  }, [companyNames, editCompanyName, editBuyRate, editProductName, editQuantity, editSaleRate, editUnit, editingItemId, showToastError, success, suppliers, title]);
+  }, [companyNames, editCompanyName, editBuyRate, editProductName, editQuantity, editUnit, editingItemId, showToastError, success, suppliers, title]);
 
   const handleDeleteItem = useCallback(async () => {
     if (editingItemId === null) return;
@@ -270,7 +266,6 @@ export function StockManagement({
       if (product) {
         updateRow(rowId, 'productId', String(product.id ?? ''));
         updateRow(rowId, 'buyRate', String(product.buyRate ?? '0'));
-        updateRow(rowId, 'saleRate', String(product.salesRate ?? '0'));
       } else {
         updateRow(rowId, 'productId', '');
       }
@@ -314,10 +309,6 @@ export function StockManagement({
         showToastError('Buy rate cannot be negative.');
         return;
       }
-      if (Number(row.saleRate) < 0) {
-        showToastError('Sale rate cannot be negative.');
-        return;
-      }
     }
 
     if (Number(paymentAmount) < 0) {
@@ -353,7 +344,7 @@ export function StockManagement({
 
   const SectionWrapper = asSection ? 'section' : 'main';
   const sectionClassName = asSection
-    ? 'mx-auto max-w-screen-3xl'
+    ? 'mx-auto w-full max-w-screen-3xl px-2 py-4 sm:px-4'
     : 'mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4 sm:px-4';
 
   return (
@@ -509,7 +500,7 @@ export function StockManagement({
                       </div>
                     )}
                     </div>
-                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_1fr_1fr_0.6fr] items-end">
+                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_1fr_0.6fr] items-end">
                       <div>
                         <label className="mb-1 block text-sm font-medium">{title === 'Medicine' ? 'Quantity' : 'Quantity Of Sack'}</label>
                         <input
@@ -532,19 +523,6 @@ export function StockManagement({
                           step="0.01"
                           value={row.buyRate}
                           onChange={(event) => handleRowChange(row.rowId, 'buyRate', event.target.value)}
-                          className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-sm font-medium">Sale Rate</label>
-                        <input
-                          type="number"
-                          name="saleRate"
-                          min="0"
-                          step="0.01"
-                          value={row.saleRate}
-                          onChange={(event) => handleRowChange(row.rowId, 'saleRate', event.target.value)}
                           className="w-full h-10 rounded-md border bg-background px-3 text-sm"
                           required
                         />
@@ -737,18 +715,7 @@ export function StockManagement({
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Sale Rate</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={editSaleRate}
-              onChange={(event) => setEditSaleRate(event.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-            />
-          </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={handleDeleteItem}

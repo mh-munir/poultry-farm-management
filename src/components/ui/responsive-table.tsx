@@ -28,6 +28,9 @@ export function ResponsiveTable({
   minWidth = '760px',
   stickyLastColumn = false
 }: ResponsiveTableProps) {
+  const isTableElement = (node: ReactNode, type?: string): node is ReactTableElement =>
+    isValidElement(node) && (type ? node.type === type : typeof node.type === 'string');
+
   const getHeaderLabels = (table: ReactTableElement): string[] => {
     const tableChildren = Children.toArray(table.props.children);
     const thead = tableChildren.find(
@@ -68,18 +71,16 @@ export function ResponsiveTable({
           return cellElement;
         }
 
+        const isFullRow = Boolean(cellElement.props.colSpan);
+
         return cloneElement(cellElement, {
-          'data-label': cellElement.props['data-label'] ?? labels[index] ?? ''
+          'data-label': isFullRow ? '' : cellElement.props['data-label'] ?? labels[index] ?? '',
+          'data-full-row': isFullRow ? 'true' : cellElement.props['data-full-row']
         });
       })
     });
 
-  const enhancedChildren = Children.map(children, (child) => {
-    if (!isValidElement(child) || child.type !== 'table') {
-      return child;
-    }
-
-    const table = child as ReactTableElement;
+  const enhanceTable = (table: ReactTableElement) => {
     const labels = getHeaderLabels(table);
 
     const childrenWithLabels = Children.map(table.props.children, (section) => {
@@ -87,7 +88,7 @@ export function ResponsiveTable({
         return section;
       }
 
-      if (section.type === 'tbody') {
+      if (section.type === 'tbody' || section.type === 'tfoot') {
         return cloneElement(section as ReactTableElement, {
           children: Children.map((section as ReactTableElement).props.children, (row) => {
             if (!isValidElement(row) || row.type !== 'tr') {
@@ -113,7 +114,27 @@ export function ResponsiveTable({
       ),
       children: childrenWithLabels
     });
-  });
+  };
+
+  const enhanceNode = (node: ReactNode): ReactNode => {
+    if (!isTableElement(node)) {
+      return node;
+    }
+
+    if (node.type === 'table') {
+      return enhanceTable(node);
+    }
+
+    if (!node.props.children) {
+      return node;
+    }
+
+    return cloneElement(node, {
+      children: Children.map(node.props.children, enhanceNode)
+    });
+  };
+
+  const enhancedChildren = Children.map(children, enhanceNode);
 
   return (
     <div

@@ -30,6 +30,8 @@ type SaleFormProps = {
   customers: CustomerOption[];
   products: ProductOption[];
   selectedPartyId?: number;
+  formId?: string;
+  hideSubmitButton?: boolean;
 };
 
 function createRow(): SaleItemRow {
@@ -42,7 +44,7 @@ function createRow(): SaleItemRow {
   };
 }
 
-export function SaleForm({ customers, products, selectedPartyId }: SaleFormProps) {
+export function SaleForm({ customers, products, selectedPartyId, formId, hideSubmitButton = false }: SaleFormProps) {
   const [rows, setRows] = useState<SaleItemRow[]>(() => [createRow()]);
   const [discount, setDiscount] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -88,7 +90,7 @@ export function SaleForm({ customers, products, selectedPartyId }: SaleFormProps
   };
 
   return (
-    <form action={createSaleTransaction} autoComplete="off" className="space-y-4">
+    <form id={formId} action={createSaleTransaction} autoComplete="off" className="space-y-4">
       <div>
         <label className="mb-2 block text-sm font-medium">Customer</label>
         <select name="partyId" required defaultValue={selectedPartyId ?? ''} className="w-full rounded-md border bg-background px-3 py-2">
@@ -106,7 +108,7 @@ export function SaleForm({ customers, products, selectedPartyId }: SaleFormProps
           </Button>
         </div>
 
-        <div className="space-y-3">
+        <div className="max-h-[min(36vh,28rem)] space-y-3 overflow-y-auto pr-1">
           {rows.map((row) => (
             <div key={row.rowId} className="grid gap-3 md:grid-cols-[1.2fr_0.55fr_0.65fr_1fr_auto]">
               <select
@@ -220,7 +222,9 @@ export function SaleForm({ customers, products, selectedPartyId }: SaleFormProps
         <textarea name="notes" rows={3} className="w-full rounded-md border bg-background px-3 py-2" placeholder="Invoice notes or remarks" />
       </div>
 
-      <Button type="submit" className="w-full"><DollarSign className="mr-2 h-4 w-4" />Save Sale</Button>
+      {!hideSubmitButton && (
+        <Button type="submit" className="w-full"><DollarSign className="mr-2 h-4 w-4" />Save Sale</Button>
+      )}
     </form>
   );
 }
