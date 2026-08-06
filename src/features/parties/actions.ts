@@ -388,17 +388,37 @@ export async function deleteParty(formData: FormData) {
       return { success: false, message: 'Party not found.' };
     }
 
-    // Delete image from Supabase Storage
     if (party.imageUrl) {
       await deleteOldImage(party.imageUrl);
     }
 
-    // Use a transaction to delete the party and all related records
-    await prisma.$transaction([
-      prisma.transactionItem.deleteMany({ where: { transaction: { partyId } } }),
-      prisma.transaction.deleteMany({ where: { partyId } }),
-      prisma.party.delete({ where: { id: partyId } })
-    ]);
+    await prisma.$transaction(async (tx) => {
+      await tx.smsNotification.deleteMany({
+        where: {
+          OR: [
+            { partyId },
+            { transaction: { partyId } }
+          ]
+        }
+      });
+
+      await tx.paymentAllocation.deleteMany({
+        where: {
+          OR: [
+            { payment: { partyId } },
+            { transaction: { partyId } }
+          ]
+        }
+      });
+
+      await tx.ledgerEntry.deleteMany({ where: { partyId } });
+      await tx.dueAdjustment.deleteMany({ where: { OR: [{ partyId }, { transaction: { partyId } }] } });
+      await tx.stockMovement.deleteMany({ where: { transaction: { partyId } } });
+      await tx.transactionItem.deleteMany({ where: { transaction: { partyId } } });
+      await tx.payment.deleteMany({ where: { partyId } });
+      await tx.transaction.deleteMany({ where: { partyId } });
+      await tx.party.delete({ where: { id: partyId } });
+    });
 
     revalidatePartyData(partyId);
     return { success: true, message: `Party '${party.name}' and all related data have been deleted.` };
@@ -1072,10 +1092,56 @@ export async function updatePaymentForParty(formData: FormData) {
       paymentData.paymentDate = paymentDate;
     }
 
-    await prisma.payment.update({
-      where: { id: paymentId },
-      data: paymentData
+    await prisma.$transaction(async (tx) => {
+      const existingPayment = await tx.payment.findUnique({
+        where: { id: paymentId },
+        select: { id: true, amount: true, partyId: true }
+      });
+
+      if (!existingPayment) {
+        throw new Error('Payment not found.');
+      }
+
+      const previousAmount = new Prisma.Decimal(existingPayment.amount.toString());
+      const newAmount = new Prisma.Decimal(amount);
+      const delta = newAmount.minus(previousAmount);
+
+      const allocations = await tx.paymentAllocation.findMany({
+        where: { paymentId },
+        select: { transactionId: true, amount: true }
+      });
+
+      for (const allocation of allocations) {
+        const transaction = await tx.transaction.findUnique({
+          where: { id: allocation.transactionId },
+          select: { id: true, totalAmount: true, paidAmount: true, dueAmount: true }
+        });
+
+        if (!transaction) {
+          continue;
+        }
+
+        const previousPaid = new Prisma.Decimal(transaction.paidAmount.toString());
+        const allocationAmount = new Prisma.Decimal(allocation.amount.toString());
+        const nextPaid = previousPaid.minus(allocationAmount).plus(delta);
+        const nextDue = new Prisma.Decimal(transaction.totalAmount.toString()).minus(nextPaid);
+
+        await tx.transaction.update({
+          where: { id: transaction.id },
+          data: {
+            paidAmount: nextPaid,
+            dueAmount: nextDue,
+            status: nextDue.gt(0) ? 'PENDING' : 'COMPLETED'
+          }
+        });
+      }
+
+      await tx.payment.update({
+        where: { id: paymentId },
+        data: paymentData
+      });
     });
+
     revalidatePartyData(partyId);
     return { success: true, message: 'Payment updated successfully.' };
   } catch (error) {
@@ -1093,10 +1159,49 @@ export async function deletePaymentForParty(formData: FormData) {
     return { success: false, message: 'Invalid ID for deletion.' };
   }
 
-  await prisma.payment.delete({ where: { id: paymentId } });
+  try {
+    await prisma.$transaction(async (tx) => {
+      const allocations = await tx.paymentAllocation.findMany({
+        where: { paymentId },
+        select: { transactionId: true, amount: true }
+      });
 
-  revalidatePartyData(partyId);
-  return { success: true, message: 'Payment deleted successfully.' };
+      for (const allocation of allocations) {
+        const transaction = await tx.transaction.findUnique({
+          where: { id: allocation.transactionId },
+          select: { id: true, totalAmount: true, paidAmount: true, dueAmount: true }
+        });
+
+        if (!transaction) {
+          continue;
+        }
+
+        const previousPaid = new Prisma.Decimal(transaction.paidAmount.toString());
+        const allocationAmount = new Prisma.Decimal(allocation.amount.toString());
+        const nextPaid = previousPaid.minus(allocationAmount);
+        const nextDue = new Prisma.Decimal(transaction.totalAmount.toString()).minus(nextPaid);
+
+        await tx.transaction.update({
+          where: { id: transaction.id },
+          data: {
+            paidAmount: nextPaid,
+            dueAmount: nextDue,
+            status: nextDue.gt(0) ? 'PENDING' : 'COMPLETED'
+          }
+        });
+      }
+
+      await tx.paymentAllocation.deleteMany({ where: { paymentId } });
+      await tx.ledgerEntry.deleteMany({ where: { paymentId } });
+      await tx.payment.delete({ where: { id: paymentId } });
+    });
+
+    revalidatePartyData(partyId);
+    return { success: true, message: 'Payment deleted successfully.' };
+  } catch (error) {
+    console.error('Error deleting payment:', error);
+    return { success: false, message: 'Failed to delete payment.' };
+  }
 }
 
 const supplierPurchaseSchema = z.object({
