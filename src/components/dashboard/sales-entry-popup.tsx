@@ -497,7 +497,8 @@ export function SalesEntryPopup({
 
           <input type="hidden" name="paymentMethod" value="CASH" readOnly />
           <input type="hidden" name="discount" value={salesDiscount} readOnly />
-          <input type="hidden" name="notes" value={salesFormValues.mediaName ? `Media: ${salesFormValues.mediaName}` : ''} readOnly />
+          <input type="hidden" name="notes" value={''} readOnly />
+          <input type="hidden" name="mediaName" value={salesFormValues.mediaName} readOnly />
         </form>
       </Dialog>
     </>

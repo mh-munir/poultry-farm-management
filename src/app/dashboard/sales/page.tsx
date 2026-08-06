@@ -79,6 +79,7 @@ export default async function SalesPage({
                     <div>
                       <div className="font-medium">{sale.invoiceNumber}</div>
                       <div className="text-xs text-muted-foreground">{sale.party?.name ?? 'Unknown'}</div>
+                      <div className="text-xs text-muted-foreground">Media: {sale.mediaName || '—'}</div>
                     </div>
                     <div className="flex flex-col items-start gap-3 sm:items-end">
                       <div className="text-right text-sm">

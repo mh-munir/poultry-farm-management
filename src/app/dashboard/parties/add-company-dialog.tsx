@@ -1,40 +1,29 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { createCompany } from '@/features/companies/actions';
-import { useToast } from '@/hooks/use-toast';
+import { useModalSave } from '@/hooks/use-modal-save';
 
 export function AddCompanyDialog() {
-  const router = useRouter();
-  const { success, error: showToastError } = useToast();
+  const { isSaving, saveError, save } = useModalSave();
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isAddLoading, setIsAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
 
   const handleAddSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsAddLoading(true);
     setAddError('');
 
     const formData = new FormData(event.currentTarget);
 
-    try {
-      const result = await createCompany(formData);
-      setIsAddLoading(false);
+    const result = await save(() => createCompany(formData), {
+      refreshOnSuccess: true,
+      onClose: () => setIsAddOpen(false)
+    });
 
-      if (result.success) {
-        success(result.message);
-        setIsAddOpen(false);
-        router.refresh();
-      } else {
-        showToastError(result.message);
-      }
-    } catch (error) {
-      setIsAddLoading(false);
-      showToastError('Failed to create company.');
+    if (!result.success) {
+      setAddError(result.message);
     }
   };
 
@@ -96,9 +85,15 @@ export function AddCompanyDialog() {
             <label htmlFor="company-isActive" className="text-sm">Active company</label>
           </div>
           <div className="md:col-span-2 flex flex-wrap gap-3">
-            <Button type="submit" disabled={isAddLoading}>{isAddLoading ? 'Saving...' : 'Save Company'}</Button>
-            <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Company'}</Button>
+            <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)} disabled={isSaving}>Cancel</Button>
           </div>
+          {saveError ? (
+            <div className="md:col-span-2 rounded-2xl border border-rose-200 bg-rose-50/80 p-4 shadow-sm">
+              <p className="text-sm font-semibold text-rose-900">⚠️ Error</p>
+              <p className="mt-1 text-sm text-rose-800">{saveError}</p>
+            </div>
+          ) : null}
         </form>
       </Dialog>
     </>

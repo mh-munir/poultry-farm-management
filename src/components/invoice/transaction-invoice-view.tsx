@@ -1,6 +1,11 @@
 import type { InvoiceCompanyProfile } from '@/lib/branding';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 
+export type InvoiceDisplaySettings = {
+  hideFeedUnitPrice?: boolean;
+  hideFeedLineTotal?: boolean;
+};
+
 export type InvoiceLineItem = {
   id: string | number;
   productName: string;
@@ -8,6 +13,7 @@ export type InvoiceLineItem = {
   unit: string;
   unitPrice: number;
   lineTotal: number;
+  productType?: string | null;
 };
 
 export type InvoiceParty = {
@@ -36,6 +42,8 @@ export type TransactionInvoiceViewProps = {
   paymentMethod?: string | null;
   referenceNumber?: string | null;
   notes?: string | null;
+  mediaName?: string | null;
+  displaySettings?: InvoiceDisplaySettings;
 };
 
 function formatCurrency(value: number | null | undefined) {
@@ -72,6 +80,10 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
+function isFeedProduct(productType?: string | null) {
+  return typeof productType === 'string' && productType.trim().toUpperCase() === 'FEED';
+}
+
 export function TransactionInvoiceView({
   company,
   title,
@@ -90,7 +102,9 @@ export function TransactionInvoiceView({
   totalDueAfter,
   paymentMethod,
   referenceNumber,
-  notes
+  notes,
+  mediaName,
+  displaySettings = {}
 }: TransactionInvoiceViewProps) {
   return (
     <div className="invoice-print-area max-w-4xl mx-auto bg-white print:bg-white">
@@ -147,6 +161,12 @@ export function TransactionInvoiceView({
               <div className="font-medium text-slate-900">{invoiceNumber}</div>
               <div className="mt-2 text-xs text-slate-500">Date</div>
               <div className="font-medium text-slate-900">{formatDate(transactionDate)}</div>
+              {mediaName ? (
+                <div className="mt-2 text-xs text-slate-500">Media</div>
+              ) : null}
+              {mediaName ? (
+                <div className="font-medium text-slate-900">{mediaName}</div>
+              ) : null}
             </div>
           </div>
 
@@ -163,15 +183,21 @@ export function TransactionInvoiceView({
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
-                  {items.map((it, idx) => (
-                    <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                      <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
-                      <td className="px-4 py-3 text-slate-700">{it.productName}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(it.unitPrice)}</td>
-                      <td className="px-4 py-3 text-center text-slate-700">{it.quantity.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-900">{formatCurrency(it.lineTotal)}</td>
-                    </tr>
-                  ))}
+                  {items.map((it, idx) => {
+                    const isFeed = isFeedProduct(it.productType);
+                    const hideUnitPrice = Boolean(isFeed && displaySettings.hideFeedUnitPrice);
+                    const hideLineTotal = Boolean(isFeed && displaySettings.hideFeedLineTotal);
+
+                    return (
+                      <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                        <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
+                        <td className="px-4 py-3 text-slate-700">{it.productName}</td>
+                        <td className="px-4 py-3 text-right text-slate-700">{hideUnitPrice ? 'Hidden' : formatCurrency(it.unitPrice)}</td>
+                        <td className="px-4 py-3 text-center text-slate-700">{it.quantity.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right font-medium text-slate-900">{hideLineTotal ? 'Hidden' : formatCurrency(it.lineTotal)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </ResponsiveTable>

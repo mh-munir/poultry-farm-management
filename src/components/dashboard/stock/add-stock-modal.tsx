@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useMemo, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
 import { getCompanyCurrentDue } from '@/features/companies/actions';
-import { useToast } from '@/hooks/use-toast';
+import { useModalSave } from '@/hooks/use-modal-save';
 import { STOCK_TYPE_OPTIONS, STOCK_PAYMENT_METHOD_OPTIONS } from '@/config/stock';
 import type { StockItem } from './stock-management';
 
@@ -47,7 +48,7 @@ export function AddStockModal({
 }: AddStockModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [stockType, setStockType] = useState<'FEED' | 'MEDICINE'>(preselectedCompanyType ?? 'FEED');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { isSaving, saveError, save } = useModalSave();
   const [companyName, setCompanyName] = useState(preselectedCompanyName ?? '');
   const [companyId, setCompanyId] = useState(preselectedCompanyId ?? 0);
   const [previousDue, setPreviousDue] = useState(0);
@@ -125,8 +126,7 @@ export function AddStockModal({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    if (isSubmitting) {
+    if (isSaving) {
       return;
     }
 
@@ -169,23 +169,15 @@ export function AddStockModal({
     }
 
     const formData = new FormData(event.currentTarget);
-    setIsSubmitting(true);
 
-    try {
-      const result = await createCompanyStockPurchaseTransaction(formData);
+    const result = await save(() => createCompanyStockPurchaseTransaction(formData), {
+      refreshOnSuccess: true,
+      onClose: () => setIsOpen(false),
+      defaultErrorMessage: 'Stock purchase failed.'
+    });
 
-      if (!result.success) {
-        showToastError(result.message);
-        return;
-      }
-
-      setIsOpen(false);
-      success(result.message);
-      router.refresh();
-    } catch (error) {
-      showToastError(error instanceof Error ? error.message : 'Stock purchase failed.');
-    } finally {
-      setIsSubmitting(false);
+    if (!result.success) {
+      return;
     }
   };
 
@@ -430,20 +422,26 @@ export function AddStockModal({
           <div className="flex flex-wrap items-center justify-end gap-3">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSaving}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isSubmitting ? 'Saving...' : 'Save stock purchase'}
+              {isSaving ? 'Saving...' : 'Save stock purchase'}
             </button>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              disabled={isSubmitting}
+              disabled={isSaving}
               className="rounded-md border px-4 py-2 text-sm"
             >
               Cancel
             </button>
           </div>
+          {saveError && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4 shadow-sm">
+              <p className="text-sm font-semibold text-rose-900">⚠️ Error</p>
+              <p className="mt-1 text-sm text-rose-800">{saveError}</p>
+            </div>
+          )}
         </form>
       </Dialog>
     </>

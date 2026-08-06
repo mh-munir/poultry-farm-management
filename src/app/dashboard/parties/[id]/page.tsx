@@ -201,7 +201,7 @@ export default async function PartyProfilePage({
 
   if (!party) notFound();
 
-  const [transactions, payments, ledgerEntries, summary, customers, saleProducts] = await Promise.all([
+  const [rawTransactions, payments, ledgerEntries, summary, customers, saleProducts] = await Promise.all([
     prisma.transaction.findMany({
       where: { partyId },
       orderBy: { transactionDate: 'desc' },
@@ -214,6 +214,7 @@ export default async function PartyProfilePage({
         paidAmount: true,
         dueAmount: true,
         notes: true,
+        mediaName: true,
         transactionItems: {
           select: {
             id: true,
@@ -231,7 +232,7 @@ export default async function PartyProfilePage({
           }
         }
       }
-    }) as Promise<PartyTransactionRecord[]>,
+    }),
     prisma.payment.findMany({
       where: { partyId },
       orderBy: { paymentDate: 'desc' },
@@ -244,7 +245,7 @@ export default async function PartyProfilePage({
         status: true,
         notes: true
       }
-    }) as Promise<PartyPaymentRecord[]>,
+    }),
     prisma.ledgerEntry.findMany({
       where: { partyId },
       orderBy: { entryDate: 'desc' },
@@ -257,11 +258,13 @@ export default async function PartyProfilePage({
         description: true,
         referenceNumber: true
       }
-    }) as Promise<LedgerEntryRecord[]>,
+    }),
     getPartyAccountSummary(partyId),
     getCustomersForSales(),
     getProductsForSales()
   ]);
+
+  const transactions = rawTransactions;
 
   const customersForSales = customers.map((c) => ({ id: c.id, name: c.name }));
   const saleProductsForSales = saleProducts.map((p) => ({
@@ -284,7 +287,7 @@ export default async function PartyProfilePage({
       invoiceNumber: transaction.invoiceNumber,
       transactionDate: transaction.transactionDate,
       transactionType: transaction.transactionType,
-      mediaName: transaction.notes?.startsWith('Media:') ? transaction.notes.slice('Media:'.length).trim() : null,
+      mediaName: transaction.mediaName || null,
       productName: item.product?.name ?? 'Unknown product',
       productType: item.product?.productType ?? '-',
       quantity: Number(item.quantity ?? 0),

@@ -162,9 +162,24 @@ export type TopProductRow = {
   profitMargin: number;
 };
 
-export async function getProfitAnalytics({ start, end }: { start: Date; end: Date }) {
-  // Summary aggregates: compute using transaction items joined with latest purchase unitCost per product before sale date
-  const [summaryRow] = await prisma.$queryRaw<Array<{ total_sales: Prisma.Decimal | null; total_cost: Prisma.Decimal | null; gross_profit: Prisma.Decimal | null }>>`
+export type ProfitAnalyticsData = {
+  summary: ProfitSummary;
+  pieChart: { profit: number; cost: number };
+  topProducts: TopProductRow[];
+  unavailable?: boolean;
+};
+
+export const EMPTY_PROFIT_ANALYTICS: ProfitAnalyticsData = {
+  summary: { totalSales: 0, totalCost: 0, grossProfit: 0, profitMargin: 0 },
+  pieChart: { profit: 0, cost: 0 },
+  topProducts: [],
+  unavailable: false,
+};
+
+export async function getProfitAnalytics({ start, end }: { start: Date; end: Date }): Promise<ProfitAnalyticsData> {
+  try {
+    // Summary aggregates: compute using transaction items joined with latest purchase unitCost per product before sale date
+    const [summaryRow] = await prisma.$queryRaw<Array<{ total_sales: Prisma.Decimal | null; total_cost: Prisma.Decimal | null; gross_profit: Prisma.Decimal | null }>>`
     SELECT
       COALESCE(SUM(ti."quantity" * ti."unitPrice"), 0) AS total_sales,
       COALESCE(SUM(ti."quantity" * COALESCE(sm."unitCost", p."defaultPurchasePrice", 0)), 0) AS total_cost,
@@ -245,4 +260,8 @@ export async function getProfitAnalytics({ start, end }: { start: Date; end: Dat
     },
     topProducts
   } as const;
+  } catch (err) {
+    console.error('Failed to load profit analytics', err);
+    return { ...EMPTY_PROFIT_ANALYTICS, unavailable: true };
+  }
 }

@@ -5,6 +5,11 @@ import { prisma } from '@/server/db';
 import { TransactionInvoiceView } from '@/components/invoice/transaction-invoice-view';
 import { InvoicePrintTrigger } from '@/components/invoice/invoice-print-trigger';
 
+type InvoiceDisplaySettings = {
+  hideFeedUnitPrice?: boolean;
+  hideFeedLineTotal?: boolean;
+};
+
 function numberValue(value: unknown) {
   return Number((value as { toString?: () => string } | null | undefined)?.toString?.() ?? value ?? 0);
 }
@@ -17,13 +22,25 @@ function titleCase(value: string) {
     .join(' ');
 }
 
+function parseInvoiceDisplaySettings(value: unknown): InvoiceDisplaySettings {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  const source = value as Record<string, unknown>;
+  return {
+    hideFeedUnitPrice: Boolean(source.hideFeedUnitPrice),
+    hideFeedLineTotal: Boolean(source.hideFeedLineTotal)
+  };
+}
+
 export default async function TransactionPrintPage({ params }: { params: Promise<{ id: string }> }) {
   await requireUser();
   const { id } = await params;
   const transactionId = Number(id);
   if (!Number.isInteger(transactionId) || transactionId <= 0) notFound();
 
-  const [companyProfile, transaction] = await Promise.all([
+  const [companyProfile, transaction, invoiceSettingsRecord] = await Promise.all([
     getInvoiceCompanyProfile(),
     prisma.transaction.findUnique({
       where: { id: transactionId },
@@ -31,7 +48,7 @@ export default async function TransactionPrintPage({ params }: { params: Promise
         party: { select: { name: true, phone: true, address: true } },
         company: { select: { name: true, phone: true, address: true } },
         transactionItems: {
-          include: { product: { select: { name: true, unit: true } } },
+          include: { product: { select: { name: true, unit: true, productType: true } } },
           orderBy: { id: 'asc' }
         },
         payments: {
@@ -42,7 +59,8 @@ export default async function TransactionPrintPage({ params }: { params: Promise
           orderBy: [{ entryDate: 'asc' }, { id: 'asc' }]
         }
       }
-    })
+    }),
+    (prisma as any).setting.findUnique({ where: { key: 'invoice_settings' } })
   ]);
 
   if (!transaction) notFound();
@@ -55,6 +73,7 @@ export default async function TransactionPrintPage({ params }: { params: Promise
   const totalDueAfter = lastLedger ? numberValue(lastLedger.runningBalance) : numberValue(transaction.dueAmount);
   const firstPayment = transaction.payments[0]?.payment;
   const counterparty = transaction.company ?? transaction.party;
+  const displaySettings = parseInvoiceDisplaySettings(invoiceSettingsRecord?.value);
 
   return (
     <>
@@ -79,7 +98,8 @@ export default async function TransactionPrintPage({ params }: { params: Promise
         quantity: numberValue(item.quantity),
         unit: item.product?.unit ?? '-',
         unitPrice: numberValue(item.unitPrice),
-        lineTotal: numberValue(item.lineTotal)
+        lineTotal: numberValue(item.lineTotal),
+        productType: item.product?.productType ?? null
       }))}
       subtotal={numberValue(transaction.subtotal)}
       discount={numberValue(transaction.discount)}
@@ -90,6 +110,14 @@ export default async function TransactionPrintPage({ params }: { params: Promise
       paymentMethod={firstPayment?.paymentMethod ?? null}
       referenceNumber={transaction.referenceNumber ?? firstPayment?.referenceNumber ?? null}
       notes={transaction.notes}
+      // pass media as part of notes replacement; TransactionInvoiceView will read `notes` separately
+      // add media into the party label area via notes or pass separately if needed
+      // ensure media is available in the invoice view via transaction.mediaName
+      // (we will update TransactionInvoiceView to accept mediaName)
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore - adding mediaName prop for now
+      mediaName={transaction.mediaName}
+      displaySettings={displaySettings}
     />
     </>
   );

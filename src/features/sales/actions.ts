@@ -27,6 +27,7 @@ const saleItemSchema = z.object({
 });
 
 const saleSchema = z.object({
+  mediaName: z.string().trim().min(1, 'Media is required.'),
   partyId: z.coerce.number().int().positive(),
   paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'CHEQUE', 'MOBILE_MONEY', 'OTHER']),
   paymentAmount: z.coerce.number().min(0, 'Payment amount cannot be negative.').optional().default(0),
@@ -50,6 +51,7 @@ function normalizeSaleInput(formData: FormData) {
   })).filter((item) => item.productId.trim() && Number(item.quantity) > 0);
 
   return {
+    mediaName: formData.get('mediaName')?.toString() ?? '',
     partyId: formData.get('partyId')?.toString() ?? '',
     paymentMethod: formData.get('paymentMethod')?.toString() ?? 'CASH',
     paymentAmount: formData.get('paymentAmount')?.toString() ?? '0',
@@ -145,6 +147,7 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
         dueAmount,
         referenceNumber: data.referenceNumber || null,
         notes: data.notes || null,
+        mediaName: data.mediaName,
         transactionItems: {
           createMany: {
             data: items.map((item) => ({
@@ -358,6 +361,7 @@ export async function getSalesPageData({
       select: {
         id: true,
         invoiceNumber: true,
+        mediaName: true,
         transactionDate: true,
         status: true,
         totalAmount: true,
@@ -383,6 +387,7 @@ export async function getSaleById(id: number) {
     select: {
       id: true,
       invoiceNumber: true,
+      mediaName: true,
       transactionDate: true,
       status: true,
       totalAmount: true,
