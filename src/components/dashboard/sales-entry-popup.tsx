@@ -367,8 +367,9 @@ export function SalesEntryPopup({
               </Button>
             </div>
 
-            {salesProductRows.map((row, index) => {
-              const selectedProduct = productsById.get(row.productId);
+            <div className="max-h-[min(36vh,28rem)] space-y-3 overflow-y-auto pr-1">
+              {salesProductRows.map((row, index) => {
+                const selectedProduct = productsById.get(row.productId);
 
               return (
                 <div key={row.rowId} className="flex flex-col gap-3 rounded-lg border bg-white p-3 xl:flex-row xl:items-top">
@@ -449,7 +450,8 @@ export function SalesEntryPopup({
                   </div>
                 </div>
               );
-            })}
+              })}
+            </div>
 
             {visibleProductOptions.length === 0 ? (
               <p className="text-sm text-muted-foreground">No stock products found for this selection.</p>

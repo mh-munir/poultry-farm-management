@@ -10,10 +10,11 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
-import getDashboardDataCached from '@/features/dashboard/actions';
+import getDashboardDataCached, { getProfitAnalytics } from '@/features/dashboard/actions';
 import { Card } from '@/components/ui/card';
 import { SummaryCard } from '@/components/dashboard/summary-card';
 import { ServiceUnavailableCard } from '@/components/ui/service-unavailable-card';
+import ProfitAnalyticsClient from '@/components/dashboard/profit-analytics-client';
 
 const BANGLADESH_OFFSET = 6 * 60;
 
@@ -80,6 +81,24 @@ function describeArc(cx: number, cy: number, r: number, startAngle: number, endA
   ].join(' ');
 }
 
+function buildDailyProductProfitPieStyle(profitValue: number, purchaseValue: number) {
+  const profitAmount = Math.max(profitValue, 0);
+  const lossAmount = Math.max(-profitValue, 0);
+  const total = profitAmount + lossAmount + purchaseValue;
+  const profitPct = total > 0 ? (profitAmount / total) * 100 : 0;
+  const lossPct = total > 0 ? (lossAmount / total) * 100 : 0;
+  const stop1 = profitPct.toFixed(2);
+  const stop2 = (profitPct + lossPct).toFixed(2);
+
+  if (total === 0) {
+    return { background: '#f8fafc' };
+  }
+
+  return {
+    background: `conic-gradient(${profitAmount > 0 ? '#0ea5e9' : 'transparent'} 0% ${stop1}%, ${lossAmount > 0 ? '#dc2626' : 'transparent'} ${stop1}% ${stop2}%, #f97316 ${stop2}% 100%)`
+  };
+}
+
 export default async function DashboardPage() {
   const session = await requireUser();
   const userName = session?.user?.name ?? session?.user?.email ?? 'there';
@@ -124,6 +143,9 @@ export default async function DashboardPage() {
       return { summaryRow: null, expenseMonthlyGroups: [], stockBalances: [], recentTransactions: [], monthlyRevenueRows: [], monthlyPurchaseRows: [] } as any;
     }
   })();
+
+  // initial profit analytics for the server-rendered view (today by default)
+  const profitInitial = await getProfitAnalytics({ start, end });
 
   // Defensive normalization: cached data may serialize Date -> string.
   const normalizeMonths = <T extends { month: any }>(arr: T[] | undefined): Array<Omit<T, 'month'> & { month: Date | null }> => {
@@ -226,7 +248,6 @@ export default async function DashboardPage() {
   const totalMedicinePurchase = Number(transactionItemTotalsRow.total_medicine_purchase ?? 0);
   const totalExpenses = Number(expenseTotalsRow.total_expense ?? 0);
   const totalPartyPayment = Number(paymentTotalsRow.total_party_payment ?? 0);
-  const totalTotalExpense = totalFeedPurchase + totalMedicinePurchase + totalExpenses + totalPartyPayment;
   const totalCustomerDue = Number(transactionDueTotalsRow.total_customer_due ?? 0);
   const totalFeedMedicineDue = Number(transactionDueTotalsRow.total_feed_medicine_due ?? 0);
   const totalEggChickenSupplierDue = Number(transactionDueTotalsRow.total_egg_chicken_due ?? 0);
@@ -238,7 +259,21 @@ export default async function DashboardPage() {
   }, 0);
 
   const totalSales = totalFeedSale + totalMedicineSale;
-  const netProfit = totalSales - totalTotalExpense;
+  const totalCostOfGoodsSold = totalFeedPurchase + totalMedicinePurchase;
+  const totalOperatingExpenses = totalExpenses + totalPartyPayment;
+  const netProfit = totalSales - (totalCostOfGoodsSold + totalOperatingExpenses);
+
+  const dailySales = dailyFeedSale + dailyMedicineSale;
+  const dailyPurchase = dailyFeedPurchase + dailyMedicinePurchase;
+  const dailyProfit = dailySales - dailyPurchase;
+  const dailyProductsSold = Number(summaryRow.daily_products_sold ?? 0);
+  const dailyProfitColor = dailyProfit >= 0 ? 'text-emerald-600' : 'text-rose-600';
+  const dailyProfitLabel = dailyProfit >= 0 ? 'Profit' : 'Loss';
+  const dailyProductProfitSegments = [
+    { name: dailyProfit >= 0 ? 'Profit' : 'Loss', value: Math.abs(dailyProfit), color: dailyProfit >= 0 ? '#0ea5e9' : '#dc2626' },
+    { name: 'Purchase Cost', value: dailyPurchase, color: '#f97316' }
+  ];
+  const dailyProductProfitTotal = dailyProductProfitSegments.reduce((sum, segment) => sum + segment.value, 0);
 
   type DashboardCardItem = {
     title: string;
@@ -281,7 +316,7 @@ export default async function DashboardPage() {
       value: formatCurrency(dailyPartyPayment),
       metric: dailyPartyPayment > 0 ? '- ' + formatCurrency(dailyPartyPayment) : 'No party supplier payment',
       metricColor: 'text-amber-600',
-      icon: DollarSign,
+      icon: ClipboardList,
       accent: 'bg-amber-50 text-amber-600'
     }
   ];
@@ -289,17 +324,17 @@ export default async function DashboardPage() {
   const totalSummaryCards: DashboardCardItem[] = [
     {
       title: 'Total Sales',
-      value: formatCurrency(totalFeedSale + totalMedicineSale),
-      metric: totalFeedSale + totalMedicineSale > 0 ? '+ ' + ((totalMedicineSale / (totalFeedSale + totalMedicineSale)) * 100).toFixed(1) + '%' : '0%',
+      value: formatCurrency(totalSales),
+      metric: totalSales > 0 ? '+ ' + ((totalMedicineSale / totalSales) * 100).toFixed(1) + '%' : '0%',
       metricColor: 'text-emerald-600',
       icon: ShoppingCart,
       accent: 'bg-indigo-50 text-indigo-600'
     },
     {
-      title: 'Total Purchase',
-      value: formatCurrency(totalFeedPurchase + totalMedicinePurchase),
-      metric: totalFeedPurchase + totalMedicinePurchase > 0 ? '+ ' + ((totalMedicinePurchase / (totalFeedPurchase + totalMedicinePurchase)) * 100).toFixed(1) + '%' : '0%',
-      metricColor: 'text-emerald-600',
+      title: 'Cost of Goods Sold',
+      value: formatCurrency(totalCostOfGoodsSold),
+      metric: totalCostOfGoodsSold > 0 ? '+ ' + ((totalMedicinePurchase / totalCostOfGoodsSold) * 100).toFixed(1) + '%' : '0%',
+      metricColor: 'text-sky-600',
       icon: Box,
       accent: 'bg-violet-50 text-violet-600'
     },
@@ -367,6 +402,10 @@ export default async function DashboardPage() {
             />
           </div>
         ) : null}
+
+        <div className="mb-6">
+          <ProfitAnalyticsClient initialStart={start.toISOString()} initialEnd={end.toISOString()} initialData={profitInitial} />
+        </div>
         <section className="space-y-6">
           <div className="">
             <div className="grid gap-4">
@@ -428,151 +467,193 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-            <Card className="p-4 sm:p-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-section-title">Net Profit / Loss Breakdown</h2>
-                  <p className="mt-1 text-card-subtitle">Financial performance overview</p>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+              <Card className="p-4 sm:p-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-section-title">Daily Product Profit</h2>
+                    <p className="mt-1 text-card-subtitle">Today's sales vs purchase profit breakdown.</p>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-slate-500" />
+                    <span className="text-sm font-medium text-slate-600">1 month view</span>
+                  </div>
                 </div>
-                <div className="hidden sm:flex items-center gap-2">
-                  <span className={`h-2.5 w-2.5 rounded-full ${netProfit >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                  <span className="text-sm font-medium text-slate-600">
-                    {netProfit >= 0 ? 'Profitable' : 'Loss Period'}
-                  </span>
-                </div>
-              </div>
 
-              <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
-                <div className="flex flex-col items-center">
-                  <div className="relative h-[240px] w-[240px] sm:h-[280px] sm:w-[280px]">
-                    <svg viewBox="0 0 240 240" className="h-full w-full">
-                      {(() => {if (total === 0) {
+                <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start">
+                  <div className="flex items-center justify-center">
+                    <div className="relative h-40 w-40 rounded-full border bg-slate-100" style={buildDailyProductProfitPieStyle(dailyProfit, dailyPurchase)}>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-xs font-semibold text-slate-900">
+                        <span className="text-[10px] uppercase tracking-[0.25em] text-slate-500">Profit</span>
+                        <span className="mt-1 text-sm">{dailyProfitLabel}</span>
+                        <span className={`mt-1 text-lg font-bold ${dailyProfitColor}`}>{formatCurrency(dailyProfit)}</span>
+                        <span className="mt-2 text-[10px] text-slate-500">Sales − Purchase</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Sales</span>
+                        <span className="font-semibold text-slate-800">{formatCurrency(dailySales)}</span>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between">
+                        <span className="text-slate-500">Purchase cost</span>
+                        <span className="font-semibold text-slate-800">{formatCurrency(dailyPurchase)}</span>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between">
+                        <span className="text-slate-500">{dailyProfit >= 0 ? 'Profit' : 'Loss'}</span>
+                        <span className={`font-semibold ${dailyProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(dailyProfit)}</span>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                      <p className="font-medium text-slate-700">Breakdown</p>
+                      <div className="mt-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span>Profit / loss</span>
+                          <span>{formatCurrency(Math.abs(dailyProfit))}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Purchase cost</span>
+                          <span>{formatCurrency(dailyPurchase)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Items sold</span>
+                          <span>{formatNumber(dailyProductsSold)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-4 sm:p-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-section-title">Net Profit / Loss Breakdown</h2>
+                    <p className="mt-1 text-card-subtitle">Financial performance overview</p>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-2">
+                    <span className={`h-2.5 w-2.5 rounded-full ${netProfit >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                    <span className="text-sm font-medium text-slate-600">
+                      {netProfit >= 0 ? 'Profitable' : 'Loss Period'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
+                  <div className="flex flex-col items-center">
+                    <div className="relative h-[240px] w-[240px] sm:h-[280px] sm:w-[280px]">
+                      <svg viewBox="0 0 240 240" className="h-full w-full">
+                        {(() => {if (total === 0) {
+                            return (
+                              <>
+                                <circle cx="120" cy="120" r="90" fill="#F1F5F9" />
+                                <circle cx="120" cy="120" r="60" fill="white" />
+                                <text x="120" y="115" textAnchor="middle" className="text-sm fill-slate-400" fontSize="14">No data</text>
+                              </>
+                            );
+                          }
+                          const gap = 2;
+                          const gapAngle = (gap / total) * 360;
                           return (
                             <>
-                              <circle cx="120" cy="120" r="90" fill="#F1F5F9" />
+                              {profit > 0 && (
+                                <path
+                                  d={describeArc(120, 120, 90, gapAngle / 2, (profit / total) * 360 + gapAngle / 2)}
+                                  fill="#16A34A"
+                                  stroke="white"
+                                  strokeWidth="3"
+                                />
+                              )}
+                              {loss > 0 && (
+                                <path
+                                  d={describeArc(120, 120, 90, (profit / total) * 360 + gapAngle / 2, 360 + gapAngle / 2)}
+                                  fill="#DC2626"
+                                  stroke="white"
+                                  strokeWidth="3"
+                                />
+                              )}
                               <circle cx="120" cy="120" r="60" fill="white" />
-                              <text x="120" y="115" textAnchor="middle" className="text-sm fill-slate-400" fontSize="14">No data</text>
+                              <text x="120" y="112" textAnchor="middle" className="text-xs fill-slate-400" fontSize="12">Net</text>
+                              <text x="120" y="132" textAnchor="middle" className={`text-lg font-bold ${netProfit >= 0 ? 'fill-emerald-600' : 'fill-rose-600'}`}>
+                                {netProfit >= 0 ? 'Profit' : 'Loss'}
+                              </text>
                             </>
                           );
-                        }
-                        const gap = 2;
-                        const gapAngle = (gap / total) * 360;
-                        return (
-                          <>
-                            {profit > 0 && (
-                              <path
-                                d={describeArc(120, 120, 90, gapAngle / 2, (profit / total) * 360 + gapAngle / 2)}
-                                fill="#16A34A"
-                                stroke="white"
-                                strokeWidth="3"
-                              />
-                            )}
-                            {loss > 0 && (
-                              <path
-                                d={describeArc(120, 120, 90, (profit / total) * 360 + gapAngle / 2, 360 + gapAngle / 2)}
-                                fill="#DC2626"
-                                stroke="white"
-                                strokeWidth="3"
-                              />
-                            )}
-                            <circle cx="120" cy="120" r="60" fill="white" />
-                            <text x="120" y="112" textAnchor="middle" className="text-xs fill-slate-400" fontSize="12">Net</text>
-                            <text x="120" y="132" textAnchor="middle" className={`text-lg font-bold ${netProfit >= 0 ? 'fill-emerald-600' : 'fill-rose-600'}`}>
-                              {netProfit >= 0 ? 'Profit' : 'Loss'}
-                            </text>
-                          </>
-                        );
-                      })()}
-                    </svg>
-                  </div>
-                  <div className="mt-5 flex items-center gap-6">
-                    {profit > 0 ? (
-                      <div className="flex items-center gap-2" title={`Profit: ${formatCurrency(profit)} (${total > 0 ? (profit / total * 100).toFixed(1) : 0}%)`}>
-                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                        <span className="text-sm font-medium text-slate-600">Profit</span>
-                        <span className="text-sm font-semibold text-slate-800">{formatCurrency(profit)}</span>
-                      </div>
-                    ) : null}
-                    {loss > 0 ? (
-                      <div className="flex items-center gap-2" title={`Loss: ${formatCurrency(loss)} (${total > 0 ? (loss / total * 100).toFixed(1) : 0}%)`}>
-                        <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
-                        <span className="text-sm font-medium text-slate-600">Loss</span>
-                        <span className="text-sm font-semibold text-slate-800">{formatCurrency(loss)}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Key Metrics</h3>
-                    <div className="mt-3 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-blue-500" />
-                          <span className="text-sm text-slate-500">Total Income</span>
+                        })()}
+                      </svg>
+                    </div>
+                    <div className="mt-5 flex items-center gap-6">
+                      {profit > 0 ? (
+                        <div className="flex items-center gap-2" title={`Profit: ${formatCurrency(profit)} (${total > 0 ? (profit / total * 100).toFixed(1) : 0}%)`}>
+                          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                          <span className="text-sm font-medium text-slate-600">Profit</span>
+                          <span className="text-sm font-semibold text-slate-800">{formatCurrency(profit)}</span>
                         </div>
-                        <span className="text-sm font-semibold text-slate-800">{formatCurrency(totalRevenue)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-amber-500" />
-                          <span className="text-sm text-slate-500">Total Expense</span>
+                      ) : null}
+                      {loss > 0 ? (
+                        <div className="flex items-center gap-2" title={`Loss: ${formatCurrency(loss)} (${total > 0 ? (loss / total * 100).toFixed(1) : 0}%)`}>
+                          <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+                          <span className="text-sm font-medium text-slate-600">Loss</span>
+                          <span className="text-sm font-semibold text-slate-800">{formatCurrency(loss)}</span>
                         </div>
-                        <span className="text-sm font-semibold text-slate-800">{formatCurrency(totalExpense)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={`h-2 w-2 rounded-full ${netProfit >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                          <span className="text-sm text-slate-500">Net Result</span>
-                        </div>
-                        <span className={`text-sm font-semibold ${netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {formatCurrency(netProfit)}
-                        </span>
-                      </div>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Ratios</h3>
-                    <div className="mt-3 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-500">Profit Margin</span>
-                        <span className="text-sm font-semibold text-slate-800">
-                          {totalRevenue > 0 ? `${(netProfit / totalRevenue * 100).toFixed(1)}%` : '-'}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-500">Expense Ratio</span>
-                        <span className="text-sm font-semibold text-slate-800">
-                          {totalRevenue > 0 ? `${(totalExpense / totalRevenue * 100).toFixed(1)}%` : '-'}
-                        </span>
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                      <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Key Metrics</h3>
+                      <div className="mt-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-blue-500" />
+                            <span className="text-sm text-slate-500">Total Income</span>
+                          </div>
+                          <span className="text-sm font-semibold text-slate-800">{formatCurrency(totalRevenue)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-amber-500" />
+                            <span className="text-sm text-slate-500">Total Expense</span>
+                          </div>
+                          <span className="text-sm font-semibold text-slate-800">{formatCurrency(totalExpense)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${netProfit >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                            <span className="text-sm text-slate-500">Net Result</span>
+                          </div>
+                          <span className={`text-sm font-semibold ${netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {formatCurrency(netProfit)}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className={`rounded-xl border p-4 ${netProfit >= 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-rose-200 bg-rose-50/50'}`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-full ${netProfit >= 0 ? 'bg-emerald-100' : 'bg-rose-100'}`}>
-                        {netProfit >= 0 ? (
-                          <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-                        ) : (
-                          <svg className="h-5 w-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-700">
-                          {netProfit >= 0 ? 'Profitable' : 'Operating at a Loss'}
-                        </p>
-                        <p className={`text-lg font-bold ${netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {formatCurrency(netProfit)}
-                        </p>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                      <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Ratios</h3>
+                      <div className="mt-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-slate-500">Profit Margin</span>
+                          <span className="text-sm font-semibold text-slate-800">
+                            {totalRevenue > 0 ? `${(netProfit / totalRevenue * 100).toFixed(1)}%` : '-'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-slate-500">Expense Ratio</span>
+                          <span className="text-sm font-semibold text-slate-800">
+                            {totalRevenue > 0 ? `${(totalExpense / totalRevenue * 100).toFixed(1)}%` : '-'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+
+            </div>
 
         </section>
 

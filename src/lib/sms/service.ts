@@ -158,6 +158,15 @@ export async function queueTransactionSmsNotification(input: QueueTransactionSms
   const normalizedPhoneNumber = normalizePhoneNumber(input.phoneNumber);
   const smsRuntimeConfig = getSmsRuntimeConfig(providerName);
 
+  console.info('[SMS] Delivery decision', {
+    smsEnabled: Boolean(env.SMS_ENABLED),
+    providerName,
+    recipient: normalizedPhoneNumber ?? input.phoneNumber,
+    template: input.transactionType ?? 'unknown',
+    willCallApi: smsRuntimeConfig.shouldAttemptSend,
+    reason: smsRuntimeConfig.reason
+  });
+
   try {
     const existingNotification = input.transactionId
       ? await prisma.smsNotification.findUnique({

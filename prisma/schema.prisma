@@ -96,56 +96,57 @@ model AdminCreationOtp {
 }
 
 model Party {
-  id               Int               @id @default(autoincrement())
-  name             String
-  phone            String            @unique
-  email            String?
-  address          String?
-  partyType        String            @default("BOTH")
-  taxNumber        String?
-  creditLimit      Decimal?
-  openingBalance   Decimal           @default(0)
-  openingBalanceType String           @default("CUSTOMER_DUE")
+  id                        Int               @id @default(autoincrement())
+  name                      String
+  phone                     String            @unique
+  email                     String?
+  address                   String?
+  partyType                 String            @default("BOTH")
+  taxNumber                 String?
+  creditLimit               Decimal?
+  openingBalance            Decimal           @default(0)
+  imageUrl                  String?
+  mediaName                 String?
+  farmName                  String?
+  isActive                  Boolean           @default(true)
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
+  createdById               String?
+  openingBalanceType        String            @default("CUSTOMER_DUE")
   openingBalanceDescription String?
-  imageUrl         String?
-  mediaName        String?
-  farmName         String?
-  isActive         Boolean           @default(true)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  createdById      String?
-  dueAdjustments   DueAdjustment[]
-  ledgerEntries    LedgerEntry[]
-  createdBy        User?             @relation(fields: [createdById], references: [id])
-  payments         Payment[]
-  smsNotifications SmsNotification[]
-  transactions     Transaction[]
+  dueAdjustments            DueAdjustment[]
+  ledgerEntries             LedgerEntry[]
+  createdBy                 User?             @relation(fields: [createdById], references: [id])
+  payments                  Payment[]
+  smsNotifications          SmsNotification[]
+  transactions              Transaction[]
 
   @@index([name])
   @@index([isActive, partyType, name])
+  @@index([openingBalanceType])
 }
 
 model Company {
-  id                       Int               @id @default(autoincrement())
-  name                     String            @unique
-  contactPerson            String?
-  phone                    String?
-  email                    String?
-  address                  String?
-  companyType              String            @default("FEED")
-  isActive                 Boolean           @default(true)
-  openingBalance           Decimal           @default(0)
+  id                        Int               @id @default(autoincrement())
+  name                      String            @unique
+  contactPerson             String?
+  phone                     String?
+  email                     String?
+  address                   String?
+  companyType               String            @default("FEED")
+  isActive                  Boolean           @default(true)
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
+  createdById               String?
+  openingBalance            Decimal           @default(0)
   openingBalanceDescription String?
-  createdAt                DateTime          @default(now())
-  updatedAt                DateTime          @updatedAt
-  createdById              String?
-  createdBy                User?             @relation("CompanyCreatedBy", fields: [createdById], references: [id])
-  dueAdjustments           DueAdjustment[]
-  ledgerEntries            LedgerEntry[]     @relation("CompanyLedgerEntries")
-  payments                 Payment[]         @relation("CompanyPayments")
-  products                 Product[]
-  smsNotifications         SmsNotification[]
-  transactions             Transaction[]     @relation("CompanyTransactions")
+  createdBy                 User?             @relation("CompanyCreatedBy", fields: [createdById], references: [id])
+  dueAdjustments            DueAdjustment[]
+  ledgerEntries             LedgerEntry[]     @relation("CompanyLedgerEntries")
+  payments                  Payment[]         @relation("CompanyPayments")
+  products                  Product[]
+  smsNotifications          SmsNotification[]
+  transactions              Transaction[]     @relation("CompanyTransactions")
 
   @@index([name])
   @@index([isActive, companyType, name])
@@ -263,11 +264,11 @@ model TransactionItem {
   transactionId   Int
   productId       Int
   quantity        Decimal
-  chickenQuantity Decimal?
   unitPrice       Decimal
   lineTotal       Decimal
   taxAmount       Decimal     @default(0)
   description     String?
+  chickenQuantity Decimal?
   product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 

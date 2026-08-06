@@ -15,6 +15,7 @@ type SalesEntryDialogProps = {
 
 export function SalesEntryDialog({ partyId, partyName, customers, products }: SalesEntryDialogProps) {
   const [open, setOpen] = useState(false);
+  const formId = `sales-entry-dialog-form-${partyId}`;
 
   return (
     <>
@@ -34,11 +35,14 @@ export function SalesEntryDialog({ partyId, partyName, customers, products }: Sa
             setOpen(false);
           }
         }}
-        title="Sales Entry"
+        title={`Sales Entry - ${partyName}`}
         footer={
           <div className="flex flex-wrap gap-3 justify-end">
             <Button variant="outline" type="button" onClick={() => setOpen(false)}>
-              Close
+              Cancel
+            </Button>
+            <Button type="submit" form={formId}>
+              Save Sale
             </Button>
           </div>
         }
@@ -47,6 +51,8 @@ export function SalesEntryDialog({ partyId, partyName, customers, products }: Sa
           customers={customers}
           products={products}
           selectedPartyId={partyId}
+          formId={formId}
+          hideSubmitButton
         />
       </Dialog>
     </>

@@ -306,6 +306,9 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
       ? 'bg-rose-100 text-rose-800'
       : 'bg-violet-100 text-violet-800';
 
+  const showFeedProducts = company.companyType === 'FEED' || company.companyType === 'BOTH';
+  const showMedicineProducts = company.companyType === 'MEDICINE' || company.companyType === 'BOTH';
+
   const initialFeedItems = feedItems.map((item) => ({
     id: item.id,
     name: item.name,
@@ -523,122 +526,118 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
       </section>
 
       <section className="my-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="mt-6">
+          {showFeedProducts && (
+            <StockManagement
+              title="Feed"
+              description="Manage company feed products, stock quantity, pricing, and status."
+              initialItems={initialFeedItems}
+              availableProducts={initialFeedItems}
+              suppliers={feedCompanies}
+              companyNames={feedCompanies.map((supplier) => ({ value: supplier.name, label: supplier.name }))}
+              useCompanySearch
+              allowCreateCompany={false}
+              addButtonLabel="Add Product"
+              asSection
+              showAddButton
+              defaultCompanyName={company.name}
+              defaultCompanyId={company.id}
+            />
+          )}
+          {showMedicineProducts && (
+            <StockManagement
+              title="Medicine"
+              description="Manage company medicine products, stock quantity, pricing, and status."
+              initialItems={initialMedicineItems}
+              availableProducts={initialMedicineItems}
+              suppliers={medicineCompanies}
+              companyNames={medicineCompanies.map((supplier) => ({ value: supplier.name, label: supplier.name }))}
+              useCompanySearch
+              allowCreateCompany={false}
+              addButtonLabel="Add Product"
+              asSection
+              showAddButton
+              defaultCompanyName={company.name}
+              defaultCompanyId={company.id}
+            />
+          )}
+        </div>
+      </section>
+
+      <section className="my-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold">Feed & Medicine Products</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Manage products, stock quantity, pricing, and status from this company profile.</p>
+            <h2 className="text-xl font-semibold">Transaction history</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Purchase and payment history for this company.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <CompanyProfileActions companyName={company.name} exportData={exportCsv} />
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-2">
-          <StockManagement
-            title="Feed"
-            description="Manage company feed products, stock quantity, pricing, and status."
-            initialItems={initialFeedItems}
-            availableProducts={initialFeedItems}
-            suppliers={feedCompanies}
-            companyNames={feedCompanies.map((supplier) => ({ value: supplier.name, label: supplier.name }))}
-            useCompanySearch
-            allowCreateCompany={false}
-            addButtonLabel="Add Product"
-            asSection
-            showAddButton
-            defaultCompanyName={company.name}
-            defaultCompanyId={company.id}
-          />
-          <StockManagement
-            title="Medicine"
-            description="Manage company medicine products, stock quantity, pricing, and status."
-            initialItems={initialMedicineItems}
-            availableProducts={initialMedicineItems}
-            suppliers={medicineCompanies}
-            companyNames={medicineCompanies.map((supplier) => ({ value: supplier.name, label: supplier.name }))}
-            useCompanySearch
-            allowCreateCompany={false}
-            addButtonLabel="Add Product"
-            asSection
-            showAddButton
-            defaultCompanyName={company.name}
-            defaultCompanyId={company.id}
-          />
-        </div>
+        {historyRows.length === 0 ? (
+          <div className="mt-6 rounded-xl border bg-card p-10 text-center text-muted-foreground">
+            No transactions or payments found for this company.
+          </div>
+        ) : (
+          <div className="mt-6 overflow-visible rounded-xl border min-w-0">
+            <ResponsiveTable minWidth="1120px">
+              <table className="min-w-full text-sm">
+                <thead className="bg-muted/40 text-left">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 font-medium">Invoice</th>
+                    <th className="px-4 py-3 font-medium">Type</th>
+                    <th className="px-4 py-3 font-medium">Product / Description</th>
+                    <th className="px-4 py-3 font-medium">Quantity</th>
+                    <th className="px-4 py-3 font-medium">Unit Price</th>
+                    <th className="px-4 py-3 font-medium">Amount</th>
+                    <th className="px-4 py-3 font-medium">Action</th>
+                    <th className="px-4 py-3 font-medium text-right">Running Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historyRows.map((row) => (
+                    <tr key={row.id} className="border-t hover:bg-muted/40 transition-colors">
+                      <td className="px-4 py-3">{formatDate(row.date)}</td>
+                      <td className="px-4 py-3">{row.invoiceNumber || '-'}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          row.type === 'PURCHASE' ? 'bg-amber-100 text-amber-800' :
+                          row.type === 'PAYMENT_PAID' ? 'bg-emerald-100 text-emerald-800' :
+                          'bg-sky-100 text-sky-800'
+                        }`}>
+                          {row.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">{row.productName}</td>
+                      <td className="px-4 py-3">{row.quantity ?? '-'}</td>
+                      <td className="px-4 py-3">{row.unitPrice !== null && row.unitPrice !== undefined ? formatCurrency(row.unitPrice) : '-'}</td>
+                      <td className={`px-4 py-3 font-medium ${row.isPayment ? 'text-emerald-700' : ''}`}>{formatCurrency(row.lineTotal)}</td>
+                      <td className="px-4 py-3">
+                        {row.transactionId ? (
+                          <a
+                            href={`/dashboard/transactions/${row.transactionId}/print`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center rounded-md border border-border px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-muted"
+                          >
+                            <Printer className="mr-1 h-3.5 w-3.5" />
+                            Print
+                          </a>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium">{formatCurrency(row.runningBalance)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ResponsiveTable>
+          </div>
+        )}
       </section>
-
-      <section>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">Transaction history</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Purchase and payment history for this company.</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <CompanyProfileActions companyName={company.name} exportData={exportCsv} />
-              </div>
-            </div>
-
-            {historyRows.length === 0 ? (
-              <div className="mt-6 rounded-xl border bg-card p-10 text-center text-muted-foreground">
-                No transactions or payments found for this company.
-              </div>
-            ) : (
-              <div className="mt-6 overflow-visible rounded-xl border min-w-0">
-                <ResponsiveTable minWidth="1120px">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-muted/40 text-left">
-                      <tr>
-                        <th className="px-4 py-3 font-medium">Date</th>
-                        <th className="px-4 py-3 font-medium">Invoice</th>
-                        <th className="px-4 py-3 font-medium">Type</th>
-                        <th className="px-4 py-3 font-medium">Product / Description</th>
-                        <th className="px-4 py-3 font-medium">Quantity</th>
-                        <th className="px-4 py-3 font-medium">Unit Price</th>
-                        <th className="px-4 py-3 font-medium">Amount</th>
-                        <th className="px-4 py-3 font-medium">Action</th>
-                        <th className="px-4 py-3 font-medium text-right">Running Balance</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {historyRows.map((row) => (
-                        <tr key={row.id} className="border-t hover:bg-muted/40 transition-colors">
-                          <td className="px-4 py-3">{formatDate(row.date)}</td>
-                          <td className="px-4 py-3">{row.invoiceNumber || '-'}</td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              row.type === 'PURCHASE' ? 'bg-amber-100 text-amber-800' :
-                              row.type === 'PAYMENT_PAID' ? 'bg-emerald-100 text-emerald-800' :
-                              'bg-sky-100 text-sky-800'
-                            }`}>
-                              {row.type}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">{row.productName}</td>
-                          <td className="px-4 py-3">{row.quantity ?? '-'}</td>
-                          <td className="px-4 py-3">{row.unitPrice !== null && row.unitPrice !== undefined ? formatCurrency(row.unitPrice) : '-'}</td>
-                          <td className={`px-4 py-3 font-medium ${row.isPayment ? 'text-emerald-700' : ''}`}>{formatCurrency(row.lineTotal)}</td>
-                          <td className="px-4 py-3">
-                            {row.transactionId ? (
-                              <a
-                                href={`/dashboard/transactions/${row.transactionId}/print`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center rounded-md border border-border px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-muted"
-                              >
-                                <Printer className="mr-1 h-3.5 w-3.5" />
-                                Print
-                              </a>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right font-medium">{formatCurrency(row.runningBalance)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </ResponsiveTable>
-              </div>
-            )}
-      </section>
-        
     </main>
   );
 }

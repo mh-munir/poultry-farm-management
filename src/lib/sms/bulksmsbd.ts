@@ -56,6 +56,14 @@ function sanitizeProviderResponse(value: unknown): unknown {
   return value;
 }
 
+function getMaskedRequestUrl(url: URL) {
+  const maskedUrl = new URL(url.toString());
+  if (maskedUrl.searchParams.has('api_key')) {
+    maskedUrl.searchParams.set('api_key', '[REDACTED_API_KEY]');
+  }
+  return maskedUrl.toString();
+}
+
 export function normalizeSmsPhoneNumber(phoneNumber: string) {
   const raw = phoneNumber.trim();
   const digits = raw.replace(/\D/g, '');
@@ -214,14 +222,22 @@ export async function sendSMS(phoneNumber: string, message: string): Promise<Bul
   requestUrl.searchParams.set('senderid', config.senderId);
   requestUrl.searchParams.set('message', trimmedMessage);
 
-  if (isDevelopment()) {
-    console.info('[BulkSMSBD] sending SMS', {
-      phoneNumber: maskPhoneNumber(normalizedPhoneNumber),
-      senderId: config.senderId,
-      apiUrl: config.apiUrl,
-      messageLength: trimmedMessage.length
-    });
-  }
+  const observedRequestParams = {
+    api_key: '[REDACTED_API_KEY]',
+    type: 'text',
+    number: normalizedPhoneNumber,
+    senderid: config.senderId,
+    message: trimmedMessage
+  };
+
+  console.info('[BulkSMSBD] sending SMS', {
+    phoneNumber: maskPhoneNumber(normalizedPhoneNumber),
+    provider: PROVIDER_NAME,
+    requestUrl: getMaskedRequestUrl(requestUrl),
+    requestParams: observedRequestParams,
+    messageLength: trimmedMessage.length,
+    apiUrlBase: config.apiUrl
+  });
 
   try {
     const response = await fetch(requestUrl.toString(), { method: 'GET' });
