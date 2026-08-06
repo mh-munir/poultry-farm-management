@@ -165,6 +165,7 @@ function ProductItemsTable({ title, rows }: { title: string; rows: ProductRow[] 
             <tr>
               <th className="px-4 py-3 text-table-header">Date</th>
               <th className="px-4 py-3 text-table-header">Invoice</th>
+              <th className="px-4 py-3 text-table-header">Media</th>
               <th className="px-4 py-3 text-table-header">Product</th>
               <th className="px-4 py-3 text-table-header">Type</th>
               <th className="px-4 py-3 text-table-header">Quantity</th>
@@ -179,6 +180,7 @@ function ProductItemsTable({ title, rows }: { title: string; rows: ProductRow[] 
               <tr key={row.id} className="border-t border-border hover:bg-muted/20">
                 <td className="whitespace-nowrap px-4 py-3">{formatDate(row.transactionDate)}</td>
                 <td className="whitespace-nowrap px-4 py-3 font-medium">{row.invoiceNumber}</td>
+                <td className="px-4 py-3">{row.mediaName ?? '—'}</td>
                 <td className="min-w-48 px-4 py-3">{row.productName}</td>
                 <td className="px-4 py-3">{row.productType}</td>
                 <td className="px-4 py-3 tabular-nums">{row.quantity}</td>

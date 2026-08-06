@@ -239,6 +239,7 @@ model Transaction {
   dueAmount        Decimal             @default(0)
   dueDate          DateTime?
   notes            String?
+  mediaName        String   @default("")
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   createdById      String?

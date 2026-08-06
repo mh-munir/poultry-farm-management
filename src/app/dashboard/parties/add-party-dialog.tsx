@@ -6,8 +6,7 @@ import imageCompression from 'browser-image-compression';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { createOrUpdateParty } from '@/features/parties/actions';
-import { useToast } from '@/hooks/use-toast';
-import { getFriendlyServerActionError, handleStaleServerActionError } from '@/lib/server-action-errors';
+import { useModalSave } from '@/hooks/use-modal-save';
 import { SalesEntryPopup } from '@/components/dashboard/sales-entry-popup';
 import { ReceivePaymentButton } from './receive-payment-button';
 import { PaySupplierButton } from './pay-supplier-button';
@@ -36,9 +35,8 @@ type AddPartyDialogProps = {
 
 export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogProps) {
   const router = useRouter();
-  const { success, error: showToastError } = useToast();
+  const { isSaving, saveError, save } = useModalSave();
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isAddLoading, setIsAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
   const [addFormValues, setAddFormValues] = useState({
     name: '',
@@ -86,8 +84,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
   const handleAddFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAddError('');
-    setIsAddLoading(true);
-    
+
     const form = event.currentTarget;
     const formData = new FormData(form);
 
@@ -95,32 +92,18 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
       formData.set('image', compressedImageFile, compressedImageFile.name);
     }
 
-    try {
-      const result = await createOrUpdateParty(formData);
-      
-      if (result.success) {
-        success(result.message);
-        router.refresh();
-        setTimeout(() => {
-          setIsAddOpen(false);
-          setAddFormValues({ name: '', phone: '', address: '', partyType: 'BOTH' });
-          setCompressedImageFile(null);
-          setImageCompressionStatus('');
-          setIsAddLoading(false);
-        }, 500);
-      } else {
-        setAddError(result.message);
-        showToastError(result.message);
-        setIsAddLoading(false);
+    const result = await save(() => createOrUpdateParty(formData), {
+      refreshOnSuccess: true,
+      onClose: () => {
+        setIsAddOpen(false);
+        setAddFormValues({ name: '', phone: '', address: '', partyType: 'BOTH' });
+        setCompressedImageFile(null);
+        setImageCompressionStatus('');
       }
-    } catch (error) {
-      const staleHandled = handleStaleServerActionError(error, showToastError);
-      const message = staleHandled ? 'A new version of the application is available. Please refresh the page and try again.' : getFriendlyServerActionError(error);
-      if (!staleHandled) {
-        setAddError(message);
-        showToastError(message);
-      }
-      setIsAddLoading(false);
+    });
+
+    if (!result.success) {
+      setAddError(result.message);
     }
   };
 
@@ -139,7 +122,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
       <Dialog
         open={isAddOpen}
         onOpenChange={(open) => {
-          if (!open && !isAddLoading) {
+          if (!open && !isSaving) {
             setIsAddOpen(false);
             setAddError('');
           }
@@ -147,16 +130,16 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
         title="Add Party"
         footer={
           <div className="flex flex-wrap justify-end gap-3">
-            <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)} disabled={isAddLoading} className="min-w-[110px] rounded-xl px-4 py-2.5 text-sm font-semibold">
+            <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)} disabled={isSaving} className="min-w-[110px] rounded-xl px-4 py-2.5 text-sm font-semibold">
               Cancel
             </Button>
             <Button
               type="submit"
               form="add-party-form"
-              disabled={isAddLoading}
-              className={`min-w-[132px] rounded-xl px-4 py-2.5 text-sm font-semibold ${isAddLoading ? 'cursor-not-allowed opacity-75' : ''}`}
+              disabled={isSaving}
+              className={`min-w-[132px] rounded-xl px-4 py-2.5 text-sm font-semibold ${isSaving ? 'cursor-not-allowed opacity-75' : ''}`}
             >
-              {isAddLoading ? '⏳ Saving...' : '💾 Save Party'}
+              {isSaving ? '⏳ Saving...' : '💾 Save Party'}
             </Button>
           </div>
         }
@@ -168,10 +151,10 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
           encType="multipart/form-data"
           className="space-y-3"
         >
-          {addError && (
+          {(addError || saveError) && (
             <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4 shadow-sm">
               <p className="text-sm font-semibold text-rose-900">⚠️ Error</p>
-              <p className="mt-1 text-sm text-rose-800">{addError}</p>
+              <p className="mt-1 text-sm text-rose-800">{addError || saveError}</p>
             </div>
           )}
 

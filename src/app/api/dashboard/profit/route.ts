@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getProfitAnalytics } from '@/features/dashboard/actions';
+import { EMPTY_PROFIT_ANALYTICS, getProfitAnalytics } from '@/features/dashboard/actions';
 
 function parseDateParam(value: string | null) {
   if (!value) return null;
@@ -24,6 +24,7 @@ export async function GET(request: Request) {
     const data = await getProfitAnalytics({ start, end });
     return NextResponse.json(data);
   } catch (err: any) {
-    return NextResponse.json({ error: 'server_error', message: err?.message ?? String(err) }, { status: 500 });
+    console.error('Unable to load profit analytics', err);
+    return NextResponse.json({ ...EMPTY_PROFIT_ANALYTICS, unavailable: true });
   }
 }

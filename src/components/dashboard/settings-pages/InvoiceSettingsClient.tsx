@@ -2,9 +2,18 @@
 import React, { useEffect, useState } from 'react'
 import { getSetting, saveSetting } from '@/lib/settings'
 
+type InvoiceSettings = {
+  prefix?: string
+  footer?: string
+  hideFeedUnitPrice?: boolean
+  hideFeedLineTotal?: boolean
+}
+
 export default function InvoiceSettingsClient() {
   const [prefix, setPrefix] = useState('INV')
   const [footer, setFooter] = useState('')
+  const [hideFeedUnitPrice, setHideFeedUnitPrice] = useState(false)
+  const [hideFeedLineTotal, setHideFeedLineTotal] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -14,6 +23,8 @@ export default function InvoiceSettingsClient() {
         if (value) {
           setPrefix(value.prefix ?? 'INV')
           setFooter(value.footer ?? '')
+          setHideFeedUnitPrice(Boolean(value.hideFeedUnitPrice))
+          setHideFeedLineTotal(Boolean(value.hideFeedLineTotal))
           return
         }
       } catch {}
@@ -21,9 +32,11 @@ export default function InvoiceSettingsClient() {
       try {
         const raw = localStorage.getItem('invoice_settings')
         if (raw) {
-          const obj = JSON.parse(raw)
+          const obj = JSON.parse(raw) as InvoiceSettings
           setPrefix(obj.prefix ?? 'INV')
           setFooter(obj.footer ?? '')
+          setHideFeedUnitPrice(Boolean(obj.hideFeedUnitPrice))
+          setHideFeedLineTotal(Boolean(obj.hideFeedLineTotal))
         }
       } catch {}
     }
@@ -33,7 +46,7 @@ export default function InvoiceSettingsClient() {
 
   async function save() {
     setSaving(true)
-    const value = { prefix, footer }
+    const value: InvoiceSettings = { prefix, footer, hideFeedUnitPrice, hideFeedLineTotal }
     const ok = await saveSetting('invoice_settings', value).catch(() => false)
     if (ok) {
       alert('Saved invoice settings to server')
@@ -60,6 +73,29 @@ export default function InvoiceSettingsClient() {
           <label className="block text-sm">Footer Note</label>
           <textarea className="mt-1 w-full rounded border px-3 py-2" value={footer} onChange={(e) => setFooter(e.target.value)} />
         </div>
+
+        <div className="mb-4 rounded-lg border bg-slate-50 p-4">
+          <h3 className="mb-3 text-sm font-semibold">Feed product display</h3>
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={hideFeedUnitPrice}
+                onChange={(e) => setHideFeedUnitPrice(e.target.checked)}
+              />
+              Hide Feed Unit Price
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={hideFeedLineTotal}
+                onChange={(e) => setHideFeedLineTotal(e.target.checked)}
+              />
+              Hide Feed Line Total
+            </label>
+          </div>
+        </div>
+
         <div>
           <button disabled={saving} onClick={save} className="w-full sm:w-auto rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
         </div>

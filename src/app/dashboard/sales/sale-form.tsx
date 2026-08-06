@@ -171,6 +171,10 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
           <input value={totalAmount.toFixed(2)} readOnly className="w-full rounded-md border bg-muted px-3 py-2" />
         </div>
         <div>
+          <label className="mb-2 block text-sm font-medium">Media</label>
+          <input name="mediaName" className="w-full rounded-md border bg-background px-3 py-2" required />
+        </div>
+        <div>
           <label className="mb-2 block text-sm font-medium">Paid Amount</label>
           <input
             type="number"
