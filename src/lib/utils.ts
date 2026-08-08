@@ -5,10 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(value: Date | string) {
-  return new Intl.DateTimeFormat('en-GB', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  }).format(new Date(value));
-}
+import { formatDateBD as formatDate } from './dates';
+
+export { formatDate };

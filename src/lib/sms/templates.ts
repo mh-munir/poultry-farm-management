@@ -20,6 +20,10 @@ function getSaleLabel(saleType: SaleSmsTemplateInput['saleType']) {
     return 'Feed Sale';
   }
 
+  if (saleType === 'CHICK') {
+    return 'Hatchling / Chick Sale';
+  }
+
   return 'Feed & Medicine Sale';
 }
 

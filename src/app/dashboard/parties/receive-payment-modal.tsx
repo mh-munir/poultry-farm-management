@@ -7,6 +7,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
 import { getCustomerOptions, getCustomerCurrentDue, receiveCustomerPayment } from '@/features/parties/actions';
+import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type ReceivePaymentModalProps = {
   open: boolean;
@@ -20,7 +21,7 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
   const [partyName, setPartyName] = useState('');
   const [currentDue, setCurrentDue] = useState(0);
   const [receiveAmount, setReceiveAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [paymentDate, setPaymentDate] = useState(() => todayDateStr());
   const router = useRouter();
   const { success, error: showError } = useToast();
 
@@ -33,7 +34,7 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
       setPartyName('');
       setCurrentDue(0);
       setReceiveAmount('');
-      setPaymentDate(new Date().toISOString().slice(0, 10));
+      setPaymentDate(todayDateStr());
     }
   }, [open]);
 

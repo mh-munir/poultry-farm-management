@@ -7,6 +7,7 @@ import { requireUser } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { DataTable } from '@/components/ui/responsive-table';
+import { Pagination } from '@/components/ui/pagination';
 import { AddCompanyDialog } from '@/app/dashboard/parties/add-company-dialog';
 import { PayCompanyButton } from './pay-company-button';
 import { CompanyToast } from '@/app/dashboard/parties/company-toast';
@@ -18,7 +19,7 @@ import { type ComboboxOption } from '@/components/ui/combobox';
 import { getCompanyPageData, getCompanyStats, getCompaniesByType } from '@/features/companies/actions';
 import { getStockItemsByType } from '@/features/stock/actions';
 
-const COMPANY_TYPES = ['ALL', 'FEED', 'MEDICINE', 'BOTH'] as const;
+const COMPANY_TYPES = ['ALL', 'FEED', 'MEDICINE', 'CHICK', 'FEED_CHICK'] as const;
 const COMPANY_STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
 
 type CompanyRow = {
@@ -67,7 +68,8 @@ type StockItemRecord = {
 function formatCompanyType(type: string) {
   if (type === 'FEED') return 'Feed Company';
   if (type === 'MEDICINE') return 'Medicine Company';
-  if (type === 'BOTH') return 'Feed & Medicine';
+  if (type === 'CHICK') return 'Hatchling / Chick Company';
+  if (type === 'FEED_CHICK') return 'Feeds + Hatchling / Chick';
   return type.replace('_', ' ');
 }
 
@@ -113,13 +115,25 @@ export default async function CompaniesPage({
   const companyStatus = params?.companyStatus ?? 'ALL';
   const companyError = params?.companyError ?? '';
 
-  const [companyData, companyStats, feedItems, feedCompanies, medicineItems, medicineCompanies] = await Promise.all([
+  const buildPaginationHref = (pageNumber: number) => {
+    const params = new URLSearchParams({
+      ...(companySearch ? { companySearch } : {}),
+      ...(companyType && companyType !== 'ALL' ? { companyType } : {}),
+      ...(companyStatus && companyStatus !== 'ALL' ? { companyStatus } : {})
+    });
+    params.set('companyPage', String(pageNumber));
+    return `/dashboard/companies?${params.toString()}`;
+  };
+
+  const [companyData, companyStats, feedItems, feedCompanies, medicineItems, medicineCompanies, chickItems, chickCompanies] = await Promise.all([
     getCompanyPageData({ page: companyPage, search: companySearch, companyType, status: companyStatus }),
     getCompanyStats({ search: companySearch, companyType, status: companyStatus }),
     getStockItemsByType('FEED'),
     getCompaniesByType('FEED'),
     getStockItemsByType('MEDICINE'),
-    getCompaniesByType('MEDICINE')
+    getCompaniesByType('MEDICINE'),
+    getStockItemsByType('CHICK'),
+    getCompaniesByType('CHICK')
   ]);
 
   const feedCompanyOptions: ComboboxOption[] = feedCompanies.map((company: CompanyOption) => ({
@@ -128,6 +142,11 @@ export default async function CompaniesPage({
   }));
 
   const medicineCompanyOptions: ComboboxOption[] = medicineCompanies.map((company: CompanyOption) => ({
+    value: company.name,
+    label: company.name
+  }));
+
+  const chickCompanyOptions: ComboboxOption[] = chickCompanies.map((company: CompanyOption) => ({
     value: company.name,
     label: company.name
   }));
@@ -170,6 +189,25 @@ export default async function CompaniesPage({
     };
   });
 
+  const initialChickItems: StockItem[] = chickItems.map((item: StockItemRecord) => {
+    const transactionItems = item.transactionItems ?? [];
+    const lastTransaction = transactionItems[0]?.transaction;
+    return {
+      id: item.id,
+      name: item.name,
+      unit: item.unit ?? undefined,
+      quantity: Number(item.stockBalance?.quantityOnHand ?? 0),
+      buyRate: Number(item.defaultPurchasePrice ?? 0),
+      salesRate: Number(item.defaultSellingPrice ?? 0),
+      lowStockThreshold: Number(item.lowStockThreshold ?? 0),
+      productType: item.productType ?? undefined,
+      lastTransactionDate: lastTransaction?.transactionDate,
+      companyName: item.company?.name ?? lastTransaction?.company?.name ?? lastTransaction?.party?.name,
+      paidAmount: Number(lastTransaction?.paidAmount ?? 0),
+      dueAmount: Number(lastTransaction?.dueAmount ?? 0)
+    };
+  });
+
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="mb-6">
@@ -187,7 +225,8 @@ export default async function CompaniesPage({
             <StatCard title="Active Companies" value={companyStats.active} icon={Package2} accent="bg-emerald-50 text-emerald-600" />
             <StatCard title="Feed Companies" value={companyStats.feed} icon={Package2} accent="bg-amber-50 text-amber-600" />
             <StatCard title="Medicine Companies" value={companyStats.medicine} icon={Package2} accent="bg-rose-50 text-rose-600" />
-            <StatCard title="Both" value={companyStats.both} icon={Package2} accent="bg-violet-50 text-violet-600" />
+            <StatCard title="Hatchling / Chick" value={companyStats.chick} icon={Package2} accent="bg-emerald-50 text-emerald-600" />
+            <StatCard title="Feeds + Hatchling / Chick" value={companyStats.feedChick} icon={Package2} accent="bg-sky-50 text-sky-600" />
           </div>
         </div>
 
@@ -198,8 +237,10 @@ export default async function CompaniesPage({
             <AddStockModal
               feedCompanies={feedCompanies}
               medicineCompanies={medicineCompanies}
+              chickCompanies={chickCompanies}
               feedProducts={initialFeedItems}
               medicineProducts={initialMedicineItems}
+              chickProducts={initialChickItems}
               paymentMethodOptions={[
                 { value: 'CASH', label: 'Cash' },
                 { value: 'BANK_TRANSFER', label: 'Bank transfer' },
@@ -257,6 +298,7 @@ export default async function CompaniesPage({
                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                         company.companyType === 'FEED' ? 'bg-amber-100 text-amber-800' :
                         company.companyType === 'MEDICINE' ? 'bg-rose-100 text-rose-800' :
+                        company.companyType === 'CHICK' ? 'bg-emerald-100 text-emerald-800' :
                         'bg-violet-100 text-violet-800'
                       }`}>
                         {formatCompanyType(company.companyType)}
@@ -317,28 +359,12 @@ export default async function CompaniesPage({
             <p className="text-sm text-muted-foreground">
               Showing {companyData.companies.length} of {companyData.total} companies
             </p>
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-2">
-                {Array.from({ length: companyData.totalPages }, (_, index: number) => index + 1).map((pageNumber: number) => {
-                  const params = new URLSearchParams({
-                    ...(companySearch ? { companySearch } : {}),
-                    ...(companyType && companyType !== 'ALL' ? { companyType } : {}),
-                    ...(companyStatus && companyStatus !== 'ALL' ? { companyStatus } : {})
-                  });
-                  params.set('companyPage', String(pageNumber));
-
-                  return (
-                    <Link
-                      key={pageNumber}
-                      href={`/dashboard/companies?${params.toString()}`}
-                      className={`rounded-md px-3 py-2 text-sm ${companyPage === pageNumber ? 'bg-primary text-primary-foreground' : 'border bg-background'}`}
-                    >
-                      {pageNumber}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
+            <Pagination
+              currentPage={companyPage}
+              totalPages={companyData.totalPages}
+              hrefBuilder={buildPaginationHref}
+              className="justify-end"
+            />
           </div>
         </div>
       </div>
@@ -374,6 +400,23 @@ export default async function CompaniesPage({
           addButtonLabel="Add Medicine Stock"
           asSection
           showAddButton={false}
+        />
+      </div>
+
+      {/* Hatchling / Chick Section */}
+      <div className="mb-8">
+          <StockManagement
+          title="Hatchling / Chick"
+          description="Manage hatchling/chick stock with quantity and pricing."
+          initialItems={initialChickItems}
+          availableProducts={initialChickItems}
+          suppliers={chickCompanies}
+          companyNames={chickCompanyOptions}
+          useCompanySearch
+          addButtonLabel="Add Hatchling / Chick Stock"
+          asSection
+          showAddButton={false}
+          stockType="CHICK"
         />
       </div>
     </main>

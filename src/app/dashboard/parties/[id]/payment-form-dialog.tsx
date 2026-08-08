@@ -6,6 +6,7 @@ import { Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type Props = {
   partyId: number;
@@ -90,7 +91,7 @@ export default function PaymentFormDialog({
               type="date"
               name="paymentDate"
               required
-              defaultValue={new Date().toISOString().slice(0, 10)}
+              defaultValue={todayDateStr()}
               className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             />
           </div>

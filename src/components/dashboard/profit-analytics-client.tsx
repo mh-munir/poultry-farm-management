@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowDownRight, ArrowUpRight, BarChart3, CircleDollarSign, Package2, Percent, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
 import type { TopProductRow } from '@/features/dashboard/actions';
+import { getProductTypeLabel } from '@/lib/product-types';
 import { AnalyticsEmptyState } from './analytics/analytics-empty-state';
 import { AnalyticsFilterBar } from './analytics/analytics-filter-bar';
 import { AnalyticsKpiCard } from './analytics/analytics-kpi-card';
@@ -587,7 +588,7 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
                     <tr key={product.productId} className="border-t border-slate-200 transition hover:bg-slate-50">
                       <td className="px-5 py-4 font-medium text-slate-700">{index + 1}</td>
                       <td className="px-5 py-4 font-semibold text-slate-900">{product.productName}</td>
-                      <td className="px-5 py-4 text-slate-500">Feed</td>
+                      <td className="px-5 py-4 text-slate-500">{getProductTypeLabel(product.productType)}</td>
                       <td className="px-5 py-4">{product.quantitySold}</td>
                       <td className="px-5 py-4">{formatCurrency(avgBuy)}</td>
                       <td className="px-5 py-4">{formatCurrency(avgSale)}</td>

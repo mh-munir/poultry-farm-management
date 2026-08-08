@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
+import { formatDateBD as formatDate } from '@/lib/dates';
 
 type InitialPayment = {
   id: number;
@@ -27,13 +28,7 @@ type PartyPaymentsSectionProps = {
   showDeleteButton?: boolean;
 };
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
-}
+
 
 function formatCurrency(value: string | number | null | undefined) {
   const number = Number(value ?? 0);

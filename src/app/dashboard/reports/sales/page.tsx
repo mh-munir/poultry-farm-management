@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import Link from 'next/link';
 import { getSalesReportData } from '@/features/reports/actions';
+import { getProductTypeLabel } from '@/lib/product-types';
 import { prisma } from '@/server/db';
 
 function formatCurrency(value: number) {
@@ -97,6 +98,9 @@ export default async function SalesReportPage({
                 <option value="">All</option>
                 <option value="FEED">Feed</option>
                 <option value="MEDICINE">Medicine</option>
+                <option value="CHICKEN">Chicken</option>
+                <option value="CHICK">Hatchling / Chick</option>
+                <option value="EGG">Eggs</option>
               </select>
             </div>
             <div className="md:col-span-5">
@@ -147,7 +151,7 @@ export default async function SalesReportPage({
                       <td className="px-4 py-3">{formatDate(item.date)}</td>
                       <td className="px-4 py-3">{item.partyName}</td>
                       <td className="px-4 py-3">{item.productName}</td>
-                      <td className="px-4 py-3">{item.productType}</td>
+                      <td className="px-4 py-3">{getProductTypeLabel(item.productType)}</td>
                       <td className="px-4 py-3 text-right">{item.quantity} {item.unit}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(item.unitPrice)}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(item.lineTotal)}</td>

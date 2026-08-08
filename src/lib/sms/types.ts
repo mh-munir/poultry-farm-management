@@ -1,6 +1,6 @@
 import type { SmsNotificationStatus } from '@prisma/client';
 
-export type SmsSaleType = 'FEED' | 'MEDICINE' | 'MIXED';
+export type SmsSaleType = 'FEED' | 'MEDICINE' | 'CHICK' | 'MIXED';
 
 export type SmsProviderName = 'mock' | string;
 

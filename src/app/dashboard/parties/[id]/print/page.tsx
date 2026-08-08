@@ -6,6 +6,7 @@ import PrintTrigger from './print-trigger';
 import { getBranding } from '@/lib/branding';
 import { Receipt, Landmark, BadgeCheck, Wallet, Package, CircleDollarSign, UserRound } from 'lucide-react';
 import styles from './print-styles.module.css';
+import { formatDateBD as formatDate, formatDateTimeBD as formatDateTime } from '@/lib/dates';
 
 function formatCurrency(value: number | string | { toString(): string } | null | undefined) {
   const number = Number(value?.toString() ?? 0);
@@ -15,23 +16,7 @@ function formatCurrency(value: number | string | { toString(): string } | null |
   }).format(number)}`;
 }
 
-function formatDate(value: Date | string) {
-  return new Date(value).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
-}
-
-function formatDateTime(value: Date | string) {
-  return new Date(value).toLocaleString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
+// using centralized Bangladesh-aware formatters
 
 function StatementCard({
   title,

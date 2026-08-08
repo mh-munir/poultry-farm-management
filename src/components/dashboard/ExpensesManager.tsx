@@ -1,24 +1,13 @@
 "use client"
 import React, { useEffect, useState } from 'react'
 import { ResponsiveTable } from '@/components/ui/responsive-table'
+import { formatDateBD as formatDate, todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type Expense = { id: string; description: string; amount: number; date: string }
 
 const STORAGE_KEY = 'dashboard_expenses'
 
-function todayDateStr() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function formatDate(value: string) {
-  if (!value) return '—'
-  const date = new Date(value + 'T00:00:00')
-  return date.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  })
-}
+// using centralized Bangladesh-aware date helpers
 
 export default function ExpensesManager() {
   const [expenses, setExpenses] = useState<Expense[]>([])

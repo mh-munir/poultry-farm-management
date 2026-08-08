@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import Link from 'next/link';
 import { getStockReportData } from '@/features/reports/actions';
+import { getProductTypeLabel, getProductTypeBadgeClass } from '@/lib/product-types';
 
 function formatCurrency(value: number) {
   return `৳ ${new Intl.NumberFormat('en-BD', {
@@ -44,6 +45,9 @@ export default async function StockReportPage({
               <option value="">All</option>
               <option value="FEED">Feed</option>
               <option value="MEDICINE">Medicine</option>
+              <option value="CHICKEN">Chicken</option>
+              <option value="CHICK">Hatchling / Chick</option>
+              <option value="EGG">Eggs</option>
             </select>
             <Button type="submit" size="sm">Apply Filter</Button>
           </form>
@@ -90,8 +94,8 @@ export default async function StockReportPage({
                         <div className="text-xs text-muted-foreground">{item.code}</div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${item.productType === 'FEED' ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>
-                          {item.productType}
+                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${getProductTypeBadgeClass(item.productType)}`}>
+                          {getProductTypeLabel(item.productType)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">{item.quantityOnHand} {item.unit}</td>

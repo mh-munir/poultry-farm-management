@@ -35,6 +35,14 @@ export const getDashboardDataCached = unstable_cache(
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId" WHERE tr."transactionType" IN ('SALE','PURCHASE')
         ), 0) AS "daily_egg_purchase",
         COALESCE((
+          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'CHICK' THEN ti."lineTotal" ELSE 0 END)
+          FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId" WHERE tr."transactionType" IN ('SALE','PURCHASE')
+        ), 0) AS "daily_chick_sale",
+        COALESCE((
+          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'CHICK' THEN ti."lineTotal" ELSE 0 END)
+          FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId" WHERE tr."transactionType" IN ('SALE','PURCHASE')
+        ), 0) AS "daily_chick_purchase",
+        COALESCE((
           SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
         ), 0) AS "total_feed_sale",
@@ -63,11 +71,19 @@ export const getDashboardDataCached = unstable_cache(
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
         ), 0) AS "total_egg_purchase",
         COALESCE((
+          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'CHICK' THEN ti."lineTotal" ELSE 0 END)
+          FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
+        ), 0) AS "total_chick_sale",
+        COALESCE((
+          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'CHICK' THEN ti."lineTotal" ELSE 0 END)
+          FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
+        ), 0) AS "total_chick_purchase",
+        COALESCE((
           SELECT SUM(CASE WHEN t."transactionType" = 'SALE' AND t."dueAmount" > 0 THEN t."dueAmount" ELSE 0 END) FROM "Transaction" t WHERE t."transactionType" IN ('SALE','PURCHASE')
         ), 0) AS "total_customer_due",
         COALESCE((
-          SELECT SUM(CASE WHEN t."transactionType" = 'PURCHASE' AND t."dueAmount" > 0 AND EXISTS(SELECT 1 FROM "TransactionItem" ti JOIN "Product" p ON p.id = ti."productId" WHERE ti."transactionId" = t.id AND p."productType" IN ('FEED','MEDICINE')) THEN t."dueAmount" ELSE 0 END) FROM "Transaction" t
-        ), 0) AS "total_feed_medicine_due",
+          SELECT SUM(CASE WHEN t."transactionType" = 'PURCHASE' AND t."dueAmount" > 0 AND EXISTS(SELECT 1 FROM "TransactionItem" ti JOIN "Product" p ON p.id = ti."productId" WHERE ti."transactionId" = t.id AND p."productType" IN ('FEED','MEDICINE','CHICK')) THEN t."dueAmount" ELSE 0 END) FROM "Transaction" t
+        ), 0) AS "total_feed_medicine_chick_due",
         COALESCE((
           SELECT SUM(CASE WHEN t."transactionType" = 'PURCHASE' AND t."dueAmount" > 0 AND EXISTS(SELECT 1 FROM "TransactionItem" ti JOIN "Product" p ON p.id = ti."productId" WHERE ti."transactionId" = t.id AND p."productType" IN ('EGG','CHICKEN')) THEN t."dueAmount" ELSE 0 END) FROM "Transaction" t
         ), 0) AS "total_egg_chicken_due",
@@ -155,6 +171,7 @@ export type ProfitSummary = {
 export type TopProductRow = {
   productId: number;
   productName: string;
+  productType: string;
   quantitySold: number;
   totalSales: number;
   totalCost: number;
@@ -205,6 +222,7 @@ export async function getProfitAnalytics({ start, end }: { start: Date; end: Dat
   const topRows = await prisma.$queryRaw<Array<{
     product_id: number | null;
     product_name: string | null;
+    product_type: string | null;
     quantity_sold: Prisma.Decimal | null;
     total_sales: Prisma.Decimal | null;
     total_cost: Prisma.Decimal | null;
@@ -213,6 +231,7 @@ export async function getProfitAnalytics({ start, end }: { start: Date; end: Dat
     SELECT
       p.id AS product_id,
       p.name AS product_name,
+      p."productType" AS product_type,
       COALESCE(SUM(ti."quantity"), 0) AS quantity_sold,
       COALESCE(SUM(ti."quantity" * ti."unitPrice"), 0) AS total_sales,
       COALESCE(SUM(ti."quantity" * COALESCE(sm."unitCost", p."defaultPurchasePrice", 0)), 0) AS total_cost,
@@ -227,7 +246,7 @@ export async function getProfitAnalytics({ start, end }: { start: Date; end: Dat
       LIMIT 1
     ) sm ON true
     WHERE tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end}
-    GROUP BY p.id, p.name
+    GROUP BY p.id, p.name, p."productType"
     ORDER BY gross_profit DESC
     LIMIT 10
   `;
@@ -239,6 +258,7 @@ export async function getProfitAnalytics({ start, end }: { start: Date; end: Dat
     return {
       productId: Number(r.product_id ?? 0),
       productName: String(r.product_name ?? ''),
+      productType: String(r.product_type ?? ''),
       quantitySold: Number(r.quantity_sold ?? 0),
       totalSales,
       totalCost,

@@ -3,9 +3,11 @@ import { Plus, ArrowLeft, ClipboardList, Package2, Printer } from 'lucide-react'
 import type { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/ui/pagination';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { getCustomersForSales, getProductsForSales, getSalesPageData } from '@/features/sales/actions';
 import { SaleForm } from './sale-form';
+import { getProductTypeLabel, getProductTypeBadgeClass } from '@/lib/product-types';
 
 function formatCurrency(value: number | string | Prisma.Decimal | null | undefined) {
   return `KSh ${Number(value?.toString() ?? 0).toFixed(2)}`;
@@ -28,6 +30,14 @@ export default async function SalesPage({
   const error = params?.error ?? '';
   const success = params?.success ?? '';
 
+  const buildPaginationHref = (pageNumber: number) => {
+    const query = new URLSearchParams({
+      ...(search ? { search } : {})
+    });
+    query.set('page', String(pageNumber));
+    return `/dashboard/sales?${query.toString()}`;
+  };
+
   const [data, products, customers] = await Promise.all([
     getSalesPageData({ page, search }),
     getProductsForSales(),
@@ -47,7 +57,7 @@ export default async function SalesPage({
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Sales</p>
           <h1 className="mt-2 text-3xl font-semibold">Create invoices, track due payments, and update stock automatically</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Sell feed, medicine, or both, then print invoices and maintain customer ledger entries.
+            Sell feed, medicine, hatchling/chick, or combinations, then print invoices and maintain customer ledger entries.
           </p>
         </div>
         <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
@@ -98,6 +108,10 @@ export default async function SalesPage({
               ))
             )}
           </div>
+
+          <div className="mt-4 flex justify-end">
+            <Pagination currentPage={page} totalPages={data.totalPages} hrefBuilder={buildPaginationHref} />
+          </div>
         </div>
       </div>
 
@@ -142,8 +156,8 @@ export default async function SalesPage({
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{product.code}</td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
-                          {product.productType}
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getProductTypeBadgeClass(product.productType)}`}>
+                          {getProductTypeLabel(product.productType)}
                         </span>
                       </td>
                       <td className={`px-4 py-3 ${stockClass}`}>

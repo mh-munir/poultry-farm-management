@@ -146,6 +146,7 @@ export async function getDailyReportData(date: Date) {
   );
   const feedSales = productTypeMap.get('FEED') ?? 0;
   const medicineSales = productTypeMap.get('MEDICINE') ?? 0;
+  const chickSales = productTypeMap.get('CHICK') ?? 0;
 
   const purchaseTypeMap = new Map(
     (productTypeTotals as Array<{ transactionType: string; productType: string; total: any }>)
@@ -154,6 +155,7 @@ export async function getDailyReportData(date: Date) {
   );
   const feedPurchases = purchaseTypeMap.get('FEED') ?? 0;
   const medicinePurchases = purchaseTypeMap.get('MEDICINE') ?? 0;
+  const chickPurchases = purchaseTypeMap.get('CHICK') ?? 0;
 
   const totalSales = Number(salesAgg._sum.lineTotal ?? 0);
   const totalPurchase = Number(purchaseAgg._sum.totalAmount ?? 0);
@@ -169,7 +171,8 @@ export async function getDailyReportData(date: Date) {
       paid: Number(purchaseAgg._sum.paidAmount ?? 0),
       due: Number(purchaseAgg._sum.dueAmount ?? 0),
       feedTotal: feedSales,
-      medicineTotal: medicineSales
+      medicineTotal: medicineSales,
+      chickTotal: chickSales
     },
     purchases: {
       total: totalPurchase,
@@ -178,7 +181,8 @@ export async function getDailyReportData(date: Date) {
       paid: Number(purchaseAgg._sum.paidAmount ?? 0),
       due: Number(purchaseAgg._sum.dueAmount ?? 0),
       feedTotal: feedPurchases,
-      medicineTotal: medicinePurchases
+      medicineTotal: medicinePurchases,
+      chickTotal: chickPurchases
     },
     costs: {
       total: totalCost,
@@ -241,6 +245,35 @@ export async function getMonthlyReportData(year: number, month: number) {
       orderBy: { transactionDate: 'desc' }
     })
   ]);
+
+  const productTypeTotals = await prisma.$queryRaw<Array<{ transactionType: string; productType: string; total: any }>>`
+    SELECT tr."transactionType", p."productType", SUM(ti."lineTotal") AS "total"
+    FROM "TransactionItem" ti
+    JOIN "Transaction" tr ON tr.id = ti."transactionId"
+    JOIN "Product" p ON p.id = ti."productId"
+    WHERE tr."transactionType" IN ('SALE', 'PURCHASE')
+      AND tr."transactionDate" >= ${start}
+      AND tr."transactionDate" < ${end}
+    GROUP BY tr."transactionType", p."productType"
+  `;
+
+  const salesTypeMap = new Map(
+    (productTypeTotals as Array<{ transactionType: string; productType: string; total: any }>)
+      .filter((r) => r.transactionType === 'SALE')
+      .map((r) => [r.productType, Number(r.total ?? 0)])
+  );
+  const feedSales = salesTypeMap.get('FEED') ?? 0;
+  const medicineSales = salesTypeMap.get('MEDICINE') ?? 0;
+  const chickSales = salesTypeMap.get('CHICK') ?? 0;
+
+  const purchaseTypeMap = new Map(
+    (productTypeTotals as Array<{ transactionType: string; productType: string; total: any }>)
+      .filter((r) => r.transactionType === 'PURCHASE')
+      .map((r) => [r.productType, Number(r.total ?? 0)])
+  );
+  const feedPurchases = purchaseTypeMap.get('FEED') ?? 0;
+  const medicinePurchases = purchaseTypeMap.get('MEDICINE') ?? 0;
+  const chickPurchases = purchaseTypeMap.get('CHICK') ?? 0;
 
   const totalSales = Number(salesAgg._sum.lineTotal ?? 0);
   const totalPurchase = Number(purchaseAgg._sum.totalAmount ?? 0);
@@ -309,15 +342,17 @@ export async function getMonthlyReportData(year: number, month: number) {
       total: totalSales,
       count: salesAgg._count._all,
       transactions: salesTransactions,
-      feedTotal: 0,
-      medicineTotal: 0
+      feedTotal: feedSales,
+      medicineTotal: medicineSales,
+      chickTotal: chickSales
     },
     purchases: {
       total: totalPurchase,
       count: purchaseAgg._count._all,
       transactions: purchaseTransactions,
-      feedTotal: 0,
-      medicineTotal: 0
+      feedTotal: feedPurchases,
+      medicineTotal: medicinePurchases,
+      chickTotal: chickPurchases
     },
     costs: {
       total: totalCost
@@ -427,17 +462,48 @@ export async function getYearlyReportData(year: number) {
   const totalPurchase = Number(purchaseAgg._sum.totalAmount ?? 0);
   const totalCost = Number(costAgg._sum.amount ?? 0);
 
+  const productTypeTotals = await prisma.$queryRaw<Array<{ transactionType: string; productType: string; total: any }>>`
+    SELECT tr."transactionType", p."productType", SUM(ti."lineTotal") AS "total"
+    FROM "TransactionItem" ti
+    JOIN "Transaction" tr ON tr.id = ti."transactionId"
+    JOIN "Product" p ON p.id = ti."productId"
+    WHERE tr."transactionType" IN ('SALE', 'PURCHASE')
+      AND tr."transactionDate" >= ${start}
+      AND tr."transactionDate" < ${end}
+    GROUP BY tr."transactionType", p."productType"
+  `;
+
+  const salesTypeMap = new Map(
+    (productTypeTotals as Array<{ transactionType: string; productType: string; total: any }>)
+      .filter((r) => r.transactionType === 'SALE')
+      .map((r) => [r.productType, Number(r.total ?? 0)])
+  );
+  const feedSales = salesTypeMap.get('FEED') ?? 0;
+  const medicineSales = salesTypeMap.get('MEDICINE') ?? 0;
+  const chickSales = salesTypeMap.get('CHICK') ?? 0;
+
+  const purchaseTypeMap = new Map(
+    (productTypeTotals as Array<{ transactionType: string; productType: string; total: any }>)
+      .filter((r) => r.transactionType === 'PURCHASE')
+      .map((r) => [r.productType, Number(r.total ?? 0)])
+  );
+  const feedPurchases = purchaseTypeMap.get('FEED') ?? 0;
+  const medicinePurchases = purchaseTypeMap.get('MEDICINE') ?? 0;
+  const chickPurchases = purchaseTypeMap.get('CHICK') ?? 0;
+
   return {
     year,
     sales: {
       total: totalSales,
-      feedTotal: 0,
-      medicineTotal: 0
+      feedTotal: feedSales,
+      medicineTotal: medicineSales,
+      chickTotal: chickSales
     },
     purchases: {
       total: totalPurchase,
-      feedTotal: 0,
-      medicineTotal: 0
+      feedTotal: feedPurchases,
+      medicineTotal: medicinePurchases,
+      chickTotal: chickPurchases
     },
     costs: {
       total: totalCost

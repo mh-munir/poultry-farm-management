@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
+import { Pagination } from '@/components/ui/pagination';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { AddPartyDialog } from '@/app/dashboard/parties/add-party-dialog';
 import { PartyToast } from './party-toast';
@@ -13,6 +14,7 @@ import { PartyRowActions } from './party-row-actions';
 import { getPartyNames, getPartyPageData, getPartyStats } from '@/features/parties/actions';
 import type { ProductOption } from '@/app/dashboard/parties/add-party-dialog';
 import { getProductsForSales } from '@/features/sales/actions';
+import { formatDateBD, formatDateTimeBD } from '@/lib/dates';
 
 const PARTY_TYPES = ['ALL', 'CUSTOMER', 'PARTY', 'BOTH'] as const;
 const PARTY_STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
@@ -69,12 +71,12 @@ function formatLastTransactionDate(date: Date | null | undefined) {
   const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
   if (dateDay.getTime() === today.getTime()) {
-    return `Today • ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+    return `Today • ${formatDateTimeBD(date)}`;
   }
   if (dateDay.getTime() === yesterday.getTime()) {
     return 'Yesterday';
   }
-  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return formatDateBD(date);
 }
 
 export default async function PartiesPage({
@@ -101,6 +103,16 @@ export default async function PartiesPage({
   const partyType = params?.partyType ?? 'ALL';
   const status = params?.status ?? 'ALL';
   const error = params?.error ?? '';
+
+  const buildPaginationHref = (pageNumber: number) => {
+    const query = new URLSearchParams({
+      ...(search ? { search } : {}),
+      ...(partyType && partyType !== 'ALL' ? { partyType } : {}),
+      ...(status && status !== 'ALL' ? { status } : {})
+    });
+    query.set('page', String(pageNumber));
+    return `/dashboard/parties?${query.toString()}`;
+  };
 
   const [data, stats, partyOptions, products] = await Promise.all([
     getPartyPageData({ page, search, partyType, status }),
@@ -271,28 +283,7 @@ export default async function PartiesPage({
           <p className="text-sm text-muted-foreground">
             Showing {parties.length} of {data.total} parties
           </p>
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-2">
-              {Array.from({ length: data.totalPages }, (_, index) => index + 1).map((pageNumber) => {
-                const params = new URLSearchParams({
-                  ...(search ? { search } : {}),
-                  ...(partyType && partyType !== 'ALL' ? { partyType } : {}),
-                  ...(status && status !== 'ALL' ? { status } : {})
-                });
-                params.set('page', String(pageNumber));
-
-                return (
-                  <Link
-                    key={pageNumber}
-                    href={`/dashboard/parties?${params.toString()}`}
-                    className={`rounded-md px-3 py-2 text-sm ${page === pageNumber ? 'bg-primary text-primary-foreground' : 'border bg-background'}`}
-                  >
-                    {pageNumber}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
+          <Pagination currentPage={page} totalPages={data.totalPages} hrefBuilder={buildPaginationHref} className="justify-end" />
         </div>
       </div>
     </main>

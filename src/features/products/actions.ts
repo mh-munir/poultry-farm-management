@@ -5,16 +5,17 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
+import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 import { prisma } from '@/server/db';
 import { revalidateTags, CACHE_TAGS } from '@/lib/cache';
 
-type ProductTypeValue = 'FEED' | 'MEDICINE' | 'EGG' | 'CHICKEN';
+type ProductTypeValue = 'FEED' | 'MEDICINE' | 'EGG' | 'CHICKEN' | 'CHICK';
 
 const productSchema = z.object({
   id: z.coerce.number().int().positive().optional(),
   code: z.string().trim().min(2, 'Code must be at least 2 characters long.'),
   name: z.string().trim().min(2, 'Product name must be at least 2 characters long.'),
-  productType: z.enum(['FEED', 'MEDICINE', 'EGG', 'CHICKEN']),
+  productType: z.enum(['FEED', 'MEDICINE', 'EGG', 'CHICKEN', 'CHICK']),
   unit: z.string().trim().min(1, 'Unit is required.'),
   categoryId: z.coerce.number().int().positive().optional().nullable(),
   defaultPurchasePrice: z.coerce.number().min(0).optional().default(0),
@@ -155,7 +156,7 @@ export async function getProductPageData({
   categoryId?: string;
   productType?: string;
 }) {
-  const take = 8;
+  const take = DEFAULT_PAGE_SIZE;
   const skip = (Math.max(page, 1) - 1) * take;
 
   const where: Prisma.ProductWhereInput = { isArchived: false };

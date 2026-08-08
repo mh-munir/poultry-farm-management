@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import Link from 'next/link';
 import { getYearlyReportData } from '@/features/reports/actions';
+import { getProductTypeLabel } from '@/lib/product-types';
 
 function formatCurrency(value: number) {
   return `৳ ${new Intl.NumberFormat('en-BD', {
@@ -63,6 +64,43 @@ export default async function YearlyReportPage({
             <p className={`mt-2 text-2xl font-semibold ${data.profit.net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {formatCurrency(data.profit.net)}
             </p>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className="rounded-xl border bg-background p-4">
+            <h3 className="text-lg font-semibold">Sales Breakdown</h3>
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Feed Sales</span>
+                <span className="font-medium">{formatCurrency(data.sales.feedTotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Medicine Sales</span>
+                <span className="font-medium">{formatCurrency(data.sales.medicineTotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Hatchling / Chick Sales</span>
+                <span className="font-medium">{formatCurrency(data.sales.chickTotal)}</span>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border bg-background p-4">
+            <h3 className="text-lg font-semibold">Purchases Breakdown</h3>
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Feed Purchases</span>
+                <span className="font-medium">{formatCurrency(data.purchases.feedTotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Medicine Purchases</span>
+                <span className="font-medium">{formatCurrency(data.purchases.medicineTotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Hatchling / Chick Purchases</span>
+                <span className="font-medium">{formatCurrency(data.purchases.chickTotal)}</span>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/server/db';
 import { requireUser } from '@/lib/auth';
+import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 import { CACHE_TAGS, revalidatePartyData, revalidatePurchaseData } from '@/lib/cache';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
@@ -522,7 +523,7 @@ export async function getPartyPageData({
   status?: string;
 }) {
   await requireUser();
-  const take = 8;
+  const take = DEFAULT_PAGE_SIZE;
   const skip = (Math.max(page, 1) - 1) * take;
   const filters: PartyWhereInput[] = [];
 

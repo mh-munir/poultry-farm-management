@@ -7,6 +7,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
 import { getSupplierOptions, getSupplierCurrentPayable, createSupplierPurchase } from '@/features/parties/actions';
+import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type SupplierPurchaseModalProps = {
   open: boolean;
@@ -27,7 +28,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
   const [partyOptions, setPartyOptions] = useState<ComboboxOption[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState<number | null>(null);
   const [partyName, setPartyName] = useState('');
-  const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [purchaseDate, setPurchaseDate] = useState(() => todayDateStr());
   const [productCategory, setProductCategory] = useState<'EGG' | 'CHICKEN' | 'BOTH'>('EGG');
   const [eggQuantity, setEggQuantity] = useState('');
   const [eggUnitPrice, setEggUnitPrice] = useState('');
@@ -72,7 +73,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
 
     setSelectedPartyId(null);
     setPartyName('');
-    setPurchaseDate(new Date().toISOString().slice(0, 10));
+    setPurchaseDate(todayDateStr());
     setProductCategory('EGG');
     setEggQuantity('');
     setEggUnitPrice('');

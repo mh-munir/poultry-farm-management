@@ -8,6 +8,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { createSaleTransactionWithToast } from '@/features/sales/actions';
 import { getCustomerCurrentDue } from '@/features/parties/actions';
 import { useToast } from '@/hooks/use-toast';
+import { getProductTypeLabel } from '@/lib/product-types';
 
 export type PartyOption = {
   id: number;
@@ -65,7 +66,7 @@ export function SalesEntryPopup({
   const [open, setOpen] = useState(false);
   const [isSalesLoading, setIsSalesLoading] = useState(false);
   const [salesError, setSalesError] = useState('');
-  const [salesProduct, setSalesProduct] = useState<'feeds' | 'medicin' | 'both'>('feeds');
+  const [salesProduct, setSalesProduct] = useState<'feeds' | 'medicin' | 'chick' | 'both'>('feeds');
   const [salesNameError, setSalesNameError] = useState('');
   const [salesPartyId, setSalesPartyId] = useState<number | null>(defaultPartyId ?? null);
   const [salesPaymentAmount, setSalesPaymentAmount] = useState('');
@@ -127,7 +128,11 @@ export function SalesEntryPopup({
         return product.productType === 'MEDICINE';
       }
 
-      return ['FEED', 'MEDICINE'].includes(product.productType);
+      if (salesProduct === 'chick') {
+        return product.productType === 'CHICK';
+      }
+
+      return ['FEED', 'MEDICINE', 'CHICK'].includes(product.productType);
     });
   }, [productOptions, salesProduct]);
 
@@ -135,7 +140,7 @@ export function SalesEntryPopup({
     return new Map(productOptions.map((product) => [String(product.id), product]));
   }, [productOptions]);
 
-  const handleSalesProductTypeChange = (value: 'feeds' | 'medicin' | 'both') => {
+  const handleSalesProductTypeChange = (value: 'feeds' | 'medicin' | 'chick' | 'both') => {
     setSalesProduct(value);
     setSalesProductRows([createSalesProductRow()]);
   };
@@ -349,11 +354,12 @@ export function SalesEntryPopup({
                 name="salesProduct"
                 autoComplete="off"
                 value={salesProduct}
-                onChange={(event) => handleSalesProductTypeChange(event.target.value as 'feeds' | 'medicin' | 'both')}
+                onChange={(event) => handleSalesProductTypeChange(event.target.value as 'feeds' | 'medicin' | 'chick' | 'both')}
                 className="w-full rounded-md border bg-background px-3 py-2"
               >
                 <option value="feeds">Feeds</option>
                 <option value="medicin">Medicin</option>
+                <option value="chick">Hatchling / Chick</option>
                 <option value="both">Both</option>
               </select>
             </div>
@@ -383,11 +389,11 @@ export function SalesEntryPopup({
                       className="w-full h-10 rounded-md border bg-background px-3 py-2 text-sm truncate"
                     >
                       <option value="">Select stock product</option>
-                      {visibleProductOptions.map((product) => (
-                        <option key={product.id} value={product.id}>
-                          {product.name} - {product.productType} - Stock {product.stockQuantity} {product.unit}
-                        </option>
-                      ))}
+                       {visibleProductOptions.map((product) => (
+                         <option key={product.id} value={product.id}>
+                           {product.name} - {getProductTypeLabel(product.productType)} - Stock {product.stockQuantity} {product.unit}
+                         </option>
+                       ))}
                     </select>
                     <p className="mt-1 text-xs text-muted-foreground" aria-hidden={!selectedProduct}>
                       {selectedProduct ? `Stock: ${selectedProduct.stockQuantity} ${selectedProduct.unit}` : '\u00A0'}

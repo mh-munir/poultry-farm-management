@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
+import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 
 const categorySchema = z.object({
   id: z.coerce.number().int().positive().optional(),
@@ -105,7 +106,7 @@ export async function getCategoryPageData({
   page: number;
   search?: string;
 }) {
-  const take = 8;
+  const take = DEFAULT_PAGE_SIZE;
   const skip = (Math.max(page, 1) - 1) * take;
 
   const where: Prisma.ProductCategoryWhereInput = search?.trim()

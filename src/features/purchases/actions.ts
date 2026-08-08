@@ -9,6 +9,7 @@ import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
 import { CACHE_TAGS, revalidatePurchaseData } from '@/lib/cache';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
+import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 
 const PURCHASE_TRANSACTION_TYPE = 'PURCHASE' as const;
 const PENDING_TRANSACTION_STATUS = 'PENDING' as const;
@@ -19,7 +20,7 @@ const PARTIAL_PAYMENT_STATUS = 'PARTIAL' as const;
 const COMPLETED_PAYMENT_STATUS = 'COMPLETED' as const;
 const PURCHASE_STOCK_MOVEMENT_TYPE = 'PURCHASE' as const;
 
-const FEED_MEDICINE_TYPES = ['FEED', 'MEDICINE'] as const;
+const FEED_MEDICINE_TYPES = ['FEED', 'MEDICINE', 'CHICK'] as const;
 const POULTRY_TYPES = ['EGG', 'CHICKEN'] as const;
 
 function getSupplierTypeFromItems(items: Array<{ productType: string }>): 'company' | 'party' {
@@ -41,7 +42,7 @@ const purchaseItemSchema = z.object({
     return Number(val);
   }, z.number().int().positive('Please select a valid product.').optional()),
   productName: z.string().trim().optional().or(z.literal('')),
-  productType: z.enum(['FEED', 'MEDICINE', 'EGG', 'CHICKEN']).optional().default('FEED'),
+  productType: z.enum(['FEED', 'MEDICINE', 'EGG', 'CHICKEN', 'CHICK']).optional().default('FEED'),
   quantity: z.coerce.number().min(0.0001, 'Quantity must be greater than zero.'),
   unitPrice: z.coerce.number().min(0, 'Rate cannot be negative.'),
   buyRate: z.coerce.number().min(0, 'Buy rate cannot be negative.').optional().default(0),
@@ -220,10 +221,25 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
           if (existingCompany) {
             companyId = existingCompany.id;
           } else {
+            const productTypes = new Set(items.map((item) => item.productType));
+            let companyType = 'FEED';
+            if (productTypes.size === 1) {
+              const type = [...productTypes][0];
+              if (type === 'MEDICINE') companyType = 'MEDICINE';
+              else if (type === 'CHICK') companyType = 'CHICK';
+             } else if (productTypes.has('FEED') && productTypes.has('MEDICINE') && !productTypes.has('CHICK')) {
+               companyType = 'FEED';
+             } else if (productTypes.has('FEED') && productTypes.has('CHICK') && !productTypes.has('MEDICINE')) {
+              companyType = 'FEED_CHICK';
+            } else if (productTypes.has('MEDICINE') && productTypes.has('CHICK') && !productTypes.has('FEED')) {
+              companyType = 'CHICK';
+            } else if (productTypes.has('FEED') && productTypes.has('MEDICINE') && productTypes.has('CHICK')) {
+              companyType = 'FEED_CHICK';
+            }
             const newCompany = await tx.company.create({
               data: {
                 name: normalizedName,
-                companyType: 'FEED',
+                companyType,
                 isActive: true
               }
             });
@@ -465,16 +481,18 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
     revalidatePurchaseData({ path: redirectPath });
 
     const productTypes = new Set(items.map((item) => item.productType));
-    const stockProductTypes = new Set(['FEED', 'MEDICINE']);
-    const hasOnlyFeedMedicine = [...productTypes].every((t) => stockProductTypes.has(t));
+    const stockProductTypes = new Set(['FEED', 'MEDICINE', 'CHICK']);
+    const hasOnlyStockTypes = [...productTypes].every((t) => stockProductTypes.has(t));
     let successMessage = 'Purchase invoice created successfully.';
 
-    if (hasOnlyFeedMedicine && productTypes.size === 1) {
+    if (hasOnlyStockTypes && productTypes.size === 1) {
       const type = [...productTypes][0];
       if (type === 'FEED') {
         successMessage = 'Feed stock added successfully.';
       } else if (type === 'MEDICINE') {
         successMessage = 'Medicine stock added successfully.';
+      } else if (type === 'CHICK') {
+        successMessage = 'Hatchling / Chick stock added successfully.';
       }
     }
 
@@ -514,7 +532,7 @@ export async function createPurchaseTransaction(formData: FormData): Promise<nev
 }
 
 export async function getPurchasesPageData({ page, search }: { page: number; search?: string }) {
-  const take = 8;
+  const take = DEFAULT_PAGE_SIZE;
   const skip = (Math.max(page, 1) - 1) * take;
   const where: Prisma.TransactionWhereInput = {
     transactionType: PURCHASE_TRANSACTION_TYPE

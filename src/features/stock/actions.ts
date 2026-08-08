@@ -6,7 +6,7 @@ import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
 import { revalidateStockData } from '@/lib/cache';
 
-export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE') {
+export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE' | 'CHICK') {
   return prisma.product.findMany({
     where: { isActive: true, isArchived: false, productType },
     select: {

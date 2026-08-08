@@ -2,10 +2,13 @@ import Link from 'next/link';
 import { ArrowLeft, BadgeDollarSign, CheckCircle2, CircleDollarSign, CreditCard, FileText, MapPin, Phone, ReceiptText, Wallet2, Package2, Factory, Printer, TrendingUp, UserRound, Wallet } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
+import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
+import { formatDateBD as formatDate } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/ui/pagination';
 import { prisma } from '@/server/db';
 import { getCompanyAccountSummary, getCompanyProfile } from '@/features/companies/actions';
 import { CompanyRowActions } from '@/app/dashboard/parties/company-row-actions';
@@ -94,13 +97,7 @@ function toSerializableNumber(value: unknown) {
   return 0;
 }
 
-function formatDate(value: Date | string) {
-  return new Date(value).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
-}
+// using centralized Bangladesh-aware formatter (formatDate alias is imported)
 
 function SummaryMiniCard({ label, value }: { label: string; value: string }) {
   return (
@@ -140,13 +137,15 @@ function KpiCard({
   );
 }
 
-export default async function CompanyProfilePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ success?: string; error?: string }> }) {
+export default async function CompanyProfilePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ success?: string; error?: string; historyPage?: string; purchaseTypeFilter?: string }> }) {
   await requireUser();
   const { id } = await params;
   const companyId = Number(id);
   const sp = await searchParams;
   const success = sp?.success ?? '';
   const error = sp?.error ?? '';
+  const historyPage = Number(sp?.historyPage ?? '1');
+  const purchaseTypeFilter = sp?.purchaseTypeFilter ?? 'ALL';
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
@@ -168,7 +167,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
 
   if (!company) notFound();
 
-  const [transactions, payments, summary, feedItems, medicineItems, feedCompanies, medicineCompanies] = await Promise.all([
+  const [transactions, payments, summary, feedItems, medicineItems, chickItems, feedCompanies, medicineCompanies, chickCompanies] = await Promise.all([
     prisma.transaction.findMany({
       where: { companyId },
       orderBy: { transactionDate: 'desc' },
@@ -215,8 +214,10 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
     getCompanyAccountSummary(companyId),
     getStockItemsByType('FEED'),
     getStockItemsByType('MEDICINE'),
+    getStockItemsByType('CHICK'),
     getCompaniesByType('FEED'),
-    getCompaniesByType('MEDICINE')
+    getCompaniesByType('MEDICINE'),
+    getCompaniesByType('CHICK')
   ]);
 
   const sortedTransactions = [...transactions].sort((a, b) =>
@@ -253,6 +254,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
           invoiceNumber: record.data.invoiceNumber,
           type: record.data.transactionType,
           productName: item.product?.name ?? 'Unknown product',
+          productType: item.product?.productType ?? null,
           quantity: Number(item.quantity ?? 0),
           unit: item.product?.unit ?? '—',
           unitPrice: Number(item.unitPrice ?? 0),
@@ -281,6 +283,33 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
 
   historyRows.reverse();
 
+  const filteredHistoryRows = purchaseTypeFilter === 'ALL'
+    ? historyRows
+    : historyRows.filter((row) => {
+        if (row.isPayment) return true;
+        return row.productType === purchaseTypeFilter;
+      });
+
+  const totalHistoryRows = filteredHistoryRows.length;
+  const totalHistoryPages = Math.max(1, Math.ceil(totalHistoryRows / DEFAULT_PAGE_SIZE));
+  const normalizedHistoryPage = Math.min(Math.max(historyPage, 1), totalHistoryPages);
+  const paginatedHistoryRows = filteredHistoryRows.slice((normalizedHistoryPage - 1) * DEFAULT_PAGE_SIZE, normalizedHistoryPage * DEFAULT_PAGE_SIZE);
+
+  const buildHistoryHref = (pageNumber: number) => {
+    const params = new URLSearchParams({
+      ...(success ? { success } : {}),
+      ...(error ? { error } : {}),
+      ...(purchaseTypeFilter && purchaseTypeFilter !== 'ALL' ? { purchaseTypeFilter } : {})
+    });
+
+    if (pageNumber > 1) {
+      params.set('historyPage', String(pageNumber));
+    }
+
+    const query = params.toString();
+    return query ? `/dashboard/companies/${companyId}?${query}` : `/dashboard/companies/${companyId}`;
+  };
+
   const productRows = transactions.flatMap((transaction) =>
     transaction.transactionItems.map((item) => ({
       id: `${transaction.id}-${item.id}`,
@@ -304,10 +333,13 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
     ? 'bg-amber-100 text-amber-800'
     : company.companyType === 'MEDICINE'
       ? 'bg-rose-100 text-rose-800'
-      : 'bg-violet-100 text-violet-800';
+      : company.companyType === 'CHICK'
+        ? 'bg-emerald-100 text-emerald-800'
+        : 'bg-violet-100 text-violet-800';
 
-  const showFeedProducts = company.companyType === 'FEED' || company.companyType === 'BOTH';
-  const showMedicineProducts = company.companyType === 'MEDICINE' || company.companyType === 'BOTH';
+  const showFeedProducts = company.companyType === 'FEED' || company.companyType === 'FEED_CHICK';
+  const showMedicineProducts = company.companyType === 'MEDICINE';
+  const showChickProducts = company.companyType === 'CHICK' || company.companyType === 'FEED_CHICK';
 
   const initialFeedItems = feedItems.map((item) => ({
     id: item.id,
@@ -325,6 +357,21 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
   }));
 
   const initialMedicineItems = medicineItems.map((item) => ({
+    id: item.id,
+    name: item.name,
+    unit: item.unit,
+    quantity: Number(item.stockBalance?.quantityOnHand ?? 0),
+    buyRate: Number(item.defaultPurchasePrice ?? 0),
+    salesRate: Number(item.defaultSellingPrice ?? 0),
+    lowStockThreshold: Number(item.lowStockThreshold ?? 0),
+    productType: item.productType,
+    lastTransactionDate: item.transactionItems[0]?.transaction?.transactionDate,
+    companyName: item.company?.name ?? item.transactionItems[0]?.transaction?.company?.name ?? item.transactionItems[0]?.transaction?.party?.name,
+    paidAmount: Number(item.transactionItems[0]?.transaction?.paidAmount ?? 0),
+    dueAmount: Number(item.transactionItems[0]?.transaction?.dueAmount ?? 0)
+  }));
+
+  const initialChickItems = chickItems.map((item) => ({
     id: item.id,
     name: item.name,
     unit: item.unit,
@@ -392,7 +439,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-3xl font-bold leading-tight text-foreground sm:text-4xl">{company.name}</h1>
                 <span className={`inline-flex items-center rounded-full px-3 py-1 text-badge font-semibold ${companyTypeBadgeClass}`}>
-                  {company.companyType === 'FEED' ? 'Feed Company' : company.companyType === 'MEDICINE' ? 'Medicine Company' : 'Feed & Medicine'}
+                  {company.companyType === 'FEED' ? 'Feed Company' : company.companyType === 'MEDICINE' ? 'Medicine Company' : company.companyType === 'CHICK' ? 'Hatchling / Chick Company' : 'Feed & Medicine'}
                 </span>
               </div>
               <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
@@ -440,8 +487,10 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                 <AddStockModal
                   feedCompanies={feedCompanies}
                   medicineCompanies={medicineCompanies}
+                  chickCompanies={chickCompanies}
                   feedProducts={initialFeedItems}
                   medicineProducts={initialMedicineItems}
+                  chickProducts={initialChickItems}
                   paymentMethodOptions={[
                     { value: 'CASH', label: 'Cash' },
                     { value: 'BANK_TRANSFER', label: 'Bank transfer' },
@@ -452,6 +501,8 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                   preselectedCompanyId={company.id}
                   preselectedCompanyName={company.name}
                   {...(company.companyType === 'FEED' ? { preselectedCompanyType: 'FEED' } : {})}
+                  {...(company.companyType === 'MEDICINE' ? { preselectedCompanyType: 'MEDICINE' } : {})}
+                  {...(company.companyType === 'CHICK' ? { preselectedCompanyType: 'CHICK' } : {})}
                 />
               )}
             </div>
@@ -462,7 +513,9 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SummaryMiniCard label="Feed Purchases" value={formatCurrency(summary.totalFeedPurchases)} />
         <SummaryMiniCard label="Medicine Purchases" value={formatCurrency(summary.totalMedicinePurchases)} />
+        <SummaryMiniCard label="Hatchling / Chick Purchases" value={formatCurrency(summary.totalChickPurchases)} />
         <SummaryMiniCard label="Payments" value={formatCurrency(summary.totalPayments)} />
+        <SummaryMiniCard label="Current Due" value={formatCurrency(summary.totalDue)} />
         <SummaryMiniCard label="Transactions" value={String(summary.totalTransactions)} />
       </div>
 
@@ -561,6 +614,24 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
               defaultCompanyId={company.id}
             />
           )}
+          {showChickProducts && (
+            <StockManagement
+              title="Hatchling / Chick"
+              description="Manage hatchling/chick products, stock quantity, pricing, and status."
+              initialItems={initialChickItems}
+              availableProducts={initialChickItems}
+              suppliers={chickCompanies}
+              companyNames={chickCompanies.map((supplier) => ({ value: supplier.name, label: supplier.name }))}
+              useCompanySearch
+              allowCreateCompany={false}
+              addButtonLabel="Add Product"
+              asSection
+              showAddButton
+              defaultCompanyName={company.name}
+              defaultCompanyId={company.id}
+              stockType="CHICK"
+            />
+          )}
         </div>
       </section>
 
@@ -571,17 +642,40 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
             <p className="mt-1 text-sm text-muted-foreground">Purchase and payment history for this company.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={purchaseTypeFilter}
+              onChange={(event) => {
+                const value = event.target.value;
+                const params = new URLSearchParams({
+                  ...(success ? { success } : {}),
+                  ...(error ? { error } : {}),
+                  ...(value && value !== 'ALL' ? { purchaseTypeFilter: value } : {})
+                });
+                if (historyPage > 1) {
+                  params.set('historyPage', '1');
+                }
+                const query = params.toString();
+                window.location.href = `/dashboard/companies/${companyId}${query ? `?${query}` : ''}`;
+              }}
+              className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="ALL">All Purchases</option>
+              <option value="EGG">Eggs</option>
+              <option value="CHICKEN">Chicken</option>
+              <option value="CHICK">Hatchling / Chick</option>
+            </select>
             <CompanyProfileActions companyName={company.name} exportData={exportCsv} />
           </div>
         </div>
 
-        {historyRows.length === 0 ? (
+        {filteredHistoryRows.length === 0 ? (
           <div className="mt-6 rounded-xl border bg-card p-10 text-center text-muted-foreground">
             No transactions or payments found for this company.
           </div>
         ) : (
-          <div className="mt-6 overflow-visible rounded-xl border min-w-0">
-            <ResponsiveTable minWidth="1120px">
+          <>
+            <div className="mt-6 overflow-visible rounded-xl border min-w-0">
+              <ResponsiveTable minWidth="1120px">
               <table className="min-w-full text-sm">
                 <thead className="bg-muted/40 text-left">
                   <tr>
@@ -634,8 +728,14 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                   ))}
                 </tbody>
               </table>
-            </ResponsiveTable>
-          </div>
+              </ResponsiveTable>
+            </div>
+            {totalHistoryRows > DEFAULT_PAGE_SIZE && (
+              <div className="mt-4 flex items-center justify-end">
+                <Pagination currentPage={normalizedHistoryPage} totalPages={totalHistoryPages} hrefBuilder={buildHistoryHref} />
+              </div>
+            )}
+          </>
         )}
       </section>
     </main>

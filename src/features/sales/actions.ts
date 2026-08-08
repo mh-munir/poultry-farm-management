@@ -9,6 +9,7 @@ import { prisma } from '@/server/db';
 import { CACHE_TAGS, revalidateSalesData } from '@/lib/cache';
 import { getSaleSmsSuccessMessage, queueSaleSmsNotification } from '@/lib/sms/service';
 import type { SmsSaleType } from '@/lib/sms/types';
+import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 
 const SALE_TRANSACTION_TYPE = 'SALE' as const;
 const PENDING_TRANSACTION_STATUS = 'PENDING' as const;
@@ -99,6 +100,10 @@ function determineSaleType(productTypes: string[]): SmsSaleType {
     return 'FEED';
   }
 
+  if (uniqueProductTypes.size === 1 && uniqueProductTypes.has('CHICK')) {
+    return 'CHICK';
+  }
+
   return 'MIXED';
 }
 
@@ -122,7 +127,7 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
       select: { id: true, name: true, productType: true }
     });
     const productTypes = new Map(products.map((product) => [product.id, product.productType]));
-    const invalidProduct = items.find((item) => !['FEED', 'MEDICINE'].includes(productTypes.get(item.productId) ?? ''));
+    const invalidProduct = items.find((item) => !['FEED', 'MEDICINE', 'CHICK'].includes(productTypes.get(item.productId) ?? ''));
 
     if (invalidProduct) {
       throw new Error('Only feed and medicine products can be sold from this entry.');
@@ -335,7 +340,7 @@ export async function getSalesPageData({
   page: number;
   search?: string;
 }) {
-  const take = 8;
+  const take = DEFAULT_PAGE_SIZE;
   const skip = (Math.max(page, 1) - 1) * take;
 
   const where: Prisma.TransactionWhereInput = {
@@ -450,7 +455,7 @@ export async function getCustomersForSales() {
 
 export async function getProductsForSales() {
   return prisma.product.findMany({
-    where: { isActive: true, isArchived: false, productType: { in: ['FEED', 'MEDICINE'] } },
+    where: { isActive: true, isArchived: false, productType: { in: ['FEED', 'MEDICINE', 'CHICK'] } },
     orderBy: { name: 'asc' },
     select: {
       id: true,

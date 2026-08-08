@@ -1,26 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Download, Eye, Pencil, Printer } from 'lucide-react';
+import { useEffect, useState, useMemo, type ReactNode } from 'react';
+import { Download, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/ui/pagination';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { PartyPaymentsSection } from './party-payments-section';
-
-type ProductRow = {
-  id: string;
-  transactionId: number;
-  invoiceNumber: string;
-  transactionDate: Date;
-  transactionType: string;
-  mediaName: string | null;
-  productName: string;
-  productType: string;
-  quantity: number;
-  unit: string;
-  unitPrice: number;
-  lineTotal: number;
-  details: string | null;
-};
+import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
+import { formatDateBD as formatDate, toDateInputValueBD as toDateInputValue, todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type PaymentRow = {
   id: number;
@@ -44,8 +31,6 @@ type LedgerRow = {
 };
 
 type TransactionTabsProps = {
-  saleRows: ProductRow[];
-  buyRows: ProductRow[];
   payments: PaymentRow[];
   ledgerEntries: LedgerRow[];
   partyId: number;
@@ -55,13 +40,13 @@ type TransactionTabsProps = {
   deletePaymentForParty: (formData: FormData) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
 };
 
-type HistoryTab = 'all' | 'sales' | 'purchase' | 'payments' | 'adjustments' | 'ledger';
+type HistoryTab = 'all' | 'payments' | 'adjustments' | 'ledger';
 
 type HistoryRow = {
   id: number;
   date: Date;
   type: string;
-  category: Exclude<HistoryTab, 'all'>;
+  category: 'sales' | 'purchase' | 'payments' | 'adjustments' | 'ledger';
   description: string;
   debit: number;
   credit: number;
@@ -73,8 +58,6 @@ type HistoryRow = {
 
 const tabs: Array<{ value: HistoryTab; label: string }> = [
   { value: 'all', label: 'All' },
-  { value: 'sales', label: 'Sales' },
-  { value: 'purchase', label: 'Purchase' },
   { value: 'payments', label: 'Payments' },
   { value: 'adjustments', label: 'Adjustments' },
   { value: 'ledger', label: 'Ledger' }
@@ -88,18 +71,7 @@ function formatCurrency(value: number | string | null | undefined) {
   }).format(number)}`;
 }
 
-function formatDate(value: Date | string) {
-  return new Date(value).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
-}
-
-function toDateInputValue(value: Date | string | null | undefined) {
-  if (!value) return '';
-  return new Date(value).toISOString().slice(0, 10);
-}
+// using centralized Bangladesh-aware date utilities: `formatDate`, `toDateInputValue`, `todayDateStr`
 
 function titleCase(value: string) {
   return value
@@ -150,68 +122,7 @@ function buildExportCsv(rows: HistoryRow[]) {
     .join('\n');
 }
 
-function ProductItemsTable({ title, rows }: { title: string; rows: ProductRow[] }) {
-  if (rows.length === 0) return null;
-
-  return (
-    <div className="mt-5 overflow-visible rounded-2xl border border-border bg-card">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border bg-muted/30 px-4 py-3">
-        <h3 className="text-card-title">{title}</h3>
-        <span className="rounded-full bg-background px-3 py-1 text-badge text-muted-foreground">{rows.length} items</span>
-      </div>
-      <ResponsiveTable minWidth="980px">
-        <table className="min-w-full text-table-body">
-          <thead className="bg-muted/20 text-left text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 text-table-header">Date</th>
-              <th className="px-4 py-3 text-table-header">Invoice</th>
-              <th className="px-4 py-3 text-table-header">Media</th>
-              <th className="px-4 py-3 text-table-header">Product</th>
-              <th className="px-4 py-3 text-table-header">Type</th>
-              <th className="px-4 py-3 text-table-header">Quantity</th>
-              <th className="px-4 py-3 text-table-header">Unit</th>
-              <th className="px-4 py-3 text-table-header text-right">Unit Price</th>
-              <th className="px-4 py-3 text-table-header text-right">Line Total</th>
-              <th className="px-4 py-3 text-table-header">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-t border-border hover:bg-muted/20">
-                <td className="whitespace-nowrap px-4 py-3">{formatDate(row.transactionDate)}</td>
-                <td className="whitespace-nowrap px-4 py-3 font-medium">{row.invoiceNumber}</td>
-                <td className="px-4 py-3">{row.mediaName ?? '—'}</td>
-                <td className="min-w-48 px-4 py-3">{row.productName}</td>
-                <td className="px-4 py-3">{row.productType}</td>
-                <td className="px-4 py-3 tabular-nums">{row.quantity}</td>
-                <td className="px-4 py-3">{row.unit}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.unitPrice)}</td>
-                <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.lineTotal)}</td>
-                <td className="px-4 py-3">
-                  <Button asChild variant="outline" size="icon" className="h-9 w-9">
-                    <a
-                      href={`/dashboard/transactions/${row.transactionId}/print`}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label="Print transaction"
-                      title="Print transaction"
-                    >
-                      <Printer className="h-4 w-4" />
-                    </a>
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </ResponsiveTable>
-    </div>
-  );
-}
-
 export function TransactionTabs({
-  saleRows,
-  buyRows,
   payments,
   ledgerEntries,
   partyId,
@@ -221,9 +132,14 @@ export function TransactionTabs({
   deletePaymentForParty
 }: TransactionTabsProps) {
   const [activeTab, setActiveTab] = useState<HistoryTab>('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(todayDateStr());
+  const [dateTo, setDateTo] = useState(todayDateStr());
   const [showPaymentTools, setShowPaymentTools] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, dateFrom, dateTo]);
 
   const historyRows = useMemo<HistoryRow[]>(() => ledgerEntries.map((entry) => {
     const amount = Number(entry.amount ?? 0);
@@ -247,14 +163,17 @@ export function TransactionTabs({
   }), [ledgerEntries]);
 
   const filteredRows = useMemo(() => historyRows.filter((row) => {
-    if (activeTab !== 'all' && activeTab !== 'ledger' && row.category !== activeTab) return false;
-    if (activeTab === 'ledger' && row.category === 'sales') return false;
+    if (activeTab !== 'all' && row.category !== activeTab) return false;
 
     const rowTime = new Date(toDateInputValue(row.date)).getTime();
     if (dateFrom && rowTime < new Date(dateFrom).getTime()) return false;
     if (dateTo && rowTime > new Date(dateTo).getTime()) return false;
     return true;
   }), [activeTab, dateFrom, dateTo, historyRows]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / DEFAULT_PAGE_SIZE));
+  const currentPageSafe = Math.min(Math.max(currentPage, 1), pageCount);
+  const visibleRows = filteredRows.slice((currentPageSafe - 1) * DEFAULT_PAGE_SIZE, currentPageSafe * DEFAULT_PAGE_SIZE);
 
   const csvHref = `data:text/csv;charset=utf-8,${encodeURIComponent(buildExportCsv(filteredRows))}`;
 
@@ -266,21 +185,25 @@ export function TransactionTabs({
           <p className="mt-1 text-card-subtitle">Ledger-backed activity with running balance</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
-              className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Start date"
-            />
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
-              className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="End date"
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+                className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Start date"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+                className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="End date"
+              />
+            </div>
           </div>
           <Button asChild variant="outline" className="h-[42px]">
             <a href={csvHref} download={`party-${partyId}-transactions.csv`}>
@@ -309,7 +232,7 @@ export function TransactionTabs({
       </div>
 
       <div className="p-4 sm:p-5">
-      <div className="overflow-visible rounded-2xl border border-border">
+        <div className="overflow-visible rounded-2xl border border-border">
           <ResponsiveTable stickyLastColumn minWidth="980px">
             <table className="min-w-[980px] w-full text-table-body">
               <thead className="bg-muted/30 text-left text-muted-foreground">
@@ -326,7 +249,7 @@ export function TransactionTabs({
                 </tr>
               </thead>
               <tbody className="bg-card">
-                {filteredRows.length > 0 ? filteredRows.map((row) => (
+                {visibleRows.length > 0 ? visibleRows.map((row) => (
                   <tr key={row.id} className="border-t border-border hover:bg-muted/20">
                     <td className="whitespace-nowrap px-4 py-3">{formatDate(row.date)}</td>
                     <td className="whitespace-nowrap px-4 py-3 font-semibold">{titleCase(row.type)}</td>
@@ -369,9 +292,11 @@ export function TransactionTabs({
             </table>
           </ResponsiveTable>
         </div>
-
-        {activeTab === 'sales' ? <ProductItemsTable title="Sales Items" rows={saleRows} /> : null}
-        {activeTab === 'purchase' ? <ProductItemsTable title="Purchase Items" rows={buyRows} /> : null}
+        {pageCount > 1 && (
+          <div className="mt-4 flex items-center justify-end">
+            <Pagination currentPage={currentPageSafe} totalPages={pageCount} onPageChange={setCurrentPage} />
+          </div>
+        )}
         {activeTab === 'payments' && showPaymentTools ? (
           <div className="mt-5 rounded-2xl border border-border bg-background p-4">
             <div className="mb-4 flex items-center justify-between gap-3">

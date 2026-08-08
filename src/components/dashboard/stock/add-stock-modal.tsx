@@ -10,18 +10,21 @@ import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobo
 import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
 import { getCompanyCurrentDue } from '@/features/companies/actions';
 import { useModalSave } from '@/hooks/use-modal-save';
+import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 import { STOCK_TYPE_OPTIONS, STOCK_PAYMENT_METHOD_OPTIONS } from '@/config/stock';
 import type { StockItem } from './stock-management';
 
 interface AddStockModalProps {
   feedCompanies: { id: number; name: string }[];
   medicineCompanies: { id: number; name: string }[];
+  chickCompanies: { id: number; name: string }[];
   feedProducts: StockItem[];
   medicineProducts: StockItem[];
+  chickProducts: StockItem[];
   stockTypeOptions?: ComboboxOption[];
   paymentMethodOptions?: ReadonlyArray<{ value: string; label: string }>;
   preselectedCompanyId?: number;
-  preselectedCompanyType?: 'FEED' | 'MEDICINE';
+  preselectedCompanyType?: 'FEED' | 'MEDICINE' | 'CHICK';
   preselectedCompanyName?: string;
 }
 
@@ -38,8 +41,10 @@ interface StockRow {
 export function AddStockModal({
   feedCompanies,
   medicineCompanies,
+  chickCompanies,
   feedProducts,
   medicineProducts,
+  chickProducts,
   stockTypeOptions = STOCK_TYPE_OPTIONS,
   paymentMethodOptions = STOCK_PAYMENT_METHOD_OPTIONS,
   preselectedCompanyId,
@@ -47,31 +52,31 @@ export function AddStockModal({
   preselectedCompanyName,
 }: AddStockModalProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [stockType, setStockType] = useState<'FEED' | 'MEDICINE'>(preselectedCompanyType ?? 'FEED');
+  const [stockType, setStockType] = useState<'FEED' | 'MEDICINE' | 'CHICK'>(preselectedCompanyType ?? 'FEED');
   const { isSaving, saveError, save } = useModalSave();
   const [companyName, setCompanyName] = useState(preselectedCompanyName ?? '');
   const [companyId, setCompanyId] = useState(preselectedCompanyId ?? 0);
   const [previousDue, setPreviousDue] = useState(0);
-  const transactionDate = new Date().toISOString().slice(0, 10);
+  const transactionDate = todayDateStr();
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [companyDiscount, setCompanyDiscount] = useState('');
   const [rows, setRows] = useState<StockRow[]>([
-    { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: '' },
+    { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: stockType === 'FEED' ? 'bag' : stockType === 'MEDICINE' ? 'gm' : 'pcs' },
   ]);
   const router = useRouter();
   const { success, error: showToastError } = useToast();
 
   const companyOptions: ComboboxOption[] = useMemo(() => {
-    const companies = stockType === 'FEED' ? feedCompanies : medicineCompanies;
+    const companies = stockType === 'FEED' ? feedCompanies : stockType === 'MEDICINE' ? medicineCompanies : chickCompanies;
     return companies.map((c) => ({ value: c.name, label: c.name }));
-  }, [stockType, feedCompanies, medicineCompanies]);
+  }, [stockType, feedCompanies, medicineCompanies, chickCompanies]);
 
   const availableProducts: StockItem[] = useMemo(() => {
-    return stockType === 'FEED' ? feedProducts : medicineProducts;
-  }, [stockType, feedProducts, medicineProducts]);
+    return stockType === 'FEED' ? feedProducts : stockType === 'MEDICINE' ? medicineProducts : chickProducts;
+  }, [stockType, feedProducts, medicineProducts, chickProducts]);
 
-  const defaultUnit = stockType === 'FEED' ? 'bag' : 'gm';
+  const defaultUnit = stockType === 'FEED' ? 'bag' : stockType === 'MEDICINE' ? 'gm' : 'pcs';
 
   const totalAmount = useMemo(() => {
     return rows.reduce((sum, row) => {
@@ -182,10 +187,9 @@ export function AddStockModal({
   };
 
   const handleStockTypeChange = (value: string) => {
-    // Only allow type change if not preselected from company profile
     if (preselectedCompanyType) return;
     
-    const newType = value === 'MEDICINE' ? 'MEDICINE' : 'FEED';
+    const newType = value === 'MEDICINE' ? 'MEDICINE' : value === 'CHICK' ? 'CHICK' : 'FEED';
     setStockType(newType);
     setCompanyName('');
     setCompanyId(0);
@@ -235,7 +239,7 @@ export function AddStockModal({
                   value={companyName}
                   onValueChange={(value) => {
                     setCompanyName(value);
-                    const matched = (stockType === 'FEED' ? feedCompanies : medicineCompanies).find(
+                    const matched = (stockType === 'FEED' ? feedCompanies : stockType === 'MEDICINE' ? medicineCompanies : stockType === 'CHICK' ? chickCompanies : []).find(
                       (s) => s.name.toLowerCase() === value.toLowerCase()
                     );
                     if (matched) {
@@ -281,61 +285,64 @@ export function AddStockModal({
             <div className="space-y-3">
               {rows.map((row) => (
                 <div key={row.rowId} className="rounded-lg border border-border bg-white p-4">
-                  <div
-                    className={`grid gap-3 items-end ${stockType === 'MEDICINE'
-                      ? 'md:grid-cols-[1.4fr_0.7fr_0.9fr_0.9fr_auto]'
-                      : 'md:grid-cols-[1.8fr_0.9fr_0.9fr_auto]'}`}
-                  >
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? 'Stock Medicine' : 'Product'}</label>
-                      <input
-                        list={`add-stock-products-${stockType}`}
-                        name="productName"
-                        value={row.productName}
-                        onChange={(event) => handleRowChange(row.rowId, 'productName', event.target.value)}
-                        className="w-full h-10 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground"
-                        placeholder="Type or search product"
-                        required
-                      />
-                      <datalist id={`add-stock-products-${stockType}`}>
-                        {availableProducts.map((product) => (
-                          <option key={product.id} value={product.name} />
-                        ))}
-                      </datalist>
-                      <input type="hidden" name="productId" value={row.productId} />
-                      <input type="hidden" name="productType" value={stockType} />
-                      {stockType === 'FEED' && (
-                        <input type="hidden" name="unit" value={defaultUnit} />
-                      )}
-                    </div>
-                    {stockType === 'MEDICINE' && (
+                    <div
+                      className={`grid gap-3 items-end ${stockType === 'MEDICINE'
+                        ? 'md:grid-cols-[1.4fr_0.7fr_0.9fr_0.9fr_auto]'
+                        : 'md:grid-cols-[1.8fr_0.9fr_0.9fr_auto]'}`}
+                    >
                       <div>
-                        <label className="mb-1 block text-sm font-medium">Gm</label>
+                        <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? 'Stock Medicine' : stockType === 'CHICK' ? 'Hatchling / Chick' : 'Product'}</label>
+                        <input
+                          list={`add-stock-products-${stockType}`}
+                          name="productName"
+                          value={row.productName}
+                          onChange={(event) => handleRowChange(row.rowId, 'productName', event.target.value)}
+                          className="w-full h-10 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground"
+                          placeholder="Type or search product"
+                          required
+                        />
+                        <datalist id={`add-stock-products-${stockType}`}>
+                          {availableProducts.map((product) => (
+                            <option key={product.id} value={product.name} />
+                          ))}
+                        </datalist>
+                        <input type="hidden" name="productId" value={row.productId} />
+                        <input type="hidden" name="productType" value={stockType} />
+                        {stockType === 'FEED' && (
+                          <input type="hidden" name="unit" value={defaultUnit} />
+                        )}
+                        {stockType === 'CHICK' && (
+                          <input type="hidden" name="unit" value={defaultUnit} />
+                        )}
+                      </div>
+                      {stockType === 'MEDICINE' && (
+                        <div>
+                          <label className="mb-1 block text-sm font-medium">Gm</label>
+                          <input
+                            type="number"
+                            name="unit"
+                            min="0"
+                            step="0.01"
+                            placeholder="500"
+                            value={row.unit ?? ''}
+                            onChange={(event) => handleRowChange(row.rowId, 'unit', event.target.value)}
+                            className="w-full h-10 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground"
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? 'Quantity' : stockType === 'CHICK' ? 'Quantity (Pcs)' : 'Quantity Of Sack'}</label>
                         <input
                           type="number"
-                          name="unit"
+                          name="quantity"
                           min="0"
                           step="0.01"
-                          placeholder="500"
-                          value={row.unit ?? ''}
-                          onChange={(event) => handleRowChange(row.rowId, 'unit', event.target.value)}
-                          className="w-full h-10 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground"
+                          value={row.quantity}
+                          onChange={(event) => handleRowChange(row.rowId, 'quantity', event.target.value)}
+                          className="w-full h-10 rounded-md border bg-background px-3 text-sm"
+                          required
                         />
                       </div>
-                    )}
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? 'Quantity' : 'Quantity Of Sack'}</label>
-                      <input
-                        type="number"
-                        name="quantity"
-                        min="0"
-                        step="0.01"
-                        value={row.quantity}
-                        onChange={(event) => handleRowChange(row.rowId, 'quantity', event.target.value)}
-                        className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-                        required
-                      />
-                    </div>
                     <div>
                       <label className="mb-1 block text-sm font-medium">Buy Rate</label>
                       <input

@@ -62,9 +62,10 @@ export function AddCompanyDialog() {
           <div>
             <label className="mb-2 block text-sm font-medium">Company type</label>
             <select name="companyType" defaultValue="FEED" className="w-full rounded-md border bg-background px-3 py-2">
-              <option value="FEED">Feed Company</option>
-              <option value="MEDICINE">Medicine Company</option>
-              <option value="BOTH">Both</option>
+              <option value="FEED">Feeds</option>
+              <option value="MEDICINE">Medicine</option>
+              <option value="CHICK">Hatchling / Chick</option>
+              <option value="FEED_CHICK">Feeds + Hatchling / Chick</option>
             </select>
           </div>
           <div className="md:col-span-2 rounded-lg border bg-muted/20 p-4">

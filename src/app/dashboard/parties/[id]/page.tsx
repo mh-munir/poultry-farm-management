@@ -32,7 +32,9 @@ import PaymentFormDialog from './payment-form-dialog';
 import { PartyRowActions } from '../party-row-actions';
 import { SalesEntryPopup } from '@/components/dashboard/sales-entry-popup';
 import { TransactionTabs } from './transaction-tabs';
+import { SalesPurchaseSection } from './sales-purchase-section';
 import ToastRedirect from '../toast-redirect';
+import { formatDateBD as formatDate } from '@/lib/dates';
 
 type PartyProfileRecord = {
   id: number;
@@ -105,13 +107,7 @@ function formatCurrency(value: number | string | { toString(): string } | null |
   }).format(number)}`;
 }
 
-function formatDate(value: Date | string) {
-  return new Date(value).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
-}
+// using centralized Bangladesh-aware formatter (formatDate alias is imported)
 
 function formatPartyType(value: string) {
   if (value === 'CUSTOMER') return 'Customer';
@@ -454,6 +450,12 @@ export default async function PartyProfilePage({
         </div>
       </section>
 
+      <SalesPurchaseSection
+        saleRows={customerProductRows}
+        buyRows={supplierProductRows}
+        partyId={party.id}
+      />
+
       <section className="mt-5 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title="Current Balance"
@@ -585,8 +587,6 @@ export default async function PartyProfilePage({
 
       <section className="mt-5">
         <TransactionTabs
-          saleRows={customerProductRows}
-          buyRows={supplierProductRows}
           payments={payments.map((payment) => ({
             id: payment.id,
             amount: payment.amount.toString(),

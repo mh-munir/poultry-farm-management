@@ -10,6 +10,7 @@ import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobo
 import { deleteStockItem, updateStockItem } from '@/features/stock/actions';
 import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
+import { todayDateInputValueBD as todayDateStr, formatDateBD } from '@/lib/dates';
 
 export interface StockItem {
   id?: number;
@@ -46,6 +47,7 @@ interface StockManagementProps {
   showAddButton?: boolean;
   defaultCompanyName?: string;
   defaultCompanyId?: number;
+  stockType?: 'FEED' | 'MEDICINE' | 'CHICK';
 }
 
 interface StockRow {
@@ -72,7 +74,9 @@ export function StockManagement({
   showAddButton = true,
   defaultCompanyName = '',
   defaultCompanyId,
+  stockType: stockTypeProp,
 }: StockManagementProps) {
+  const stockType = stockTypeProp ?? (title === 'Medicine' ? 'MEDICINE' : title === 'Hatchling / Chick' ? 'CHICK' : 'FEED');
   const [items, setItems] = useState<StockItem[]>(initialItems);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -89,7 +93,7 @@ export function StockManagement({
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [companyDiscount, setCompanyDiscount] = useState('');
-  const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [transactionDate, setTransactionDate] = useState(() => todayDateStr());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rows, setRows] = useState<StockRow[]>([{ rowId: 1, productId: '', productName: '', quantity: '', buyRate: '', unit: '' }]);
   const router = useRouter();
@@ -135,17 +139,19 @@ export function StockManagement({
   }, []);
 
   const addRow = useCallback(() => {
-    setRows((prev) => [...prev, { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: title === 'Medicine' ? 'gm' : 'bag' }]);
-  }, [title]);
+    setRows((prev) => [...prev, { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: stockType === 'MEDICINE' ? 'gm' : stockType === 'CHICK' ? 'pcs' : 'bag' }]);
+  }, [stockType]);
 
   const openForm = useCallback(() => {
-    if (title === 'Medicine') {
+    if (stockType === 'MEDICINE') {
       setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: 'gm' }]);
+    } else if (stockType === 'CHICK') {
+      setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: 'pcs' }]);
     } else {
       setRows([{ rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: 'bag' }]);
     }
     setIsFormOpen(true);
-  }, [title]);
+  }, [stockType]);
 
   const openEditModal = useCallback((item: StockItem) => {
     setEditingItemId(item.id ?? null);
@@ -155,9 +161,9 @@ export function StockManagement({
     setEditCompanyId(matchedCompany?.id ?? null);
     setEditBuyRate(String(item.buyRate ?? '0'));
     setEditQuantity(String(item.quantity ?? '0'));
-    setEditUnit(String(item.unit ?? (title === 'Medicine' ? 'gm' : 'bag')));
+    setEditUnit(String(item.unit ?? (stockType === 'MEDICINE' ? 'gm' : stockType === 'CHICK' ? 'pcs' : 'bag')));
     setIsEditModalOpen(true);
-  }, [suppliers, title]);
+  }, [suppliers, stockType]);
 
   const handleSaveEdit = useCallback(async () => {
     if (editingItemId === null) return;
@@ -183,7 +189,7 @@ export function StockManagement({
         editingItemId,
         editProductName,
         Number(editBuyRate),
-        title === 'Medicine' ? editUnit || 'gm' : undefined,
+        stockType === 'MEDICINE' ? editUnit || 'gm' : stockType === 'CHICK' ? editUnit || 'pcs' : undefined,
         matchedCompany?.id ?? null,
         Number(editQuantity) || 0
       );
@@ -201,7 +207,7 @@ export function StockManagement({
                 name: editProductName,
                 quantity: Number(editQuantity) || 0,
                 buyRate: Number(editBuyRate),
-                unit: title === 'Medicine' ? editUnit || 'gm' : item.unit,
+                unit: stockType === 'MEDICINE' ? editUnit || 'gm' : stockType === 'CHICK' ? editUnit || 'pcs' : item.unit,
                 companyName: editCompanyName
               }
             : item
@@ -463,7 +469,7 @@ export function StockManagement({
                   <div key={row.rowId} className="border rounded-lg p-4 bg-white space-y-3">
                     <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <label className="mb-1 block text-sm font-medium">{title === 'Medicine' ? 'Stock Medicine' : 'Product'}</label>
+                      <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? 'Stock Medicine' : stockType === 'CHICK' ? 'Hatchling / Chick' : 'Product'}</label>
                       <input
                         list={`products-list-${title}`}
                         name="productName"
@@ -479,12 +485,12 @@ export function StockManagement({
                         ))}
                       </datalist>
                       <input type="hidden" name="productId" value={row.productId} />
-                      <input type="hidden" name="productType" value={title === 'Medicine' ? 'MEDICINE' : 'FEED'} />
-                      {title === 'Feed' && (
+                      <input type="hidden" name="productType" value={stockType} />
+                      {stockType === 'FEED' && (
                         <input type="hidden" name="unit" value="bag" />
                       )}
                     </div>
-                    {title === 'Medicine' && (
+                    {stockType === 'MEDICINE' && (
                       <div className="w-24 ml-4">
                         <label className="mb-1 block text-sm font-medium">Gm</label>
                         <input
@@ -502,7 +508,7 @@ export function StockManagement({
                     </div>
                     <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_1fr_0.6fr] items-end">
                       <div>
-                        <label className="mb-1 block text-sm font-medium">{title === 'Medicine' ? 'Quantity' : 'Quantity Of Sack'}</label>
+                        <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? 'Quantity' : stockType === 'CHICK' ? 'Quantity (Pcs)' : 'Quantity Of Sack'}</label>
                         <input
                           type="number"
                           name="quantity"
@@ -666,7 +672,7 @@ export function StockManagement({
               )}
             </div>
           </div>
-          {title === 'Medicine' ? (
+          {stockType === 'MEDICINE' ? (
             <>
               <div>
                 <label className="mb-1 block text-sm font-medium">Gram</label>
@@ -693,7 +699,7 @@ export function StockManagement({
             </>
           ) : (
             <div>
-              <label className="mb-1 block text-sm font-medium">Quantity</label>
+              <label className="mb-1 block text-sm font-medium">{stockType === 'CHICK' ? 'Quantity (Pcs)' : 'Quantity'}</label>
               <input
                 type="number"
                 min="0"
@@ -764,7 +770,7 @@ export function StockManagement({
                   const rowKey = item.id ?? index;
                   return (
                     <tr key={`${rowKey}-${item.buyRate}`} className="hover:bg-muted/30">
-                      <td className="px-2 py-2 sm:px-4 sm:py-3">{item.lastTransactionDate ? new Date(item.lastTransactionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</td>
+                      <td className="px-2 py-2 sm:px-4 sm:py-3">{item.lastTransactionDate ? formatDateBD(item.lastTransactionDate) : '-'}</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{item.companyName || '-'}</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{item.name}</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{item.unit || '-'}</td>

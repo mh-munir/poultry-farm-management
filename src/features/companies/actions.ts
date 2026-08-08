@@ -10,6 +10,7 @@ import { CACHE_TAGS, revalidateCompanyData } from '@/lib/cache';
 import { logCompanyAction } from '@/lib/debug-log';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
 import { createPaymentPaidSmsMessage } from '@/lib/sms/templates';
+import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 
 const companySchema = z.object({
   id: z.coerce.number().optional(),
@@ -22,7 +23,7 @@ const companySchema = z.object({
   }, z.string().regex(/^\d{11}$/, 'Mobile number must be exactly 11 numeric digits.').optional()),
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
-  companyType: z.enum(['FEED', 'MEDICINE', 'BOTH']).default('FEED'),
+  companyType: z.enum(['FEED', 'MEDICINE', 'CHICK', 'FEED_CHICK']).default('FEED'),
   isActive: z.preprocess((val) => val === 'on' || val === true, z.boolean()),
   openingBalanceAmount: z.coerce.number().default(0),
   openingBalanceDescription: z.string().optional().or(z.literal(''))
@@ -358,7 +359,7 @@ export async function createOrUpdateCompany(formData: FormData) {
 
 export async function getCompanyPageData(args: { page: number; search?: string; companyType?: string; status?: string }) {
   await requireUser();
-  const take = 8;
+  const take = DEFAULT_PAGE_SIZE;
   const skip = (Math.max(args.page, 1) - 1) * take;
   const filters: any[] = [];
 
@@ -489,9 +490,10 @@ export async function getCompanyStats(args: { search?: string; companyType?: str
   const active = rows.reduce((sum, row) => sum + (row.isActive ? row._count._all : 0), 0);
   const feed = rows.reduce((sum, row) => sum + (row.companyType === 'FEED' ? row._count._all : 0), 0);
   const medicine = rows.reduce((sum, row) => sum + (row.companyType === 'MEDICINE' ? row._count._all : 0), 0);
-  const both = rows.reduce((sum, row) => sum + (row.companyType === 'BOTH' ? row._count._all : 0), 0);
+  const chick = rows.reduce((sum, row) => sum + (row.companyType === 'CHICK' ? row._count._all : 0), 0);
+  const feedChick = rows.reduce((sum, row) => sum + (row.companyType === 'FEED_CHICK' ? row._count._all : 0), 0);
 
-  return { total, active, feed, medicine, both };
+  return { total, active, feed, medicine, chick, feedChick };
 }
 
 export async function getOrCreateCompany(name: string) {
@@ -528,11 +530,12 @@ export async function getOrCreateCompany(name: string) {
 
 export async function getCompaniesByType(companyType: string) {
   await requireUser();
+  const includesFeedChick = companyType === 'FEED' || companyType === 'CHICK';
   return unstable_cache(
     async () => prisma.company.findMany({
     where: {
       isActive: true,
-      companyType: { in: [companyType, 'BOTH'] }
+      companyType: includesFeedChick ? { in: [companyType, 'FEED_CHICK'] } : companyType
     },
     select: { id: true, name: true },
     orderBy: { name: 'asc' }
@@ -585,16 +588,19 @@ export async function getCompanyAccountSummary(companyId: number) {
         acc.feed += total;
       } else if (row.productType === 'MEDICINE') {
         acc.medicine += total;
+      } else if (row.productType === 'CHICK') {
+        acc.chick += total;
       } else {
         acc.other += total;
       }
       return acc;
     },
-    { feed: 0, medicine: 0, other: 0 }
+    { feed: 0, medicine: 0, chick: 0, other: 0 }
   );
 
   const totalFeedPurchases = totalsByType.feed;
   const totalMedicinePurchases = totalsByType.medicine;
+  const totalChickPurchases = totalsByType.chick;
   const totalPurchase = Number(purchaseAgg._sum.totalAmount ?? 0);
   const totalPayments = Number(paymentAgg._sum.amount ?? 0);
   const totalDue = totalPurchase - totalPayments;
@@ -604,6 +610,7 @@ export async function getCompanyAccountSummary(companyId: number) {
     companyType: company.companyType,
     totalFeedPurchases,
     totalMedicinePurchases,
+    totalChickPurchases,
     totalPayments,
     totalDue,
     openingBalance,

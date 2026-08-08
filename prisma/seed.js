@@ -38,6 +38,17 @@ async function main() {
     }
   });
 
+  const chickCategory = await prisma.productCategory.upsert({
+    where: { name: 'Hatchling / Chick' },
+    update: {},
+    create: {
+      name: 'Hatchling / Chick',
+      slug: 'hatchling-chick',
+      description: 'Hatchling and chick products',
+      isActive: true
+    }
+  });
+
   const feed = await prisma.product.upsert({
     where: { code: 'FEED-001' },
     update: {},

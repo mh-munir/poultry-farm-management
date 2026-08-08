@@ -106,6 +106,10 @@ export default async function DailyReportPage({
                 <span className="font-medium">{formatCurrency(data.sales.medicineTotal)}</span>
               </div>
               <div className="flex justify-between text-sm">
+                <span>Hatchling / Chick Sales</span>
+                <span className="font-medium">{formatCurrency(data.sales.chickTotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
                 <span>Paid</span>
                 <span className="font-medium">{formatCurrency(data.sales.paid)}</span>
               </div>
@@ -125,6 +129,10 @@ export default async function DailyReportPage({
               <div className="flex justify-between text-sm">
                 <span>Medicine Purchases</span>
                 <span className="font-medium">{formatCurrency(data.purchases.medicineTotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Hatchling / Chick Purchases</span>
+                <span className="font-medium">{formatCurrency(data.purchases.chickTotal)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Paid</span>

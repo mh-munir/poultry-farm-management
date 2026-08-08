@@ -1,5 +1,6 @@
 import type { InvoiceCompanyProfile } from '@/lib/branding';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
+import { formatDateBD as formatDate, formatDateTimeBD as formatDateTime } from '@/lib/dates';
 
 export type InvoiceDisplaySettings = {
   hideFeedUnitPrice?: boolean;
@@ -53,23 +54,7 @@ function formatCurrency(value: number | null | undefined) {
   }).format(Number(value ?? 0))}`;
 }
 
-function formatDate(value: Date) {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  }).format(value);
-}
-
-function formatDateTime(value: Date) {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(value);
-}
+// using centralized Bangladesh-aware formatters
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (

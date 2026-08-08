@@ -7,6 +7,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
 import { getCompaniesByType, getCompanyCurrentDue, recordPaymentForCompany } from '@/features/companies/actions';
+import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type PayCompanyModalProps = {
   open: boolean;
@@ -20,18 +21,19 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(preselectedCompanyId ?? null);
   const [currentDue, setCurrentDue] = useState(0);
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [paymentDate, setPaymentDate] = useState(() => todayDateStr());
   const router = useRouter();
   const { success, error: showError } = useToast();
 
   useEffect(() => {
     if (open) {
       const loadCompanies = async () => {
-        const [feedCompanies, medicineCompanies] = await Promise.all([
+        const [feedCompanies, medicineCompanies, chickCompanies] = await Promise.all([
           getCompaniesByType('FEED'),
-          getCompaniesByType('MEDICINE')
+          getCompaniesByType('MEDICINE'),
+          getCompaniesByType('CHICK')
         ]);
-        const all = [...feedCompanies, ...medicineCompanies];
+        const all = [...feedCompanies, ...medicineCompanies, ...chickCompanies];
         const options: ComboboxOption[] = all.map((c) => ({ value: String(c.id), label: c.name }));
         setCompanyOptions(options);
 
@@ -47,7 +49,7 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
 
       loadCompanies();
       setPaymentAmount('');
-      setPaymentDate(new Date().toISOString().slice(0, 10));
+      setPaymentDate(todayDateStr());
     }
   }, [open, preselectedCompanyId]);
 
