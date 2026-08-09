@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
+
+type SerializableDecimal = number | string | { toString(): string } | null;
 import {
   deletePaymentForParty,
   getPartyAccountSummary,
@@ -65,12 +67,14 @@ type PartyTransactionRecord = {
   paidAmount: { toString(): string };
   dueAmount: { toString(): string };
   notes: string | null;
+  mediaName: string | null;
   transactionItems: Array<{
     id: number;
     quantity: { toString(): string };
     unitPrice: { toString(): string };
     lineTotal: { toString(): string };
     description: string | null;
+    chickenQuantity: { toString(): string } | null;
     product: {
       name: string;
       unit: string;
@@ -97,6 +101,19 @@ type LedgerEntryRecord = {
   runningBalance: { toString(): string };
   description: string | null;
   referenceNumber: string | null;
+};
+
+type SalesCustomerOption = { id: number; name: string };
+type SalesProductOption = {
+  id: number;
+  name: string;
+  code: string;
+  productType: string;
+  unit: string;
+  defaultSellingPrice: SerializableDecimal;
+  defaultPurchasePrice: SerializableDecimal;
+  stockBalance?: { quantityOnHand: SerializableDecimal } | null;
+  stockMovements?: Array<{ unitCost: SerializableDecimal } | null> | null;
 };
 
 function formatCurrency(value: number | string | { toString(): string } | null | undefined) {
@@ -197,7 +214,14 @@ export default async function PartyProfilePage({
 
   if (!party) notFound();
 
-  const [rawTransactions, payments, ledgerEntries, summary, customers, saleProducts] = await Promise.all([
+  const result: Promise<[
+    PartyTransactionRecord[],
+    PartyPaymentRecord[],
+    LedgerEntryRecord[],
+    Awaited<ReturnType<typeof getPartyAccountSummary>>,
+    SalesCustomerOption[],
+    SalesProductOption[]
+  ]> = Promise.all([
     prisma.transaction.findMany({
       where: { partyId },
       orderBy: { transactionDate: 'desc' },
@@ -218,6 +242,7 @@ export default async function PartyProfilePage({
             unitPrice: true,
             lineTotal: true,
             description: true,
+            chickenQuantity: true,
             product: {
               select: {
                 name: true,
@@ -260,6 +285,14 @@ export default async function PartyProfilePage({
     getProductsForSales()
   ]);
 
+  const [rawTransactions, payments, ledgerEntries, summary, customers, saleProducts] = await result as [
+    PartyTransactionRecord[],
+    PartyPaymentRecord[],
+    LedgerEntryRecord[],
+    Awaited<ReturnType<typeof getPartyAccountSummary>>,
+    SalesCustomerOption[],
+    SalesProductOption[]
+  ];
   const transactions = rawTransactions;
 
   const customersForSales = customers.map((c) => ({ id: c.id, name: c.name }));
@@ -290,7 +323,8 @@ export default async function PartyProfilePage({
       unit: item.product?.unit ?? '-',
       unitPrice: Number(item.unitPrice ?? 0),
       lineTotal: Number(item.lineTotal ?? 0),
-      details: item.description ?? null
+      details: item.description ?? null,
+      totalKg: Number(item.chickenQuantity ?? 0)
     }))
   );
 
@@ -328,19 +362,23 @@ export default async function PartyProfilePage({
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-3 py-5 sm:px-5 lg:px-6">
       <ToastRedirect initialSuccess={success ?? undefined} initialError={error ?? undefined} />
 
-      <div className="mb-5">
-        <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-muted-foreground">Parties / Profile</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Party Profile</h1>
+        </div>
+        <Button asChild variant="outline" size="sm" className="text-muted-foreground">
           <Link href="/dashboard/parties">
-            <ArrowLeft className="h-4 w-4" />
-            Back
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Parties
           </Link>
         </Button>
       </div>
 
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-primary/10 text-3xl font-bold text-primary shadow-sm">
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+        <div className="grid gap-6 xl:grid-cols-[1.8fr_1fr] xl:items-center">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-border bg-primary/10 text-3xl font-bold text-primary shadow-sm">
               {party.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={party.imageUrl} alt={party.name} className="h-full w-full object-cover" />
@@ -350,12 +388,12 @@ export default async function PartyProfilePage({
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-3xl font-bold leading-tight text-foreground sm:text-4xl">{party.name}</h1>
-                <span className={`inline-flex items-center rounded-full px-3 py-1 text-badge font-semibold ${partyTypeBadgeClass}`}>
+                <h2 className="text-3xl font-semibold leading-tight text-foreground sm:text-4xl">{party.name}</h2>
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${partyTypeBadgeClass}`}>
                   {formatPartyType(party.partyType)}
                 </span>
               </div>
-              <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+              <div className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <Phone className="h-4 w-4 shrink-0 text-primary" />
                   <span className="truncate font-medium text-foreground">{party.phone || '-'}</span>
@@ -369,16 +407,16 @@ export default async function PartyProfilePage({
           </div>
 
           <div className="flex flex-col gap-4 xl:items-end">
-            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-              <span className={`inline-flex h-9 items-center gap-2 rounded-full px-3 text-badge font-semibold ${dueBadgeClass}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold ${dueBadgeClass}`}>
                 <CheckCircle2 className="h-4 w-4" />
                 {dueStatus}
               </span>
-              <span className={`inline-flex h-9 items-center rounded-full px-3 text-badge font-semibold ${party.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+              <span className={`inline-flex h-10 items-center rounded-full px-3 text-sm font-semibold ${party.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                 {party.isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+            <div className="flex items-center justify-end gap-2">
               <PartyRowActions
                 editOnly
                 party={{
@@ -398,131 +436,120 @@ export default async function PartyProfilePage({
                 }}
                 editButtonClassName="h-[42px] bg-secondary text-secondary-foreground hover:bg-secondary/80"
               />
-              {isCustomer ? (
-                <SalesEntryPopup
-                  partyOptions={customersForSales}
-                  productOptions={saleProductsForSales}
-                  defaultPartyId={party.id}
-                  defaultPartyName={party.name}
-                  buttonClassName="h-[42px] bg-primary text-primary-foreground hover:bg-primary/90"
-                  buttonChildren={(
-                    <>
-                      <ShoppingCart className="h-4 w-4" />
-                      Sales Entry
-                    </>
-                  )}
-                />
-              ) : null}
-              {isCustomer ? (
-                <PaymentFormDialog
-                  partyId={party.id}
-                  partyName={party.name}
-                  title="Customer Payment"
-                  buttonLabel="Customer Payment"
-                  dueLabel="Customer Due"
-                  dueAmount={summary.netCustomerDue}
-                  toastSuccessMessage="Customer payment recorded successfully."
-                  recordPaymentForParty={receiveCustomerPayment}
-                  buttonClassName="h-[42px] bg-emerald-600 text-white hover:bg-emerald-700"
-                />
-              ) : null}
-              {isSupplier ? (
-                <PaymentFormDialog
-                  partyId={party.id}
-                  partyName={party.name}
-                  title="Pay Supplier"
-                  buttonLabel="Pay Supplier"
-                  dueLabel="Supplier Payable"
-                  dueAmount={summary.netSupplierDue}
-                  toastSuccessMessage="Supplier payment recorded successfully."
-                  recordPaymentForParty={paySupplierPayment}
-                  buttonClassName="h-[42px] bg-amber-500 text-white hover:bg-amber-600"
-                />
-              ) : null}
-              <Button asChild variant="outline" className="h-[42px]">
-                <a href={`/dashboard/parties/${party.id}/print`} target="_blank" rel="noreferrer">
-                  <Printer className="h-4 w-4" />
-                  Print
-                </a>
-              </Button>
+              <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
+                {isCustomer ? (
+                  <SalesEntryPopup
+                    partyOptions={customersForSales}
+                    productOptions={saleProductsForSales}
+                    defaultPartyId={party.id}
+                    defaultPartyName={party.name}
+                    buttonClassName="h-[42px] bg-primary text-primary-foreground hover:bg-primary/90"
+                    buttonChildren={(
+                      <>
+                        <ShoppingCart className="h-4 w-4" />
+                        Sales Entry
+                      </>
+                    )}
+                  />
+                ) : null}
+                {isCustomer ? (
+                  <PaymentFormDialog
+                    partyId={party.id}
+                    partyName={party.name}
+                    title="Customer Payment"
+                    buttonLabel="Customer Payment"
+                    dueLabel="Customer Due"
+                    dueAmount={summary.netCustomerDue}
+                    toastSuccessMessage="Customer payment recorded successfully."
+                    recordPaymentForParty={receiveCustomerPayment}
+                    buttonClassName="h-[42px] bg-emerald-600 text-white hover:bg-emerald-700"
+                  />
+                ) : null}
+                {isSupplier ? (
+                  <PaymentFormDialog
+                    partyId={party.id}
+                    partyName={party.name}
+                    title="Pay Supplier"
+                    buttonLabel="Pay Supplier"
+                    dueLabel="Supplier Payable"
+                    dueAmount={summary.netSupplierDue}
+                    toastSuccessMessage="Supplier payment recorded successfully."
+                    recordPaymentForParty={paySupplierPayment}
+                    buttonClassName="h-[42px] bg-amber-500 text-white hover:bg-amber-600"
+                  />
+                ) : null}
+                <Button asChild variant="outline" className="h-[42px]">
+                  <a href={`/dashboard/parties/${party.id}/print`} target="_blank" rel="noreferrer" className="flex items-center gap-2 whitespace-nowrap">
+                    <Printer className="h-4 w-4" />
+                    Print
+                  </a>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <SalesPurchaseSection
-        saleRows={customerProductRows}
-        buyRows={supplierProductRows}
-        partyId={party.id}
-      />
-
       <section className="mt-5 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          title="Current Balance"
-          value={currentBalanceLabel === '⚪ No Balance' ? 'No Balance' : formatCurrency(Math.abs(currentCustomerBalance))}
-          description={currentBalanceLabel}
-          icon={CircleDollarSign}
-          accent="bg-rose-50 text-rose-600"
-        />
         <KpiCard
           title="Customer Due"
           value={formatCurrency(summary.netCustomerDue)}
-          description="Receivable after supplier offset"
+          description="Current receivable position"
           icon={CreditCard}
           accent="bg-rose-50 text-rose-600"
         />
         <KpiCard
-          title="Supplier Payable"
-          value={formatCurrency(summary.netSupplierDue)}
-          description="Payable after customer offset"
-          icon={Wallet}
-          accent="bg-amber-50 text-amber-600"
-        />
-        <KpiCard
           title="Total Sales"
           value={formatCurrency(summary.customerInvoiced)}
-          description="Gross customer invoiced value"
+          description="Customer invoice total"
           icon={TrendingUp}
           accent="bg-sky-50 text-sky-600"
         />
         <KpiCard
-          title="Total Purchase"
-          value={formatCurrency(summary.supplierInvoiced)}
-          description="Gross supplier purchase value"
-          icon={ReceiptText}
+          title="Received"
+          value={formatCurrency(summary.customerPaid)}
+          description="Customer payment total"
+          icon={CircleDollarSign}
           accent="bg-emerald-50 text-emerald-600"
+        />
+        <KpiCard
+          title="Supplier Payable"
+          value={formatCurrency(summary.netSupplierDue)}
+          description="Current payable position"
+          icon={Wallet}
+          accent="bg-amber-50 text-amber-600"
         />
       </section>
 
       <section className="mt-5 grid gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
               <CircleDollarSign className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-card-title">Customer Account</h2>
-              <p className="text-card-subtitle">Sales and receivable position</p>
+              <h2 className="text-xl font-semibold text-foreground">Customer Account</h2>
+              <p className="text-sm text-muted-foreground">Sales and receivable position</p>
             </div>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
             <SummaryMiniCard label="Total Sales" value={formatCurrency(summary.customerInvoiced)} />
             <SummaryMiniCard label="Received" value={formatCurrency(summary.customerPaid)} />
             <SummaryMiniCard label="Customer Due" value={formatCurrency(summary.customerDue)} />
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
               <BadgeDollarSign className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-card-title">Supplier Account</h2>
-              <p className="text-card-subtitle">Purchases and payable position</p>
+              <h2 className="text-xl font-semibold text-foreground">Supplier Account</h2>
+              <p className="text-sm text-muted-foreground">Purchases and payable position</p>
             </div>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
             <SummaryMiniCard label="Total Purchase" value={formatCurrency(summary.supplierInvoiced)} />
             <SummaryMiniCard label="Paid" value={formatCurrency(summary.supplierPaid)} />
             <SummaryMiniCard label="Supplier Payable" value={formatCurrency(summary.supplierDue)} />
@@ -531,34 +558,34 @@ export default async function PartyProfilePage({
       </section>
 
       <section className="mt-5 grid gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
               <FileText className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-card-title">Settlement Summary</h2>
-              <p className="text-card-subtitle">Offset and net account position</p>
+              <h2 className="text-xl font-semibold text-foreground">Settlement Summary</h2>
+              <p className="text-sm text-muted-foreground">Offset and net account position</p>
             </div>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
             <SummaryMiniCard label="Offset Applied" value={formatCurrency(summary.offsetApplied)} />
             <SummaryMiniCard label="Net Customer Due" value={formatCurrency(summary.netCustomerDue)} />
             <SummaryMiniCard label="Net Supplier Payable" value={formatCurrency(summary.netSupplierDue)} />
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
               <UserRound className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-card-title">Quick Information</h2>
-              <p className="text-card-subtitle">Profile and activity details</p>
+              <h2 className="text-xl font-semibold text-foreground">Party Information</h2>
+              <p className="text-sm text-muted-foreground">Profile and activity details</p>
             </div>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <SummaryMiniCard label="Opening Balance" value={formatCurrency(party.openingBalance)} />
             <SummaryMiniCard label="Party Since" value={formatDate(party.createdAt)} />
             <SummaryMiniCard label="Last Transaction" value={latestTransactionDate ? formatDate(latestTransactionDate) : '-'} />
@@ -567,23 +594,33 @@ export default async function PartyProfilePage({
         </div>
       </section>
 
-      <section className="mt-5 rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
-            <CircleDollarSign className="h-5 w-5" />
+      <section className="mt-5 rounded-3xl border border-border bg-card shadow-sm hidden">
+        <details className="group">
+          <summary className="flex cursor-pointer items-center justify-between gap-4 p-6 text-base font-semibold text-foreground transition hover:bg-slate-50">
+            <div>
+              <p className="text-lg font-semibold">Opening Balance Information</p>
+              <p className="mt-1 text-sm text-muted-foreground">Initial customer balance snapshot</p>
+            </div>
+            <span className="rounded-full border border-border bg-slate-100 px-3 py-1 text-sm text-muted-foreground transition group-open:bg-slate-200">
+              Show Details
+            </span>
+          </summary>
+          <div className="border-t border-border px-6 pb-6 pt-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <SummaryMiniCard label="Opening Balance Amount" value={formatCurrency(openingBalanceLedger?.amount ?? party.openingBalance)} />
+              <SummaryMiniCard label="Balance Type" value={party.openingBalanceType === 'CUSTOMER_ADVANCE' ? 'Customer Advance' : 'Customer Due'} />
+              <SummaryMiniCard label="Created Date" value={formatDate(openingBalanceLedger?.entryDate ?? party.createdAt)} />
+              <SummaryMiniCard label="Description" value={openingBalanceLedger?.description ?? party.openingBalanceDescription ?? '—'} />
+            </div>
           </div>
-          <div>
-            <h2 className="text-card-title">Opening Balance Information</h2>
-            <p className="text-card-subtitle">Initial customer balance snapshot</p>
-          </div>
-        </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryMiniCard label="Opening Balance Amount" value={formatCurrency(openingBalanceLedger?.amount ?? party.openingBalance)} />
-          <SummaryMiniCard label="Balance Type" value={party.openingBalanceType === 'CUSTOMER_ADVANCE' ? 'Customer Advance' : 'Customer Due'} />
-          <SummaryMiniCard label="Created Date" value={formatDate(openingBalanceLedger?.entryDate ?? party.createdAt)} />
-          <SummaryMiniCard label="Description" value={openingBalanceLedger?.description ?? party.openingBalanceDescription ?? '—'} />
-        </div>
+        </details>
       </section>
+
+      <SalesPurchaseSection
+        saleRows={customerProductRows}
+        buyRows={supplierProductRows}
+        partyId={party.id}
+      />
 
       <section className="mt-5">
         <TransactionTabs
@@ -612,6 +649,8 @@ export default async function PartyProfilePage({
           deletePaymentForParty={deletePaymentForParty}
         />
       </section>
+
+      <p className="mt-6 text-sm text-muted-foreground">All amounts are in Bangladeshi Taka (Tk).</p>
     </main>
   );
 }

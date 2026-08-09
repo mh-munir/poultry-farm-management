@@ -17,11 +17,62 @@ type SupplierPurchaseModalProps = {
 type PurchaseLine = {
   productCategory: 'EGG' | 'CHICKEN';
   productName: string;
-  quantity: number;
+  quantity: string;
   unit: string;
-  unitPrice: number;
-  totalAmount: number;
+  unitPrice: string;
+  lineTotalCents: bigint;
 };
+
+const SCALE = 4;
+const CENTS_SCALE = 2;
+
+function parseDecimalToScaledBigInt(value: string, scale = SCALE) {
+  const normalized = value.trim().replace(/,/g, '').replace(/[^0-9.-]/g, '');
+  if (!normalized || normalized === '.' || normalized === '-' || normalized === '-.') {
+    return 0n;
+  }
+
+  const negative = normalized.startsWith('-');
+  const [integerPart, fractionalPart = ''] = normalized.replace('-', '').split('.');
+  const digits = integerPart.replace(/^0+(?!$)/, '') || '0';
+  const fraction = (fractionalPart + '0'.repeat(scale)).slice(0, scale);
+  return BigInt(digits + fraction) * (negative ? -1n : 1n);
+}
+
+function roundScaledBigInt(value: bigint, fromScale: number, toScale: number) {
+  if (fromScale === toScale) return value;
+  if (fromScale < toScale) {
+    return value * 10n ** BigInt(toScale - fromScale);
+  }
+
+  const factor = 10n ** BigInt(fromScale - toScale);
+  const quotient = value / factor;
+  const remainder = value % factor;
+  const absRemainder = remainder >= 0n ? remainder : -remainder;
+  const half = factor / 2n;
+  if (absRemainder >= half) {
+    return value >= 0n ? quotient + 1n : quotient - 1n;
+  }
+  return quotient;
+}
+
+function toCents(value: string) {
+  return roundScaledBigInt(parseDecimalToScaledBigInt(value), SCALE, CENTS_SCALE);
+}
+
+function centsToDecimalString(cents: bigint) {
+  const negative = cents < 0n;
+  const absolute = negative ? -cents : cents;
+  const whole = absolute / 100n;
+  const fraction = absolute % 100n;
+  return `${negative ? '-' : ''}${whole.toString()}.${fraction.toString().padStart(2, '0')}`;
+}
+
+function formatCurrency(cents: bigint) {
+  const formatted = centsToDecimalString(cents);
+  const [integerPart, fractionPart] = formatted.split('.');
+  return `৳ ${Number(integerPart).toLocaleString('en-US')}.${fractionPart}`;
+}
 
 export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,38 +80,69 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
   const [selectedPartyId, setSelectedPartyId] = useState<number | null>(null);
   const [partyName, setPartyName] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(() => todayDateStr());
-  const [productCategory, setProductCategory] = useState<'EGG' | 'CHICKEN' | 'BOTH'>('EGG');
+  const [productCategory, setProductCategory] = useState<'EGG' | 'CHICKEN'>('EGG');
   const [eggQuantity, setEggQuantity] = useState('');
   const [eggUnitPrice, setEggUnitPrice] = useState('');
   const [chickenTotalQuantity, setChickenTotalQuantity] = useState('');
   const [chickenTotalKg, setChickenTotalKg] = useState('');
   const [chickenUnitPrice, setChickenUnitPrice] = useState('');
+  const [discount, setDiscount] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [previousDue, setPreviousDue] = useState(0);
   const [formError, setFormError] = useState('');
   const router = useRouter();
   const { success, error: showError } = useToast();
 
-  const eggTotal = useMemo(() => Number(eggQuantity || 0) * Number(eggUnitPrice || 0), [eggQuantity, eggUnitPrice]);
-  const chickenTotal = useMemo(() => Number(chickenTotalKg || 0) * Number(chickenUnitPrice || 0), [chickenTotalKg, chickenUnitPrice]);
-  const chickenWeightTotal = useMemo(() => Number(chickenTotalKg || 0), [chickenTotalKg]);
+  const eggTotalCents = useMemo(() => {
+    const quantity = parseDecimalToScaledBigInt(eggQuantity);
+    const price = parseDecimalToScaledBigInt(eggUnitPrice);
+    const product = quantity * price;
+    return roundScaledBigInt(product, SCALE * 2, CENTS_SCALE);
+  }, [eggQuantity, eggUnitPrice]);
 
-  const totalAmount = useMemo(() => {
-    if (productCategory === 'EGG') {
-      return eggTotal;
-    }
+  const chickenTotalCents = useMemo(() => {
+    const quantity = parseDecimalToScaledBigInt(chickenTotalKg);
+    const price = parseDecimalToScaledBigInt(chickenUnitPrice);
+    const product = quantity * price;
+    return roundScaledBigInt(product, SCALE * 2, CENTS_SCALE);
+  }, [chickenTotalKg, chickenUnitPrice]);
 
-    if (productCategory === 'CHICKEN') {
-      return chickenTotal;
-    }
+  const chickenWeightTotal = useMemo(() => parseDecimalToScaledBigInt(chickenTotalKg, 2), [chickenTotalKg]);
 
-    return eggTotal + chickenTotal;
-  }, [productCategory, eggTotal, chickenTotal]);
+  const subtotalCents = useMemo(() => {
+    if (productCategory === 'EGG') return eggTotalCents;
+    if (productCategory === 'CHICKEN') return chickenTotalCents;
+    return eggTotalCents + chickenTotalCents;
+  }, [productCategory, eggTotalCents, chickenTotalCents]);
 
-  const dueAmount = useMemo(() => totalAmount - Number(paidAmount || 0), [totalAmount, paidAmount]);
-  const finalDue = previousDue + dueAmount;
-  const showEgg = productCategory === 'EGG' || productCategory === 'BOTH';
-  const showChicken = productCategory === 'CHICKEN' || productCategory === 'BOTH';
+  const discountCents = useMemo(() => {
+    const cents = toCents(discount);
+    if (cents < 0n) return 0n;
+    return cents > subtotalCents ? subtotalCents : cents;
+  }, [discount, subtotalCents]);
+
+  const supplierPurchaseTotalCents = useMemo(() => {
+    const result = subtotalCents - discountCents;
+    return result < 0n ? 0n : result;
+  }, [subtotalCents, discountCents]);
+
+  const paidAmountCents = useMemo(() => {
+    const cents = toCents(paidAmount);
+    return cents < 0n ? 0n : cents;
+  }, [paidAmount]);
+
+  const dueAmountCents = useMemo(() => {
+    const result = supplierPurchaseTotalCents - paidAmountCents;
+    return result;
+  }, [supplierPurchaseTotalCents, paidAmountCents]);
+
+  const finalDueCents = useMemo(() => {
+    const prevDueCents = toCents(previousDue.toFixed(2));
+    return prevDueCents + dueAmountCents;
+  }, [previousDue, dueAmountCents]);
+
+  const showEgg = productCategory === 'EGG';
+  const showChicken = productCategory === 'CHICKEN';
 
   useEffect(() => {
     if (!open) {
@@ -88,44 +170,55 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
   const buildPurchaseLines = (): PurchaseLine[] => {
     const lines: PurchaseLine[] = [];
 
-    if (showEgg && Number(eggQuantity || 0) > 0) {
+    if (showEgg && eggTotalCents > 0n) {
       lines.push({
         productCategory: 'EGG',
         productName: 'Egg',
-        quantity: Number(eggQuantity || 0),
+        quantity: eggQuantity,
         unit: 'pcs',
-        unitPrice: Number(eggUnitPrice || 0),
-        totalAmount: eggTotal
+        unitPrice: eggUnitPrice,
+        lineTotalCents: eggTotalCents
       });
     }
 
-    if (showChicken && Number(chickenTotalKg || 0) > 0) {
+    if (showChicken && chickenTotalCents > 0n) {
       lines.push({
         productCategory: 'CHICKEN',
         productName: 'Chicken',
-        quantity: Number(chickenTotalQuantity || 0),
+        quantity: chickenTotalQuantity,
         unit: 'kg',
-        unitPrice: Number(chickenUnitPrice || 0),
-        totalAmount: chickenTotal
+        unitPrice: chickenUnitPrice,
+        lineTotalCents: chickenTotalCents
       });
     }
 
     return lines;
   };
 
-  const getPaymentSplits = (lines: PurchaseLine[]) => {
-    const paid = Number(paidAmount || 0);
-
-    if (lines.length <= 1) {
-      return lines.map(() => paid);
+  const distributeProportionalCents = (amounts: bigint[], total: bigint) => {
+    const sum = amounts.reduce((acc, value) => acc + value, 0n);
+    if (sum === 0n) {
+      return amounts.map(() => 0n);
     }
 
-    const totalLines = lines.reduce((sum, line) => sum + line.totalAmount, 0);
-    const firstPaid = Number(((lines[0].totalAmount / totalLines) * paid).toFixed(2));
-    const secondPaid = Number(((lines[1].totalAmount / totalLines) * paid).toFixed(2));
-    const remainder = Number((paid - firstPaid - secondPaid).toFixed(2));
+    const shares = amounts.map((value) => (value * total) / sum);
+    const remainder = total - shares.reduce((acc, value) => acc + value, 0n);
+    if (remainder !== 0n) {
+      shares[0] = shares[0] + remainder;
+    }
+    return shares;
+  };
 
-    return [firstPaid, secondPaid + remainder];
+  const getPaymentSplits = (lines: PurchaseLine[], lineDiscounts: bigint[]) => {
+    const paid = paidAmountCents;
+    const netTotals = lines.map((line, index) => line.lineTotalCents - lineDiscounts[index]);
+
+    if (lines.length <= 1) {
+      return lines.map(() => centsToDecimalString(paid));
+    }
+
+    const splits = distributeProportionalCents(netTotals, paid);
+    return splits.map(centsToDecimalString);
   };
 
   const validateForm = () => {
@@ -138,48 +231,35 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
     }
 
     if (productCategory === 'EGG') {
-      if (Number(eggQuantity || 0) <= 0 || Number(eggUnitPrice || 0) <= 0) {
+      if (eggTotalCents <= 0n) {
         return 'Please enter egg quantity and unit price.';
       }
     }
 
     if (productCategory === 'CHICKEN') {
-      if (Number(chickenTotalQuantity || 0) <= 0 || Number(chickenTotalKg || 0) <= 0 || Number(chickenUnitPrice || 0) <= 0) {
+      if (parseDecimalToScaledBigInt(chickenTotalQuantity, 0) <= 0n || parseDecimalToScaledBigInt(chickenTotalKg, 0) <= 0n || parseDecimalToScaledBigInt(chickenUnitPrice, 0) <= 0n) {
         return 'Please enter chicken total quantity, total kg, and unit price.';
       }
     }
 
-    if (productCategory === 'BOTH') {
-      const hasEgg = Number(eggQuantity || 0) > 0;
-      const hasChicken = Number(chickenTotalKg || 0) > 0;
-
-      if (!hasEgg && !hasChicken) {
-        return 'Please enter egg or chicken quantity.';
-      }
-
-      if (hasEgg && Number(eggUnitPrice || 0) <= 0) {
-        return 'Please enter a valid egg unit price.';
-      }
-
-      if (hasChicken && (Number(chickenTotalQuantity || 0) <= 0 || Number(chickenTotalKg || 0) <= 0)) {
-        return 'Please enter chicken total quantity and total kg.';
-      }
-
-      if (hasChicken && Number(chickenUnitPrice || 0) <= 0) {
-        return 'Please enter a valid chicken unit price.';
-      }
+    if (supplierPurchaseTotalCents <= 0n) {
+      return 'Supplier purchase total must be greater than zero.';
     }
 
-    if (totalAmount <= 0) {
-      return 'Total amount must be greater than zero.';
+    if (toCents(discount) < 0n) {
+      return 'Discount cannot be negative.';
     }
 
-    if (Number(paidAmount || 0) < 0) {
+    if (discountCents > subtotalCents) {
+      return 'Discount cannot exceed subtotal.';
+    }
+
+    if (paidAmountCents < 0n) {
       return 'Paid amount cannot be negative.';
     }
 
-    if (Number(paidAmount || 0) > totalAmount) {
-      return 'Paid amount cannot exceed total amount.';
+    if (paidAmountCents > supplierPurchaseTotalCents) {
+      return 'Paid amount cannot exceed supplier purchase total.';
     }
 
     return '';
@@ -198,22 +278,27 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
     }
 
     const lines = buildPurchaseLines();
-    const paymentSplits = getPaymentSplits(lines);
+    const lineDiscounts = distributeProportionalCents(lines.map((line) => line.lineTotalCents), discountCents);
+    const paymentSplits = getPaymentSplits(lines, lineDiscounts);
 
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index];
       const formData = new FormData();
+      const lineDiscountString = centsToDecimalString(lineDiscounts[index]);
+      const lineTotalString = centsToDecimalString(line.lineTotalCents);
 
       formData.set('partyId', String(selectedPartyId ?? ''));
       formData.set('purchaseDate', purchaseDate);
       formData.set('productCategory', line.productCategory);
       formData.set('productName', line.productName);
-      formData.set('quantity', String(line.quantity));
-      formData.set('chickenQuantity', String(line.productCategory === 'CHICKEN' ? Number(chickenTotalKg || 0) : 0));
+      formData.set('quantity', line.quantity);
+      formData.set('chickenQuantity', line.productCategory === 'CHICKEN' ? chickenTotalKg : '0');
       formData.set('unit', line.unit);
-      formData.set('unitPrice', String(line.unitPrice));
-      formData.set('totalAmount', String(line.totalAmount));
-      formData.set('paidAmount', String(paymentSplits[index]));
+      formData.set('unitPrice', line.unitPrice);
+      const lineNetTotalString = centsToDecimalString(line.lineTotalCents - lineDiscounts[index]);
+      formData.set('totalAmount', lineNetTotalString);
+      formData.set('discount', lineDiscountString);
+      formData.set('paidAmount', paymentSplits[index]);
       formData.set('paymentMethod', 'Cash');
       formData.set('referenceNumber', '');
       formData.set('notes', '');
@@ -236,11 +321,10 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
   const isSubmitDisabled =
     isSubmitting ||
     !selectedPartyId ||
-    totalAmount <= 0 ||
-    Number(paidAmount || 0) > totalAmount ||
+    supplierPurchaseTotalCents <= 0n ||
+    paidAmountCents > supplierPurchaseTotalCents ||
     (productCategory === 'EGG' && (Number(eggQuantity || 0) <= 0 || Number(eggUnitPrice || 0) <= 0)) ||
-    (productCategory === 'CHICKEN' && (Number(chickenTotalQuantity || 0) <= 0 || Number(chickenTotalKg || 0) <= 0 || Number(chickenUnitPrice || 0) <= 0)) ||
-    (productCategory === 'BOTH' && !(Number(eggQuantity || 0) > 0 || Number(chickenTotalKg || 0) > 0));
+    (productCategory === 'CHICKEN' && (Number(chickenTotalQuantity || 0) <= 0 || Number(chickenTotalKg || 0) <= 0 || Number(chickenUnitPrice || 0) <= 0));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title="Supplier Purchase">
@@ -303,13 +387,12 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
           <select
             name="productCategory"
             value={productCategory}
-            onChange={(e) => setProductCategory(e.target.value as 'EGG' | 'CHICKEN' | 'BOTH')}
+            onChange={(e) => setProductCategory(e.target.value as 'EGG' | 'CHICKEN')}
             required
             className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <option value="EGG">Egg</option>
             <option value="CHICKEN">Chicken</option>
-            <option value="BOTH">Both</option>
           </select>
         </div>
 
@@ -392,6 +475,20 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
         )}
 
         <div>
+          <label className="mb-2 block text-sm font-medium">Discount</label>
+          <input
+            type="number"
+            name="discount"
+            min="0"
+            step="0.01"
+            value={discount}
+            onChange={(e) => setDiscount(e.target.value)}
+            className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div>
           <label className="mb-2 block text-sm font-medium">Paid Amount</label>
           <input
             type="number"
@@ -405,79 +502,56 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
           />
         </div>
 
-        <div className="md:col-span-2 grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 bg-slate-50 rounded-[20px] p-4">
+        <div className="md:col-span-2 grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 bg-slate-50 rounded-[20px] p-4">
+          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <label className="text-xs font-medium text-slate-500">Subtotal</label>
+            <input
+              type="text"
+              readOnly
+              value={formatCurrency(subtotalCents)}
+              className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
+            />
+          </div>
+
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <label className="text-xs font-medium text-slate-500">Supplier Purchase Total</label>
             <input
               type="text"
               readOnly
-              value={`৳ ${totalAmount.toFixed(2)}`}
+              value={formatCurrency(supplierPurchaseTotalCents)}
               className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
             />
           </div>
+
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <label className="text-xs font-medium text-slate-500">Egg Total</label>
+            <label className="text-xs font-medium text-slate-500">Previous Due</label>
             <input
               type="text"
               readOnly
-              value={`৳ ${eggTotal.toFixed(2)}`}
+              value={formatCurrency(toCents(previousDue.toFixed(2)))}
               className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
             />
           </div>
-          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <label className="text-xs font-medium text-slate-500">Chicken Total</label>
-            <input
-              type="text"
-              readOnly
-              value={`৳ ${chickenTotal.toFixed(2)}`}
-              className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
-            />
-          </div>
-          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <label className="text-xs font-medium text-slate-500">Chicken Total KG</label>
-            <input
-              type="text"
-              readOnly
-              value={`${chickenWeightTotal.toFixed(2)} kg`}
-              className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
-            />
-          </div>
-          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <label className="text-xs font-medium text-slate-500">Discount</label>
-            <input
-              type="text"
-              readOnly
-              value="৳ 0.00"
-              className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
-            />
-          </div>
-          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <label className="text-xs font-medium text-slate-500">Total Amount</label>
-            <input
-              type="text"
-              readOnly
-              value={`৳ ${totalAmount.toFixed(2)}`}
-              className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
-            />
-          </div>
+
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <label className="text-xs font-medium text-slate-500">Paid Amount</label>
             <input
               type="text"
               readOnly
-              value={`৳ ${Number(paidAmount || 0).toFixed(2)}`}
+              value={formatCurrency(paidAmountCents)}
               className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
             />
           </div>
-<div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-             <label className="text-xs font-medium text-slate-500">Final Due</label>
-             <input
-               type="text"
-               readOnly
-               value={`৳ ${finalDue.toFixed(2)}`}
-               className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
-             />
-           </div>
+
+          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <label className="text-xs font-medium text-slate-500">Final Due</label>
+            <input
+              type="text"
+              readOnly
+              value={formatCurrency(finalDueCents)}
+              className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
+            />
+          </div>
         </div>
 
         <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-3">

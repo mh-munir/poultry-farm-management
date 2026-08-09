@@ -80,7 +80,7 @@ export default function PaymentFormDialog({
               step="0.01"
               name="amount"
               required
-              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-foreground placeholder:text-muted-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               placeholder="Enter amount"
             />
           </div>
@@ -92,7 +92,7 @@ export default function PaymentFormDialog({
               name="paymentDate"
               required
               defaultValue={todayDateStr()}
-              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-input outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             />
           </div>
 

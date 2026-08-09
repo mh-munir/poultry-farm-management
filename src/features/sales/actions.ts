@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
 import { CACHE_TAGS, revalidateSalesData } from '@/lib/cache';
+import { getInvoiceNumber, isUniqueConstraintError } from '@/lib/invoice';
 import { getSaleSmsSuccessMessage, queueSaleSmsNotification } from '@/lib/sms/service';
 import type { SmsSaleType } from '@/lib/sms/types';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
@@ -63,13 +64,6 @@ function normalizeSaleInput(formData: FormData) {
   };
 }
 
-function generateInvoiceNumber() {
-  const now = new Date();
-  const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-  const randomPart = String(Math.floor(Math.random() * 9000) + 1000);
-  return `INV-${datePart}-${randomPart}`;
-}
-
 function validateSaleAmounts(data: z.infer<typeof saleSchema>) {
   const subtotal = data.items.reduce((sum, item) => {
     return sum.plus(new Prisma.Decimal(item.quantity).times(new Prisma.Decimal(item.unitPrice)));
@@ -115,159 +109,191 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
   const items = data.items;
   const { subtotal, totalAmount, discount, paymentAmount } = validateSaleAmounts(data);
 
-  const invoiceNumber = generateInvoiceNumber();
-  const savedSale = await prisma.$transaction(async (tx) => {
-    const party = await tx.party.findUnique({ where: { id: data.partyId } });
-    if (!party) {
-      throw new Error('Customer not found.');
-    }
+  let lastError: Error | null = null;
+  let savedSale: {
+    transactionId: number;
+    partyId: number;
+    partyName: string;
+    phoneNumber: string;
+    farmName: string | null;
+    invoiceNumber: string;
+    saleType: SmsSaleType;
+    totalAmount: Prisma.Decimal;
+    paidAmount: Prisma.Decimal;
+    dueAmount: Prisma.Decimal;
+  } | null = null;
 
-    const products = await tx.product.findMany({
-      where: { id: { in: items.map((item) => item.productId) } },
-      select: { id: true, name: true, productType: true }
-    });
-    const productTypes = new Map(products.map((product) => [product.id, product.productType]));
-    const invalidProduct = items.find((item) => !['FEED', 'MEDICINE', 'CHICK'].includes(productTypes.get(item.productId) ?? ''));
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const invoiceNumber = getInvoiceNumber('INV');
+    try {
+      savedSale = await prisma.$transaction(async (tx) => {
+        const party = await tx.party.findUnique({ where: { id: data.partyId } });
+        if (!party) {
+          throw new Error('Customer not found.');
+        }
 
-    if (invalidProduct) {
-      throw new Error('Only feed and medicine products can be sold from this entry.');
-    }
+        const products = await tx.product.findMany({
+          where: { id: { in: items.map((item) => item.productId) } },
+          select: { id: true, name: true, productType: true }
+        });
+        const productTypes = new Map(products.map((product) => [product.id, product.productType]));
+        const invalidProduct = items.find((item) => !['FEED', 'MEDICINE', 'CHICK'].includes(productTypes.get(item.productId) ?? ''));
 
-    const saleType = determineSaleType(items.map((item) => productTypes.get(item.productId) ?? ''));
-    const dueAmount = totalAmount.minus(paymentAmount);
-    const status = dueAmount.gt(0) ? PENDING_TRANSACTION_STATUS : COMPLETED_TRANSACTION_STATUS;
+        if (invalidProduct) {
+          throw new Error('Only feed and medicine products can be sold from this entry.');
+        }
 
-    const sale = await tx.transaction.create({
-      data: {
-        transactionType: SALE_TRANSACTION_TYPE,
-        partyId: data.partyId,
-        transactionDate: new Date(),
-        invoiceNumber,
-        status,
-        subtotal,
-        discount,
-        tax: new Prisma.Decimal(0),
-        totalAmount,
-        paidAmount: paymentAmount,
-        dueAmount,
-        referenceNumber: data.referenceNumber || null,
-        notes: data.notes || null,
-        mediaName: data.mediaName,
-        transactionItems: {
-          createMany: {
-            data: items.map((item) => ({
-              productId: item.productId,
-              quantity: new Prisma.Decimal(item.quantity),
-              unitPrice: new Prisma.Decimal(item.unitPrice),
-              lineTotal: new Prisma.Decimal(item.quantity).times(new Prisma.Decimal(item.unitPrice)),
-              taxAmount: new Prisma.Decimal(0),
-              description: item.description || null
-            }))
+        const saleType = determineSaleType(items.map((item) => productTypes.get(item.productId) ?? ''));
+        const dueAmount = totalAmount.minus(paymentAmount);
+        const status = dueAmount.gt(0) ? PENDING_TRANSACTION_STATUS : COMPLETED_TRANSACTION_STATUS;
+
+        const sale = await tx.transaction.create({
+          data: {
+            transactionType: SALE_TRANSACTION_TYPE,
+            partyId: data.partyId,
+            transactionDate: new Date(),
+            invoiceNumber,
+            status,
+            subtotal,
+            discount,
+            tax: new Prisma.Decimal(0),
+            totalAmount,
+            paidAmount: paymentAmount,
+            dueAmount,
+            referenceNumber: data.referenceNumber || null,
+            notes: data.notes || null,
+            mediaName: data.mediaName,
+            transactionItems: {
+              createMany: {
+                data: items.map((item) => ({
+                  productId: item.productId,
+                  quantity: new Prisma.Decimal(item.quantity),
+                  unitPrice: new Prisma.Decimal(item.unitPrice),
+                  lineTotal: new Prisma.Decimal(item.quantity).times(new Prisma.Decimal(item.unitPrice)),
+                  taxAmount: new Prisma.Decimal(0),
+                  description: item.description || null
+                }))
+              }
+            }
           }
+        });
+
+        const lastLedger = await tx.ledgerEntry.findFirst({
+          where: { partyId: data.partyId },
+          orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
+        });
+        const previousBalance = new Prisma.Decimal(lastLedger?.runningBalance ?? 0);
+        const saleBalance = previousBalance.plus(totalAmount);
+
+        await tx.ledgerEntry.create({
+          data: {
+            partyId: data.partyId,
+            transactionId: sale.id,
+            entryType: SALE_LEDGER_ENTRY_TYPE,
+            amount: totalAmount,
+            runningBalance: saleBalance,
+            description: `Sale invoice ${invoiceNumber}`,
+            referenceNumber: invoiceNumber
+          }
+        });
+
+        if (paymentAmount.gt(0)) {
+          const paymentRecord = await tx.payment.create({
+            data: {
+              partyId: data.partyId,
+              paymentMethod: data.paymentMethod,
+              amount: paymentAmount,
+              referenceNumber: data.referenceNumber || null,
+              status: paymentAmount.lt(totalAmount) ? PARTIAL_PAYMENT_STATUS : COMPLETED_PAYMENT_STATUS,
+              notes: data.notes || null
+            }
+          });
+
+          await tx.paymentAllocation.create({
+            data: {
+              paymentId: paymentRecord.id,
+              transactionId: sale.id,
+              amount: paymentAmount
+            }
+          });
+
+          await tx.ledgerEntry.create({
+            data: {
+              partyId: data.partyId,
+              transactionId: sale.id,
+              paymentId: paymentRecord.id,
+              entryType: PAYMENT_RECEIVED_LEDGER_ENTRY_TYPE,
+              amount: paymentAmount.negated(),
+              runningBalance: saleBalance.minus(paymentAmount),
+              description: `Payment for invoice ${invoiceNumber}`,
+              referenceNumber: paymentRecord.referenceNumber || invoiceNumber
+            }
+          });
         }
-      }
-    });
 
-    const lastLedger = await tx.ledgerEntry.findFirst({
-      where: { partyId: data.partyId },
-      orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
-    });
-    const previousBalance = new Prisma.Decimal(lastLedger?.runningBalance ?? 0);
-    const saleBalance = previousBalance.plus(totalAmount);
+          const productQuantities = items.reduce((map, item) => {
+            const existing = map.get(item.productId) ?? new Prisma.Decimal(0);
+            map.set(item.productId, existing.plus(new Prisma.Decimal(item.quantity)));
+            return map;
+          }, new Map<number, Prisma.Decimal>());
 
-    await tx.ledgerEntry.create({
-      data: {
-        partyId: data.partyId,
-        transactionId: sale.id,
-        entryType: SALE_LEDGER_ENTRY_TYPE,
-        amount: totalAmount,
-        runningBalance: saleBalance,
-        description: `Sale invoice ${invoiceNumber}`,
-        referenceNumber: invoiceNumber
-      }
-    });
+          for (const [productId, quantity] of productQuantities.entries()) {
+            const balance = await tx.stockBalance.findUnique({ where: { productId } });
+            if (!balance) {
+              throw new Error('Stock balance not found for one or more sale products.');
+            }
 
-    if (paymentAmount.gt(0)) {
-      const paymentRecord = await tx.payment.create({
-        data: {
-          partyId: data.partyId,
-          paymentMethod: data.paymentMethod,
-          amount: paymentAmount,
-          referenceNumber: data.referenceNumber || null,
-          status: paymentAmount.lt(totalAmount) ? PARTIAL_PAYMENT_STATUS : COMPLETED_PAYMENT_STATUS,
-          notes: data.notes || null
+            const remaining = new Prisma.Decimal(balance.quantityOnHand).minus(quantity);
+            if (remaining.lt(0)) {
+              throw new Error('Stock cannot go below zero for a sale item.');
+            }
+
+            const currentAverageCost = new Prisma.Decimal(balance.averageCost ?? 0);
+            const matchedItem = items.find((item) => item.productId === productId);
+
+            await tx.stockMovement.create({
+              data: {
+                productId,
+                transactionId: sale.id,
+                movementType: SALE_STOCK_MOVEMENT_TYPE,
+                quantity,
+                unitCost: currentAverageCost,
+                notes: `Sale invoice ${invoiceNumber}`
+              }
+            });
+
+          await tx.stockBalance.update({
+            where: { productId },
+            data: { quantityOnHand: remaining }
+          });
         }
-      });
 
-      await tx.paymentAllocation.create({
-        data: {
-          paymentId: paymentRecord.id,
+        return {
           transactionId: sale.id,
-          amount: paymentAmount
-        }
+          partyId: party.id,
+          partyName: party.name,
+          phoneNumber: party.phone,
+          farmName: party.farmName,
+          invoiceNumber,
+          saleType,
+          totalAmount,
+          paidAmount: paymentAmount,
+          dueAmount
+        };
       });
 
-      await tx.ledgerEntry.create({
-        data: {
-          partyId: data.partyId,
-          transactionId: sale.id,
-          paymentId: paymentRecord.id,
-          entryType: PAYMENT_RECEIVED_LEDGER_ENTRY_TYPE,
-          amount: paymentAmount.negated(),
-          runningBalance: saleBalance.minus(paymentAmount),
-          description: `Payment for invoice ${invoiceNumber}`,
-          referenceNumber: paymentRecord.referenceNumber || invoiceNumber
-        }
-      });
+      break;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Sale creation failed.');
+      if (!isUniqueConstraintError(error)) {
+        throw lastError;
+      }
     }
+  }
 
-    const productQuantities = items.reduce((map, item) => {
-      const existing = map.get(item.productId) ?? new Prisma.Decimal(0);
-      map.set(item.productId, existing.plus(new Prisma.Decimal(item.quantity)));
-      return map;
-    }, new Map<number, Prisma.Decimal>());
-
-    for (const [productId, quantity] of productQuantities.entries()) {
-      const balance = await tx.stockBalance.findUnique({ where: { productId } });
-      if (!balance) {
-        throw new Error('Stock balance not found for one or more sale products.');
-      }
-
-      const remaining = new Prisma.Decimal(balance.quantityOnHand).minus(quantity);
-      if (remaining.lt(0)) {
-        throw new Error('Stock cannot go below zero for a sale item.');
-      }
-
-      await tx.stockMovement.create({
-        data: {
-          productId,
-          transactionId: sale.id,
-          movementType: SALE_STOCK_MOVEMENT_TYPE,
-          quantity,
-          unitCost: new Prisma.Decimal(items.find((item) => item.productId === productId)?.unitPrice ?? 0),
-          notes: `Sale invoice ${invoiceNumber}`
-        }
-      });
-
-    await tx.stockBalance.update({
-      where: { productId },
-      data: { quantityOnHand: remaining }
-    });
-    }
-
-    return {
-      transactionId: sale.id,
-      partyId: party.id,
-      partyName: party.name,
-      phoneNumber: party.phone,
-      farmName: party.farmName,
-      invoiceNumber,
-      saleType,
-      totalAmount,
-      paidAmount: paymentAmount,
-      dueAmount
-    };
-  }, { timeout: 15000 });
+  if (!savedSale) {
+    throw lastError ?? new Error('Sale creation failed after multiple attempts.');
+  }
 
   const smsResult = await queueSaleSmsNotification({
     transactionId: savedSale.transactionId,

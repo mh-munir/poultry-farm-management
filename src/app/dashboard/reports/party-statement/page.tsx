@@ -7,6 +7,7 @@ import { prisma } from '@/server/db';
 import { getBranding } from '@/lib/branding';
 import { Landmark } from 'lucide-react';
 import PrintButton from './print-button';
+import { formatDateBD as formatDate, formatDateTimeBD as formatDateTime } from '@/lib/dates';
 
 function formatCurrency(value: number) {
   return `৳ ${new Intl.NumberFormat('en-BD', {
@@ -15,24 +16,6 @@ function formatCurrency(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(value)}`;
-}
-
-function formatDate(date: Date) {
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  });
-}
-
-function formatDateTime(date: Date) {
-  return new Date(date).toLocaleString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
 }
 
 export default async function PartyStatementReportPage({

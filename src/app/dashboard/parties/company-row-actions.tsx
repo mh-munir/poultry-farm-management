@@ -6,6 +6,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Eye, MoreHorizontal, Pencil, Printer, Trash2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog } from '@/components/ui/dialog';
 import { createOrUpdateCompany, deleteCompany } from '@/features/companies/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +21,7 @@ export type CompanyRowEditPayload = {
   address: string | null;
   companyType: string;
   isActive: boolean;
-  openingBalance?: number | string | null;
+  openingBalance: string;
   openingBalanceDescription?: string | null;
 };
 
@@ -39,6 +40,8 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
   const { success, error: showToastError } = useToast();
   const [actionOpen, setActionOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleEditSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -70,20 +73,19 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
     }
   };
 
-  const handleDeleteSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const confirmed = window.confirm(`Delete ${company.name}? This will remove related transactions and payments.`);
+  const handleDeleteCompany = async (companyId: number) => {
+    setConfirmOpen(true);
+  };
 
-    if (!confirmed) {
-      return;
-    }
+  const handleConfirmDeleteCompany = async () => {
+    setIsDeleting(true);
 
-    const formData = new FormData(event.currentTarget);
     try {
-      const result = await deleteCompany(Number(formData.get('companyId')));
+      const result = await deleteCompany(company.id);
 
       if (result.success) {
         success(result.message);
+        setConfirmOpen(false);
         setActionOpen(false);
         if (pathname?.startsWith('/dashboard/companies/') && pathname !== '/dashboard/companies') {
           router.push('/dashboard/companies');
@@ -99,6 +101,8 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
         const message = getFriendlyServerActionError(error);
         showToastError(message);
       }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -152,18 +156,13 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
                 Edit
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="mx-2 h-px bg-slate-200" />
-              <form onSubmit={handleDeleteSubmit}>
-                <input type="hidden" name="companyId" value={company.id} />
-                <DropdownMenu.Item asChild>
-                  <button
-                    type="submit"
-                    className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-red-600 outline-none data-[highlighted]:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete
-                  </button>
-                </DropdownMenu.Item>
-              </form>
+              <DropdownMenu.Item
+                onSelect={() => handleDeleteCompany(company.id)}
+                className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-red-600 outline-none data-[highlighted]:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
@@ -229,6 +228,18 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
           </div>
         </form>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Deactivate ${company.name}?`}
+        description="This will hide it from active lists but preserve all historical transactions and payments."
+        confirmText="Deactivate"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDeleteCompany}
+        onCancel={() => setConfirmOpen(false)}
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

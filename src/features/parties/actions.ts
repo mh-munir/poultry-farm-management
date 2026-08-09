@@ -8,6 +8,7 @@ import { prisma } from '@/server/db';
 import { requireUser } from '@/lib/auth';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 import { CACHE_TAGS, revalidatePartyData, revalidatePurchaseData } from '@/lib/cache';
+import { getInvoiceNumber, isUniqueConstraintError } from '@/lib/invoice';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
 import { createPaymentPaidSmsMessage, createPaymentReceivedSmsMessage } from '@/lib/sms/templates';
@@ -389,11 +390,31 @@ export async function deleteParty(formData: FormData) {
       return { success: false, message: 'Party not found.' };
     }
 
-    if (party.imageUrl) {
-      await deleteOldImage(party.imageUrl);
-    }
+    const result = await prisma.$transaction(async (tx) => {
+      const [transactionCount, paymentCount, ledgerCount, dueAdjustmentCount, smsCount, smsTransactionCount] = await Promise.all([
+        tx.transaction.count({ where: { partyId } }),
+        tx.payment.count({ where: { partyId } }),
+        tx.ledgerEntry.count({ where: { partyId } }),
+        tx.dueAdjustment.count({ where: { partyId } }),
+        tx.smsNotification.count({ where: { partyId } }),
+        tx.smsNotification.count({ where: { transaction: { partyId } } })
+      ]);
 
-    await prisma.$transaction(async (tx) => {
+      const hasHistoricalData = transactionCount > 0 || paymentCount > 0 || ledgerCount > 0 || dueAdjustmentCount > 0 || smsCount > 0 || smsTransactionCount > 0;
+
+      if (hasHistoricalData) {
+        await tx.party.update({
+          where: { id: partyId },
+          data: { isActive: false }
+        });
+
+        return { deleted: false };
+      }
+
+      if (party.imageUrl) {
+        await deleteOldImage(party.imageUrl);
+      }
+
       await tx.smsNotification.deleteMany({
         where: {
           OR: [
@@ -411,7 +432,6 @@ export async function deleteParty(formData: FormData) {
           ]
         }
       });
-
       await tx.ledgerEntry.deleteMany({ where: { partyId } });
       await tx.dueAdjustment.deleteMany({ where: { OR: [{ partyId }, { transaction: { partyId } }] } });
       await tx.stockMovement.deleteMany({ where: { transaction: { partyId } } });
@@ -419,9 +439,16 @@ export async function deleteParty(formData: FormData) {
       await tx.payment.deleteMany({ where: { partyId } });
       await tx.transaction.deleteMany({ where: { partyId } });
       await tx.party.delete({ where: { id: partyId } });
+
+      return { deleted: true };
     });
 
     revalidatePartyData(partyId);
+
+    if (!result.deleted) {
+      return { success: true, message: `Party '${party.name}' was deactivated because historical records exist. Historical data has been preserved.` };
+    }
+
     return { success: true, message: `Party '${party.name}' and all related data have been deleted.` };
   } catch (error: any) {
     console.error('Error deleting party:', error);
@@ -1105,27 +1132,34 @@ export async function updatePaymentForParty(formData: FormData) {
 
       const previousAmount = new Prisma.Decimal(existingPayment.amount.toString());
       const newAmount = new Prisma.Decimal(amount);
-      const delta = newAmount.minus(previousAmount);
-
       const allocations = await tx.paymentAllocation.findMany({
         where: { paymentId },
-        select: { transactionId: true, amount: true }
+        select: { id: true, transactionId: true, amount: true }
       });
 
-      for (const allocation of allocations) {
+      if (allocations.length > 1 && !newAmount.equals(previousAmount)) {
+        throw new Error('Cannot change payment amount for payments allocated across multiple transactions. Remove allocation(s) before updating the amount.');
+      }
+
+      if (allocations.length === 1 && !newAmount.equals(previousAmount)) {
+        const allocation = allocations[0];
         const transaction = await tx.transaction.findUnique({
           where: { id: allocation.transactionId },
-          select: { id: true, totalAmount: true, paidAmount: true, dueAmount: true }
+          select: { id: true, totalAmount: true, paidAmount: true }
         });
 
         if (!transaction) {
-          continue;
+          throw new Error('Allocated transaction not found.');
         }
 
-        const previousPaid = new Prisma.Decimal(transaction.paidAmount.toString());
-        const allocationAmount = new Prisma.Decimal(allocation.amount.toString());
-        const nextPaid = previousPaid.minus(allocationAmount).plus(delta);
+        const allocationDelta = newAmount.minus(previousAmount);
+        const nextPaid = new Prisma.Decimal(transaction.paidAmount.toString()).plus(allocationDelta);
         const nextDue = new Prisma.Decimal(transaction.totalAmount.toString()).minus(nextPaid);
+
+        await tx.paymentAllocation.update({
+          where: { id: allocation.id },
+          data: { amount: new Prisma.Decimal(allocation.amount).plus(allocationDelta) }
+        });
 
         await tx.transaction.update({
           where: { id: transaction.id },
@@ -1147,7 +1181,7 @@ export async function updatePaymentForParty(formData: FormData) {
     return { success: true, message: 'Payment updated successfully.' };
   } catch (error) {
     console.error('Error updating payment:', error);
-    return { success: false, message: 'Failed to update payment.' };
+    return { success: false, message: error instanceof Error ? error.message : 'Failed to update payment.' };
   }
 }
 
@@ -1215,6 +1249,7 @@ const supplierPurchaseSchema = z.object({
   unit: z.string().min(1, 'Unit is required.'),
   unitPrice: z.coerce.number().min(0.01, 'Unit price must be greater than zero.'),
   totalAmount: z.coerce.number().min(0.01, 'Total amount must be greater than zero.'),
+  discount: z.coerce.number().min(0, 'Discount cannot be negative.').default(0),
   paidAmount: z.coerce.number().min(0, 'Paid amount cannot be negative.').default(0),
   paymentMethod: z.enum(['Cash', 'Bank', 'Mobile Banking', 'Credit'], { required_error: 'Payment method is required.' }),
   referenceNumber: z.string().optional().or(z.literal('')),
@@ -1230,7 +1265,7 @@ export async function createSupplierPurchase(formData: FormData) {
     return { success: false, message: parsed.error.issues[0]?.message ?? 'Invalid data.' };
   }
 
-  const { partyId, purchaseDate, productCategory, productName, quantity, chickenQuantity, unit, unitPrice, totalAmount, paidAmount, paymentMethod, referenceNumber, notes } = parsed.data;
+  const { partyId, purchaseDate, productCategory, productName, quantity, chickenQuantity, unit, unitPrice, totalAmount, discount, paidAmount, paymentMethod, referenceNumber, notes } = parsed.data;
 
   const party = await prisma.party.findUnique({
     where: { id: partyId },
@@ -1249,12 +1284,15 @@ export async function createSupplierPurchase(formData: FormData) {
     return { success: false, message: 'Paid amount cannot exceed total amount.' };
   }
 
-  const invoiceNumber = `SP-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
-  const dueAmount = totalAmount - paidAmount;
-  const status = dueAmount > 0 ? 'PENDING' : 'COMPLETED';
+  const dueAmount = new Prisma.Decimal(totalAmount).minus(new Prisma.Decimal(paidAmount));
+  const status = dueAmount.gt(0) ? 'PENDING' : 'COMPLETED';
 
   try {
-    await prisma.$transaction(async (tx) => {
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const invoiceNumber = getInvoiceNumber('SP');
+      try {
+        await prisma.$transaction(async (tx) => {
       let productId: number | undefined;
 
       const existingProduct = await tx.product.findFirst({
@@ -1282,6 +1320,9 @@ export async function createSupplierPurchase(formData: FormData) {
         productId = newProduct.id;
       }
 
+      const grossAmount = new Prisma.Decimal(totalAmount).plus(new Prisma.Decimal(discount));
+      const netAmount = new Prisma.Decimal(totalAmount);
+
       const transactionItemData = {
         productId: productId,
         quantity: new Prisma.Decimal(quantity),
@@ -1289,7 +1330,7 @@ export async function createSupplierPurchase(formData: FormData) {
         lineTotal: new Prisma.Decimal(totalAmount),
         taxAmount: new Prisma.Decimal(0),
         description: `${productCategory} - ${productName} (${quantity} ${unit})`,
-        ...(productCategory === 'CHICKEN' && chickenQuantity > 0 ? {
+        ...((productCategory === 'CHICKEN') && chickenQuantity > 0 ? {
           chickenQuantity: new Prisma.Decimal(chickenQuantity)
         } : {})
       };
@@ -1301,10 +1342,10 @@ export async function createSupplierPurchase(formData: FormData) {
           transactionDate: purchaseDate,
           invoiceNumber,
           status,
-          subtotal: new Prisma.Decimal(totalAmount),
-          discount: new Prisma.Decimal(0),
+          subtotal: grossAmount,
+          discount: new Prisma.Decimal(discount),
           tax: new Prisma.Decimal(0),
-          totalAmount: new Prisma.Decimal(totalAmount),
+          totalAmount: netAmount,
           paidAmount: new Prisma.Decimal(paidAmount),
           dueAmount: new Prisma.Decimal(dueAmount),
           referenceNumber: referenceNumber || null,
@@ -1348,6 +1389,14 @@ export async function createSupplierPurchase(formData: FormData) {
           }
         });
 
+        await tx.paymentAllocation.create({
+          data: {
+            paymentId: paymentRecord.id,
+            transactionId: purchase.id,
+            amount: new Prisma.Decimal(paidAmount)
+          }
+        });
+
         await tx.ledgerEntry.create({
           data: {
             partyId,
@@ -1366,6 +1415,15 @@ export async function createSupplierPurchase(formData: FormData) {
 
     revalidatePurchaseData({ partyId });
     return { success: true, message: 'Supplier purchase recorded successfully.' };
+  } catch (error) {
+    lastError = error instanceof Error ? error : new Error('Failed to record supplier purchase.');
+    if (!isUniqueConstraintError(error)) {
+      throw lastError;
+    }
+  }
+}
+
+    return { success: false, message: lastError?.message ?? 'Failed to record supplier purchase after multiple attempts.' };
   } catch (error) {
     console.error('Error recording supplier purchase:', error);
     return { success: false, message: 'Failed to record supplier purchase.' };

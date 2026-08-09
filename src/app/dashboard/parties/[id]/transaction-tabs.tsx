@@ -293,8 +293,15 @@ export function TransactionTabs({
           </ResponsiveTable>
         </div>
         {pageCount > 1 && (
-          <div className="mt-4 flex items-center justify-end">
-            <Pagination currentPage={currentPageSafe} totalPages={pageCount} onPageChange={setCurrentPage} />
+          <div className="mt-6 flex flex-col gap-4 rounded-xl border border-border bg-gradient-to-r from-background to-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Showing</span>
+              <span className="font-semibold text-foreground">{visibleRows.length}</span>
+              <span className="text-muted-foreground">of</span>
+              <span className="font-semibold text-foreground">{filteredRows.length}</span>
+              <span className="text-muted-foreground">transactions</span>
+            </div>
+            <Pagination currentPage={currentPageSafe} totalPages={pageCount} onPageChange={setCurrentPage} className="justify-center sm:justify-end" />
           </div>
         )}
         {activeTab === 'payments' && showPaymentTools ? (

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getPurchasesReportData } from '@/features/reports/actions';
 import { getProductTypeLabel } from '@/lib/product-types';
 import { prisma } from '@/server/db';
+import { formatDateBD as formatDate } from '@/lib/dates';
 
 function formatCurrency(value: number) {
   return `৳ ${new Intl.NumberFormat('en-BD', {
@@ -13,14 +14,6 @@ function formatCurrency(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(value)}`;
-}
-
-function formatDate(date: Date) {
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  });
 }
 
 export default async function PurchasesReportPage({
@@ -168,7 +161,7 @@ export default async function PurchasesReportPage({
                       <td className="px-4 py-3">{item.partyName}</td>
                       <td className="px-4 py-3">{item.productName}</td>
                       <td className="px-4 py-3">{getProductTypeLabel(item.productType)}</td>
-                      <td className="px-4 py-3 text-right">{item.quantity}</td>
+                      <td className="px-4 py-3 text-right">{item.quantity} {item.unit}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(item.unitPrice)}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(item.lineTotal)}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(item.paid / reportData.summary.count || 0)}</td>

@@ -1,9 +1,11 @@
 "use client"
 import React, { useState } from 'react'
 import { getAllSettings } from '@/lib/settings'
+import { useToast } from '@/hooks/use-toast'
 
 export default function BackupSettingsClient() {
   const [downloading, setDownloading] = useState(false)
+  const { error: showToastError, success } = useToast()
 
   async function downloadBackup() {
     setDownloading(true)
@@ -16,8 +18,9 @@ export default function BackupSettingsClient() {
       a.download = `poultry-backup-${new Date().toISOString().slice(0,10)}.json`
       a.click()
       URL.revokeObjectURL(url)
+      success('Backup downloaded successfully.')
     } catch (error) {
-      alert('Unable to generate backup from server settings.')
+      showToastError('Unable to generate backup from server settings.')
     }
     setDownloading(false)
   }

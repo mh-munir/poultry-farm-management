@@ -7,6 +7,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { MoreHorizontal, Pencil, Trash2, Printer } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog } from '@/components/ui/dialog';
 import { createOrUpdateParty, deleteParty } from '@/features/parties/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +42,8 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
   const { success, error: showToastError } = useToast();
   const [actionOpen, setActionOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [compressedImageFile, setCompressedImageFile] = useState<File | null>(null);
   const [imageCompressionStatus, setImageCompressionStatus] = useState('');
@@ -103,20 +106,22 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
     }
   };
 
-  const handleDeleteSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const confirmed = window.confirm(`Delete ${party.name}? This will remove related transactions and payments.`);
+  const handleDeleteParty = async (partyId: number) => {
+    setConfirmOpen(true);
+  };
 
-    if (!confirmed) {
-      return;
-    }
+  const handleConfirmDeleteParty = async () => {
+    setIsDeleting(true);
 
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData();
+    formData.set('partyId', String(party.id));
+
     try {
       const result = await deleteParty(formData);
 
       if (result.success) {
         success(result.message);
+        setConfirmOpen(false);
         setActionOpen(false);
         router.refresh();
       } else {
@@ -128,6 +133,8 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
         const message = getFriendlyServerActionError(error);
         showToastError(message);
       }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -181,18 +188,13 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
                 Edit
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="mx-2 h-px bg-slate-200" />
-              <form onSubmit={handleDeleteSubmit}>
-                <input type="hidden" name="partyId" value={party.id} />
-                <DropdownMenu.Item asChild>
-                  <button
-                    type="submit"
-                    className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-red-600 outline-none data-[highlighted]:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete
-                  </button>
-                </DropdownMenu.Item>
-              </form>
+              <DropdownMenu.Item
+                onSelect={() => handleDeleteParty(party.id)}
+                className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-red-600 outline-none data-[highlighted]:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
@@ -294,6 +296,18 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
           </div>
         </form>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Delete ${party.name}?`}
+        description="If this party has historical records, it will be deactivated instead of permanently deleted."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDeleteParty}
+        onCancel={() => setConfirmOpen(false)}
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

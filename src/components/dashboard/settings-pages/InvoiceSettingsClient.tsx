@@ -1,6 +1,7 @@
 "use client"
 import React, { useEffect, useState } from 'react'
 import { getSetting, saveSetting } from '@/lib/settings'
+import { useToast } from '@/hooks/use-toast'
 
 type InvoiceSettings = {
   prefix?: string
@@ -15,6 +16,7 @@ export default function InvoiceSettingsClient() {
   const [hideFeedUnitPrice, setHideFeedUnitPrice] = useState(false)
   const [hideFeedLineTotal, setHideFeedLineTotal] = useState(false)
   const [saving, setSaving] = useState(false)
+  const { success, error: showToastError } = useToast()
 
   useEffect(() => {
     async function load() {
@@ -49,10 +51,10 @@ export default function InvoiceSettingsClient() {
     const value: InvoiceSettings = { prefix, footer, hideFeedUnitPrice, hideFeedLineTotal }
     const ok = await saveSetting('invoice_settings', value).catch(() => false)
     if (ok) {
-      alert('Saved invoice settings to server')
+      success('Saved invoice settings to server')
     } else {
       localStorage.setItem('invoice_settings', JSON.stringify(value))
-      alert('Saved invoice settings to localStorage')
+      success('Saved invoice settings to localStorage')
     }
     setSaving(false)
   }

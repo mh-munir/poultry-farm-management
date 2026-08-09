@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { Factory, Package2 } from 'lucide-react';
-import type { Decimal } from '@prisma/client/runtime/library';
 import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
 
@@ -29,13 +28,13 @@ type CompanyRow = {
   totalPurchase: number;
   totalPaid: number;
   totalDue: number;
-  currentBalance?: Decimal | number | string | null;
-  openingBalance?: Decimal | number | string | null;
-  openingBalanceDescription?: string | null;
-  contactPerson?: string | null;
-  phone?: string | null;
-  email?: string | null;
-  address?: string | null;
+  currentBalance: number;
+  openingBalance: string;
+  openingBalanceDescription: string | null;
+  contactPerson: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
   isActive: boolean;
 };
 
@@ -44,20 +43,22 @@ type CompanyOption = {
   name: string;
 };
 
+type SerializableDecimal = number | string | { toString(): string } | null;
+
 type StockItemRecord = {
   id: number;
   name: string;
   unit: string | null;
-  stockBalance?: { quantityOnHand?: Decimal | number | string | null } | null;
-  defaultPurchasePrice?: Decimal | number | string | null;
-  defaultSellingPrice?: Decimal | number | string | null;
-  lowStockThreshold?: Decimal | number | string | null;
+  stockBalance?: { quantityOnHand?: SerializableDecimal } | null;
+  defaultPurchasePrice?: SerializableDecimal;
+  defaultSellingPrice?: SerializableDecimal;
+  lowStockThreshold?: SerializableDecimal;
   productType?: string | null;
   transactionItems?: Array<{
     transaction?: {
       transactionDate?: Date | string | null;
-      paidAmount?: Decimal | number | string | null;
-      dueAmount?: Decimal | number | string | null;
+      paidAmount?: SerializableDecimal;
+      dueAmount?: SerializableDecimal;
       company?: { name?: string | null } | null;
       party?: { name?: string | null } | null;
     } | null;
@@ -71,23 +72,6 @@ function formatCompanyType(type: string) {
   if (type === 'CHICK') return 'Hatchling / Chick Company';
   if (type === 'FEED_CHICK') return 'Feeds + Hatchling / Chick';
   return type.replace('_', ' ');
-}
-
-function toSerializableNumber(value: unknown) {
-  if (value == null || value === '') return 0;
-
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    const parsedValue = Number(value);
-    return Number.isFinite(parsedValue) ? parsedValue : 0;
-  }
-
-  if (typeof value === 'object' && 'toString' in value) {
-    const parsedValue = Number((value as { toString: () => string }).toString());
-    return Number.isFinite(parsedValue) ? parsedValue : 0;
-  }
-
-  return 0;
 }
 
 export default async function CompaniesPage({
@@ -344,7 +328,7 @@ export default async function CompaniesPage({
                           address: company.address ?? null,
                           companyType: company.companyType,
                           isActive: company.isActive,
-                          openingBalance: toSerializableNumber(company.openingBalance),
+                          openingBalance: company.openingBalance,
                           openingBalanceDescription: company.openingBalanceDescription
                         }}
                       />

@@ -11,9 +11,11 @@ import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
 import { prisma } from '@/server/db';
 import { getCompanyAccountSummary, getCompanyProfile } from '@/features/companies/actions';
+import { serializeCompany } from '@/features/companies/serializer';
 import { CompanyRowActions } from '@/app/dashboard/parties/company-row-actions';
 import { CompanyProfileActions } from './company-profile-actions';
 import { CompanyProfilePayButton } from './company-profile-pay-button';
+import { CompanyProfileFilter } from './company-profile-filter';
 import ToastRedirect from '../toast-redirect';
 import { AddStockModal } from '@/components/dashboard/stock/add-stock-modal';
 import { StockManagement } from '@/components/dashboard/stock/stock-management';
@@ -29,10 +31,11 @@ type CompanyProfileRecord = {
   address: string | null;
   companyType: string;
   isActive: boolean;
-  openingBalance: unknown;
+  openingBalance: string;
   openingBalanceDescription: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
+  createdById: string | null;
   _count: {
     transactions: number;
     products: number;
@@ -78,23 +81,6 @@ function formatCurrency(value: number | string | { toString(): string } | null |
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(number)}`;
-}
-
-function toSerializableNumber(value: unknown) {
-  if (value == null || value === '') return 0;
-
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    const parsedValue = Number(value);
-    return Number.isFinite(parsedValue) ? parsedValue : 0;
-  }
-
-  if (typeof value === 'object' && 'toString' in value) {
-    const parsedValue = Number((value as { toString: () => string }).toString());
-    return Number.isFinite(parsedValue) ? parsedValue : 0;
-  }
-
-  return 0;
 }
 
 // using centralized Bangladesh-aware formatter (formatDate alias is imported)
@@ -147,7 +133,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
   const historyPage = Number(sp?.historyPage ?? '1');
   const purchaseTypeFilter = sp?.purchaseTypeFilter ?? 'ALL';
 
-  const company = await prisma.company.findUnique({
+  const rawCompany = await prisma.company.findUnique({
     where: { id: companyId },
     select: {
       id: true,
@@ -161,11 +147,14 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
       openingBalance: true,
       openingBalanceDescription: true,
       createdAt: true,
-      updatedAt: true
+      updatedAt: true,
+      createdById: true
     }
-  }) as CompanyProfileRecord | null;
+  });
 
-  if (!company) notFound();
+  if (!rawCompany) notFound();
+
+  const company = serializeCompany(rawCompany);
 
   const [transactions, payments, summary, feedItems, medicineItems, chickItems, feedCompanies, medicineCompanies, chickCompanies] = await Promise.all([
     prisma.transaction.findMany({
@@ -438,8 +427,8 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-3xl font-bold leading-tight text-foreground sm:text-4xl">{company.name}</h1>
-                <span className={`inline-flex items-center rounded-full px-3 py-1 text-badge font-semibold ${companyTypeBadgeClass}`}>
-                  {company.companyType === 'FEED' ? 'Feed Company' : company.companyType === 'MEDICINE' ? 'Medicine Company' : company.companyType === 'CHICK' ? 'Hatchling / Chick Company' : 'Feed & Medicine'}
+                 <span className={`inline-flex items-center rounded-full px-3 py-1 text-badge font-semibold ${companyTypeBadgeClass}`}>
+                  {company.companyType === 'FEED' ? 'Feed Company' : company.companyType === 'MEDICINE' ? 'Medicine Company' : company.companyType === 'CHICK' ? 'Hatchling / Chick Company' : 'Feeds + Hatchling / Chick'}
                 </span>
               </div>
               <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
@@ -476,7 +465,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                   address: company.address,
                   companyType: company.companyType,
                   isActive: company.isActive,
-                  openingBalance: toSerializableNumber(company.openingBalance),
+                  openingBalance: company.openingBalance,
                   openingBalanceDescription: company.openingBalanceDescription
                 }}
                 editButtonLabel="Edit Profile"
@@ -642,28 +631,13 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
             <p className="mt-1 text-sm text-muted-foreground">Purchase and payment history for this company.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={purchaseTypeFilter}
-              onChange={(event) => {
-                const value = event.target.value;
-                const params = new URLSearchParams({
-                  ...(success ? { success } : {}),
-                  ...(error ? { error } : {}),
-                  ...(value && value !== 'ALL' ? { purchaseTypeFilter: value } : {})
-                });
-                if (historyPage > 1) {
-                  params.set('historyPage', '1');
-                }
-                const query = params.toString();
-                window.location.href = `/dashboard/companies/${companyId}${query ? `?${query}` : ''}`;
-              }}
-              className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="ALL">All Purchases</option>
-              <option value="EGG">Eggs</option>
-              <option value="CHICKEN">Chicken</option>
-              <option value="CHICK">Hatchling / Chick</option>
-            </select>
+            <CompanyProfileFilter
+              purchaseTypeFilter={purchaseTypeFilter}
+              companyId={companyId}
+              success={success}
+              error={error}
+              historyPage={historyPage}
+            />
             <CompanyProfileActions companyName={company.name} exportData={exportCsv} />
           </div>
         </div>
@@ -705,7 +679,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                         </span>
                       </td>
                       <td className="px-4 py-3">{row.productName}</td>
-                      <td className="px-4 py-3">{row.quantity ?? '-'}</td>
+                      <td className="px-4 py-3">{row.quantity ?? '-'} {row.unit ?? ''}</td>
                       <td className="px-4 py-3">{row.unitPrice !== null && row.unitPrice !== undefined ? formatCurrency(row.unitPrice) : '-'}</td>
                       <td className={`px-4 py-3 font-medium ${row.isPayment ? 'text-emerald-700' : ''}`}>{formatCurrency(row.lineTotal)}</td>
                       <td className="px-4 py-3">

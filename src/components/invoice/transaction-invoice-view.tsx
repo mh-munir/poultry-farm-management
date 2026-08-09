@@ -178,7 +178,7 @@ export function TransactionInvoiceView({
                         <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
                         <td className="px-4 py-3 text-slate-700">{it.productName}</td>
                         <td className="px-4 py-3 text-right text-slate-700">{hideUnitPrice ? 'Hidden' : formatCurrency(it.unitPrice)}</td>
-                        <td className="px-4 py-3 text-center text-slate-700">{it.quantity.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-center text-slate-700">{it.quantity.toFixed(2)} {it.unit}</td>
                         <td className="px-4 py-3 text-right font-medium text-slate-900">{hideLineTotal ? 'Hidden' : formatCurrency(it.lineTotal)}</td>
                       </tr>
                     );

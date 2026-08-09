@@ -23,6 +23,7 @@ type ProductRow = {
   unitPrice: number;
   lineTotal: number;
   details: string | null;
+  totalKg: number;
 };
 
 type ProductTypeFilter = 'ALL' | 'FEED' | 'MEDICINE' | 'EGG' | 'CHICKEN' | 'CHICK';
@@ -35,25 +36,38 @@ function formatCurrency(value: number | string | null | undefined) {
   }).format(number)}`;
 }
 
-function printProductRows(title: string, rows: ProductRow[]) {
+function printProductRows(title: string, rows: ProductRow[], showTotalKg = false) {
   if (typeof window === 'undefined') return;
 
   const printWindow = window.open('', '_blank', 'width=900,height=700');
   if (!printWindow) return;
 
-  const bodyRows = rows.map((row) => `
-    <tr>
-      <td>${formatDate(row.transactionDate)}</td>
-      <td>${row.invoiceNumber}</td>
-      <td>${row.mediaName ?? '—'}</td>
-      <td>${row.productName}</td>
-      <td>${getProductTypeLabel(row.productType)}</td>
-      <td>${row.quantity}</td>
-      <td>${row.unit}</td>
-      <td>${formatCurrency(row.unitPrice)}</td>
-      <td>${formatCurrency(row.lineTotal)}</td>
-    </tr>
-  `).join('');
+  const headerCells = [
+    'Date',
+    'Media',
+    'Product',
+    'Type',
+    'Quantity',
+    'Unit',
+    ...(showTotalKg ? ['Total Kg'] : []),
+    'Unit Price',
+    'Line Total'
+  ];
+
+  const bodyRows = rows.map((row) => {
+    const cells = [
+      formatDate(row.transactionDate),
+      row.mediaName ?? '—',
+      row.productName,
+      getProductTypeLabel(row.productType),
+      String(row.quantity),
+      row.unit,
+      ...(showTotalKg && row.totalKg > 0 ? [row.totalKg.toFixed(2)] : showTotalKg ? [''] : []),
+      formatCurrency(row.unitPrice),
+      formatCurrency(row.lineTotal)
+    ];
+    return `<tr>${cells.map((cell) => `<td>${cell}</td>`).join('')}</tr>`;
+  }).join('');
 
   printWindow.document.write(`<!doctype html>
     <html>
@@ -74,15 +88,7 @@ function printProductRows(title: string, rows: ProductRow[]) {
         <table>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Invoice</th>
-              <th>Media</th>
-              <th>Product</th>
-              <th>Type</th>
-              <th>Quantity</th>
-              <th>Unit</th>
-              <th>Unit Price</th>
-              <th>Line Total</th>
+              ${headerCells.map((cell) => `<th>${cell}</th>`).join('')}
             </tr>
           </thead>
           <tbody>${bodyRows}</tbody>
@@ -95,8 +101,9 @@ function printProductRows(title: string, rows: ProductRow[]) {
   printWindow.print();
 }
 
-function ProductItemsTable({ title, rows, totalItems, headerActions }: { title: string; rows: ProductRow[]; totalItems?: number; headerActions?: ReactNode }) {
+function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg = false }: { title: string; rows: ProductRow[]; totalItems?: number; headerActions?: ReactNode; showTotalKg?: boolean }) {
   const itemCount = totalItems ?? rows.length;
+  const colSpan = showTotalKg ? 10 : 9;
 
   return (
     <div className="mt-5 overflow-visible rounded-2xl border border-border bg-card">
@@ -110,56 +117,62 @@ function ProductItemsTable({ title, rows, totalItems, headerActions }: { title: 
       <ResponsiveTable minWidth="980px">
         <table className="min-w-full text-table-body">
           <thead className="bg-muted/20 text-left text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 text-table-header">Date</th>
-              <th className="px-4 py-3 text-table-header">Invoice</th>
-              <th className="px-4 py-3 text-table-header">Media</th>
-              <th className="px-4 py-3 text-table-header">Product</th>
-              <th className="px-4 py-3 text-table-header">Type</th>
-              <th className="px-4 py-3 text-table-header">Quantity</th>
-              <th className="px-4 py-3 text-table-header">Unit</th>
-              <th className="px-4 py-3 text-table-header text-right">Unit Price</th>
-              <th className="px-4 py-3 text-table-header text-right">Line Total</th>
-              <th className="px-4 py-3 text-table-header">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length > 0 ? rows.map((row) => (
-              <tr key={row.id} className="border-t border-border hover:bg-muted/20">
-                <td className="whitespace-nowrap px-4 py-3">{formatDate(row.transactionDate)}</td>
-                <td className="whitespace-nowrap px-4 py-3 font-medium">{row.invoiceNumber}</td>
-                <td className="px-4 py-3">{row.mediaName ?? '—'}</td>
-                <td className="min-w-48 px-4 py-3">{row.productName}</td>
-                <td className="px-4 py-3">{getProductTypeLabel(row.productType)}</td>
-                <td className="px-4 py-3 tabular-nums">{row.quantity}</td>
-                <td className="px-4 py-3">{row.unit}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.unitPrice)}</td>
-                <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.lineTotal)}</td>
-                <td className="px-4 py-3">
-                  <Button asChild variant="outline" size="icon" className="h-9 w-9">
-                    <a
-                      href={`/dashboard/transactions/${row.transactionId}/print`}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label="Print transaction"
-                      title="Print transaction"
-                    >
-                      <Printer className="h-4 w-4" />
-                    </a>
-                  </Button>
-                </td>
-              </tr>
-            )) : (
               <tr>
-                <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
-                  No items found for this product type.
-                </td>
+                <th className="px-4 py-3 text-table-header">Date</th>
+                <th className="px-4 py-3 text-table-header">Media</th>
+                <th className="px-4 py-3 text-table-header">Product</th>
+                <th className="px-4 py-3 text-table-header">Type</th>
+                <th className="px-4 py-3 text-table-header">Quantity</th>
+                <th className="px-4 py-3 text-table-header">Unit</th>
+                {showTotalKg && (
+                  <th className="px-4 py-3 text-table-header">Total Kg</th>
+                )}
+                <th className="px-4 py-3 text-table-header text-right">Unit Price</th>
+                <th className="px-4 py-3 text-table-header text-right">Line Total</th>
+                <th className="px-4 py-3 text-table-header">Action</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </ResponsiveTable>
-    </div>
+            </thead>
+            <tbody>
+              {rows.length > 0 ? rows.map((row) => (
+                <tr key={row.id} className="border-t border-border hover:bg-muted/20">
+                  <td className="whitespace-nowrap px-4 py-3">{formatDate(row.transactionDate)}</td>
+                  <td className="px-4 py-3">{row.mediaName ?? '—'}</td>
+                  <td className="min-w-48 px-4 py-3">{row.productName}</td>
+                  <td className="px-4 py-3">{getProductTypeLabel(row.productType)}</td>
+                  <td className="px-4 py-3 tabular-nums">{row.quantity}</td>
+                  <td className="px-4 py-3">{row.unit}</td>
+                  {showTotalKg && (
+                    <td className="px-4 py-3 tabular-nums">
+                      {row.totalKg > 0 ? row.totalKg.toFixed(2) : '—'}
+                    </td>
+                  )}
+                  <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.unitPrice)}</td>
+                  <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.lineTotal)}</td>
+                  <td className="px-4 py-3">
+                    <Button asChild variant="outline" size="icon" className="h-9 w-9">
+                      <a
+                        href={`/dashboard/transactions/${row.transactionId}/print`}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label="Print transaction"
+                        title="Print transaction"
+                      >
+                        <Printer className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={colSpan} className="px-4 py-12 text-center text-muted-foreground">
+                    No items found for this product type.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </ResponsiveTable>
+      </div>
   );
 }
 
@@ -255,12 +268,13 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
                 <option value="MEDICINE">Medicine</option>
                 <option value="CHICK">Hatchling / Chick</option>
               </select>
-              <Button type="button" variant="outline" className="h-[42px]" onClick={() => printProductRows('Sales Items', filteredSaleRows)}>
+              <Button type="button" variant="outline" className="h-[42px]" onClick={() => printProductRows('Sales Items', filteredSaleRows, false)}>
                 <Printer className="mr-2 h-4 w-4" />
                 Print
               </Button>
             </>
           )}
+          showTotalKg={false}
         />
         {salePageCount > 1 && (
           <div className="mt-4 flex items-center justify-end">
@@ -308,12 +322,13 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
                 <option value="CHICKEN">Chicken</option>
                 <option value="CHICK">Hatchling / Chick</option>
               </select>
-              <Button type="button" variant="outline" className="h-[42px]" onClick={() => printProductRows('Purchase Items', filteredBuyRows)}>
+              <Button type="button" variant="outline" className="h-[42px]" onClick={() => printProductRows('Purchase Items', filteredBuyRows, true)}>
                 <Printer className="mr-2 h-4 w-4" />
                 Print
               </Button>
             </>
           )}
+          showTotalKg={true}
         />
         {purchasePageCount > 1 && (
           <div className="mt-4 flex items-center justify-end">

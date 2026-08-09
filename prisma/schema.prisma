@@ -205,7 +205,7 @@ model StockBalance {
   reservedQuantity Decimal  @default(0)
   averageCost      Decimal?
   lastUpdatedAt    DateTime @updatedAt
-  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
 }
 
 model StockMovement {
@@ -217,7 +217,7 @@ model StockMovement {
   unitCost      Decimal?
   notes         String?
   createdAt     DateTime     @default(now())
-  product       Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product       Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
   transaction   Transaction? @relation(fields: [transactionId], references: [id])
 
   @@index([productId, createdAt])
@@ -270,7 +270,7 @@ model TransactionItem {
   taxAmount       Decimal     @default(0)
   description     String?
   chickenQuantity Decimal?
-  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product         Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
   transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([transactionId])
@@ -331,7 +331,7 @@ model PaymentAllocation {
   amount         Decimal
   allocationDate DateTime    @default(now())
   payment        Payment     @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
 
   @@unique([paymentId, transactionId])
 }
@@ -373,7 +373,7 @@ model DueAdjustment {
   companyId      Int?
   company        Company?    @relation(fields: [companyId], references: [id])
   party          Party?      @relation(fields: [partyId], references: [id])
-  transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
 
   @@index([partyId])
   @@index([companyId])

@@ -11,6 +11,7 @@ import { logCompanyAction } from '@/lib/debug-log';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
 import { createPaymentPaidSmsMessage } from '@/lib/sms/templates';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
+import { serializeCompany } from './serializer';
 
 const companySchema = z.object({
   id: z.coerce.number().optional(),
@@ -125,7 +126,7 @@ export async function createCompany(formData: FormData) {
 
     revalidateCompanyData(company.id);
 
-    return { success: true as const, message: `Company '${company.name}' created successfully.`, company };
+    return { success: true as const, message: `Company '${company.name}' created successfully.`, company: serializeCompany(company) };
   } catch (error) {
     return { success: false as const, message: error instanceof Error ? error.message : 'Failed to create company.' };
   }
@@ -178,7 +179,7 @@ export async function updateCompany(formData: FormData) {
 
     revalidateCompanyData(company.id);
 
-    return { success: true as const, message: `Company '${company.name}' updated successfully.`, company };
+    return { success: true as const, message: `Company '${company.name}' updated successfully.`, company: serializeCompany(company) };
   } catch (error) {
     logCompanyAction('updateCompany:prisma_error', { id, error: error instanceof Error ? error.message : String(error) });
     return { success: false as const, message: error instanceof Error ? error.message : 'Failed to update company.' };
@@ -190,8 +191,8 @@ export async function deleteCompany(companyId: number) {
 
   try {
     logCompanyAction('deleteCompany:before_transaction', { companyId });
-    // Use a transaction to delete all related records in the correct order
-    await prisma.$transaction(async (tx) => {
+    // Use a transaction to check dependencies and delete/soft-delete in the correct order
+    const result = await prisma.$transaction(async (tx) => {
       // Get all transactions for this company first
       const transactions = await tx.transaction.findMany({
         where: { companyId },
@@ -213,91 +214,82 @@ export async function deleteCompany(companyId: number) {
       });
       const productIds = products.map(p => p.id);
 
-      // Now delete in order of dependencies:
-      // 1. SMS Notifications (depends on transactions and company records)
-      if (transactionIds.length > 0 || companyId) {
-        await tx.smsNotification.deleteMany({
-          where: {
-            OR: [
-              { transactionId: { in: transactionIds } },
-              { companyId }
-            ]
-          }
+      // Get all company-dependent ledger entries, due adjustments, and SMS notifications
+      const [ledgerCount, dueAdjustmentCount, smsCount, smsTransactionCount] = await Promise.all([
+        tx.ledgerEntry.count({ where: { companyId } }),
+        tx.dueAdjustment.count({ where: { companyId } }),
+        tx.smsNotification.count({ where: { companyId } }),
+        tx.smsNotification.count({ where: { transaction: { companyId } } })
+      ]);
+
+      // Check for historical dependencies
+      const hasHistoricalData = transactionIds.length > 0 || paymentIds.length > 0 || ledgerCount > 0 || dueAdjustmentCount > 0 || smsCount > 0 || smsTransactionCount > 0 || productIds.length > 0;
+
+      if (hasHistoricalData) {
+        // Soft delete: deactivate the company to preserve historical records
+        await tx.company.update({
+          where: { id: companyId },
+          data: { isActive: false }
         });
+        return { success: true as const, hasHistoricalData: true };
       }
 
-      // 2. Payment Allocations (depends on payments and transactions)
-      if (paymentIds.length > 0) {
-        await tx.paymentAllocation.deleteMany({
-          where: { paymentId: { in: paymentIds } }
-        });
-      }
+      // No historical data: safe to perform hard delete
+      // 1. SMS Notifications (depends on company records or transactions)
+      await tx.smsNotification.deleteMany({
+        where: {
+          OR: [
+            { companyId },
+            { transaction: { companyId } }
+          ]
+        }
+      });
 
-      // 3. Ledger Entries (depends on company, transactions, and payments)
+      // 2. Ledger Entries (depends on company)
       await tx.ledgerEntry.deleteMany({
         where: { companyId }
       });
 
-      // 4. Due Adjustments (depends on company and transactions)
+      // 3. Due Adjustments (depends on company)
       await tx.dueAdjustment.deleteMany({
         where: { companyId }
       });
 
-      // 5. Stock Movements (depends on products and transactions)
-      if (transactionIds.length > 0 || productIds.length > 0) {
+      // 4. Stock Movements (depends on products)
+      if (productIds.length > 0) {
         await tx.stockMovement.deleteMany({
-          where: {
-            OR: [
-              { transactionId: { in: transactionIds } },
-              { productId: { in: productIds } }
-            ]
-          }
+          where: { productId: { in: productIds } }
         });
       }
 
-      // 6. Transaction Items (depends on transactions)
-      if (transactionIds.length > 0) {
-        await tx.transactionItem.deleteMany({
-          where: { transactionId: { in: transactionIds } }
-        });
-      }
-
-      // 7. Transactions
-      if (transactionIds.length > 0) {
-        await tx.transaction.deleteMany({
-          where: { companyId }
-        });
-      }
-
-      // 8. Payments
-      if (paymentIds.length > 0) {
-        await tx.payment.deleteMany({
-          where: { companyId }
-        });
-      }
-
-      // 9. Stock Balances (depends on products)
+      // 5. Stock Balances (depends on products)
       if (productIds.length > 0) {
         await tx.stockBalance.deleteMany({
           where: { productId: { in: productIds } }
         });
       }
 
-      // 10. Products
+      // 6. Products
       if (productIds.length > 0) {
         await tx.product.deleteMany({
           where: { companyId }
         });
       }
 
-      // 11. Finally, delete the Company
+      // 7. Finally, delete the Company
       await tx.company.delete({
         where: { id: companyId }
       });
+
+      return { success: true as const, hasHistoricalData: false };
     }, { timeout: 15000 });
 
     logCompanyAction('deleteCompany:transaction_committed', { companyId });
     revalidateCompanyData(companyId);
+
+    if (result.hasHistoricalData) {
+      return { success: true as const, message: 'Company deactivated successfully. Historical records are preserved.' };
+    }
 
     return { success: true as const, message: 'Company and all related records deleted successfully.' };
   } catch (error) {
@@ -308,9 +300,15 @@ export async function deleteCompany(companyId: number) {
 
 export async function getCompany(companyId: number) {
   await requireUser();
-  return prisma.company.findUnique({
+  const company = await prisma.company.findUnique({
     where: { id: companyId }
   });
+
+  if (!company) {
+    return null;
+  }
+
+  return serializeCompany(company);
 }
 
 export async function getCompanies() {
@@ -395,6 +393,7 @@ export async function getCompanyPageData(args: { page: number; search?: string; 
         openingBalanceDescription: true,
         createdAt: true,
         updatedAt: true,
+        createdById: true,
         _count: { select: { transactions: true, products: true } }
       },
       orderBy: { name: 'asc' },
@@ -441,8 +440,9 @@ export async function getCompanyPageData(args: { page: number; search?: string; 
 
   const companiesWithFinancials = companies.map((company) => {
     const financial = financialMap.get(company.id) ?? { totalPurchase: 0, totalPaid: 0, totalDue: 0 };
+    const serialized = serializeCompany(company);
     return {
-      ...company,
+      ...serialized,
       totalPurchase: financial.totalPurchase,
       totalPaid: financial.totalPaid,
       totalDue: financial.totalDue,
@@ -525,7 +525,7 @@ export async function getOrCreateCompany(name: string) {
     }
   });
 
-  return company;
+  return serializeCompany(company);
 }
 
 export async function getCompaniesByType(companyType: string) {
@@ -622,7 +622,7 @@ export async function getCompanyAccountSummary(companyId: number) {
 
 export async function getCompanyProfile(companyId: number) {
   await requireUser();
-  return prisma.company.findUnique({
+  const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: {
       id: true,
@@ -635,6 +635,9 @@ export async function getCompanyProfile(companyId: number) {
       isActive: true,
       createdAt: true,
       updatedAt: true,
+      openingBalance: true,
+      openingBalanceDescription: true,
+      createdById: true,
       _count: {
         select: {
           transactions: true,
@@ -643,6 +646,12 @@ export async function getCompanyProfile(companyId: number) {
       }
     }
   });
+
+  if (!company) {
+    return null;
+  }
+
+  return serializeCompany(company);
 }
 
 export async function getCompanyCurrentDue(companyId: number) {

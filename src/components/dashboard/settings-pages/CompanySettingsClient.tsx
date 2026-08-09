@@ -1,6 +1,7 @@
 "use client"
 import React, { useEffect, useState } from 'react'
 import { getSetting, saveSetting } from '@/lib/settings'
+import { useToast } from '@/hooks/use-toast'
 
 export default function CompanySettingsClient() {
   const [name, setName] = useState('')
@@ -37,16 +38,18 @@ export default function CompanySettingsClient() {
     load()
   }, [])
 
+  const { success, error: showToastError } = useToast()
+
   async function save() {
     const payload = { name, address, phone, website }
     setSaving(true)
 
     const ok = await saveSetting('company_profile', payload).catch(() => false)
     if (ok) {
-      alert('Saved company profile to server')
+      success('Saved company profile to server')
     } else {
       localStorage.setItem('company_profile', JSON.stringify(payload))
-      alert('Saved company profile to localStorage')
+      success('Saved company profile to localStorage')
     }
 
     setSaving(false)

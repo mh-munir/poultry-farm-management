@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
 import { CACHE_TAGS, revalidatePurchaseData } from '@/lib/cache';
+import { getInvoiceNumber, isUniqueConstraintError } from '@/lib/invoice';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 
@@ -34,6 +35,36 @@ function getSupplierTypeFromItems(items: Array<{ productType: string }>): 'compa
 
   if (hasFeedMedicine) return 'company';
   return 'party';
+}
+
+function getCompanyTypeForProductTypes(productTypes: Set<string>): 'FEED' | 'MEDICINE' | 'CHICK' | 'FEED_CHICK' {
+  const hasFeed = productTypes.has('FEED');
+  const hasMedicine = productTypes.has('MEDICINE');
+  const hasChick = productTypes.has('CHICK');
+
+  if (hasFeed && hasChick && !hasMedicine) return 'FEED_CHICK';
+  if (hasFeed && hasMedicine && hasChick) return 'FEED_CHICK';
+  if (hasFeed && hasMedicine) return 'FEED';
+  if (hasFeed) return 'FEED';
+  if (hasMedicine) return 'MEDICINE';
+  if (hasChick) return 'CHICK';
+  return 'FEED';
+}
+
+function isProductTypeAllowedForCompanyType(productType: string, companyType: string): boolean {
+  switch (companyType) {
+    case 'FEED':
+      // Feed suppliers may also provide hatchlings/chicks in this purchase flow.
+      return productType === 'FEED' || productType === 'CHICK';
+    case 'MEDICINE':
+      return productType === 'MEDICINE';
+    case 'CHICK':
+      return productType === 'CHICK';
+    case 'FEED_CHICK':
+      return productType === 'FEED' || productType === 'CHICK';
+    default:
+      return false;
+  }
 }
 
 const purchaseItemSchema = z.object({
@@ -107,13 +138,6 @@ function normalizePurchaseInput(formData: FormData) {
   };
 }
 
-function generatePurchaseInvoiceNumber() {
-  const now = new Date();
-  const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-  const randomPart = String(Math.floor(Math.random() * 9000) + 1000);
-  return `PUR-${datePart}-${randomPart}`;
-}
-
 export type PurchaseActionResult =
   | { success: true; message: string; transactionId: number }
   | { success: false; message: string };
@@ -138,6 +162,11 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
     return { success: false, message: error instanceof Error ? error.message : 'Invalid purchase.' };
   }
 
+  type PurchaseTransactionResult = {
+    purchaseId: number;
+    supplier: { id: number; name: string; phone: string | null } | null;
+  };
+
   if (supplierType === 'company') {
     if (!data.companyId && !data.newCompanyName) {
       return { success: false, message: 'Company supplier is required. Select an existing company or type a new one.' };
@@ -148,66 +177,74 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
     }
   }
 
-  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-  const totalAmount = subtotal - data.discount;
+  const subtotal = items.reduce((sum, item) => {
+    return sum.plus(new Prisma.Decimal(item.quantity).times(new Prisma.Decimal(item.unitPrice)));
+  }, new Prisma.Decimal(0));
+  const totalAmount = subtotal.minus(new Prisma.Decimal(data.discount));
 
-  if (totalAmount < 0) {
+  if (totalAmount.lt(0)) {
     return { success: false, message: 'Total amount cannot be negative.' };
   }
 
-  if (Number(data.paymentAmount) > totalAmount) {
+  if (new Prisma.Decimal(data.paymentAmount).gt(totalAmount)) {
     return { success: false, message: 'Payment amount cannot be greater than total amount.' };
   }
 
   try {
-    const invoiceNumber = generatePurchaseInvoiceNumber();
-    const dueAmount = totalAmount - data.paymentAmount;
-    const status = dueAmount > 0 ? PENDING_TRANSACTION_STATUS : COMPLETED_TRANSACTION_STATUS;
+    const dueAmount = totalAmount.minus(new Prisma.Decimal(data.paymentAmount));
+    const status = dueAmount.gt(0) ? PENDING_TRANSACTION_STATUS : COMPLETED_TRANSACTION_STATUS;
 
-    const purchaseResult = await prisma.$transaction(async (tx) => {
-      const resolvedItems: Array<typeof items[number] & { productId: number }> = [];
+    let lastError: Error | null = null;
+    let purchaseResult: PurchaseTransactionResult | null = null;
 
-      for (const item of items) {
-        let productId = item.productId;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const invoiceNumber = getInvoiceNumber('PUR');
+      try {
+        purchaseResult = await prisma.$transaction(async (tx) => {
+          const resolvedItems: Array<typeof items[number] & { productId: number }> = [];
 
-        if (!productId && item.productName && item.productName.trim()) {
-          const existingProduct = await tx.product.findFirst({
-            where: {
-              name: item.productName.trim(),
-              productType: item.productType || 'FEED'
-            }
-          });
+          for (const item of items) {
+            let productId = item.productId;
 
-          if (existingProduct) {
-            productId = existingProduct.id;
-          } else {
-            const existingCount = await tx.product.count({
-              where: { productType: item.productType || 'FEED' }
-            });
-            const newProduct = await tx.product.create({
-              data: {
-                code: `${item.productType || 'FEED'}-${String(existingCount + 1).padStart(3, '0')}`,
-                name: item.productName.trim(),
-                productType: item.productType || 'FEED',
-                unit: item.unit || 'pcs',
-                isActive: true
+            if (!productId && item.productName && item.productName.trim()) {
+              const existingProduct = await tx.product.findFirst({
+                where: {
+                  name: item.productName.trim(),
+                  productType: item.productType || 'FEED'
+                }
+              });
+
+              if (existingProduct) {
+                productId = existingProduct.id;
+              } else {
+                const existingCount = await tx.product.count({
+                  where: { productType: item.productType || 'FEED' }
+                });
+                const newProduct = await tx.product.create({
+                  data: {
+                    code: `${item.productType || 'FEED'}-${String(existingCount + 1).padStart(3, '0')}`,
+                    name: item.productName.trim(),
+                    productType: item.productType || 'FEED',
+                    unit: item.unit || 'pcs',
+                    isActive: true
+                  }
+                });
+                productId = newProduct.id;
               }
-            });
-            productId = newProduct.id;
-          }
-        }
+            }
 
-        resolvedItems.push({
-          ...item,
-          productId: productId ?? 0
-        });
-      }
+            resolvedItems.push({
+              ...item,
+              productId: productId ?? 0
+            });
+          }
 
       let companyIdToUse: number | undefined;
       let partyIdToUse: number | undefined;
 
       if (supplierType === 'company') {
         let companyId = data.companyId ? Number(data.companyId) : undefined;
+
         if (!companyId && data.newCompanyName) {
           const normalizedName = data.newCompanyName.trim();
           const existingCompany = await tx.company.findFirst({
@@ -222,20 +259,7 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
             companyId = existingCompany.id;
           } else {
             const productTypes = new Set(items.map((item) => item.productType));
-            let companyType = 'FEED';
-            if (productTypes.size === 1) {
-              const type = [...productTypes][0];
-              if (type === 'MEDICINE') companyType = 'MEDICINE';
-              else if (type === 'CHICK') companyType = 'CHICK';
-             } else if (productTypes.has('FEED') && productTypes.has('MEDICINE') && !productTypes.has('CHICK')) {
-               companyType = 'FEED';
-             } else if (productTypes.has('FEED') && productTypes.has('CHICK') && !productTypes.has('MEDICINE')) {
-              companyType = 'FEED_CHICK';
-            } else if (productTypes.has('MEDICINE') && productTypes.has('CHICK') && !productTypes.has('FEED')) {
-              companyType = 'CHICK';
-            } else if (productTypes.has('FEED') && productTypes.has('MEDICINE') && productTypes.has('CHICK')) {
-              companyType = 'FEED_CHICK';
-            }
+            let companyType = getCompanyTypeForProductTypes(productTypes);
             const newCompany = await tx.company.create({
               data: {
                 name: normalizedName,
@@ -246,6 +270,21 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
             companyId = newCompany.id;
           }
         }
+
+        if (companyId) {
+          const company = await tx.company.findUnique({
+            where: { id: companyId },
+            select: { companyType: true }
+          });
+
+          if (company) {
+            const invalidItem = items.find((item) => !isProductTypeAllowedForCompanyType(item.productType, company.companyType));
+            if (invalidItem) {
+              throw new Error(`Company type "${company.companyType}" does not allow purchasing product type "${invalidItem.productType}".`);
+            }
+          }
+        }
+
         companyIdToUse = companyId;
       } else {
         let partyId = data.partyId ? Number(data.partyId) : undefined;
@@ -279,7 +318,7 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
                 productId: item.productId,
                 quantity: new Prisma.Decimal(item.quantity),
                 unitPrice: new Prisma.Decimal(item.unitPrice),
-                lineTotal: new Prisma.Decimal(item.quantity * item.unitPrice),
+                lineTotal: new Prisma.Decimal(item.quantity).times(new Prisma.Decimal(item.unitPrice)),
                 taxAmount: new Prisma.Decimal(0),
                 description: item.description || (item.unit ? `Unit: ${item.unit}` : null)
               }))
@@ -315,7 +354,7 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
               paymentMethod: data.paymentMethod,
               amount: new Prisma.Decimal(data.paymentAmount),
               referenceNumber: data.referenceNumber || null,
-              status: data.paymentAmount < totalAmount ? PARTIAL_PAYMENT_STATUS : COMPLETED_PAYMENT_STATUS,
+              status: new Prisma.Decimal(data.paymentAmount).lt(totalAmount) ? PARTIAL_PAYMENT_STATUS : COMPLETED_PAYMENT_STATUS,
               notes: data.notes || null
             }
           });
@@ -373,7 +412,7 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
               paymentMethod: data.paymentMethod,
               amount: new Prisma.Decimal(data.paymentAmount),
               referenceNumber: data.referenceNumber || null,
-              status: data.paymentAmount < totalAmount ? PARTIAL_PAYMENT_STATUS : COMPLETED_PAYMENT_STATUS,
+              status: new Prisma.Decimal(data.paymentAmount).lt(totalAmount) ? PARTIAL_PAYMENT_STATUS : COMPLETED_PAYMENT_STATUS,
               notes: data.notes || null
             }
           });
@@ -425,13 +464,15 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
           }
         });
 
-        const stockBalanceData: { quantityOnHand: Prisma.Decimal; averageCost?: Prisma.Decimal | null } = {
-          quantityOnHand: newQuantity
-        };
+        const currentAverageCost = new Prisma.Decimal(balance?.averageCost ?? 0);
+        const newAverageCost = currentQuantity.gt(0)
+          ? currentQuantity.times(currentAverageCost).plus(quantity.times(new Prisma.Decimal(unitCost))).div(newQuantity)
+          : new Prisma.Decimal(unitCost);
 
-        if (unitCost) {
-          stockBalanceData.averageCost = new Prisma.Decimal(unitCost);
-        }
+        const stockBalanceData: { quantityOnHand: Prisma.Decimal; averageCost?: Prisma.Decimal | null } = {
+          quantityOnHand: newQuantity,
+          averageCost: newAverageCost
+        };
 
         await tx.stockBalance.upsert({
           where: { productId },
@@ -460,7 +501,23 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
       };
     }, { timeout: 15000 });
 
-    const purchaseId = purchaseResult.purchaseId;
+      break;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Purchase creation failed.');
+      if (!isUniqueConstraintError(error)) {
+        throw lastError;
+      }
+    }
+  }
+
+  if (!purchaseResult) {
+    throw lastError ?? new Error('Purchase creation failed after multiple attempts.');
+  }
+
+  const purchaseId = purchaseResult.purchaseId;
+    if (!purchaseId) {
+      return { success: false, message: 'Purchase creation failed: missing transaction ID.' };
+    }
     const smsTarget = purchaseResult.supplier;
 
     if (supplierType === 'party' && smsTarget) {
@@ -613,7 +670,11 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
       return { success: false, message: 'Party Supplier not found.' };
     }
 
-    await prisma.$transaction(async (tx) => {
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const invoiceNumber = getInvoiceNumber('PUR');
+      try {
+        await prisma.$transaction(async (tx) => {
        const eggProduct = eggQuantity > 0 ? await tx.product.findFirst({
          where: { productType: 'EGG' },
          orderBy: { id: 'asc' }
@@ -661,8 +722,8 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
          }
        }
 
-       const invoiceNumber = generatePurchaseInvoiceNumber();
-       const dueAmount = totalPrice;
+        const invoiceNumber = getInvoiceNumber('PUR');
+        const dueAmount = totalPrice;
 
        const purchase = await tx.transaction.create({
          data: {
@@ -683,22 +744,22 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
            transactionItems: {
              createMany: {
                data: [
-                 ...(eggQuantity > 0 && resolvedEggProductId ? [{
-                   productId: resolvedEggProductId,
-                   quantity: new Prisma.Decimal(eggQuantity),
-                   unitPrice: new Prisma.Decimal(eggPrice),
-                   lineTotal: new Prisma.Decimal(eggQuantity * eggPrice),
-                   taxAmount: new Prisma.Decimal(0),
-                   description: `Eggs (per piece) @ ৳${eggPrice}`
-                 }] : []),
-                 ...(chickenQuantity > 0 && resolvedChickenProductId ? [{
-                   productId: resolvedChickenProductId,
-                   quantity: new Prisma.Decimal(chickenQuantity),
-                   unitPrice: new Prisma.Decimal(chickenPrice),
-                   lineTotal: new Prisma.Decimal(chickenQuantity * chickenPrice),
-                   taxAmount: new Prisma.Decimal(0),
-                   description: `Chicken (per kg) @ ৳${chickenPrice}`
-                 }] : [])
+                  ...(eggQuantity > 0 && resolvedEggProductId ? [{
+                    productId: resolvedEggProductId,
+                    quantity: new Prisma.Decimal(eggQuantity),
+                    unitPrice: new Prisma.Decimal(eggPrice),
+                    lineTotal: new Prisma.Decimal(eggQuantity).times(new Prisma.Decimal(eggPrice)),
+                    taxAmount: new Prisma.Decimal(0),
+                    description: `Eggs (per piece) @ ৳${eggPrice}`
+                  }] : []),
+                  ...(chickenQuantity > 0 && resolvedChickenProductId ? [{
+                    productId: resolvedChickenProductId,
+                    quantity: new Prisma.Decimal(chickenQuantity),
+                    unitPrice: new Prisma.Decimal(chickenPrice),
+                    lineTotal: new Prisma.Decimal(chickenQuantity).times(new Prisma.Decimal(chickenPrice)),
+                    taxAmount: new Prisma.Decimal(0),
+                    description: `Chicken (per kg) @ ৳${chickenPrice}`
+                  }] : [])
                ]
              }
            }
@@ -728,6 +789,15 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
 
     revalidatePurchaseData({ partyId });
     return { success: true, message: 'Party Supplier products recorded successfully.' };
+  } catch (error) {
+    lastError = error instanceof Error ? error : new Error('Failed to record party supplier products.');
+    if (!isUniqueConstraintError(error)) {
+      throw lastError;
+    }
+  }
+}
+
+    return { success: false, message: lastError?.message ?? 'Failed to record party supplier products after multiple attempts.' };
   } catch (error) {
     console.error('Error recording party supplier products:', error);
     return { success: false, message: error instanceof Error ? error.message : 'Failed to record party supplier products.' };

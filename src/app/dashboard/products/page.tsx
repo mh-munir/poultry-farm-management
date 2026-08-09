@@ -154,7 +154,6 @@ export default async function ProductsPage({
                   <th className="px-4 py-3 font-medium">Product Name</th>
                   <th className="px-4 py-3 font-medium">Category</th>
                   <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium">Unit</th>
                   <th className="px-4 py-3 font-medium text-right">Purchase Price</th>
                   <th className="px-4 py-3 font-medium text-right">Sale Price</th>
                   <th className="px-4 py-3 font-medium">Stock</th>
@@ -165,7 +164,7 @@ export default async function ProductsPage({
               <tbody>
                 {data.products.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                       No products found. Create your first product to get started.
                     </td>
                   </tr>
@@ -184,7 +183,6 @@ export default async function ProductsPage({
                           {getProductTypeLabel(product.productType)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{product.unit}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(Number(product.defaultPurchasePrice))}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(Number(product.defaultSellingPrice))}</td>
                       <td className="px-4 py-3 tabular-nums">

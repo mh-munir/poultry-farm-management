@@ -69,7 +69,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 input, select, textarea {
-  @apply font-sans;
+  @apply font-sans text-foreground;
 }
 
 ::-webkit-scrollbar {
@@ -305,7 +305,7 @@ input[type="number"] {
   }
 
   .text-input {
-    @apply text-[15px] font-[400] leading-snug;
+    @apply text-[15px] font-[400] leading-snug text-foreground;
   }
 
   .text-button {

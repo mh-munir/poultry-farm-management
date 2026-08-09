@@ -4,6 +4,7 @@ import { ResponsiveTable } from '@/components/ui/responsive-table';
 import Link from 'next/link';
 import { getMonthlyReportData } from '@/features/reports/actions';
 import { getProductTypeLabel } from '@/lib/product-types';
+import { formatDateBD as formatDate } from '@/lib/dates';
 
 function formatCurrency(value: number) {
   return `৳ ${new Intl.NumberFormat('en-BD', {
@@ -133,7 +134,7 @@ export default async function MonthlyReportPage({
                 <tbody className="divide-y divide-border">
                   {data.dailyBreakdown.map((day) => (
                     <tr key={day.date} className="hover:bg-muted/30">
-                      <td className="px-4 py-3">{day.date}</td>
+                      <td className="px-4 py-3">{formatDate(day.date)}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(day.sales)}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(day.purchases)}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(day.costs)}</td>

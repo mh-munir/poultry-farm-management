@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { deleteStockItem, updateStockItem } from '@/features/stock/actions';
@@ -95,6 +96,9 @@ export function StockManagement({
   const [companyDiscount, setCompanyDiscount] = useState('');
   const [transactionDate, setTransactionDate] = useState(() => todayDateStr());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [rows, setRows] = useState<StockRow[]>([{ rowId: 1, productId: '', productName: '', quantity: '', buyRate: '', unit: '' }]);
   const router = useRouter();
   const { success, error: showToastError } = useToast();
@@ -242,23 +246,32 @@ export function StockManagement({
     }
   }, [editingItemId, success, showToastError]);
 
-  const handleDeleteItemRow = useCallback(async (itemId: number | undefined) => {
+  const handleDeleteItemRow = useCallback((itemId: number | undefined) => {
     if (!itemId) return;
-    const confirmed = window.confirm('Delete this stock item? This cannot be undone.');
-    if (!confirmed) return;
+    setRowToDelete(itemId);
+    setConfirmOpen(true);
+  }, []);
+
+  const handleConfirmDeleteItemRow = useCallback(async () => {
+    if (rowToDelete === null) return;
+    setIsDeleting(true);
 
     try {
-      const result = await deleteStockItem(itemId);
+      const result = await deleteStockItem(rowToDelete);
       if (result.success) {
-        setItems((prev) => prev.filter((item) => item.id !== itemId));
+        setItems((prev) => prev.filter((item) => item.id !== rowToDelete));
         success(result.message);
       } else {
         showToastError(result.message);
       }
     } catch (err) {
       showToastError(err instanceof Error ? err.message : 'An unknown error occurred.');
+    } finally {
+      setIsDeleting(false);
+      setConfirmOpen(false);
+      setRowToDelete(null);
     }
-  }, [success, showToastError]);
+  }, [rowToDelete, success, showToastError]);
 
   const removeRow = useCallback((rowId: number) => {
     setRows((prev) => prev.filter((row) => row.rowId !== rowId));
@@ -757,7 +770,6 @@ export function StockManagement({
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Date</th>
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Company Name</th>
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{title} Name</th>
-                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Gram</th>
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Quantity</th>
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Paid</th>
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Due</th>
@@ -773,8 +785,7 @@ export function StockManagement({
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{item.lastTransactionDate ? formatDateBD(item.lastTransactionDate) : '-'}</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{item.companyName || '-'}</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{item.name}</td>
-                      <td className="px-2 py-2 sm:px-4 sm:py-3">{item.unit || '-'}</td>
-                      <td className="px-2 py-2 sm:px-4 sm:py-3">{item.quantity}</td>
+                      <td className="px-2 py-2 sm:px-4 sm:py-3">{item.quantity} {item.unit || ''}</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{Number(item.paidAmount ?? 0).toFixed(2)} TK</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{Number(item.dueAmount ?? 0).toFixed(2)} TK</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3 font-medium">{(item.quantity * item.buyRate).toFixed(2)} TK</td>
@@ -831,7 +842,7 @@ export function StockManagement({
                 })}
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                       No stock entries found.
                     </td>
                   </tr>
@@ -841,6 +852,20 @@ export function StockManagement({
           </ResponsiveTable>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Delete this stock item?"
+        description="This action cannot be undone. The item will be permanently removed from stock records."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDeleteItemRow}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setRowToDelete(null);
+        }}
+        isLoading={isDeleting}
+      />
     </SectionWrapper>
   );
 }

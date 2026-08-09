@@ -1,0 +1,74 @@
+   ▲ Next.js 15.5.22
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     · serverActions
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 17.1s
+   Skipping linting
+   Checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/40) ...
+   Generating static pages (10/40) 
+   Generating static pages (20/40) 
+   Generating static pages (30/40) 
+ ✓ Generating static pages (40/40)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                    Size  First Load JS
+┌ ƒ /                                         162 B         103 kB
+├ ƒ /_not-found                                1 kB         104 kB
+├ ƒ /api/admin/reset-db                       162 B         103 kB
+├ ƒ /api/admin/upload                         162 B         103 kB
+├ ƒ /api/auth/[...nextauth]                   162 B         103 kB
+├ ƒ /api/dashboard/profit                     162 B         103 kB
+├ ƒ /api/expenses                             162 B         103 kB
+├ ƒ /api/settings                             162 B         103 kB
+├ ƒ /api/sms/test                             162 B         103 kB
+├ ƒ /auth/reset-admin                         201 B         106 kB
+├ ƒ /auth/sign-in                           4.12 kB         126 kB
+├ ƒ /dashboard                              7.45 kB         113 kB
+├ ƒ /dashboard/companies                    2.09 kB         158 kB
+├ ƒ /dashboard/companies/[id]               1.78 kB         158 kB
+├ ƒ /dashboard/expenses                     2.79 kB         112 kB
+├ ƒ /dashboard/parties                      6.86 kB         178 kB
+├ ƒ /dashboard/parties/[id]                 9.34 kB         177 kB
+├ ƒ /dashboard/parties/[id]/print           1.29 kB         104 kB
+├ ƒ /dashboard/parties/clear-party-success    162 B         103 kB
+├ ƒ /dashboard/parties/delete                 162 B         103 kB
+├ ƒ /dashboard/parties/new                    201 B         106 kB
+├ ƒ /dashboard/products                       165 B         106 kB
+├ ƒ /dashboard/products/[id]/edit             201 B         106 kB
+├ ƒ /dashboard/products/new                   201 B         106 kB
+├ ƒ /dashboard/reports                        201 B         106 kB
+├ ƒ /dashboard/reports/daily                  201 B         106 kB
+├ ƒ /dashboard/reports/monthly                201 B         106 kB
+├ ƒ /dashboard/reports/party-statement      3.05 kB         116 kB
+├ ƒ /dashboard/reports/profit-loss            201 B         106 kB
+├ ƒ /dashboard/reports/purchases              201 B         106 kB
+├ ƒ /dashboard/reports/sales                  201 B         106 kB
+├ ƒ /dashboard/reports/stock                  201 B         106 kB
+├ ƒ /dashboard/reports/yearly                 201 B         106 kB
+├ ƒ /dashboard/sales                        4.78 kB         117 kB
+├ ƒ /dashboard/settings                     1.17 kB         104 kB
+├ ƒ /dashboard/settings/backup                983 B         104 kB
+├ ƒ /dashboard/settings/company             1.27 kB         104 kB
+├ ƒ /dashboard/settings/invoice             1.35 kB         104 kB
+├ ƒ /dashboard/settings/logo                2.54 kB         105 kB
+├ ƒ /dashboard/settings/restore             1.11 kB         104 kB
+├ ƒ /dashboard/settings/users               8.69 kB         118 kB
+├ ƒ /dashboard/stock/reports                  162 B         103 kB
+├ ƒ /dashboard/transactions/[id]/print      3.05 kB         112 kB
+├ ƒ /print-demo                               338 B         103 kB
+└ ƒ /unauthorized                             162 B         103 kB
++ First Load JS shared by all                103 kB
+  ├ chunks/1255-31f47ebe9b12c7e5.js         46.3 kB
+  ├ chunks/4bd1b696-f785427dddbba9fb.js     54.2 kB
+  └ other shared chunks (total)             2.02 kB
+
+
+ƒ Middleware                                33.9 kB
+
+ƒ  (Dynamic)  server-rendered on demand
+

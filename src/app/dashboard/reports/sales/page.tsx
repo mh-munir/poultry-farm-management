@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getSalesReportData } from '@/features/reports/actions';
 import { getProductTypeLabel } from '@/lib/product-types';
 import { prisma } from '@/server/db';
+import { formatDateBD as formatDate } from '@/lib/dates';
 
 function formatCurrency(value: number) {
   return `৳ ${new Intl.NumberFormat('en-BD', {
@@ -13,14 +14,6 @@ function formatCurrency(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(value)}`;
-}
-
-function formatDate(date: Date) {
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  });
 }
 
 export default async function SalesReportPage({

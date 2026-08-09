@@ -1,13 +1,20 @@
 "use client"
 import React, { useState } from 'react'
 import { saveSetting } from '@/lib/settings'
+import { useToast } from '@/hooks/use-toast'
 
 export default function RestoreSettingsClient() {
   const [file, setFile] = useState<File | null>(null)
   const [restoring, setRestoring] = useState(false)
 
+  const { success, error: showToastError } = useToast()
+
   async function onRestore() {
-    if (!file) return alert('Choose a JSON backup file')
+    if (!file) {
+      showToastError('Choose a JSON backup file')
+      return
+    }
+
     setRestoring(true)
 
     const reader = new FileReader()
@@ -23,12 +30,12 @@ export default function RestoreSettingsClient() {
         }
 
         if (restored > 0) {
-          alert(`Restore completed for ${restored} settings keys.`)
+          success(`Restore completed for ${restored} settings keys.`)
         } else {
-          alert('Restore failed. No settings were saved to the server.')
+          showToastError('Restore failed. No settings were saved to the server.')
         }
       } catch (err) {
-        alert('Invalid JSON file')
+        showToastError('Invalid JSON file')
       }
 
       setRestoring(false)

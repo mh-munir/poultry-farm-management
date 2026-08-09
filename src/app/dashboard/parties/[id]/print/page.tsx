@@ -48,7 +48,7 @@ function StatementCard({
 function EmptyState({ label }: { label: string }) {
   return (
     <tr>
-      <td colSpan={6} className="border-t border-slate-200 px-3 py-6 text-center text-sm text-slate-500">
+      <td colSpan={5} className="border-t border-slate-200 px-3 py-6 text-center text-sm text-slate-500">
         {label}
       </td>
     </tr>
@@ -235,7 +235,6 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                       <th className="px-3 py-3 text-left">Invoice</th>
                       <th className="px-3 py-3 text-left">Product</th>
                       <th className="px-3 py-3 text-left">Qty</th>
-                      <th className="px-3 py-3 text-left">Unit</th>
                       <th className="px-3 py-3 text-left">Rate</th>
                       <th className="px-3 py-3 text-left">Amount</th>
                     </tr>
@@ -246,8 +245,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                         <td className="px-3 py-3 whitespace-nowrap text-slate-600">{formatDate(row.transactionDate)}</td>
                         <td className="px-3 py-3 whitespace-nowrap text-slate-600">{row.invoiceNumber ?? '—'}</td>
                         <td className="px-3 py-3 text-slate-600">{row.productName}</td>
-                        <td className="px-3 py-3 whitespace-nowrap text-slate-600">{row.quantity}</td>
-                        <td className="px-3 py-3 whitespace-nowrap text-slate-600">{row.unit}</td>
+                        <td className="px-3 py-3 whitespace-nowrap text-slate-600">{row.quantity} {row.unit}</td>
                         <td className="px-3 py-3 whitespace-nowrap text-slate-600">{formatCurrency(row.unitPrice)}</td>
                         <td className="px-3 py-3 whitespace-nowrap font-medium text-slate-900">{formatCurrency(row.lineTotal)}</td>
                       </tr>
@@ -272,7 +270,6 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                       <th className="px-3 py-3 text-left">Invoice</th>
                       <th className="px-3 py-3 text-left">Product</th>
                       <th className="px-3 py-3 text-left">Qty</th>
-                      <th className="px-3 py-3 text-left">Unit</th>
                       <th className="px-3 py-3 text-left">Rate</th>
                       <th className="px-3 py-3 text-left">Amount</th>
                     </tr>
@@ -283,8 +280,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                         <td className="px-3 py-3 whitespace-nowrap text-slate-600">{formatDate(row.transactionDate)}</td>
                         <td className="px-3 py-3 whitespace-nowrap text-slate-600">{row.invoiceNumber ?? '—'}</td>
                         <td className="px-3 py-3 text-slate-600">{row.productName}</td>
-                        <td className="px-3 py-3 whitespace-nowrap text-slate-600">{row.quantity}</td>
-                        <td className="px-3 py-3 whitespace-nowrap text-slate-600">{row.unit}</td>
+                        <td className="px-3 py-3 whitespace-nowrap text-slate-600">{row.quantity} {row.unit}</td>
                         <td className="px-3 py-3 whitespace-nowrap text-slate-600">{formatCurrency(row.unitPrice)}</td>
                         <td className="px-3 py-3 whitespace-nowrap font-medium text-slate-900">{formatCurrency(row.lineTotal)}</td>
                       </tr>

@@ -67,10 +67,19 @@ export function AddStockModal({
   const router = useRouter();
   const { success, error: showToastError } = useToast();
 
-  const companyOptions: ComboboxOption[] = useMemo(() => {
-    const companies = stockType === 'FEED' ? feedCompanies : stockType === 'MEDICINE' ? medicineCompanies : chickCompanies;
-    return companies.map((c) => ({ value: c.name, label: c.name }));
+  const availableCompanies = useMemo(() => {
+    const companies = stockType === 'FEED'
+      ? feedCompanies
+      : stockType === 'MEDICINE'
+      ? medicineCompanies
+      : [...feedCompanies, ...chickCompanies];
+
+    return Array.from(new Map(companies.map((company) => [company.id, company])).values());
   }, [stockType, feedCompanies, medicineCompanies, chickCompanies]);
+
+  const companyOptions: ComboboxOption[] = useMemo(() => {
+    return availableCompanies.map((c) => ({ value: c.name, label: c.name }));
+  }, [availableCompanies]);
 
   const availableProducts: StockItem[] = useMemo(() => {
     return stockType === 'FEED' ? feedProducts : stockType === 'MEDICINE' ? medicineProducts : chickProducts;
@@ -239,7 +248,7 @@ export function AddStockModal({
                   value={companyName}
                   onValueChange={(value) => {
                     setCompanyName(value);
-                    const matched = (stockType === 'FEED' ? feedCompanies : stockType === 'MEDICINE' ? medicineCompanies : stockType === 'CHICK' ? chickCompanies : []).find(
+                    const matched = availableCompanies.find(
                       (s) => s.name.toLowerCase() === value.toLowerCase()
                     );
                     if (matched) {

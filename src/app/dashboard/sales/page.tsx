@@ -1,19 +1,20 @@
 import Link from 'next/link';
 import { Plus, ArrowLeft, ClipboardList, Package2, Printer } from 'lucide-react';
-import type { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+
+type SerializableDecimal = number | string | { toString(): string } | null | undefined;
 import { Pagination } from '@/components/ui/pagination';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { getCustomersForSales, getProductsForSales, getSalesPageData } from '@/features/sales/actions';
 import { SaleForm } from './sale-form';
 import { getProductTypeLabel, getProductTypeBadgeClass } from '@/lib/product-types';
 
-function formatCurrency(value: number | string | Prisma.Decimal | null | undefined) {
+function formatCurrency(value: SerializableDecimal) {
   return `KSh ${Number(value?.toString() ?? 0).toFixed(2)}`;
 }
 
-function formatStock(value: number | string | Prisma.Decimal | null | undefined) {
+function formatStock(value: SerializableDecimal) {
   return `${Number(value?.toString() ?? 0).toFixed(2)}`;
 }
 

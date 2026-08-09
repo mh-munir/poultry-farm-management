@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { Receipt, Users, Package2 } from 'lucide-react';
-import type { Decimal } from '@prisma/client/runtime/library';
 import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
+
+type SerializableDecimal = number | string | { toString(): string } | null;
 import { Button } from '@/components/ui/button';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { Pagination } from '@/components/ui/pagination';
@@ -27,15 +28,15 @@ type PartySummary = {
   address?: string | null;
   partyType: string;
   taxNumber?: string | null;
-  creditLimit?: Decimal | number | string | null;
-  openingBalance?: Decimal | number | string | null;
+  creditLimit?: SerializableDecimal;
+  openingBalance?: SerializableDecimal;
   imageUrl?: string | null;
   isActive?: boolean | null;
   lastTransactionDate?: Date | null;
-  supplierInvoiced?: Decimal | number | string | null;
-  customerInvoiced?: Decimal | number | string | null;
-  totalPaid?: Decimal | number | string | null;
-  totalDue?: Decimal | number | string | null;
+  supplierInvoiced?: SerializableDecimal;
+  customerInvoiced?: SerializableDecimal;
+  totalPaid?: SerializableDecimal;
+  totalDue?: SerializableDecimal;
 };
 
 type PartyProduct = {
@@ -44,13 +45,13 @@ type PartyProduct = {
   code: string;
   productType: string;
   unit: string | null;
-  defaultSellingPrice: Decimal | number | string | null;
-  defaultPurchasePrice: Decimal | number | string | null;
-  stockBalance?: { quantityOnHand: Decimal | number | string | null } | null;
-  stockMovements?: Array<{ unitCost: Decimal | number | string | null }> | null;
+  defaultSellingPrice: SerializableDecimal;
+  defaultPurchasePrice: SerializableDecimal;
+  stockBalance?: { quantityOnHand?: SerializableDecimal } | null;
+  stockMovements?: Array<{ unitCost: SerializableDecimal }> | null;
 };
 
-function formatCurrency(value: number | string | Decimal | null | undefined) {
+function formatCurrency(value: number | string | SerializableDecimal | null | undefined) {
   const number = Number(value ?? 0);
   return `৳ ${number.toFixed(2)}`;
 }
@@ -279,11 +280,15 @@ export default async function PartiesPage({
            </table>
         </ResponsiveTable>
 
-        <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {parties.length} of {data.total} parties
-          </p>
-          <Pagination currentPage={page} totalPages={data.totalPages} hrefBuilder={buildPaginationHref} className="justify-end" />
+        <div className="mt-6 flex flex-col gap-4 rounded-xl border border-border bg-gradient-to-r from-background to-muted/30 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Showing</span>
+            <span className="font-semibold text-foreground">{parties.length}</span>
+            <span className="text-muted-foreground">of</span>
+            <span className="font-semibold text-foreground">{data.total}</span>
+            <span className="text-muted-foreground">parties</span>
+          </div>
+          <Pagination currentPage={page} totalPages={data.totalPages} hrefBuilder={buildPaginationHref} className="justify-center sm:justify-end" />
         </div>
       </div>
     </main>

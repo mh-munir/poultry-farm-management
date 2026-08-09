@@ -2,6 +2,7 @@
 
 import { CalendarDays } from "lucide-react";
 import type { AnalyticsFilterState, AnalyticsPresetValue } from "./analytics-types";
+import { DateInput } from "@/components/ui/date-input";
 
 const presets: Array<{ value: AnalyticsPresetValue; label: string }> = [
   { value: "today", label: "Today" },
@@ -41,18 +42,16 @@ export function AnalyticsFilterBar({ filters, onChange }: Props) {
 
         <div className="flex flex-wrap items-center gap-3 rounded-[20px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <CalendarDays size={18} className="text-slate-500" />
-          <input
-            type="date"
+          <DateInput
             value={filters.start}
             onChange={(event) => onChange({ ...filters, start: event.target.value, preset: "custom" })}
-            className="min-w-[140px] bg-transparent text-sm font-semibold text-slate-900 outline-none"
+            className="min-w-[140px]"
           />
           <span className="text-sm text-slate-400">—</span>
-          <input
-            type="date"
+          <DateInput
             value={filters.end}
             onChange={(event) => onChange({ ...filters, end: event.target.value, preset: "custom" })}
-            className="min-w-[140px] bg-transparent text-sm font-semibold text-slate-900 outline-none"
+            className="min-w-[140px]"
           />
         </div>
       </div>
