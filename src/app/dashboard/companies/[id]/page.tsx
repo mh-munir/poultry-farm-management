@@ -201,9 +201,9 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
       }
     }) as Promise<CompanyPaymentRecord[]>,
     getCompanyAccountSummary(companyId),
-    getStockItemsByType('FEED'),
-    getStockItemsByType('MEDICINE'),
-    getStockItemsByType('CHICK'),
+    getStockItemsByType('FEED', companyId),
+    getStockItemsByType('MEDICINE', companyId),
+    getStockItemsByType('CHICK', companyId),
     getCompaniesByType('FEED'),
     getCompaniesByType('MEDICINE'),
     getCompaniesByType('CHICK')

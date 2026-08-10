@@ -99,8 +99,10 @@ export default async function TransactionPrintPage({ params }: { params: Promise
         unit: item.product?.unit ?? '-',
         unitPrice: numberValue(item.unitPrice),
         lineTotal: numberValue(item.lineTotal),
+        totalKg: numberValue(item.chickenQuantity),
         productType: item.product?.productType ?? null
       }))}
+      showTotalKg={transaction.transactionType === 'PURCHASE'}
       subtotal={numberValue(transaction.subtotal)}
       discount={numberValue(transaction.discount)}
       paidAmount={numberValue(transaction.paidAmount)}

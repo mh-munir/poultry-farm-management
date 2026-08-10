@@ -14,6 +14,7 @@ export type InvoiceLineItem = {
   unit: string;
   unitPrice: number;
   lineTotal: number;
+  totalKg?: number | null;
   productType?: string | null;
 };
 
@@ -44,6 +45,7 @@ export type TransactionInvoiceViewProps = {
   referenceNumber?: string | null;
   notes?: string | null;
   mediaName?: string | null;
+  showTotalKg?: boolean;
   displaySettings?: InvoiceDisplaySettings;
 };
 
@@ -89,6 +91,7 @@ export function TransactionInvoiceView({
   referenceNumber,
   notes,
   mediaName,
+  showTotalKg = false,
   displaySettings = {}
 }: TransactionInvoiceViewProps) {
   return (
@@ -164,6 +167,7 @@ export function TransactionInvoiceView({
                     <th className="px-4 py-3 text-left">Item Description</th>
                     <th className="px-4 py-3 text-right">Price</th>
                     <th className="px-4 py-3 text-center">Qty</th>
+                    {showTotalKg ? <th className="px-4 py-3 text-right">Total Kg</th> : null}
                     <th className="px-4 py-3 text-right">Total</th>
                   </tr>
                 </thead>
@@ -178,7 +182,16 @@ export function TransactionInvoiceView({
                         <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
                         <td className="px-4 py-3 text-slate-700">{it.productName}</td>
                         <td className="px-4 py-3 text-right text-slate-700">{hideUnitPrice ? 'Hidden' : formatCurrency(it.unitPrice)}</td>
-                        <td className="px-4 py-3 text-center text-slate-700">{it.quantity.toFixed(2)} {it.unit}</td>
+                        <td className="px-4 py-3 text-center text-slate-700">
+                          {showTotalKg && it.unit.toLowerCase() === 'kg'
+                            ? it.quantity.toFixed(2)
+                            : `${it.quantity.toFixed(2)} ${it.unit}`}
+                        </td>
+                        {showTotalKg ? (
+                          <td className="px-4 py-3 text-right text-slate-700">
+                            {typeof it.totalKg === 'number' && it.totalKg > 0 ? `${it.totalKg.toFixed(2)} kg` : '—'}
+                          </td>
+                        ) : null}
                         <td className="px-4 py-3 text-right font-medium text-slate-900">{hideLineTotal ? 'Hidden' : formatCurrency(it.lineTotal)}</td>
                       </tr>
                     );

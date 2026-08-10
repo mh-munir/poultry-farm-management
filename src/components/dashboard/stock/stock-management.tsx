@@ -278,14 +278,23 @@ export function StockManagement({
     setRows((prev) => prev.filter((row) => row.rowId !== rowId));
   }, []);
 
+  const getProductDisplayLabel = (product: StockItem) => {
+    return product.unit ? `${product.name} (${product.unit})` : product.name;
+  };
+
   const handleRowChange = useCallback((rowId: number, field: keyof StockRow, value: string) => {
     if (field === 'productName') {
-      const normalizedValue = value.trim();
+      const normalizedValue = value.trim().toLowerCase();
       updateRow(rowId, 'productName', value);
-      const product = availableProducts.find((p) => p.name.trim().toLowerCase() === normalizedValue.toLowerCase());
+      const exactMatch = availableProducts.find((p) => getProductDisplayLabel(p).toLowerCase() === normalizedValue);
+      const nameMatches = availableProducts.filter((p) => p.name.trim().toLowerCase() === normalizedValue);
+      const product = exactMatch ?? (nameMatches.length === 1 ? nameMatches[0] : undefined);
       if (product) {
         updateRow(rowId, 'productId', String(product.id ?? ''));
         updateRow(rowId, 'buyRate', String(product.buyRate ?? '0'));
+        if (product.unit) {
+          updateRow(rowId, 'unit', product.unit);
+        }
       } else {
         updateRow(rowId, 'productId', '');
       }
@@ -494,7 +503,7 @@ export function StockManagement({
                       />
                       <datalist id={`products-list-${title}`}>
                         {availableProducts.map((product) => (
-                          <option key={product.id} value={product.name} />
+                          <option key={product.id} value={getProductDisplayLabel(product)} />
                         ))}
                       </datalist>
                       <input type="hidden" name="productId" value={row.productId} />

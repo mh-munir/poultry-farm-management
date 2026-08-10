@@ -1295,10 +1295,12 @@ export async function createSupplierPurchase(formData: FormData) {
         await prisma.$transaction(async (tx) => {
       let productId: number | undefined;
 
+      const normalizedUnit = unit.trim();
       const existingProduct = await tx.product.findFirst({
         where: {
           name: productName.trim(),
-          productType: productCategory
+          productType: productCategory,
+          unit: normalizedUnit
         }
       });
 

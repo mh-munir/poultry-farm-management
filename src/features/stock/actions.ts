@@ -6,9 +6,14 @@ import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
 import { revalidateStockData } from '@/lib/cache';
 
-export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE' | 'CHICK') {
+export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE' | 'CHICK', companyId?: number) {
   return prisma.product.findMany({
-    where: { isActive: true, isArchived: false, productType },
+    where: {
+      isActive: true,
+      isArchived: false,
+      productType,
+      ...(companyId !== undefined && companyId !== null ? { companyId } : {})
+    },
     select: {
       id: true,
       name: true,

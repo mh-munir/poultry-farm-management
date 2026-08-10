@@ -207,10 +207,12 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
             let productId = item.productId;
 
             if (!productId && item.productName && item.productName.trim()) {
+              const normalizedUnit = item.unit?.trim() || 'pcs';
               const existingProduct = await tx.product.findFirst({
                 where: {
                   name: item.productName.trim(),
-                  productType: item.productType || 'FEED'
+                  productType: item.productType || 'FEED',
+                  unit: normalizedUnit
                 }
               });
 
