@@ -7,6 +7,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
 import { getCompaniesByType, getCompanyCurrentDue, recordPaymentForCompany } from '@/features/companies/actions';
+import { DateInput } from '@/components/ui/date-input';
 import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type PayCompanyModalProps = {
@@ -111,8 +112,7 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
 
         <div>
           <label className="mb-2 block text-sm font-medium">Payment Date</label>
-          <input
-            type="date"
+          <DateInput
             name="paymentDate"
             value={paymentDate}
             onChange={(e) => setPaymentDate(e.target.value)}

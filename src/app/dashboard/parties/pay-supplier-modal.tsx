@@ -7,6 +7,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
 import { getSupplierOptions, getSupplierCurrentPayable, paySupplierPayment } from '@/features/parties/actions';
+import { DateInput } from '@/components/ui/date-input';
 import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type PaySupplierModalProps = {
@@ -26,7 +27,7 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
 
   useEffect(() => {
     if (open) {
-      getSupplierOptions().then((options) => {
+      getSupplierOptions().then((options: Array<{ id: number; name: string }>) => {
         setPartyOptions(options.map((o) => ({ value: String(o.id), label: o.name })));
       });
       setSelectedPartyId(null);
@@ -90,13 +91,12 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
 
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Payment Date</label>
-          <input
-            type="date"
+          <DateInput
             name="paymentDate"
             value={paymentDate}
             onChange={(e) => setPaymentDate(e.target.value)}
             required
-            className="w-full h-[50px] rounded-[12px] border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="w-full h-[50px] rounded-[12px] border border-slate-200 bg-white px-4 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           />
         </div>
 

@@ -500,9 +500,15 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
       </section>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <SummaryMiniCard label="Feed Purchases" value={formatCurrency(summary.totalFeedPurchases)} />
-        <SummaryMiniCard label="Medicine Purchases" value={formatCurrency(summary.totalMedicinePurchases)} />
-        <SummaryMiniCard label="Hatchling / Chick Purchases" value={formatCurrency(summary.totalChickPurchases)} />
+        {(company.companyType === 'FEED' || company.companyType === 'FEED_CHICK' || company.companyType === 'BOTH') && (
+          <SummaryMiniCard label="Feed Purchases" value={formatCurrency(summary.totalFeedPurchases)} />
+        )}
+        {(company.companyType === 'MEDICINE' || company.companyType === 'BOTH') && (
+          <SummaryMiniCard label="Medicine Purchases" value={formatCurrency(summary.totalMedicinePurchases)} />
+        )}
+        {(company.companyType === 'CHICK' || company.companyType === 'FEED_CHICK' || company.companyType === 'BOTH') && (
+          <SummaryMiniCard label="Hatchling / Chick Purchases" value={formatCurrency(summary.totalChickPurchases)} />
+        )}
         <SummaryMiniCard label="Payments" value={formatCurrency(summary.totalPayments)} />
         <SummaryMiniCard label="Current Due" value={formatCurrency(summary.totalDue)} />
         <SummaryMiniCard label="Transactions" value={String(summary.totalTransactions)} />
@@ -544,14 +550,24 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-xl border bg-background p-4">
-            <p className="text-sm text-muted-foreground">Total Feed Purchases</p>
-            <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalFeedPurchases)}</p>
-          </div>
-          <div className="rounded-xl border bg-background p-4">
-            <p className="text-sm text-muted-foreground">Total Medicine Purchases</p>
-            <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalMedicinePurchases)}</p>
-          </div>
+          {(company.companyType === 'FEED' || company.companyType === 'FEED_CHICK' || company.companyType === 'BOTH') && (
+            <div className="rounded-xl border bg-background p-4">
+              <p className="text-sm text-muted-foreground">Total Feed Purchases</p>
+              <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalFeedPurchases)}</p>
+            </div>
+          )}
+          {(company.companyType === 'MEDICINE' || company.companyType === 'BOTH') && (
+            <div className="rounded-xl border bg-background p-4">
+              <p className="text-sm text-muted-foreground">Total Medicine Purchases</p>
+              <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalMedicinePurchases)}</p>
+            </div>
+          )}
+          {(company.companyType === 'CHICK' || company.companyType === 'FEED_CHICK' || company.companyType === 'BOTH') && (
+            <div className="rounded-xl border bg-background p-4">
+              <p className="text-sm text-muted-foreground">Total Hatchling / Chick Purchases</p>
+              <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalChickPurchases)}</p>
+            </div>
+          )}
           <div className="rounded-xl border bg-background p-4">
             <p className="text-sm text-muted-foreground">Total Payments</p>
             <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalPayments)}</p>

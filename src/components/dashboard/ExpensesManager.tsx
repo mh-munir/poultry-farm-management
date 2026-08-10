@@ -1,6 +1,7 @@
 "use client"
 import React, { useEffect, useState } from 'react'
 import { ResponsiveTable } from '@/components/ui/responsive-table'
+import { DateInput } from '@/components/ui/date-input';
 import { formatDateBD as formatDate, todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type Expense = { id: string; description: string; amount: number; date: string }
@@ -81,7 +82,11 @@ export default function ExpensesManager() {
             </div>
             <div className="mb-3">
               <label className="block text-sm">Date</label>
-              <input value={date} onChange={(e) => setDate(e.target.value)} type="date" className="mt-1 w-full rounded border px-3 py-2" />
+              <DateInput
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="mt-1 w-full rounded border px-3 py-2"
+              />
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <button type="submit" className="rounded bg-primary px-4 py-2 text-white">Add expense</button>

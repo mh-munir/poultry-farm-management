@@ -7,6 +7,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
 import { getCustomerOptions, getCustomerCurrentDue, receiveCustomerPayment } from '@/features/parties/actions';
+import { DateInput } from '@/components/ui/date-input';
 import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type ReceivePaymentModalProps = {
@@ -106,13 +107,12 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
 
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Payment Date</label>
-          <input
-            type="date"
+          <DateInput
             name="paymentDate"
             value={paymentDate}
             onChange={(e) => setPaymentDate(e.target.value)}
             required
-            className="w-full h-[50px] rounded-[12px] border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="w-full h-[50px] rounded-[12px] border border-slate-200 bg-white px-4 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           />
         </div>
 

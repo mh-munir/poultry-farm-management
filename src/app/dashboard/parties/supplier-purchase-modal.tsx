@@ -7,6 +7,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
 import { getSupplierOptions, getSupplierCurrentPayable, createSupplierPurchase } from '@/features/parties/actions';
+import { DateInput } from '@/components/ui/date-input';
 import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type SupplierPurchaseModalProps = {
@@ -149,7 +150,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
       return;
     }
 
-    getSupplierOptions().then((options) => {
+    getSupplierOptions().then((options: Array<{ id: number; name: string }>) => {
       setPartyOptions(options.map((option) => ({ value: String(option.id), label: option.name })));
     });
 
@@ -372,8 +373,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
 
         <div>
           <label className="mb-2 block text-sm font-medium">Purchase Date *</label>
-          <input
-            type="date"
+          <DateInput
             name="purchaseDate"
             value={purchaseDate}
             onChange={(e) => setPurchaseDate(e.target.value)}

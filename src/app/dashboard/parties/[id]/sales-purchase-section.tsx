@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
+import { DateInput } from '@/components/ui/date-input';
 import { formatDateBD as formatDate, toDateInputValueBD as toDateInputValue, todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 import { getProductTypeLabel } from '@/lib/product-types';
 
@@ -237,8 +238,7 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
           headerActions={(
             <>
               <div className="flex flex-col gap-1">
-                <input
-                  type="date"
+                <DateInput
                   value={dateFrom}
                   onChange={(event) => setDateFrom(event.target.value)}
                   className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
@@ -246,8 +246,7 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <input
-                  type="date"
+                <DateInput
                   value={dateTo}
                   onChange={(event) => setDateTo(event.target.value)}
                   className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
@@ -291,8 +290,7 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
           headerActions={(
             <>
               <div className="flex flex-col gap-1">
-                <input
-                  type="date"
+                <DateInput
                   value={dateFrom}
                   onChange={(event) => setDateFrom(event.target.value)}
                   className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
@@ -300,8 +298,7 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <input
-                  type="date"
+                <DateInput
                   value={dateTo}
                   onChange={(event) => setDateTo(event.target.value)}
                   className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"

@@ -7,6 +7,7 @@ import { Pagination } from '@/components/ui/pagination';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { PartyPaymentsSection } from './party-payments-section';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
+import { DateInput } from '@/components/ui/date-input';
 import { formatDateBD as formatDate, toDateInputValueBD as toDateInputValue, todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type PaymentRow = {
@@ -187,8 +188,7 @@ export function TransactionTabs({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <input
-                type="date"
+              <DateInput
                 value={dateFrom}
                 onChange={(event) => setDateFrom(event.target.value)}
                 className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
@@ -196,8 +196,7 @@ export function TransactionTabs({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <input
-                type="date"
+              <DateInput
                 value={dateTo}
                 onChange={(event) => setDateTo(event.target.value)}
                 className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"

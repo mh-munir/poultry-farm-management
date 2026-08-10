@@ -11,6 +11,7 @@ import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobo
 import { deleteStockItem, updateStockItem } from '@/features/stock/actions';
 import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
+import { DateInput } from '@/components/ui/date-input';
 import { todayDateInputValueBD as todayDateStr, formatDateBD } from '@/lib/dates';
 
 export interface StockItem {
@@ -446,8 +447,7 @@ export function StockManagement({
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Purchase Date</label>
-                <input
-                  type="date"
+                <DateInput
                   name="transactionDate"
                   value={transactionDate}
                   onChange={(event) => setTransactionDate(event.target.value)}

@@ -6,6 +6,7 @@ import { Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { DateInput } from '@/components/ui/date-input';
 import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
 type Props = {
@@ -33,6 +34,7 @@ export default function PaymentFormDialog({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentDate, setPaymentDate] = useState(todayDateStr());
   const router = useRouter();
   const { success, error: showError } = useToast();
 
@@ -87,12 +89,12 @@ export default function PaymentFormDialog({
 
           <div>
             <label className="mb-2 block text-form-label">Payment date</label>
-            <input
-              type="date"
+            <DateInput
               name="paymentDate"
+              value={paymentDate}
+              onChange={(event) => setPaymentDate(event.target.value)}
               required
-              defaultValue={todayDateStr()}
-              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             />
           </div>
 

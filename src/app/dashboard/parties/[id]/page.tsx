@@ -416,7 +416,7 @@ export default async function PartyProfilePage({
                 {party.isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex flex-col md:flex-row items-center justify-end gap-2">
               <PartyRowActions
                 editOnly
                 party={{
@@ -436,7 +436,7 @@ export default async function PartyProfilePage({
                 }}
                 editButtonClassName="h-[42px] bg-secondary text-secondary-foreground hover:bg-secondary/80"
               />
-              <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
+              <div className="flex flex-col md:flex-row items-center gap-2 overflow-x-auto">
                 {isCustomer ? (
                   <SalesEntryPopup
                     partyOptions={customersForSales}
