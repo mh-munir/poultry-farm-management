@@ -86,7 +86,15 @@ const purchaseItemSchema = z.object({
 
 const purchaseSchema = z.object({
   partyId: z.string().optional(),
-  companyId: z.string().optional(),
+  companyId: z.preprocess((value) => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed === '') return undefined;
+      const parsed = Number(trimmed);
+      return Number.isInteger(parsed) && parsed > 0 ? parsed : value;
+    }
+    return value;
+  }, z.number().int().positive('Selected company is invalid.').optional()),
   newPartyName: z.string().trim().optional(),
   newCompanyName: z.string().trim().optional(),
   paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'CHEQUE', 'MOBILE_MONEY', 'OTHER']),
@@ -245,9 +253,25 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
       let partyIdToUse: number | undefined;
 
       if (supplierType === 'company') {
-        let companyId = data.companyId ? Number(data.companyId) : undefined;
+        const companyId = data.companyId;
 
-        if (!companyId && data.newCompanyName) {
+        if (companyId) {
+          const company = await tx.company.findUnique({
+            where: { id: companyId },
+            select: { companyType: true }
+          });
+
+          if (!company) {
+            throw new Error('Selected company does not exist. Please select a valid company.');
+          }
+
+          const invalidItem = items.find((item) => !isProductTypeAllowedForCompanyType(item.productType, company.companyType));
+          if (invalidItem) {
+            throw new Error(`Company type "${company.companyType}" does not allow purchasing product type "${invalidItem.productType}".`);
+          }
+
+          companyIdToUse = companyId;
+        } else if (data.newCompanyName) {
           const normalizedName = data.newCompanyName.trim();
           const existingCompany = await tx.company.findFirst({
             where: {
@@ -258,7 +282,7 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
             }
           });
           if (existingCompany) {
-            companyId = existingCompany.id;
+            companyIdToUse = existingCompany.id;
           } else {
             const productTypes = new Set(items.map((item) => item.productType));
             let companyType = getCompanyTypeForProductTypes(productTypes);
@@ -269,25 +293,9 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
                 isActive: true
               }
             });
-            companyId = newCompany.id;
+            companyIdToUse = newCompany.id;
           }
         }
-
-        if (companyId) {
-          const company = await tx.company.findUnique({
-            where: { id: companyId },
-            select: { companyType: true }
-          });
-
-          if (company) {
-            const invalidItem = items.find((item) => !isProductTypeAllowedForCompanyType(item.productType, company.companyType));
-            if (invalidItem) {
-              throw new Error(`Company type "${company.companyType}" does not allow purchasing product type "${invalidItem.productType}".`);
-            }
-          }
-        }
-
-        companyIdToUse = companyId;
       } else {
         let partyId = data.partyId ? Number(data.partyId) : undefined;
         if (!partyId && data.newPartyName) {
@@ -475,6 +483,13 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
           quantityOnHand: newQuantity,
           averageCost: newAverageCost
         };
+
+        if (companyIdToUse) {
+          await tx.product.updateMany({
+            where: { id: productId, companyId: null },
+            data: { companyId: companyIdToUse }
+          });
+        }
 
         await tx.stockBalance.upsert({
           where: { productId },

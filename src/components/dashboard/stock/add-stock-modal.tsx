@@ -118,7 +118,7 @@ export function AddStockModal({
   };
 
   const getProductDisplayLabel = (product: StockItem) => {
-    return product.unit ? `${product.name} (${product.unit})` : product.name;
+    return product.unit ? `${product.name} — ${product.unit}` : product.name;
   };
 
   const handleRowChange = (rowId: number, field: keyof StockRow, value: string) => {
@@ -126,15 +126,18 @@ export function AddStockModal({
       const normalizedValue = value.trim().toLowerCase();
       updateRow(rowId, 'productName', value);
 
-      const exactMatch = availableProducts.find((p) => getProductDisplayLabel(p).toLowerCase() === normalizedValue);
-      const nameMatches = availableProducts.filter((p) => p.name.trim().toLowerCase() === normalizedValue);
-      const product = exactMatch ?? (nameMatches.length === 1 ? nameMatches[0] : undefined);
+      // Match by the full display label (name + unit/variant identity), never by name alone.
+      // This ensures medicine variants with the same name but different gram/weight
+      // remain distinct and are never merged into a single Product record.
+      const exactMatch = availableProducts.find(
+        (p) => getProductDisplayLabel(p).toLowerCase() === normalizedValue
+      );
 
-      if (product) {
-        updateRow(rowId, 'productId', String(product.id ?? ''));
-        updateRow(rowId, 'buyRate', String(product.buyRate ?? '0'));
-        if (product.unit) {
-          updateRow(rowId, 'unit', product.unit);
+      if (exactMatch) {
+        updateRow(rowId, 'productId', String(exactMatch.id ?? ''));
+        updateRow(rowId, 'buyRate', String(exactMatch.buyRate ?? '0'));
+        if (exactMatch.unit) {
+          updateRow(rowId, 'unit', exactMatch.unit);
         }
       } else {
         updateRow(rowId, 'productId', '');

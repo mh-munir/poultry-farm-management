@@ -3,7 +3,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { Client } from 'pg';
 
-dotenv.config({ path: '.env.local' });
+dotenv.config();
 const outDir = path.resolve('debug', 'reports');
 fs.mkdirSync(outDir, { recursive: true });
 const outPath = path.join(outDir, 'pg-inspect.json');

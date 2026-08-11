@@ -12,7 +12,23 @@ export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE' | 'CH
       isActive: true,
       isArchived: false,
       productType,
-      ...(companyId !== undefined && companyId !== null ? { companyId } : {})
+      ...(companyId !== undefined && companyId !== null
+        ? {
+            OR: [
+              { companyId },
+              {
+                transactionItems: {
+                  some: {
+                    transaction: {
+                      companyId,
+                      transactionType: 'PURCHASE'
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        : {})
     },
     select: {
       id: true,

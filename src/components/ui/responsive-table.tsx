@@ -159,7 +159,7 @@ export function DataTable({
 }: ResponsiveTableProps) {
   return (
     <ResponsiveTable minWidth={minWidth} className={className} stickyLastColumn={stickyLastColumn}>
-      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="overflow-hidden">
         <table
           className={cn(
             'data-table w-full border-separate border-spacing-0 text-left',

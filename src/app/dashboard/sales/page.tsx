@@ -48,7 +48,10 @@ export default async function SalesPage({
     id: product.id,
     name: product.name,
     code: product.code,
-    defaultSellingPrice: Number(product.defaultSellingPrice ?? 0)
+    unit: product.unit,
+    defaultSellingPrice: Number(product.defaultSellingPrice ?? 0),
+    defaultPurchasePrice: Number(product.stockMovements?.[0]?.unitCost ?? product.defaultPurchasePrice ?? 0),
+    stockQuantity: Number(product.stockBalance?.quantityOnHand ?? 0)
   }));
 
   return (

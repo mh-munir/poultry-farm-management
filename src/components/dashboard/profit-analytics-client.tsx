@@ -344,12 +344,11 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[28px] border border-slate-200/70 bg-white/95 p-6 shadow-[0_18px_60px_-28px_rgba(15,23,42,0.16)] sm:p-7">
+      <div className="bg-white/95">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">Profit Analytics</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Track your business profit and performance</h1>
-            <p className="mt-2 text-sm text-slate-500">Premium analytics for monitoring revenue, cost efficiency, and product profitability.</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Profit Analytics</h1>
+            <p className="mt-2 text-sm text-slate-500">Track profit, revenue & performance.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" onClick={handleExportPdf} className="inline-flex h-11 items-center justify-center gap-2 rounded-[20px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">

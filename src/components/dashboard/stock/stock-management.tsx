@@ -20,7 +20,7 @@ export interface StockItem {
   quantity: number;
   buyRate: number;
   salesRate: number;
-  unit?: string;
+  unit?: string | null;
   productType?: string;
   companyId?: number | null;
   lastTransactionDate?: Date | string | null;
@@ -116,6 +116,8 @@ export function StockManagement({
       setPartyId(defaultCompanyId);
     }
   }, [defaultCompanyId, defaultCompanyName]);
+
+  const productVariantLabel = stockType === 'MEDICINE' ? 'Gram / Weight' : 'Unit';
 
   const totalStockValue = useMemo(() => {
     return items.reduce((total, item) => total + item.quantity * item.buyRate, 0);
@@ -279,21 +281,26 @@ export function StockManagement({
   }, []);
 
   const getProductDisplayLabel = (product: StockItem) => {
-    return product.unit ? `${product.name} (${product.unit})` : product.name;
+    return product.unit ? `${product.name} — ${product.unit}` : product.name;
   };
 
   const handleRowChange = useCallback((rowId: number, field: keyof StockRow, value: string) => {
     if (field === 'productName') {
       const normalizedValue = value.trim().toLowerCase();
       updateRow(rowId, 'productName', value);
-      const exactMatch = availableProducts.find((p) => getProductDisplayLabel(p).toLowerCase() === normalizedValue);
-      const nameMatches = availableProducts.filter((p) => p.name.trim().toLowerCase() === normalizedValue);
-      const product = exactMatch ?? (nameMatches.length === 1 ? nameMatches[0] : undefined);
-      if (product) {
-        updateRow(rowId, 'productId', String(product.id ?? ''));
-        updateRow(rowId, 'buyRate', String(product.buyRate ?? '0'));
-        if (product.unit) {
-          updateRow(rowId, 'unit', product.unit);
+
+      // Match by the full display label (name + unit/variant identity), never by name alone.
+      // This ensures medicine variants with the same name but different gram/weight
+      // remain distinct and are never merged into a single Product record.
+      const exactMatch = availableProducts.find(
+        (p) => getProductDisplayLabel(p).toLowerCase() === normalizedValue
+      );
+
+      if (exactMatch) {
+        updateRow(rowId, 'productId', String(exactMatch.id ?? ''));
+        updateRow(rowId, 'buyRate', String(exactMatch.buyRate ?? '0'));
+        if (exactMatch.unit) {
+          updateRow(rowId, 'unit', exactMatch.unit);
         }
       } else {
         updateRow(rowId, 'productId', '');
@@ -373,12 +380,12 @@ export function StockManagement({
 
   const SectionWrapper = asSection ? 'section' : 'main';
   const sectionClassName = asSection
-    ? 'mx-auto w-full max-w-screen-3xl px-2 py-4 sm:px-4'
-    : 'mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4 sm:px-4';
+    ? 'mx-auto w-full max-w-screen-3xl'
+    : 'mx-auto min-h-[80vh] max-w-screen-3xl';
 
   return (
     <SectionWrapper className={sectionClassName}>
-      <div className="rounded-2xl border bg-card p-4 shadow-sm sm:p-6">
+      <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{title}</h1>
@@ -779,6 +786,7 @@ export function StockManagement({
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Date</th>
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Company Name</th>
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{title} Name</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{productVariantLabel}</th>
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Quantity</th>
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Paid</th>
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Due</th>
@@ -790,11 +798,12 @@ export function StockManagement({
                 {items.map((item, index) => {
                   const rowKey = item.id ?? index;
                   return (
-                    <tr key={`${rowKey}-${item.buyRate}`} className="hover:bg-muted/30">
+                    <tr key={`${rowKey}-${item.buyRate}-${item.unit || ''}`} className="hover:bg-muted/30">
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{item.lastTransactionDate ? formatDateBD(item.lastTransactionDate) : '-'}</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{item.companyName || '-'}</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{item.name}</td>
-                      <td className="px-2 py-2 sm:px-4 sm:py-3">{item.quantity} {item.unit || ''}</td>
+                      <td className="px-2 py-2 sm:px-4 sm:py-3 font-mono">{item.unit || '-'}</td>
+                      <td className="px-2 py-2 sm:px-4 sm:py-3">{item.quantity}</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{Number(item.paidAmount ?? 0).toFixed(2)} TK</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3">{Number(item.dueAmount ?? 0).toFixed(2)} TK</td>
                       <td className="px-2 py-2 sm:px-4 sm:py-3 font-medium">{(item.quantity * item.buyRate).toFixed(2)} TK</td>
@@ -851,7 +860,7 @@ export function StockManagement({
                 })}
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                       No stock entries found.
                     </td>
                   </tr>

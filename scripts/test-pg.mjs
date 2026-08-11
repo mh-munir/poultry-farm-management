@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import pg from 'pg';
 
-// Usage: DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/test-pg.mjs DATABASE_URL
+// Usage: node -r dotenv/config scripts/test-pg.mjs DATABASE_URL
 // Default var: DATABASE_URL
 const varName = process.argv[2] || 'DATABASE_URL';
 const conn = process.env[varName];

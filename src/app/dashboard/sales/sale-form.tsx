@@ -15,7 +15,10 @@ export type ProductOption = {
   id: number;
   name: string;
   code: string;
+  unit?: string;
   defaultSellingPrice: number;
+  defaultPurchasePrice?: number | null;
+  stockQuantity?: number;
 };
 
 type SaleItemRow = {
@@ -119,9 +122,11 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
                 className="rounded-md border bg-background px-3 py-2"
               >
                 <option value="">Select product</option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>{product.name} ({product.code})</option>
-                ))}
+                 {products.map((product) => (
+                   <option key={product.id} value={product.id}>
+                     {product.name}{product.code ? ` (${product.code})` : ''} — {product.unit || '-'} — Stock {product.stockQuantity ?? 0} — Buy {product.defaultPurchasePrice != null ? `৳${Number(product.defaultPurchasePrice).toFixed(2)}` : ''} — Sell ৳{Number(product.defaultSellingPrice ?? 0).toFixed(2)}
+                   </option>
+                 ))}
               </select>
               <input
                 type="number"

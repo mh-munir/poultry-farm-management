@@ -15,11 +15,11 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "node prisma/seed.js",
-    "prisma:validate:local": "node --env-file=.env.local ./node_modules/prisma/build/index.js validate --schema=prisma/schema.prisma",
-    "prisma:generate:local": "node --env-file=.env.local ./node_modules/prisma/build/index.js generate --schema=prisma/schema.prisma",
-    "prisma:push:local": "node --env-file=.env.local ./node_modules/prisma/build/index.js db push --schema=prisma/schema.prisma",
-    "prisma:push:local:preview": "node --env-file=.env.local ./node_modules/prisma/build/index.js db push --schema=prisma/schema.prisma --print",
-    "prisma:migrate:local": "node --env-file=.env.local ./node_modules/prisma/build/index.js migrate dev --schema=prisma/schema.prisma"
+    "prisma:validate:local": "node ./node_modules/prisma/build/index.js validate --schema=prisma/schema.prisma",
+    "prisma:generate:local": "node ./node_modules/prisma/build/index.js generate --schema=prisma/schema.prisma",
+    "prisma:push:local": "node ./node_modules/prisma/build/index.js db push --schema=prisma/schema.prisma",
+    "prisma:push:local:preview": "node ./node_modules/prisma/build/index.js db push --schema=prisma/schema.prisma --print",
+    "prisma:migrate:local": "node ./node_modules/prisma/build/index.js migrate dev --schema=prisma/schema.prisma"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",

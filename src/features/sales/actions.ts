@@ -494,7 +494,7 @@ export async function getProductsForSales() {
       stockBalance: { select: { quantityOnHand: true } },
       stockMovements: {
         where: { movementType: 'PURCHASE' },
-        orderBy: { createdAt: 'asc' },
+        orderBy: { createdAt: 'desc' },
         take: 1,
         select: { unitCost: true }
       }

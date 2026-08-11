@@ -21,10 +21,10 @@ if (fs.existsSync(envLocalPath)) {
 
 report.cli.prismaBin = './node_modules/.bin/prisma';
 report.cli.command = 'node -r dotenv/config ./node_modules/.bin/prisma db push --schema=prisma/schema.prisma --print';
-report.cli.env = { DOTENV_CONFIG_PATH: '.env.local' };
+report.cli.env = {};
 
 try {
-  const stdout = execSync(report.cli.command, { env: { ...process.env, DOTENV_CONFIG_PATH: '.env.local' }, encoding: 'utf8', stdio: ['pipe','pipe','pipe'], timeout: 30000 });
+  const stdout = execSync(report.cli.command, { env: process.env, encoding: 'utf8', stdio: ['pipe','pipe','pipe'], timeout: 30000 });
   report.prismaPrint = { success: true, output: stdout.slice(0,20000) };
 } catch (e) {
   report.prismaPrint = { success: false, output: (e.stdout || e.stderr || String(e.message)).toString().slice(0,20000) };

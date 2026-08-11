@@ -391,12 +391,12 @@ export function SalesEntryPopup({
                       <option value="">Select stock product</option>
                        {visibleProductOptions.map((product) => (
                          <option key={product.id} value={product.id}>
-                           {product.name} - {getProductTypeLabel(product.productType)} - Stock {product.stockQuantity} {product.unit}
+                           {product.name}{product.code ? ` (${product.code})` : ''} — {product.unit} — {getProductTypeLabel(product.productType)} — Stock {product.stockQuantity} {product.unit}{product.defaultPurchasePrice != null ? ` — Buy ৳${Number(product.defaultPurchasePrice).toFixed(2)}` : ''}
                          </option>
                        ))}
                     </select>
                     <p className="mt-1 text-xs text-muted-foreground" aria-hidden={!selectedProduct}>
-                      {selectedProduct ? `Stock: ${selectedProduct.stockQuantity} ${selectedProduct.unit}` : '\u00A0'}
+                      {selectedProduct ? `Stock: ${selectedProduct.stockQuantity} ${selectedProduct.unit} | Buy: ৳${Number(selectedProduct.defaultPurchasePrice ?? 0).toFixed(2)}` : '\u00A0'}
                     </p>
                   </div>
 

@@ -1,0 +1,47 @@
+PrismaClientValidationError: 
+Invalid `prisma.product.groupBy()` invocation:
+
+{
+  select: {
+    _count: {
+      select: {
+        _all: true
+      }
+    },
+    name: true,
+    unit: true,
+    companyId: true
+  },
+  by: [
+    "name",
+    "unit",
+    "companyId"
+  ],
+  orderBy: {
+    _count: {
+      _all: "desc",
+      ~~~~
+?     id?: SortOrder,
+?     code?: SortOrder,
+?     name?: SortOrder,
+?     productType?: SortOrder,
+?     unit?: SortOrder,
+?     categoryId?: SortOrder,
+?     defaultPurchasePrice?: SortOrder,
+?     defaultSellingPrice?: SortOrder,
+?     barcode?: SortOrder,
+?     imageUrl?: SortOrder,
+?     lowStockThreshold?: SortOrder,
+?     isActive?: SortOrder,
+?     createdAt?: SortOrder,
+?     updatedAt?: SortOrder,
+?     createdById?: SortOrder,
+?     companyId?: SortOrder,
+?     deletedAt?: SortOrder,
+?     isArchived?: SortOrder
+    }
+  },
+  take: 50
+}
+
+Unknown argument `_all`. Did you mean `name`? Available options are marked with ?.

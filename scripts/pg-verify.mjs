@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { Client } from 'pg';
 import { execSync } from 'child_process';
 
-dotenv.config({ path: '.env.local' });
+dotenv.config();
 const outDir = path.resolve('debug', 'reports');
 const outPath = path.join(outDir, 'pg-verification.json');
 const report = {
@@ -65,7 +65,6 @@ const report = {
 
     // prisma validate
     try {
-      process.env.DOTENV_CONFIG_PATH = '.env.local';
       execSync('node -r dotenv/config ./node_modules/.bin/prisma validate --schema=prisma/schema.prisma', { encoding: 'utf8', stdio: ['pipe','pipe','pipe'], timeout: 20000 });
       report.prismaValidate.success = true;
       report.prismaValidate.output = 'VALID';
