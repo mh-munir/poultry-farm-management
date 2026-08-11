@@ -35,7 +35,7 @@ export function Sidebar({ open, onClose, branding }: { open?: boolean; onClose?:
             </div>
             <div className="text-center">
               {brandingName ? (
-                <div className="text-base font-semibold leading-10 text-foreground whitespace-pre-wrap break-words">
+                <div className="text-base font-semibold leading-5 text-foreground whitespace-pre-wrap break-words">
                   {brandingName}
                 </div>
               ) : null}
