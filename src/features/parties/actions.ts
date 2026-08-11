@@ -665,7 +665,7 @@ export async function getPartyPageData({
   };
 }
 
-export async function getPartyStats(args: { search?: string; partyType?: string; status?: string }) {
+export async function getPartyStats(args: { search?: string; partyType?: string; status?: string; period?: 'all' | 'month' }) {
   await requireUser();
   const filters: PartyWhereInput[] = [];
 
@@ -683,6 +683,11 @@ export async function getPartyStats(args: { search?: string; partyType?: string;
 
   if (args.status && args.status !== 'ALL') {
     filters.push({ isActive: args.status === 'ACTIVE' });
+  }
+
+  if (args.period === 'month') {
+    const now = new Date();
+    filters.push({ createdAt: { gte: new Date(now.getFullYear(), now.getMonth(), 1) } });
   }
 
   const where: PartyWhereInput = filters.length > 0 ? { AND: filters } : {};

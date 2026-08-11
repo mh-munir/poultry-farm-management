@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { createCompany } from '@/features/companies/actions';
@@ -30,6 +31,7 @@ export function AddCompanyDialog() {
   return (
     <>
       <Button onClick={() => setIsAddOpen(true)} className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">
+        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
         Add Company
       </Button>
 

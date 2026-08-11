@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Receipt, Users, Package2 } from 'lucide-react';
 import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
 
@@ -7,7 +6,7 @@ type SerializableDecimal = number | string | { toString(): string } | null;
 import { Button } from '@/components/ui/button';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { Pagination } from '@/components/ui/pagination';
-import { StatCard } from '@/components/dashboard/stat-card';
+import { PartiesOverview } from '@/components/dashboard/parties-overview';
 import { AddPartyDialog } from '@/app/dashboard/parties/add-party-dialog';
 import { PartyToast } from './party-toast';
 import { PartySearchForm } from './search-form';
@@ -90,6 +89,7 @@ export default async function PartiesPage({
     status?: string;
     error?: string;
     success?: string;
+    overviewPeriod?: string;
   }>;
 }) {
   await requireUser();
@@ -104,6 +104,7 @@ export default async function PartiesPage({
   const partyType = params?.partyType ?? 'ALL';
   const status = params?.status ?? 'ALL';
   const error = params?.error ?? '';
+  const overviewPeriod = params?.overviewPeriod === 'month' ? 'month' : 'all';
 
   const buildPaginationHref = (pageNumber: number) => {
     const query = new URLSearchParams({
@@ -117,7 +118,7 @@ export default async function PartiesPage({
 
   const [data, stats, partyOptions, products] = await Promise.all([
     getPartyPageData({ page, search, partyType, status }),
-    getPartyStats({ search, partyType, status }),
+    getPartyStats({ search, partyType, status, period: overviewPeriod }),
     getPartyNames(),
     getProductsForSales()
   ]);
@@ -145,15 +146,7 @@ export default async function PartiesPage({
         <h1 className="mt-2 text-3xl font-semibold">Manage customers and parties</h1>
       </div>
 
-      {/* Parties Stats */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-4 shadow-sm mb-6">
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 flex-1">
-          <StatCard title="Total Parties" value={stats.total} icon={Users} accent="bg-indigo-50 text-indigo-600" />
-          <StatCard title="Active Parties" value={stats.active} icon={Package2} accent="bg-emerald-50 text-emerald-600" />
-          <StatCard title="Customers" value={stats.customers} icon={Receipt} accent="bg-sky-50 text-sky-600" />
-          <StatCard title="Party Suppliers" value={stats.suppliers} icon={Receipt} accent="bg-amber-50 text-amber-600" />
-        </div>
-      </div>
+      <PartiesOverview stats={stats} period={overviewPeriod} />
 
       {/* Parties Header */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-2 sm:mb-6 justify-between">

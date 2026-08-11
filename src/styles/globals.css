@@ -53,6 +53,94 @@
   --ring: 142 76% 36%;
 }
 
+/*
+ * Some older screens use Tailwind's fixed white/slate/gray utility classes.
+ * Keep those screens readable when the theme is dark without changing their
+ * markup or behaviour. Print styles below still deliberately render on white.
+ */
+@media screen {
+.dark [class*="bg-white"] {
+  background-color: hsl(var(--card)) !important;
+}
+
+.dark [class*="from-white"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: hsl(var(--card) / 0) var(--tw-gradient-to-position) !important;
+}
+
+.dark [class*="via-white"] {
+  --tw-gradient-to: hsl(var(--card) / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), hsl(var(--card)) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+
+.dark [class*="to-white"] {
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+.dark [class*="bg-slate-50"],
+.dark [class*="bg-gray-50"],
+.dark [class*="bg-slate-100"],
+.dark [class*="bg-gray-100"],
+.dark [class*="bg-amber-50"],
+.dark [class*="bg-orange-50"],
+.dark [class*="bg-rose-50"],
+.dark [class*="bg-red-50"],
+.dark [class*="bg-emerald-50"],
+.dark [class*="bg-green-50"],
+.dark [class*="bg-teal-50"],
+.dark [class*="bg-sky-50"],
+.dark [class*="bg-blue-50"],
+.dark [class*="bg-indigo-50"],
+.dark [class*="bg-violet-50"],
+.dark [class*="bg-purple-50"],
+.dark [class*="bg-cyan-50"] {
+  background-color: hsl(var(--muted)) !important;
+}
+
+.dark [class*="bg-slate-200"],
+.dark [class*="bg-gray-200"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+.dark [class*="border-slate-50"],
+.dark [class*="border-gray-50"],
+.dark [class*="border-slate-100"],
+.dark [class*="border-gray-100"],
+.dark [class*="border-slate-200"],
+.dark [class*="border-gray-200"],
+.dark [class*="border-slate-300"],
+.dark [class*="border-gray-300"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+.dark [class*="divide-slate-100"] > :not([hidden]) ~ :not([hidden]),
+.dark [class*="divide-gray-100"] > :not([hidden]) ~ :not([hidden]),
+.dark [class*="divide-slate-200"] > :not([hidden]) ~ :not([hidden]),
+.dark [class*="divide-gray-200"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: hsl(var(--border)) !important;
+}
+
+.dark [class*="text-slate-950"],
+.dark [class*="text-gray-950"],
+.dark [class*="text-slate-900"],
+.dark [class*="text-gray-900"],
+.dark [class*="text-slate-800"],
+.dark [class*="text-gray-800"],
+.dark [class*="text-slate-700"],
+.dark [class*="text-gray-700"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+.dark [class*="text-slate-600"],
+.dark [class*="text-gray-600"],
+.dark [class*="text-slate-500"],
+.dark [class*="text-gray-500"],
+.dark [class*="text-slate-400"],
+.dark [class*="text-gray-400"] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+}
+
 body {
   @apply min-h-screen bg-background text-foreground antialiased font-sans;
   font-variant-numeric: tabular-nums;
