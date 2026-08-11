@@ -62,7 +62,7 @@ export default async function NewProductPage() {
 
           <div>
             <label className="mb-2 block text-sm font-medium">Product Type</label>
-            <select name="productType" defaultValue="CHICK" className="w-full rounded-md border bg-background px-3 py-2">
+            <select name="productType" defaultValue="CHICK" className="w-full form-select">
               {PRODUCT_TYPES.map((type) => (
                 <option key={type.value} value={type.value}>{type.label}</option>
               ))}
@@ -71,7 +71,7 @@ export default async function NewProductPage() {
 
           <div>
             <label className="mb-2 block text-sm font-medium">Unit</label>
-            <select name="unit" defaultValue="pcs" className="w-full rounded-md border bg-background px-3 py-2">
+            <select name="unit" defaultValue="pcs" className="w-full form-select">
               {UNIT_OPTIONS.map((unit) => (
                 <option key={unit.value} value={unit.value}>{unit.label}</option>
               ))}
@@ -80,7 +80,7 @@ export default async function NewProductPage() {
 
           <div>
             <label className="mb-2 block text-sm font-medium">Category</label>
-            <select name="categoryId" className="w-full rounded-md border bg-background px-3 py-2">
+            <select name="categoryId" className="w-full form-select">
               <option value="">Select category</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>{category.name}</option>

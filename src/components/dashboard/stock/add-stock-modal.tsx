@@ -397,7 +397,7 @@ export function AddStockModal({
                 name="paymentMethod"
                 value={paymentMethod}
                 onChange={(event) => setPaymentMethod(event.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                className="w-full form-select"
               >
                 {paymentMethodOptions.map((option) => (
                   <option key={option.value} value={option.value}>

@@ -96,10 +96,10 @@ export function AlertDialog({
 
         <div className="text-center">
           <h3 className={`text-base font-semibold ${config.titleClass}`}>{title}</h3>
-          <p className="mt-2 text-sm text-gray-600">{message}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{message}</p>
         </div>
 
-        <div className="mt-4 flex gap-3 w-full justify-center">
+        <div className="mt-4 flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
           {variant === 'error' && (
             <>
               <Button variant="outline" onClick={handleClose}>

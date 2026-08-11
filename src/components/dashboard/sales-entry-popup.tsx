@@ -313,13 +313,13 @@ export function SalesEntryPopup({
             />
             <input type="hidden" name="partyId" value={salesPartyId ?? ''} />
             {showPartySuggestions && (
-              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-white shadow-xl">
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl border bg-white shadow-xl">
                 {matchingPartyOptions.length > 0 ? matchingPartyOptions.map((party) => (
                   <button
                     key={party.id}
                     type="button"
                     onMouseDown={() => selectPartySuggestion(party)}
-                    className="block w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-100"
+                    className="block w-full px-3.5 py-2.5 text-left text-sm text-slate-900 hover:bg-slate-100 transition-colors"
                   >
                     {party.name}
                   </button>
@@ -355,7 +355,7 @@ export function SalesEntryPopup({
                 autoComplete="off"
                 value={salesProduct}
                 onChange={(event) => handleSalesProductTypeChange(event.target.value as 'feeds' | 'medicin' | 'chick' | 'both')}
-                className="w-full rounded-md border bg-background px-3 py-2"
+                className="w-full form-select"
               >
                 <option value="feeds">Feeds</option>
                 <option value="medicin">Medicin</option>
@@ -386,7 +386,7 @@ export function SalesEntryPopup({
                       required={index === 0}
                       value={row.productId}
                       onChange={(event) => handleProductRowChange(row.rowId, 'productId', event.target.value)}
-                      className="w-full h-10 rounded-md border bg-background px-3 py-2 text-sm truncate"
+                      className="w-full form-select truncate"
                     >
                       <option value="">Select stock product</option>
                        {visibleProductOptions.map((product) => (

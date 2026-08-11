@@ -260,7 +260,7 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
                 id="salesProductTypeFilter"
                 value={salesTypeFilter}
                 onChange={(event) => setSalesTypeFilter(event.target.value as ProductTypeFilter)}
-                className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                className="form-select"
               >
                 <option value="ALL">All</option>
                 <option value="FEED">Feeds</option>
@@ -312,7 +312,7 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
                 id="purchaseProductTypeFilter"
                 value={purchaseTypeFilter}
                 onChange={(event) => setPurchaseTypeFilter(event.target.value as ProductTypeFilter)}
-                className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                className="form-select"
               >
                 <option value="ALL">All</option>
                 <option value="EGG">Egg</option>

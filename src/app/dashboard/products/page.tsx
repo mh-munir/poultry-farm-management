@@ -118,7 +118,7 @@ export default async function ProductsPage({
               <select
                 name="categoryId"
                 defaultValue={categoryId}
-                className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                className="form-select"
               >
                 <option value="ALL">All Categories</option>
                 {categories.map((category) => (
@@ -128,7 +128,7 @@ export default async function ProductsPage({
               <select
                 name="productType"
                 defaultValue={productType}
-                className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                className="form-select"
               >
                 {PRODUCT_TYPES.map((type) => (
                   <option key={type} value={type}>{type === 'ALL' ? 'All Types' : getProductTypeLabel(type)}</option>

@@ -51,7 +51,7 @@ export default async function NewPartyPage() {
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Party type</label>
-            <select name="partyType" defaultValue="BOTH" className="w-full rounded-md border bg-background px-3 py-2">
+            <select name="partyType" defaultValue="BOTH" className="w-full form-select">
               <option value="CUSTOMER">Customer</option>
               <option value="PARTY">Party Supplier (Eggs & Chicken)</option>
               <option value="BOTH">Customer + Party Supplier</option>

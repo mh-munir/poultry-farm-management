@@ -73,6 +73,12 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
     prisma.payment.findMany({ where: { partyId }, orderBy: { paymentDate: 'desc' } })
   ]);
 
+  const latestLedger = await prisma.ledgerEntry.findFirst({
+    where: { partyId },
+    orderBy: [{ entryDate: 'desc' }, { id: 'desc' }],
+    select: { runningBalance: true }
+  });
+
   const productRows = transactions.flatMap((transaction) =>
     transaction.transactionItems.map((item) => ({
       id: `${transaction.id}-${item.id}`,
@@ -97,7 +103,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
   const currentDue = totalSales - totalPayments;
   const supplierPayable = totalSupplies - totalPayments;
   const openingBalance = Number(party.openingBalance ?? 0);
-  const netBalance = openingBalance + currentDue - supplierPayable;
+  const netBalance = Number(latestLedger?.runningBalance?.toString?.() ?? openingBalance);
   const printDate = new Date();
 
   return (

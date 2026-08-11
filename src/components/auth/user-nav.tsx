@@ -60,32 +60,32 @@ export function UserNav() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-3 w-72 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
-          <div className="bg-slate-50 px-4 py-4">
+        <div className="absolute right-0 z-50 mt-3 w-72 overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
+          <div className="bg-muted/30 px-4 py-4">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-700 ring-1 ring-cyan-200">
                 {initials}
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-900">{displayName}</p>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{role}</p>
+                <p className="text-sm font-semibold text-foreground">{displayName}</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{role}</p>
               </div>
             </div>
-            <p className="mt-3 text-xs text-slate-500">Welcome back 👋</p>
+            <p className="mt-3 text-xs text-muted-foreground">Welcome back 👋</p>
           </div>
 
-          <div className="divide-y divide-slate-200">
+          <div className="divide-y divide-border">
             <div className="space-y-1 px-2 py-3">
-              <Link href="/dashboard/settings/users" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100">
-                <User size={16} className="text-slate-500" />
+              <Link href="/dashboard/settings/users" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-foreground transition hover:bg-muted/40">
+                <User size={16} className="text-muted-foreground" />
                 <span>Profile</span>
               </Link>
-              <button type="button" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100">
-                <Bell size={16} className="text-slate-500" />
+              <button type="button" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-foreground transition hover:bg-muted/40">
+                <Bell size={16} className="text-muted-foreground" />
                 <span>Notifications</span>
               </button>
-              <Link href="/dashboard/settings" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100">
-                <Settings size={16} className="text-slate-500" />
+              <Link href="/dashboard/settings" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-foreground transition hover:bg-muted/40">
+                <Settings size={16} className="text-muted-foreground" />
                 <span>Account Settings</span>
               </Link>
             </div>
@@ -94,9 +94,9 @@ export function UserNav() {
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: '/auth/sign-in' })}
-                className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-slate-700 transition hover:bg-slate-100"
+                className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-foreground transition hover:bg-muted/40"
               >
-                <LogOut size={16} className="text-slate-500" />
+                <LogOut size={16} className="text-muted-foreground" />
                 <span>Log Out</span>
               </button>
             </div>

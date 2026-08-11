@@ -43,6 +43,56 @@ function formatDateInput(value: string) {
   return `${year}-${month}-${day}`;
 }
 
+function getInitialPreset(start: string, end: string): PresetValue {
+  const now = new Date();
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+  if (startDate.getTime() === todayStart.getTime() && endDate.getTime() === tomorrowStart.getTime()) {
+    return 'today';
+  }
+
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  if (startDate.getTime() === yesterdayStart.getTime() && endDate.getTime() === todayStart.getTime()) {
+    return 'yesterday';
+  }
+
+  const sevenDaysAgo = new Date(todayStart);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  if (startDate.getTime() === sevenDaysAgo.getTime() && endDate.getTime() === tomorrowStart.getTime()) {
+    return '7';
+  }
+
+  const thirtyDaysAgo = new Date(todayStart);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+  if (startDate.getTime() === thirtyDaysAgo.getTime() && endDate.getTime() === tomorrowStart.getTime()) {
+    return '30';
+  }
+
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  if (startDate.getTime() === thisMonthStart.getTime() && endDate.getTime() === nextMonthStart.getTime()) {
+    return 'month';
+  }
+
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  if (startDate.getTime() === lastMonthStart.getTime() && endDate.getTime() === thisMonthStart.getTime()) {
+    return 'lastMonth';
+  }
+
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+  const nextYearStart = new Date(now.getFullYear() + 1, 0, 1);
+  if (startDate.getTime() === yearStart.getTime() && endDate.getTime() === nextYearStart.getTime()) {
+    return 'year';
+  }
+
+  return 'custom';
+}
+
 function buildTrendSeries(value: number, maxValue: number) {
   const safeMax = Math.max(maxValue, 1);
   const base = Math.max(Math.abs(value), 1) / safeMax;
@@ -64,7 +114,7 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
   const [data, setData] = useState<ApiResponse | null>(initialData ?? null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<PresetValue>('custom');
+  const [selectedPreset, setSelectedPreset] = useState<PresetValue>(getInitialPreset(initialStart, initialEnd));
 
   const filters: AnalyticsFilterState = {
     start,
@@ -292,6 +342,10 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
   const bestSellingProduct = [...products].sort((a, b) => b.quantitySold - a.quantitySold)[0];
   const losingProducts = products.filter((product) => product.grossProfit < 0).slice(0, 3);
   const profitDelta = sales > 0 ? ((profit / sales) * 100) : 0;
+  const profitColor = profit >= 0 ? '#10b981' : '#ef4444';
+  const salesPct = Math.max(0, Math.min(100, (sales / Math.max(sales + cost + Math.max(Math.abs(profit), 1), 1)) * 100));
+  const costPct = Math.max(0, Math.min(100, ((sales + cost) / Math.max(sales + cost + Math.max(Math.abs(profit), 1), 1)) * 100));
+  const profitGradient = `conic-gradient(#2563eb 0 ${salesPct}%, #f59e0b ${salesPct}% ${costPct}%, ${profitColor} ${costPct}% 100%)`;
 
   const totals = useMemo(() => {
     const totalQty = products.reduce((sum, item) => sum + item.quantitySold, 0);
@@ -344,22 +398,22 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
 
   return (
     <div className="space-y-6">
-      <div className="bg-white/95">
+      <div className="rounded-[28px] border border-border bg-card/95 p-6 shadow-sm">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Profit Analytics</h1>
-            <p className="mt-2 text-sm text-slate-500">Track profit, revenue & performance.</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Profit Analytics</h1>
+            <p className="mt-2 text-sm text-muted-foreground">Track profit, revenue & performance.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <button type="button" onClick={handleExportPdf} className="inline-flex h-11 items-center justify-center gap-2 rounded-[20px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
+            <button type="button" onClick={handleExportPdf} className="inline-flex h-11 items-center justify-center gap-2 rounded-[20px] border border-border bg-background px-4 text-sm font-semibold text-foreground shadow-sm transition hover:bg-muted/20">
               <span className="h-4 w-4 rounded-sm bg-red-500" />
               Export PDF
             </button>
-            <button type="button" onClick={handleExportExcel} className="inline-flex h-11 items-center justify-center gap-2 rounded-[20px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
+            <button type="button" onClick={handleExportExcel} className="inline-flex h-11 items-center justify-center gap-2 rounded-[20px] border border-border bg-background px-4 text-sm font-semibold text-foreground shadow-sm transition hover:bg-muted/20">
               <span className="h-4 w-4 rounded-sm bg-emerald-600" />
               Export Excel
             </button>
-            <button type="button" onClick={handlePrint} className="inline-flex h-11 items-center justify-center gap-2 rounded-[20px] border border-slate-200 bg-green-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700">
+            <button type="button" onClick={handlePrint} className="inline-flex h-11 items-center justify-center gap-2 rounded-[20px] border border-border bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700">
               Print
             </button>
           </div>
@@ -377,9 +431,9 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
       </div>
 
       {fetchError ? (
-        <div className="rounded-[28px] border border-rose-200 bg-rose-50/70 p-6 text-slate-900 shadow-sm">
+        <div className="rounded-[28px] border border-rose-200 bg-rose-50/70 p-6 text-foreground shadow-sm">
           <p className="text-lg font-semibold text-rose-700">Unable to load analytics</p>
-          <p className="mt-2 text-sm text-slate-600">The dashboard is still available, but analytics data could not be loaded at this time. Please try again later.</p>
+          <p className="mt-2 text-sm text-muted-foreground">The dashboard is still available, but analytics data could not be loaded at this time. Please try again later.</p>
         </div>
       ) : null}
 
@@ -390,34 +444,34 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
           ) : (
             <div className="mt-7 grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
               <div className="flex justify-center">
-                <div className="relative h-56 w-56 rounded-full bg-slate-50 shadow-inner">
-                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(#2563eb 0 ${Math.max(0, Math.min(100, (sales / Math.max(sales + cost + Math.max(Math.abs(profit), 1), 1)) * 100))}%, #f59e0b ${Math.max(0, Math.min(100, (sales / Math.max(sales + cost + Math.max(Math.abs(profit), 1), 1)) * 100))}% ${Math.max(0, Math.min(100, ((sales + cost) / Math.max(sales + cost + Math.max(Math.abs(profit), 1), 1)) * 100))}%, ${profit >= 0 ? '#10b981' : '#ef4444'} ${Math.max(0, Math.min(100, ((sales + cost) / Math.max(sales + cost + Math.max(Math.abs(profit), 1), 1)) * 100))}% 100%)` }} />
-                  <div className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-white text-center">
-                    <p className="text-sm font-semibold text-slate-500">Gross Profit</p>
+                <div className="relative h-56 w-56 rounded-full bg-muted/10 shadow-inner">
+                  <div className="absolute inset-0 rounded-full" style={{ background: profitGradient }} />
+                  <div className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-card text-center">
+                    <p className="text-sm font-semibold text-muted-foreground">Gross Profit</p>
                     <p className={`mt-3 text-2xl font-semibold ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCompactCurrency(profit)}</p>
-                    <p className="mt-2 text-sm text-slate-500">Margin {formatPercent(summary.profitMargin)}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">Margin {formatPercent(summary.profitMargin)}</p>
                   </div>
                 </div>
               </div>
               <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="flex items-center justify-between rounded-[20px] border border-border bg-muted/10 px-4 py-3">
                   <div className="flex items-center gap-3">
                     <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-                    <span className="text-sm text-slate-600">Total Sales</span>
+                    <span className="text-sm text-muted-foreground">Total Sales</span>
                   </div>
-                  <div className="text-sm font-semibold text-slate-900">{formatCurrency(sales)}</div>
+                  <div className="text-sm font-semibold text-foreground">{formatCurrency(sales)}</div>
                 </div>
-                <div className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="flex items-center justify-between rounded-[20px] border border-border bg-muted/10 px-4 py-3">
                   <div className="flex items-center gap-3">
                     <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-                    <span className="text-sm text-slate-600">Total Cost</span>
+                    <span className="text-sm text-muted-foreground">Total Cost</span>
                   </div>
-                  <div className="text-sm font-semibold text-slate-900">{formatCurrency(cost)}</div>
+                  <div className="text-sm font-semibold text-foreground">{formatCurrency(cost)}</div>
                 </div>
-                <div className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="flex items-center justify-between rounded-[20px] border border-border bg-muted/10 px-4 py-3">
                   <div className="flex items-center gap-3">
                     <span className={`h-2.5 w-2.5 rounded-full ${profit >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                    <span className="text-sm text-slate-600">Gross Profit</span>
+                    <span className="text-sm text-muted-foreground">Gross Profit</span>
                   </div>
                   <div className={`text-sm font-semibold ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(profit)}</div>
                 </div>
@@ -430,15 +484,15 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
           {emptyState ? (
             <AnalyticsEmptyState title="No trend data available" description="A wider date range will reveal the performance curve." />
           ) : (
-            <div className="mt-7 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mt-7 rounded-[24px] border border-border bg-card p-4 shadow-sm">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Profit Trend</p>
-                  <p className="mt-2 text-sm text-slate-500">Sales, costs, and profit trajectory</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Profit Trend</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Sales, costs, and profit trajectory</p>
                 </div>
-                <button className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-100">Last 30 Days</button>
+                <button className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-muted/10 px-3 text-sm font-semibold text-foreground shadow-sm transition hover:border-border hover:bg-muted/20">Last 30 Days</button>
               </div>
-              <div className="mt-6 overflow-hidden rounded-[20px] bg-slate-50 p-4">
+              <div className="mt-6 overflow-hidden rounded-[20px] bg-muted/10 p-4">
                 <svg viewBox="0 0 320 160" className="h-72 w-full" role="img" aria-label="Profit trend chart">
                   <line x1="20" y1="130" x2="300" y2="130" stroke="#e2e8f0" strokeWidth="1" />
                   <line x1="20" y1="20" x2="20" y2="130" stroke="#e2e8f0" strokeWidth="1" />
@@ -461,8 +515,8 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
 
         <AnalyticsSection title="Top Profitable Products" subtitle="Best-performing items this period">
           <div className="mt-7 flex justify-between gap-3">
-            <p className="text-sm text-slate-500">Rankings by output and margin.</p>
-            <Link href="/dashboard/reports/stock" className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-100">
+            <p className="text-sm text-muted-foreground">Rankings by output and margin.</p>
+            <Link href="/dashboard/reports/stock" className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-muted/10 px-4 text-sm font-semibold text-foreground shadow-sm transition hover:border-border hover:bg-muted/20">
               View All
             </Link>
           </div>
@@ -473,23 +527,23 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
               {products.map((product, index) => {
                 const progress = Math.max(8, Math.min(100, Math.round((product.grossProfit / Math.max(1, Math.abs(products[0]?.grossProfit ?? 1))) * 100)));
                 return (
-                  <div key={product.productId} className="rounded-[24px] border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                  <div key={product.productId} className="rounded-[24px] border border-border bg-card p-4 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold ${product.grossProfit >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
                           {index + 1}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-slate-950">{product.productName}</p>
-                          <p className="text-xs text-slate-500">{product.quantitySold} units sold</p>
+                          <p className="text-sm font-semibold text-foreground">{product.productName}</p>
+                          <p className="text-xs text-muted-foreground">{product.quantitySold} units sold</p>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className={`text-sm font-semibold ${product.grossProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(product.grossProfit)}</p>
-                        <p className="mt-1 text-xs text-slate-500">{formatPercent(product.profitMargin)}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{formatPercent(product.profitMargin)}</p>
                       </div>
                     </div>
-                    <div className="mt-4 h-2 rounded-full bg-slate-200">
+                    <div className="mt-4 h-2 rounded-full bg-muted/20">
                       <div className={`h-2 rounded-full ${product.grossProfit >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${progress}%` }} />
                     </div>
                   </div>
@@ -503,55 +557,55 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
       <div className="grid gap-6">
         <AnalyticsSection title="Business Insights" subtitle="Instant signals from your current period">
           <div className="grid gap-4 lg:grid-cols-4">
-            <div className="rounded-[24px] border border-emerald-100 bg-emerald-50/80 p-5 shadow-sm">
+            <div className="rounded-[24px] border border-emerald-100 bg-emerald-500/10 p-5 shadow-sm">
               <div className="flex items-center gap-3 text-sm font-semibold text-emerald-700">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-emerald-700 shadow-sm">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-card text-emerald-700 shadow-sm">
                   <TrendingUp size={20} />
                 </div>
                 Revenue performance
               </div>
-              <p className="mt-4 text-2xl font-semibold text-slate-950">+12.5%</p>
-              <p className="mt-2 text-sm text-slate-500">vs previous period</p>
+              <p className="mt-4 text-2xl font-semibold text-foreground">+12.5%</p>
+              <p className="mt-2 text-sm text-muted-foreground">vs previous period</p>
             </div>
-            <div className={`rounded-[24px] border p-5 shadow-sm ${profit >= 0 ? 'border-emerald-100 bg-emerald-50/80' : 'border-rose-100 bg-rose-50/80'}`}>
+            <div className={`rounded-[24px] border p-5 shadow-sm ${profit >= 0 ? 'border-emerald-100 bg-emerald-500/10' : 'border-rose-100 bg-rose-500/10'}`}>
               <div className={`flex items-center gap-3 text-sm font-semibold ${profit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-card shadow-sm">
                   {profit >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
                 </div>
                 Gross profit health
               </div>
-              <p className="mt-4 text-2xl font-semibold text-slate-950">{profit >= 0 ? '+24.6%' : '-24.6%'}</p>
-              <p className="mt-2 text-sm text-slate-500">vs previous period</p>
+              <p className="mt-4 text-2xl font-semibold text-foreground">{profit >= 0 ? '+24.6%' : '-24.6%'}</p>
+              <p className="mt-2 text-sm text-muted-foreground">vs previous period</p>
             </div>
-            <div className="rounded-[24px] border border-blue-100 bg-blue-50/80 p-5 shadow-sm">
+            <div className="rounded-[24px] border border-blue-100 bg-blue-500/10 p-5 shadow-sm">
               <div className="flex items-center gap-3 text-sm font-semibold text-blue-700">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-card shadow-sm">
                   <Package2 size={20} />
                 </div>
                 Best selling product
               </div>
-              <p className="mt-4 text-2xl font-semibold text-slate-950">{bestSellingProduct?.productName ?? 'N/A'}</p>
-              <p className="mt-2 text-sm text-slate-500">{bestSellingProduct ? `${bestSellingProduct.quantitySold} units sold` : 'No product data'}</p>
+              <p className="mt-4 text-2xl font-semibold text-foreground">{bestSellingProduct?.productName ?? 'N/A'}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{bestSellingProduct ? `${bestSellingProduct.quantitySold} units sold` : 'No product data'}</p>
             </div>
-            <div className="rounded-[24px] border border-violet-100 bg-violet-50/80 p-5 shadow-sm">
+            <div className="rounded-[24px] border border-violet-100 bg-violet-500/10 p-5 shadow-sm">
               <div className="flex items-center gap-3 text-sm font-semibold text-violet-700">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-card shadow-sm">
                   <CircleDollarSign size={20} />
                 </div>
                 Most profitable product
               </div>
-              <p className="mt-4 text-2xl font-semibold text-slate-950">{topProduct?.productName ?? 'N/A'}</p>
-              <p className="mt-2 text-sm text-slate-500">{topProduct ? formatCurrency(topProduct.grossProfit) : 'No profit products'}</p>
+              <p className="mt-4 text-2xl font-semibold text-foreground">{topProduct?.productName ?? 'N/A'}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{topProduct ? formatCurrency(topProduct.grossProfit) : 'No profit products'}</p>
             </div>
           </div>
         </AnalyticsSection>
       </div>
 
       <AnalyticsSection title="Product Profit Analysis" subtitle="High-resolution breakdown by product">
-        <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-[24px] border border-border bg-card shadow-sm">
           <table className="min-w-full text-left">
-            <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur">
-              <tr className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">
+            <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+              <tr className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 <th className="px-5 py-4">#</th>
                 <th className="px-5 py-4">Product</th>
                 <th className="px-5 py-4">Category</th>
@@ -565,18 +619,18 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
                 <th className="px-5 py-4">Profit Trend</th>
               </tr>
             </thead>
-            <tbody className="text-sm text-slate-700">
+            <tbody className="text-sm text-foreground">
               {loading ? (
                 Array.from({ length: 4 }).map((_, index) => (
-                  <tr key={index} className="border-t border-slate-200">
+                  <tr key={index} className="border-t border-border">
                     {Array.from({ length: 11 }).map((__, cellIndex) => (
-                      <td key={cellIndex} className="px-5 py-4"><div className="h-3 animate-pulse rounded-full bg-slate-200" /></td>
+                      <td key={cellIndex} className="px-5 py-4"><div className="h-3 animate-pulse rounded-full bg-muted/30" /></td>
                     ))}
                   </tr>
                 ))
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-5 py-12 text-center text-sm text-slate-500">No profit data available for the selected period.</td>
+                  <td colSpan={11} className="px-5 py-12 text-center text-sm text-muted-foreground">No profit data available for the selected period.</td>
                 </tr>
               ) : (
                 products.map((product, index) => {
@@ -584,17 +638,16 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
                   const avgSale = product.quantitySold > 0 ? product.totalSales / product.quantitySold : 0;
                   const bars = buildSparkBars(product.grossProfit, Math.max(1, Math.abs(products[0]?.grossProfit ?? 1)));
                   return (
-                    <tr key={product.productId} className="border-t border-slate-200 transition hover:bg-slate-50">
-                      <td className="px-5 py-4 font-medium text-slate-700">{index + 1}</td>
-                      <td className="px-5 py-4 font-semibold text-slate-900">{product.productName}</td>
-                      <td className="px-5 py-4 text-slate-500">{getProductTypeLabel(product.productType)}</td>
-                      <td className="px-5 py-4">{product.quantitySold}</td>
+                    <tr key={product.productId} className="border-t border-border transition hover:bg-muted/20">
+                      <td className="px-5 py-4 font-medium text-foreground">{index + 1}</td>
+                      <td className="px-5 py-4 font-semibold text-foreground">{product.productName}</td>
+                      <td className="px-5 py-4 text-muted-foreground">{getProductTypeLabel(product.productType)}</td>
                       <td className="px-5 py-4">{formatCurrency(avgBuy)}</td>
                       <td className="px-5 py-4">{formatCurrency(avgSale)}</td>
                       <td className="px-5 py-4">{formatCurrency(product.totalSales)}</td>
                       <td className="px-5 py-4">{formatCurrency(product.totalCost)}</td>
                       <td className="px-5 py-4 font-semibold text-rose-600">{formatCurrency(product.grossProfit)}</td>
-                      <td className="px-5 py-4 font-semibold text-slate-900">{formatPercent(product.profitMargin)}</td>
+                      <td className="px-5 py-4 font-semibold text-foreground">{formatPercent(product.profitMargin)}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-end gap-1">
                           {bars.map((height, barIndex) => (
@@ -609,15 +662,15 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
             </tbody>
             {products.length > 0 ? (
               <tfoot>
-                <tr className="border-t border-slate-200 bg-slate-50">
-                  <td className="px-5 py-4 text-sm font-semibold text-slate-700">Total / Average</td>
+                <tr className="border-t border-border bg-muted/10">
+                  <td className="px-5 py-4 text-sm font-semibold text-foreground">Total / Average</td>
                   <td className="px-5 py-4" />
                   <td className="px-5 py-4" />
-                  <td className="px-5 py-4 font-semibold text-slate-900">{totals.totalQty}</td>
-                  <td className="px-5 py-4 text-slate-500">{totals.avgBuy ? formatCurrency(totals.avgBuy) : '—'}</td>
-                  <td className="px-5 py-4 text-slate-500">{totals.avgSales ? formatCurrency(totals.avgSales) : '—'}</td>
-                  <td className="px-5 py-4 font-semibold text-slate-900">{formatCurrency(totals.totalSales)}</td>
-                  <td className="px-5 py-4 font-semibold text-slate-900">{formatCurrency(totals.totalCost)}</td>
+                  <td className="px-5 py-4 font-semibold text-foreground">{totals.totalQty}</td>
+                  <td className="px-5 py-4 text-muted-foreground">{totals.avgBuy ? formatCurrency(totals.avgBuy) : '—'}</td>
+                  <td className="px-5 py-4 text-muted-foreground">{totals.avgSales ? formatCurrency(totals.avgSales) : '—'}</td>
+                  <td className="px-5 py-4 font-semibold text-foreground">{formatCurrency(totals.totalSales)}</td>
+                  <td className="px-5 py-4 font-semibold text-foreground">{formatCurrency(totals.totalCost)}</td>
                   <td className="px-5 py-4 font-semibold text-rose-600">{formatCurrency(totals.totalProfit)}</td>
                   <td className="px-5 py-4" />
                   <td className="px-5 py-4" />

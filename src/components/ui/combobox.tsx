@@ -202,7 +202,7 @@ export function SearchableCombobox({
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative min-w-0">
       <input
         ref={inputRef}
         type="text"
@@ -215,15 +215,15 @@ export function SearchableCombobox({
         placeholder={placeholder}
         required={required}
         autoComplete="off"
-        className={`w-full rounded-md border bg-background px-3 py-2 text-sm ${className ?? ''}`}
+        className={`form-select w-full max-w-full ${className ?? ''}`}
       />
       {open && (
         <ul
           ref={listRef}
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-white py-1 text-sm shadow-md"
+          className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-border bg-card py-1.5 text-sm shadow-xl ring-1 ring-black/10"
         >
           {allOptions.length === 0 ? (
-            <li className="px-3 py-2 text-muted-foreground">{emptyText}</li>
+            <li className="px-3.5 py-2 text-muted-foreground">{emptyText}</li>
           ) : (
             allOptions.map((option, index) => (
               <li
@@ -238,10 +238,10 @@ export function SearchableCombobox({
                   event.stopPropagation();
                   handleOptionClick(option);
                 }}
-                className={`cursor-pointer px-3 py-2 ${
+                className={`cursor-pointer px-3.5 py-2.5 text-sm transition-colors ${
                   index === highlightedIndex
                     ? 'bg-primary/10 text-primary'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    : 'text-foreground hover:bg-muted/40'
                 }`}
               >
                 {option.label}

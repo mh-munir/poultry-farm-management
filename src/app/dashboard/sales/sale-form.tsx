@@ -96,7 +96,7 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
     <form id={formId} action={createSaleTransaction} autoComplete="off" className="space-y-4">
       <div>
         <label className="mb-2 block text-sm font-medium">Customer</label>
-        <select name="partyId" required defaultValue={selectedPartyId ?? ''} className="w-full rounded-md border bg-background px-3 py-2">
+        <select name="partyId" required defaultValue={selectedPartyId ?? ''} className="w-full form-select">
           {customers.map((customer) => (
             <option key={customer.id} value={customer.id}>{customer.name}</option>
           ))}
@@ -119,7 +119,7 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
                 required={rows.length === 1}
                 value={row.productId}
                 onChange={(event) => updateRow(row.rowId, 'productId', event.target.value)}
-                className="rounded-md border bg-background px-3 py-2"
+                className="form-select"
               >
                 <option value="">Select product</option>
                  {products.map((product) => (
@@ -212,7 +212,7 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium">Payment method</label>
-          <select name="paymentMethod" className="w-full rounded-md border bg-background px-3 py-2">
+          <select name="paymentMethod" className="w-full form-select">
             <option value="CASH">Cash</option>
             <option value="BANK_TRANSFER">Bank transfer</option>
             <option value="CHEQUE">Cheque</option>

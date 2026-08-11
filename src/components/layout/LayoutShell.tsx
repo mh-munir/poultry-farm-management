@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Menu, X, ChevronRight } from 'lucide-react';
+import { Menu, X, ChevronRight, Sun, Moon } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import Sidebar from './Sidebar';
 import { UserNav } from '@/components/auth/user-nav';
 import { ToastContainer } from '@/components/toast-container';
@@ -94,6 +95,12 @@ function getPageTitle(pathname: string): string[] {
 export default function LayoutShell({ children, theme, branding }: { children: React.ReactNode; theme?: string; branding: any }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname() || '';
+  const { theme: currentTheme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const hideShell = useMemo(() => {
     if (!pathname) return false;
     // Hide the app chrome for auth/unauthorized pages and any print/invoice print routes
@@ -123,10 +130,10 @@ export default function LayoutShell({ children, theme, branding }: { children: R
 
       {open && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setOpen(false)} />}
 
-      <div className="flex-1 min-h-screen md:pl-64">
+      <div className="min-w-0 flex-1 min-h-screen md:pl-[260px]">
         <header className="sticky top-0 z-40 border-b border-border bg-surface/95 shadow-sm backdrop-blur-lg">
           <div className="mx-auto flex max-w-screen-3xl flex-col gap-3 px-3 py-3 md:flex-row md:items-center md:justify-between md:px-8 md:py-4">
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               <button className="md:hidden p-2 rounded-lg hover:bg-muted/60 transition-colors" onClick={() => setOpen(!open)} aria-label="Toggle menu">
                 {open ? <X size={18} /> : <Menu size={18} />}
               </button>
@@ -151,7 +158,19 @@ export default function LayoutShell({ children, theme, branding }: { children: R
               </nav>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex shrink-0 items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                aria-label="Toggle color theme"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-background text-foreground transition hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+              >
+                {mounted ? (
+                  resolvedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />
+                ) : (
+                  <span className="h-4 w-4" />
+                )}
+              </button>
               <UserNav />
             </div>
           </div>

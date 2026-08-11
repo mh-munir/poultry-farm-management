@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft, BadgeDollarSign, CheckCircle2, CircleDollarSign, CreditCard, FileText, MapPin, Phone, ReceiptText, Wallet2, Package2, Factory, Printer, TrendingUp, UserRound, Wallet } from 'lucide-react';
+import { ArrowLeft, CalendarDays, CheckCircle2, CircleDollarSign, Factory, FileText, Mail, MapPin, Phone, Printer, ReceiptText, UserRound, Wallet } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
@@ -329,6 +329,9 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
   const showFeedProducts = company.companyType === 'FEED' || company.companyType === 'FEED_CHICK';
   const showMedicineProducts = company.companyType === 'MEDICINE';
   const showChickProducts = company.companyType === 'CHICK' || company.companyType === 'FEED_CHICK';
+  const totalPurchases = Number(summary.totalFeedPurchases ?? 0) + Number(summary.totalMedicinePurchases ?? 0) + Number(summary.totalChickPurchases ?? 0);
+  const openingBalance = Number(company.openingBalance ?? 0);
+  const amountPayable = Number(summary.currentBalance ?? 0);
 
   const initialFeedItems = feedItems.map((item) => ({
     id: item.id,
@@ -418,20 +421,20 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
         </Button>
       </div>
 
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-primary/10 text-3xl font-bold text-primary shadow-sm">
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-emerald-500/10 text-3xl font-bold text-emerald-600">
               {company.name.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-3xl font-bold leading-tight text-foreground sm:text-4xl">{company.name}</h1>
-                 <span className={`inline-flex items-center rounded-full px-3 py-1 text-badge font-semibold ${companyTypeBadgeClass}`}>
+                <h1 className="text-2xl font-bold leading-tight text-foreground sm:text-3xl">{company.name}</h1>
+                 <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${companyTypeBadgeClass}`}>
                   {company.companyType === 'FEED' ? 'Feed Company' : company.companyType === 'MEDICINE' ? 'Medicine Company' : company.companyType === 'CHICK' ? 'Hatchling / Chick Company' : 'Feeds + Hatchling / Chick'}
                 </span>
               </div>
-              <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+              <div className="mt-3 grid gap-x-6 gap-y-2 text-sm text-muted-foreground sm:grid-cols-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <Phone className="h-4 w-4 shrink-0 text-primary" />
                   <span className="truncate font-medium text-foreground">{company.phone || '-'}</span>
@@ -444,7 +447,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 xl:items-end">
+          <div className="flex flex-col gap-3 xl:items-end">
             <div className="flex flex-wrap items-center gap-2 xl:justify-end">
               <span className={`inline-flex h-9 items-center gap-2 rounded-full px-3 text-badge font-semibold ${summary.totalDue > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
                 <CheckCircle2 className="h-4 w-4" />
@@ -499,22 +502,67 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
         </div>
       </section>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {(company.companyType === 'FEED' || company.companyType === 'FEED_CHICK' || company.companyType === 'BOTH') && (
-          <SummaryMiniCard label="Feed Purchases" value={formatCurrency(summary.totalFeedPurchases)} />
-        )}
-        {(company.companyType === 'MEDICINE' || company.companyType === 'BOTH') && (
-          <SummaryMiniCard label="Medicine Purchases" value={formatCurrency(summary.totalMedicinePurchases)} />
-        )}
-        {(company.companyType === 'CHICK' || company.companyType === 'FEED_CHICK' || company.companyType === 'BOTH') && (
-          <SummaryMiniCard label="Hatchling / Chick Purchases" value={formatCurrency(summary.totalChickPurchases)} />
-        )}
-        <SummaryMiniCard label="Payments" value={formatCurrency(summary.totalPayments)} />
-        <SummaryMiniCard label="Current Due" value={formatCurrency(summary.totalDue)} />
-        <SummaryMiniCard label="Transactions" value={String(summary.totalTransactions)} />
-      </div>
+      <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+          {[
+            { label: 'Total Purchases', value: formatCurrency(totalPurchases), icon: ReceiptText, accent: 'bg-sky-100 text-sky-700' },
+            { label: 'Total Payments', value: formatCurrency(summary.totalPayments), icon: CircleDollarSign, accent: 'bg-emerald-100 text-emerald-700' },
+            { label: 'Current Due', value: formatCurrency(summary.totalDue), icon: Wallet, accent: 'bg-rose-100 text-rose-700' },
+            { label: 'Transactions', value: String(summary.totalTransactions), icon: FileText, accent: 'bg-violet-100 text-violet-700' }
+          ].map(({ label, value, icon: Icon, accent }) => (
+            <div key={label} className="flex min-w-0 items-center gap-3 px-5 py-4">
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accent}`}><Icon className="h-5 w-5" /></div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+                <p className="mt-1 truncate text-xl font-bold tabular-nums text-foreground">{value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <section className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_0.9fr]">
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-6 shadow-sm sm:p-7">
+          <p className="text-sm font-semibold text-muted-foreground">Amount Payable (Total)</p>
+          <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-emerald-600 sm:text-4xl">{formatCurrency(amountPayable)}</p>
+          <p className="mt-3 text-sm text-muted-foreground">Opening balance + purchases - payments</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-6 sm:p-7">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><Factory className="h-5 w-5" /></div>
+            <p className="text-sm font-semibold text-muted-foreground">Opening Balance</p>
+          </div>
+          <p className="mt-4 text-3xl font-bold tracking-tight tabular-nums text-foreground">{formatCurrency(openingBalance)}</p>
+          <p className="mt-3 text-sm text-muted-foreground">Outstanding balance before this period</p>
+        </div>
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><CalendarDays className="h-5 w-5" /></div>
+          <div><p className="text-xs font-medium text-muted-foreground">Company Since</p><p className="mt-1 text-lg font-bold text-foreground">{formatDate(company.createdAt)}</p><p className="mt-1 text-xs text-muted-foreground">Account opened on this date</p></div>
+        </div>
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-background text-primary shadow-sm"><CircleDollarSign className="h-5 w-5" /></div>
+          <div className="mr-auto"><h2 className="text-lg font-semibold text-foreground">Financial Summary</h2><p className="mt-1 text-sm text-muted-foreground">Overview of this period</p></div>
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${summary.totalDue > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>{summary.totalDue > 0 ? 'Due' : 'Cleared'}</span>
+        </div>
+        <div className="mt-6 grid gap-3 text-sm sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] sm:items-center">
+          <div><p className="text-muted-foreground">Opening Balance</p><p className="mt-1 text-lg font-bold tabular-nums text-foreground">{formatCurrency(openingBalance)}</p></div>
+          <span className="hidden text-2xl text-muted-foreground sm:block">+</span>
+          <div><p className="text-muted-foreground">Total Purchases</p><p className="mt-1 text-lg font-bold tabular-nums text-foreground">{formatCurrency(totalPurchases)}</p></div>
+          <span className="hidden text-2xl text-muted-foreground sm:block">−</span>
+          <div><p className="text-muted-foreground">Total Payments</p><p className="mt-1 text-lg font-bold tabular-nums text-foreground">{formatCurrency(summary.totalPayments)}</p></div>
+          <span className="hidden text-2xl text-muted-foreground sm:block">=</span>
+          <div className="border-t border-border pt-3 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0"><p className="font-semibold text-primary">Amount Payable</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{formatCurrency(amountPayable)}</p></div>
+        </div>
+        <p className="mt-5 rounded-xl bg-background/80 px-4 py-3 text-sm text-muted-foreground">Current Due ({formatCurrency(summary.totalDue)}) is from this period only. Total Payable ({formatCurrency(amountPayable)}) includes the Opening Balance.</p>
+      </section>
+
+      <div className="hidden mt-6 grid gap-4 lg:grid-cols-2">
         <KpiCard
           title="Current Balance"
           value={Number(summary.currentBalance ?? 0) > 0 ? `🔴 Payable • ${formatCurrency(Number(summary.currentBalance ?? 0))}` : Number(summary.currentBalance ?? 0) < 0 ? `🟢 Advance • ${formatCurrency(Number(summary.currentBalance ?? 0))}` : '⚪ Clear'}
@@ -538,7 +586,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
         />
       </div>
 
-      <section className="my-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
+      <section className="hidden my-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold">Financial Overview</h2>

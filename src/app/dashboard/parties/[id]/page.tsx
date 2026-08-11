@@ -334,12 +334,7 @@ export default async function PartyProfilePage({
   const openingBalanceLedger = ledgerEntries.find((entry) => entry.entryType === 'OPENING_BALANCE');
   const latestLedger = ledgerEntries[0];
   const latestTransactionDate = latestLedger?.entryDate ?? transactions[0]?.transactionDate ?? payments[0]?.paymentDate ?? null;
-  const currentCustomerBalance = Number(party.openingBalance ?? 0) + summary.netCustomerDue;
-  const currentBalanceLabel = currentCustomerBalance > 0
-    ? '🔴 Customer Due'
-    : currentCustomerBalance < 0
-      ? '🟢 Customer Advance'
-      : '⚪ No Balance';
+  const currentBalance = Number(summary.currentBalance ?? party.openingBalance ?? 0);
   const dueStatus = summary.netCustomerDue <= 0 && summary.netSupplierDue <= 0
     ? 'Cleared'
     : summary.netCustomerDue > 0 && summary.netSupplierDue > 0
@@ -490,7 +485,7 @@ export default async function PartyProfilePage({
         </div>
       </section>
 
-      <section className="mt-5 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="mt-5 gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 hidden">
         <KpiCard
           title="Customer Due"
           value={formatCurrency(summary.netCustomerDue)}
@@ -587,8 +582,8 @@ export default async function PartyProfilePage({
           </div>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <SummaryMiniCard label="Opening Balance" value={formatCurrency(party.openingBalance)} />
+            <SummaryMiniCard label="Current Balance" value={formatCurrency(currentBalance)} />
             <SummaryMiniCard label="Party Since" value={formatDate(party.createdAt)} />
-            <SummaryMiniCard label="Last Transaction" value={latestTransactionDate ? formatDate(latestTransactionDate) : '-'} />
             <SummaryMiniCard label="Total Transactions" value={String(transactions.length)} />
           </div>
         </div>

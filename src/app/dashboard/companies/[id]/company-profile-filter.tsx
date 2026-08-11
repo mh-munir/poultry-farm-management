@@ -33,7 +33,7 @@ export function CompanyProfileFilter({
     <select
       value={purchaseTypeFilter}
       onChange={handleChange}
-      className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+      className="form-select"
     >
       <option value="ALL">All Purchases</option>
       <option value="EGG">Eggs</option>

@@ -1,0 +1,1 @@
+console.log('ts-node file execution OK');

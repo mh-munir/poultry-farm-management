@@ -198,7 +198,7 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium">Company type</label>
-            <select name="companyType" defaultValue={company.companyType} className="w-full rounded-md border bg-background px-3 py-2">
+            <select name="companyType" defaultValue={company.companyType} className="w-full form-select">
               <option value="FEED">Feeds</option>
               <option value="MEDICINE">Medicine</option>
               <option value="CHICK">Hatchling / Chick</option>

@@ -108,7 +108,7 @@ export function TransactionInvoiceView({
 
       <div className="shadow-sm border rounded-md overflow-visible">
         <header className="bg-white p-4 sm:p-6 border-b border-slate-100">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden rounded border bg-white">
                 {company.logo ? (
@@ -128,7 +128,7 @@ export function TransactionInvoiceView({
               <div className="h-5 bg-yellow-400 w-full rounded" />
             </div>
 
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">INVOICE</div>
             </div>
           </div>

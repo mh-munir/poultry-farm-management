@@ -217,7 +217,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
                   autoComplete="off"
                   value={addFormValues.partyType}
                   onChange={(event) => handleAddChange('partyType', event.target.value)}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 shadow-sm transition-all duration-200 hover:border-slate-300 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                  className="w-full form-select"
                 >
                   <option value="CUSTOMER">Customer</option>
                   <option value="PARTY">Party Supplier (Eggs & Chicken)</option>
@@ -230,11 +230,11 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
               </div>
               <div>
                 <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Balance Type</label>
-                <select
-                  name="openingBalanceType"
-                  defaultValue="CUSTOMER_DUE"
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 shadow-sm transition-all duration-200 hover:border-slate-300 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
-                >
+                  <select
+                    name="openingBalanceType"
+                    defaultValue="CUSTOMER_DUE"
+                    className="w-full form-select"
+                  >
                   <option value="CUSTOMER_DUE">Customer Due</option>
                   <option value="CUSTOMER_ADVANCE">Customer Advance</option>
                 </select>

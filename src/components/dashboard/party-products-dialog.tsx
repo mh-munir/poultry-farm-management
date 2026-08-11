@@ -199,7 +199,7 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
             <select
               value={productType}
               onChange={(event) => setProductType(event.target.value as ProductType)}
-              className="w-full rounded-md border bg-background px-3 py-2"
+              className="w-full form-select"
             >
               <option value="Both">Both (Egg & Chicken)</option>
               <option value="Egg">Egg/Dim (pieces)</option>

@@ -467,7 +467,7 @@ export async function getPartyAccountSummary(partyId: number) {
     notFound();
   }
 
-  const [txnSummary, paymentSummary] = await Promise.all([
+  const [txnSummary, paymentSummary, latestLedger] = await Promise.all([
     prisma.$queryRaw<Array<{ transactionType: string; totalAmount: any; paidAmount: any; dueAmount: any }>>`
       SELECT "transactionType", SUM("totalAmount") AS "totalAmount", SUM("paidAmount") AS "paidAmount", SUM("dueAmount") AS "dueAmount"
       FROM "Transaction"
@@ -481,60 +481,31 @@ export async function getPartyAccountSummary(partyId: number) {
         AND NOT EXISTS (
           SELECT 1 FROM "PaymentAllocation" pa WHERE pa."paymentId" = p."id"
         )
-    `
+    `,
+    prisma.ledgerEntry.findFirst({
+      where: { partyId },
+      orderBy: [{ entryDate: 'desc' }, { id: 'desc' }],
+      select: { runningBalance: true }
+    })
   ]);
 
-  let customerInvoiced = 0;
-  let customerPaid = 0;
-  let customerDue = 0;
-  let partySupplierInvoiced = 0;
-  let partySupplierPaid = 0;
-  let partySupplierDue = 0;
+  const transactions: PartySummaryTransaction[] = (txnSummary as Array<{ transactionType: string; totalAmount: any; paidAmount: any; dueAmount: any }>).map((row) => ({
+    transactionType: row.transactionType,
+    totalAmount: row.totalAmount ?? 0,
+    paidAmount: row.paidAmount ?? 0,
+    dueAmount: row.dueAmount ?? 0,
+    transactionDate: new Date()
+  }));
 
-  for (const row of txnSummary as Array<{ transactionType: string; totalAmount: any; paidAmount: any; dueAmount: any }>) {
-    const totalAmount = Number(row.totalAmount ?? 0);
-    const paidAmount = Number(row.paidAmount ?? 0);
-    const dueAmount = Number(row.dueAmount ?? 0);
-    if (row.transactionType === 'SALE') {
-      customerInvoiced += totalAmount;
-      customerPaid += paidAmount;
-      customerDue += dueAmount;
-    }
-    if (row.transactionType === 'PURCHASE') {
-      partySupplierInvoiced += totalAmount;
-      partySupplierPaid += paidAmount;
-      partySupplierDue += dueAmount;
-    }
-  }
-
-  const standalonePayment = Number((paymentSummary[0] as any)?.totalPaid ?? 0);
-
-  if (party.partyType === 'PARTY') {
-    partySupplierPaid += standalonePayment;
-    partySupplierDue = Math.max(0, partySupplierDue - standalonePayment);
-  } else {
-    customerPaid += standalonePayment;
-    customerDue += Number(party.openingBalance ?? 0);
-    customerDue = Math.max(0, customerDue - standalonePayment);
-  }
-
-  const offsetApplied = Math.min(customerDue, partySupplierDue);
-  const netCustomerDue = Math.max(0, customerDue - offsetApplied);
-  const netPartySupplierDue = Math.max(0, partySupplierDue - offsetApplied);
+  const payments: PartySummaryPayment[] = [{
+    amount: (paymentSummary[0] as any)?.totalPaid ?? 0,
+    paymentDate: new Date(),
+    allocations: []
+  }];
 
   return {
-    customerInvoiced,
-    customerPaid,
-    customerDue,
-    supplierInvoiced: partySupplierInvoiced,
-    supplierPaid: partySupplierPaid,
-    supplierDue: partySupplierDue,
-    offsetApplied,
-    netCustomerDue,
-    netSupplierDue: netPartySupplierDue,
-    totalInvoiced: customerInvoiced + partySupplierInvoiced,
-    totalPaid: customerPaid + partySupplierPaid,
-    totalDue: netCustomerDue + netPartySupplierDue
+    ...summarizePartyAccount(party.partyType, transactions, payments, Number(party.openingBalance ?? 0)),
+    currentBalance: Number(latestLedger?.runningBalance ?? party.openingBalance ?? 0)
   };
 }
 

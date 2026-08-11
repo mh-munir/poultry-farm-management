@@ -139,12 +139,12 @@ export function ResponsiveTable({
   return (
     <div
       className={cn(
-        'responsive-data-table relative isolate w-full min-w-0 overflow-x-auto lg:overflow-x-visible overflow-y-visible overscroll-x-contain [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]',
+        'responsive-data-table relative isolate w-full min-w-0 overflow-x-auto overflow-y-visible overscroll-x-contain [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]',
         className
       )}
       style={{ '--data-table-min-width': minWidth } as CSSProperties}
     >
-      <div className="min-w-full lg:min-w-[var(--data-table-min-width)]">
+      <div className="min-w-full xl:min-w-[var(--data-table-min-width)] max-w-full">
         {enhancedChildren}
       </div>
     </div>

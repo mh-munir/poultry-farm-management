@@ -389,7 +389,7 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
             value={productCategory}
             onChange={(e) => setProductCategory(e.target.value as 'EGG' | 'CHICKEN')}
             required
-            className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="w-full form-select"
           >
             <option value="EGG">Egg</option>
             <option value="CHICKEN">Chicken</option>

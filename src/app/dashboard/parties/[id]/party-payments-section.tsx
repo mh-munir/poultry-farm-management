@@ -87,7 +87,7 @@ export function PartyPaymentsSection({
         </div>
         <div>
           <label className="mb-2 block text-form-label">Payment method</label>
-          <select name="paymentMethod" required className="w-full rounded-lg border bg-background px-4 py-2.5 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+          <select name="paymentMethod" required className="w-full form-select">
             <option value="Cash">Cash</option>
             <option value="Bank">Bank</option>
             <option value="Mobile">Mobile</option>
@@ -100,7 +100,7 @@ export function PartyPaymentsSection({
         </div>
         <div>
           <label className="mb-2 block text-form-label">Status</label>
-          <select name="status" defaultValue="COMPLETED" className="w-full rounded-lg border bg-background px-4 py-2.5 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+          <select name="status" defaultValue="COMPLETED" className="w-full form-select">
             <option value="COMPLETED">Completed</option>
             <option value="PENDING">Pending</option>
             <option value="CANCELLED">Cancelled</option>
@@ -162,7 +162,7 @@ export function PartyPaymentsSection({
                               name="paymentMethod"
                               value={drafts[payment.id]?.paymentMethod ?? payment.paymentMethod}
                               onChange={(event) => handleDraftChange(payment.id, 'paymentMethod', event.target.value)}
-                              className="w-full rounded-lg border bg-background px-3 py-2 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                              className="w-full form-select"
                             >
                               <option value="Cash">Cash</option>
                               <option value="Bank">Bank</option>
@@ -185,7 +185,7 @@ export function PartyPaymentsSection({
                               name="status"
                               value={drafts[payment.id]?.status ?? payment.status}
                               onChange={(event) => handleDraftChange(payment.id, 'status', event.target.value)}
-                              className="w-full rounded-lg border bg-background px-3 py-2 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                              className="w-full form-select"
                             >
                               <option value="COMPLETED">Completed</option>
                               <option value="PENDING">Pending</option>

@@ -106,7 +106,7 @@ export function Pagination({
       )}
       
       {/* Page Numbers */}
-      <div className="flex gap-1">
+      <div className="flex max-w-full gap-1 overflow-x-auto overscroll-x-contain">
         {Array.from({ length: totalPages }, (_, index) => index + 1).map(renderItem)}
       </div>
       
