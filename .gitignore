@@ -43,3 +43,6 @@ tests/fixtures/
 # Vercel environment file
 vercel.env
 vercel.env.*
+# Build/cache files
+.next/
+project.zip
