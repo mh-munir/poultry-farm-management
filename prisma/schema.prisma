@@ -46,28 +46,34 @@ model Setting {
 }
 
 model User {
-  id                String             @id @default(cuid())
-  name              String?
-  email             String?            @unique
-  emailVerified     DateTime?
-  image             String?
-  password          String?
-  role              String             @default("USER")
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  phone             String?
-  accounts          Account[]
-  adminCreationOtps AdminCreationOtp[]
-  companiesCreated  Company[]          @relation("CompanyCreatedBy")
-  expenses          Expense[]          @relation("ExpenseCreatedBy")
-  ledgerEntries     LedgerEntry[]
-  parties           Party[]
-  payments          Payment[]
-  products          Product[]
-  reports           Report[]
-  sessions          Session[]
-  updatedSettings   Setting[]          @relation("SettingUpdatedBy")
-  transactions      Transaction[]
+  id                           String               @id @default(cuid())
+  name                         String?
+  email                        String?              @unique
+  emailVerified                DateTime?
+  image                        String?
+  password                     String?
+  role                         String               @default("USER")
+  createdAt                    DateTime             @default(now())
+  updatedAt                    DateTime             @updatedAt
+  phone                        String?
+  accounts                     Account[]
+  adminCreationOtps            AdminCreationOtp[]
+  auditLogsCreated             AuditLog[]           @relation("AuditLogActor")
+  auditLogsTargeted            AuditLog[]           @relation("AuditLogTargetUser")
+  companiesCreated             Company[]            @relation("CompanyCreatedBy")
+  Cost                         Cost[]
+  expenses                     Expense[]            @relation("ExpenseCreatedBy")
+  ledgerEntries                LedgerEntry[]
+  parties                      Party[]
+  payments                     Payment[]
+  products                     Product[]
+  reports                      Report[]
+  sessions                     Session[]
+  updatedSettings              Setting[]            @relation("SettingUpdatedBy")
+  initiatedSuperAdminTransfers SuperAdminTransfer[] @relation("TransferInitiatedBy")
+  nextSuperAdminTransfers      SuperAdminTransfer[] @relation("TransferNextAdmin")
+  previousSuperAdminTransfers  SuperAdminTransfer[] @relation("TransferPreviousAdmin")
+  transactions                 Transaction[]
 }
 
 model VerificationToken {
@@ -93,6 +99,52 @@ model AdminCreationOtp {
   superAdmin     User      @relation(fields: [superAdminId], references: [id], onDelete: Cascade)
 
   @@index([contact])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  action       String
+  actorUserId  String
+  targetUserId String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  actor        User     @relation("AuditLogActor", fields: [actorUserId], references: [id])
+  targetUser   User?    @relation("AuditLogTargetUser", fields: [targetUserId], references: [id])
+
+  @@index([action, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([targetUserId])
+}
+
+model SuperAdminTransfer {
+  id                   String    @id @default(cuid())
+  initiatedByUserId    String
+  previousSuperAdminId String
+  newSuperAdminId      String?
+  status               String    @default("CURRENT_OTP_PENDING")
+  currentOtpHash       String?
+  currentOtpExpiresAt  DateTime?
+  currentOtpAttempts   Int       @default(0)
+  currentOtpResendAt   DateTime?
+  currentVerifiedAt    DateTime?
+  newOtpHash           String?
+  newOtpExpiresAt      DateTime?
+  newOtpAttempts       Int       @default(0)
+  newOtpResendAt       DateTime?
+  newVerifiedAt        DateTime?
+  completedAt          DateTime?
+  failureReason        String?
+  ipAddress            String?
+  userAgent            String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  initiatedBy          User      @relation("TransferInitiatedBy", fields: [initiatedByUserId], references: [id])
+  newSuperAdmin        User?     @relation("TransferNextAdmin", fields: [newSuperAdminId], references: [id], onDelete: Restrict)
+  previousSuperAdmin   User      @relation("TransferPreviousAdmin", fields: [previousSuperAdminId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([previousSuperAdminId, status])
+  @@index([newSuperAdminId])
 }
 
 model Party {
@@ -205,7 +257,7 @@ model StockBalance {
   reservedQuantity Decimal  @default(0)
   averageCost      Decimal?
   lastUpdatedAt    DateTime @updatedAt
-  product          Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  product          Product  @relation(fields: [productId], references: [id])
 }
 
 model StockMovement {
@@ -217,7 +269,7 @@ model StockMovement {
   unitCost      Decimal?
   notes         String?
   createdAt     DateTime     @default(now())
-  product       Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  product       Product      @relation(fields: [productId], references: [id])
   transaction   Transaction? @relation(fields: [transactionId], references: [id])
 
   @@index([productId, createdAt])
@@ -239,11 +291,11 @@ model Transaction {
   dueAmount        Decimal             @default(0)
   dueDate          DateTime?
   notes            String?
-  mediaName        String   @default("")
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   createdById      String?
   companyId        Int?
+  mediaName        String              @default("")
   dueAdjustments   DueAdjustment[]
   ledgerEntries    LedgerEntry[]
   payments         PaymentAllocation[]
@@ -270,7 +322,7 @@ model TransactionItem {
   taxAmount       Decimal     @default(0)
   description     String?
   chickenQuantity Decimal?
-  product         Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([transactionId])
@@ -331,7 +383,7 @@ model PaymentAllocation {
   amount         Decimal
   allocationDate DateTime    @default(now())
   payment        Payment     @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  transaction    Transaction @relation(fields: [transactionId], references: [id])
 
   @@unique([paymentId, transactionId])
 }
@@ -373,7 +425,7 @@ model DueAdjustment {
   companyId      Int?
   company        Company?    @relation(fields: [companyId], references: [id])
   party          Party?      @relation(fields: [partyId], references: [id])
-  transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  transaction    Transaction @relation(fields: [transactionId], references: [id])
 
   @@index([partyId])
   @@index([companyId])
@@ -403,6 +455,19 @@ model Expense {
   createdBy   User?     @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
 
   @@index([expenseDate])
+}
+
+model Cost {
+  id          Int       @id @default(autoincrement())
+  amount      Decimal
+  description String?
+  costDate    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+  createdById String?
+  User        User?     @relation(fields: [createdById], references: [id])
+
+  @@index([costDate])
 }
 
 enum SmsNotificationStatus {

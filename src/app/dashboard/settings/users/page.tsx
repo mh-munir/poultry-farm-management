@@ -3,12 +3,14 @@ import { prisma } from '@/server/db'
 import UsersSettingsClient from '@/components/dashboard/settings-pages/UsersSettingsClient'
 
 export default async function UsersPage() {
+  // The page preserves existing account-management access. Only the Admin
+  // creation controls/actions are restricted to SUPER_ADMIN.
   const session = await requireRole(['ADMIN', 'MANAGER', 'SUPER_ADMIN'])
 
-  let users: Array<{ id: string; name: string | null; email: string | null; role: string }> = []
+  let users: Array<{ id: string; name: string | null; email: string | null; phone: string | null; role: string; createdAt: Date }> = []
   try {
     users = await prisma.user.findMany({
-      select: { id: true, name: true, email: true, role: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true },
       orderBy: { createdAt: 'desc' }
     })
   } catch {

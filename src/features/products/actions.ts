@@ -53,8 +53,7 @@ export async function createOrUpdateProduct(formData: FormData) {
     const message = parsed.error.issues[0]?.message ?? 'Validation failed.';
     const url = new URL('/dashboard/products', 'http://localhost');
     url.searchParams.set('error', message);
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    redirect(url.toString() as never);
   }
 
   const data = parsed.data;
@@ -80,9 +79,12 @@ export async function createOrUpdateProduct(formData: FormData) {
 
   try {
     if (data.id) {
+      // Opening stock is created only with a new product. Re-creating this
+      // one-to-one record on edit can fail or duplicate stock semantics.
+      const { stockBalance: _openingStock, ...updatePayload } = payload;
       await prisma.product.update({
         where: { id: data.id },
-        data: payload
+        data: updatePayload
       });
     } else {
       await prisma.product.create({ data: payload });
@@ -90,17 +92,14 @@ export async function createOrUpdateProduct(formData: FormData) {
   } catch (error) {
     const url = new URL('/dashboard/products', 'http://localhost');
     url.searchParams.set('error', 'Product save failed. Please verify the data and try again.');
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    redirect(url.toString() as never);
   }
 
-  revalidateTags([CACHE_TAGS.products, CACHE_TAGS.stock, CACHE_TAGS.dashboard]);
   revalidateTags([CACHE_TAGS.products, CACHE_TAGS.stock, CACHE_TAGS.dashboard]);
   revalidatePath('/dashboard/products');
   const url = new URL('/dashboard/products', 'http://localhost');
   url.searchParams.set('success', data.id ? 'Product updated successfully.' : 'Product created successfully.');
-  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
-  redirect(url.toString());
+  redirect(url.toString() as never);
 }
 
 export async function deleteProduct(formData: FormData) {
@@ -110,8 +109,7 @@ export async function deleteProduct(formData: FormData) {
   if (!productId) {
     const url = new URL('/dashboard/products', 'http://localhost');
     url.searchParams.set('error', 'A valid product id is required.');
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    redirect(url.toString() as never);
   }
 
   try {
@@ -123,8 +121,7 @@ export async function deleteProduct(formData: FormData) {
     if (transactionItemCount > 0 || stockMovementCount > 0) {
       const url = new URL('/dashboard/products', 'http://localhost');
       url.searchParams.set('error', 'This product cannot be deleted because it has transaction history.');
-      // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-      redirect(url.toString());
+      redirect(url.toString() as never);
     }
 
     await prisma.product.update({
@@ -134,15 +131,13 @@ export async function deleteProduct(formData: FormData) {
   } catch (error) {
     const url = new URL('/dashboard/products', 'http://localhost');
     url.searchParams.set('error', error instanceof Error ? error.message : 'Product deletion failed.');
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    redirect(url.toString() as never);
   }
 
   revalidatePath('/dashboard/products');
   const url = new URL('/dashboard/products', 'http://localhost');
   url.searchParams.set('success', 'Product deleted successfully.');
-  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
-  redirect(url.toString());
+  redirect(url.toString() as never);
 }
 
 export async function getProductPageData({
@@ -224,6 +219,22 @@ export async function getProductPageData({
       page: 1
     };
   }
+}
+
+export async function getProductById(productId: number) {
+  await requireUser();
+  if (!Number.isInteger(productId) || productId < 1) return null;
+
+  return prisma.product.findFirst({
+    where: { id: productId, isArchived: false },
+    select: {
+      id: true, code: true, name: true, productType: true, unit: true, categoryId: true,
+      defaultPurchasePrice: true, defaultSellingPrice: true, barcode: true, imageUrl: true,
+      lowStockThreshold: true, isActive: true, createdAt: true, updatedAt: true,
+      stockBalance: { select: { quantityOnHand: true, reservedQuantity: true, averageCost: true } },
+      category: { select: { id: true, name: true, slug: true } }
+    }
+  });
 }
 
 export async function getProductStats() {

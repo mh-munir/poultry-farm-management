@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server';
-import { requireRole } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 export async function POST(request: Request) {
-  const session = await requireRole(['ADMIN']);
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: 'not_authenticated' }, { status: 401 });
+  }
+
+  const role = (session.user.role ?? 'USER') as string;
+  if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
+  }
   const formData = await request.formData().catch(() => null);
 
   if (!formData) {
@@ -15,6 +23,12 @@ export async function POST(request: Request) {
   const imageFile = formData.get('imageFile');
   if (!(imageFile instanceof File) || imageFile.size === 0) {
     return NextResponse.json({ error: 'no_file' }, { status: 400 });
+  }
+  if (imageFile.size > 5 * 1024 * 1024) {
+    return NextResponse.json({ error: 'file_too_large' }, { status: 400 });
+  }
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(imageFile.type)) {
+    return NextResponse.json({ error: 'unsupported_file_type' }, { status: 400 });
   }
 
   const originalArrayBuffer = await imageFile.arrayBuffer();
@@ -33,7 +47,7 @@ export async function POST(request: Request) {
     fileExtension = '.webp';
     contentType = 'image/webp';
   } catch {
-    if (!fileExtension) fileExtension = '.png';
+    return NextResponse.json({ error: 'invalid_image' }, { status: 400 });
   }
 
   const fileName = `${randomUUID()}${fileExtension}`;
@@ -48,7 +62,8 @@ export async function POST(request: Request) {
     });
 
   if (uploadError) {
-    return NextResponse.json({ error: 'upload_failed', message: uploadError.message }, { status: 500 });
+    console.error('Admin image upload failed', uploadError);
+    return NextResponse.json({ error: 'upload_failed' }, { status: 500 });
   }
 
   const { data } = supabaseAdmin.storage.from('party-images').getPublicUrl(filePath);

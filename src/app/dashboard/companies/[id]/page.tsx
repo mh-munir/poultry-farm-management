@@ -562,7 +562,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
         <p className="mt-5 rounded-xl bg-background/80 px-4 py-3 text-sm text-muted-foreground">Current Due ({formatCurrency(summary.totalDue)}) is from this period only. Total Payable ({formatCurrency(amountPayable)}) includes the Opening Balance.</p>
       </section>
 
-      <div className="hidden mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="hidden mt-6 gap-4 lg:grid-cols-2">
         <KpiCard
           title="Current Balance"
           value={Number(summary.currentBalance ?? 0) > 0 ? `🔴 Payable • ${formatCurrency(Number(summary.currentBalance ?? 0))}` : Number(summary.currentBalance ?? 0) < 0 ? `🟢 Advance • ${formatCurrency(Number(summary.currentBalance ?? 0))}` : '⚪ Clear'}

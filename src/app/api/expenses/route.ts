@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/server/db'
-import { requireUser } from '@/lib/auth'
+import { auth } from '@/server/auth'
 import { revalidatePath } from 'next/cache'
 import { revalidateTags, CACHE_TAGS } from '@/lib/cache'
 
@@ -9,10 +9,9 @@ const createSchema = z.object({ amount: z.coerce.number(), description: z.string
 
 export async function GET(request: Request) {
   try {
-    await requireUser()
-  } catch {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  } catch { return NextResponse.json({ error: 'unauthorized' }, { status: 401 }) }
   const url = new URL(request.url);
   const from = url.searchParams.get('from')
   const to = url.searchParams.get('to')
@@ -26,12 +25,14 @@ export async function GET(request: Request) {
     const expenses = await (prisma as any).expense.findMany({ where, orderBy: { expenseDate: 'desc' } })
     return NextResponse.json(expenses)
   } catch (err: any) {
-    return NextResponse.json({ error: 'expenses_unavailable', message: err?.message ?? String(err) }, { status: 500 })
+    console.error('Unable to read expenses', err)
+    return NextResponse.json({ error: 'expenses_unavailable' }, { status: 500 })
   }
 }
 
 export async function POST(request: Request) {
-  const session = await requireUser()
+  const session = await auth()
+  if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   const body = await request.json().catch(() => null)
   const parsed = createSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'invalid_payload' }, { status: 400 })
@@ -52,16 +53,16 @@ export async function POST(request: Request) {
     revalidatePath('/dashboard/expenses');
     return NextResponse.json(created)
   } catch (err: any) {
-    return NextResponse.json({ error: 'expenses_create_failed', message: err?.message ?? String(err) }, { status: 500 })
+    console.error('Unable to create expense', err)
+    return NextResponse.json({ error: 'expenses_create_failed' }, { status: 500 })
   }
 }
 
 export async function DELETE(request: Request) {
   try {
-    await requireUser()
-  } catch {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  } catch { return NextResponse.json({ error: 'unauthorized' }, { status: 401 }) }
   const url = new URL(request.url);
   const id = url.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'missing_id' }, { status: 400 })
@@ -72,6 +73,7 @@ export async function DELETE(request: Request) {
     revalidatePath('/dashboard/expenses');
     return NextResponse.json({ ok: true })
   } catch (err: any) {
-    return NextResponse.json({ error: 'expenses_delete_failed', message: err?.message ?? String(err) }, { status: 500 })
+    console.error('Unable to delete expense', err)
+    return NextResponse.json({ error: 'expenses_delete_failed' }, { status: 500 })
   }
 }

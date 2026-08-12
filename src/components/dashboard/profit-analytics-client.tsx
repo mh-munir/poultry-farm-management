@@ -362,7 +362,7 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
       title: 'Total Sales',
       value: formatCompactCurrency(sales),
       subtitle: 'Revenue generated this period',
-      trend: '+12.4%',
+      trend: '—',
       tone: 'accent',
       icon: CircleDollarSign,
       loading,
@@ -371,7 +371,7 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
       title: 'Total Cost',
       value: formatCompactCurrency(cost),
       subtitle: 'Direct costs and purchase impact',
-      trend: '+8.1%',
+      trend: '—',
       tone: 'neutral',
       icon: TrendingDown,
       loading,
@@ -380,7 +380,7 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
       title: 'Gross Profit',
       value: formatCompactCurrency(profit),
       subtitle: 'Net earnings before overhead',
-      trend: profit >= 0 ? '+6.2%' : '-4.5%',
+      trend: '—',
       tone: profit >= 0 ? 'positive' : 'negative',
       icon: profit >= 0 ? ArrowUpRight : ArrowDownRight,
       loading,
@@ -389,7 +389,7 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
       title: 'Profit Margin',
       value: formatPercent(summary.profitMargin),
       subtitle: 'Efficiency of revenue conversion',
-      trend: summary.profitMargin >= 0 ? '+3.1%' : '-2.2%',
+      trend: '—',
       tone: summary.profitMargin >= 0 ? 'positive' : 'negative',
       icon: Percent,
       loading,
@@ -564,8 +564,8 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
                 </div>
                 Revenue performance
               </div>
-              <p className="mt-4 text-2xl font-semibold text-foreground">+12.5%</p>
-              <p className="mt-2 text-sm text-muted-foreground">vs previous period</p>
+              <p className="mt-4 text-2xl font-semibold text-foreground">—</p>
+              <p className="mt-2 text-sm text-muted-foreground">Historical comparison unavailable</p>
             </div>
             <div className={`rounded-[24px] border p-5 shadow-sm ${profit >= 0 ? 'border-emerald-100 bg-emerald-500/10' : 'border-rose-100 bg-rose-500/10'}`}>
               <div className={`flex items-center gap-3 text-sm font-semibold ${profit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
@@ -574,8 +574,8 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
                 </div>
                 Gross profit health
               </div>
-              <p className="mt-4 text-2xl font-semibold text-foreground">{profit >= 0 ? '+24.6%' : '-24.6%'}</p>
-              <p className="mt-2 text-sm text-muted-foreground">vs previous period</p>
+              <p className="mt-4 text-2xl font-semibold text-foreground">—</p>
+              <p className="mt-2 text-sm text-muted-foreground">Historical comparison unavailable</p>
             </div>
             <div className="rounded-[24px] border border-blue-100 bg-blue-500/10 p-5 shadow-sm">
               <div className="flex items-center gap-3 text-sm font-semibold text-blue-700">

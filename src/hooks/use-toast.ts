@@ -7,7 +7,7 @@ export type Toast = {
 };
 
 // Global toast state
-let toastListeners: Set<(toast: Toast) => void> = new Set();
+const toastListeners: Set<(toast: Toast) => void> = new Set();
 let toastId = 0;
 
 export function useToast() {

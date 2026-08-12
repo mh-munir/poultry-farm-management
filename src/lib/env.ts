@@ -24,7 +24,9 @@ const envSchema = z.object({
   BULKSMSBD_API_KEY: z.string().optional(),
   BULKSMSBD_SENDER_ID: z.string().optional(),
   BULKSMSBD_API_URL: z.string().optional(),
-  EMAIL_PROVIDER: z.string().trim().min(1).default('mock')
+  EMAIL_PROVIDER: z.string().trim().min(1).default('mock'),
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().optional()
 }).transform((env) => ({
   ...env,
   DIRECT_URL: env.DIRECT_URL ?? env.DATABASE_URL,
@@ -70,7 +72,9 @@ function getEnv() {
     BULKSMSBD_API_KEY: process.env.BULKSMSBD_API_KEY,
     BULKSMSBD_SENDER_ID: process.env.BULKSMSBD_SENDER_ID,
     BULKSMSBD_API_URL: process.env.BULKSMSBD_API_URL,
-  EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? 'mock'
+    EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? 'mock',
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL
   } as z.infer<typeof envSchema>;
 }
 

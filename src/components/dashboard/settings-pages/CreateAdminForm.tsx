@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { LoaderCircle, CheckCircle2, AlertCircle, Send, ShieldCheck, UserPlus, Clock } from 'lucide-react';
+import { Eye, EyeOff, LoaderCircle, CheckCircle2, Send, ShieldCheck, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { sendAdminCreationOtp, verifyAdminCreationOtp, createAdminAccount } from '@/app/dashboard/settings/users/actions';
 
@@ -19,7 +19,8 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [channel, setChannel] = useState<'EMAIL' | 'SMS'>('EMAIL');
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -49,8 +50,7 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
     setLoading(true);
 
     const formData = new FormData();
-    formData.append('contact', channel === 'EMAIL' ? email : phone);
-    formData.append('channel', channel);
+    formData.append('contact', email);
 
     const result = await sendAdminCreationOtp(formData);
     setLoading(false);
@@ -71,7 +71,7 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
 
     const otpCode = otpDigits.join('');
     const formData = new FormData();
-    formData.append('contact', channel === 'EMAIL' ? email : phone);
+    formData.append('contact', email);
     formData.append('code', otpCode);
 
     const result = await verifyAdminCreationOtp(formData);
@@ -95,8 +95,8 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
     formData.append('phone', phone);
     formData.append('password', password);
     formData.append('confirmPassword', confirmPassword);
-    formData.append('contact', channel === 'EMAIL' ? email : phone);
-    formData.append('channel', channel);
+    formData.append('contact', email);
+    formData.append('channel', 'EMAIL');
     formData.append('otpCode', otpCode);
 
     const result = await createAdminAccount(formData);
@@ -181,8 +181,7 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
           <div className="rounded-xl border bg-slate-50 p-4 text-sm text-slate-700">
             <p className="font-medium">OTP sent</p>
             <p className="mt-1">
-              We sent a 6-digit verification code to{' '}
-              <span className="font-semibold">{channel === 'EMAIL' ? email : phone}</span> via {channel === 'EMAIL' ? 'email' : 'SMS'}.
+              We sent a 6-digit verification code to <span className="font-semibold">{email}</span> via email.
             </p>
           </div>
 
@@ -224,8 +223,7 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
               otpSentAt.current > 0 && (Date.now() - otpSentAt.current < 30000) && (
                 <button type="button" onClick={async () => {
                   const formData = new FormData();
-                  formData.append('contact', channel === 'EMAIL' ? email : phone);
-                  formData.append('channel', channel);
+                  formData.append('contact', email);
                   const result = await sendAdminCreationOtp(formData);
                   if ((result as any)?.error) {
                     showError((result as any).error);
@@ -254,32 +252,58 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
             </div>
             <div>
               <label htmlFor="phone" className="mb-2 block text-sm font-medium text-slate-700">Mobile Number</label>
-              <input id="phone" name="phone" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none" placeholder="+1234567890" />
+              <input id="phone" name="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none" placeholder="+1234567890" />
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-700">Password</label>
-              <input id="password" name="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none" placeholder="Min. 8 characters" />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={passwordVisible ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 pr-10 text-sm text-foreground outline-none"
+                  placeholder="Min. 8 characters"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPasswordVisible((visible) => !visible)}
+                  className="absolute inset-y-0 right-3 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                  aria-label={passwordVisible ? 'Hide password' : 'Show password'}
+                  title={passwordVisible ? 'Hide password' : 'Show password'}
+                >
+                  {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div>
               <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-slate-700">Confirm password</label>
-              <input id="confirmPassword" name="confirmPassword" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none" placeholder="Repeat password" />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Send OTP via</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="channel" value="EMAIL" checked={channel === 'EMAIL'} onChange={() => setChannel('EMAIL')} />
-                Email
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="channel" value="SMS" checked={channel === 'SMS'} onChange={() => setChannel('SMS')} />
-                Mobile Number
-              </label>
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={confirmPasswordVisible ? 'text' : 'password'}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 pr-10 text-sm text-foreground outline-none"
+                  placeholder="Repeat password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setConfirmPasswordVisible((visible) => !visible)}
+                  className="absolute inset-y-0 right-3 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                  aria-label={confirmPasswordVisible ? 'Hide password' : 'Show password'}
+                  title={confirmPasswordVisible ? 'Hide password' : 'Show password'}
+                >
+                  {confirmPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
           </div>
 

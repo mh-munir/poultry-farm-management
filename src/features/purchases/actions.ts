@@ -285,7 +285,7 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
             companyIdToUse = existingCompany.id;
           } else {
             const productTypes = new Set(items.map((item) => item.productType));
-            let companyType = getCompanyTypeForProductTypes(productTypes);
+            const companyType = getCompanyTypeForProductTypes(productTypes);
             const newCompany = await tx.company.create({
               data: {
                 name: normalizedName,
@@ -587,8 +587,7 @@ export async function createPurchaseTransaction(formData: FormData): Promise<nev
 
   if (!result.success) {
     url.searchParams.set('error', result.message);
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    redirect(url.toString() as never);
   }
 
   const cookiesStore = await cookies();
@@ -601,8 +600,7 @@ export async function createPurchaseTransaction(formData: FormData): Promise<nev
   });
 
   url.searchParams.set('success', result.message);
-  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
-  redirect(url.toString());
+  redirect(url.toString() as never);
 }
 
 export async function getPurchasesPageData({ page, search }: { page: number; search?: string }) {

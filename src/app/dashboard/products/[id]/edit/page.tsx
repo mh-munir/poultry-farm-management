@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { requireUser } from '@/lib/auth';
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { createOrUpdateProduct, getProductPageData } from '@/features/products/actions';
+import { createOrUpdateProduct, getProductById } from '@/features/products/actions';
 import { getProductCategories } from '@/features/products/actions';
 
 const PRODUCT_TYPES = [
@@ -34,12 +34,12 @@ export default async function EditProductPage({
   const { id } = await params;
   const productId = Number(id);
 
-  const [data, categories] = await Promise.all([
-    getProductPageData({ page: 1 }),
+  const [product, categories] = await Promise.all([
+    getProductById(productId),
     getProductCategories()
   ]);
 
-  const product = data.products.find((p) => p.id === productId) as {
+  const typedProduct = product as {
     id: number;
     code: string;
     name: string;
@@ -56,13 +56,11 @@ export default async function EditProductPage({
     updatedAt: Date;
     stockBalance: { quantityOnHand: any; reservedQuantity: any; averageCost: any } | null;
     category: { id: number; name: string; slug: string } | null;
-  } | undefined;
+  } | null;
 
-  if (!product) {
+  if (!typedProduct) {
     notFound();
   }
-
-  const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
   async function updateProduct(formData: FormData) {
     'use server';
@@ -89,17 +87,17 @@ export default async function EditProductPage({
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium">Product Name</label>
-            <input name="name" required defaultValue={product.name} className="w-full rounded-md border bg-background px-3 py-2" />
+            <input name="name" required defaultValue={typedProduct.name} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium">Product Code</label>
-            <input name="code" required defaultValue={product.code} className="w-full rounded-md border bg-background px-3 py-2" />
+            <input name="code" required defaultValue={typedProduct.code} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium">Product Type</label>
-            <select name="productType" defaultValue={product.productType} className="w-full form-select">
+            <select name="productType" defaultValue={typedProduct.productType} className="w-full form-select">
               {PRODUCT_TYPES.map((type) => (
                 <option key={type.value} value={type.value}>{type.label}</option>
               ))}
@@ -108,7 +106,7 @@ export default async function EditProductPage({
 
           <div>
             <label className="mb-2 block text-sm font-medium">Unit</label>
-            <select name="unit" defaultValue={product.unit} className="w-full form-select">
+            <select name="unit" defaultValue={typedProduct.unit} className="w-full form-select">
               {UNIT_OPTIONS.map((unit) => (
                 <option key={unit.value} value={unit.value}>{unit.label}</option>
               ))}
@@ -117,7 +115,7 @@ export default async function EditProductPage({
 
           <div>
             <label className="mb-2 block text-sm font-medium">Category</label>
-            <select name="categoryId" defaultValue={product.categoryId ?? ''} className="w-full form-select">
+            <select name="categoryId" defaultValue={typedProduct.categoryId ?? ''} className="w-full form-select">
               <option value="">Select category</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>{category.name}</option>
@@ -127,17 +125,17 @@ export default async function EditProductPage({
 
           <div>
             <label className="mb-2 block text-sm font-medium">Default Purchase Price</label>
-            <input type="number" step="0.01" min="0" name="defaultPurchasePrice" defaultValue={Number(product.defaultPurchasePrice ?? 0)} className="w-full rounded-md border bg-background px-3 py-2" />
+            <input type="number" step="0.01" min="0" name="defaultPurchasePrice" defaultValue={Number(typedProduct.defaultPurchasePrice ?? 0)} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium">Default Selling Price</label>
-            <input type="number" step="0.01" min="0" name="defaultSellingPrice" defaultValue={Number(product.defaultSellingPrice ?? 0)} className="w-full rounded-md border bg-background px-3 py-2" />
+            <input type="number" step="0.01" min="0" name="defaultSellingPrice" defaultValue={Number(typedProduct.defaultSellingPrice ?? 0)} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium">Barcode</label>
-            <input name="barcode" defaultValue={product.barcode ?? ''} className="w-full rounded-md border bg-background px-3 py-2" placeholder="Optional" />
+            <input name="barcode" defaultValue={typedProduct.barcode ?? ''} className="w-full rounded-md border bg-background px-3 py-2" placeholder="Optional" />
           </div>
 
           <div>
@@ -147,11 +145,11 @@ export default async function EditProductPage({
 
           <div>
             <label className="mb-2 block text-sm font-medium">Low Stock Threshold</label>
-            <input type="number" step="0.01" min="0" name="lowStockThreshold" defaultValue={Number(product.lowStockThreshold ?? 0)} className="w-full rounded-md border bg-background px-3 py-2" />
+            <input type="number" step="0.01" min="0" name="lowStockThreshold" defaultValue={Number(typedProduct.lowStockThreshold ?? 0)} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
 
           <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-3">
-            <input id="isActive" name="isActive" type="checkbox" defaultChecked={product.isActive} className="h-4 w-4" />
+            <input id="isActive" name="isActive" type="checkbox" defaultChecked={typedProduct.isActive} className="h-4 w-4" />
             <label htmlFor="isActive" className="text-sm">Active product</label>
           </div>
         </div>

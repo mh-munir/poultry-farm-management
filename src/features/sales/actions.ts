@@ -321,8 +321,7 @@ export async function createSaleTransaction(formData: FormData) {
     const message = parsed.error.issues[0]?.message ?? 'Sale validation failed.';
     const url = new URL('/dashboard/sales', 'http://localhost');
     url.searchParams.set('error', message);
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    redirect(url.toString() as never);
   }
 
   const data = parsed.data;
@@ -332,14 +331,12 @@ export async function createSaleTransaction(formData: FormData) {
   } catch (error) {
     const url = new URL('/dashboard/sales', 'http://localhost');
     url.searchParams.set('error', error instanceof Error ? error.message : 'Sale creation failed.');
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    redirect(url.toString() as never);
   }
 
   const url = new URL('/dashboard/sales', 'http://localhost');
   url.searchParams.set('success', getSaleSmsSuccessMessage(result.sms.status));
-  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
-  redirect(url.toString());
+  redirect(url.toString() as never);
 }
 
 export async function createSaleTransactionWithToast(formData: FormData): Promise<{ success: boolean; message: string }> {

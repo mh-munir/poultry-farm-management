@@ -32,6 +32,16 @@ export function UserNav() {
       .toUpperCase();
   }, [displayName]);
 
+  // Avatar selection: prefer session image for SUPER_ADMIN and ADMIN.
+  // Keep existing fallback behavior for other roles or missing images.
+  const avatarUrl = useMemo(() => {
+    const userImage = session?.user?.image ?? null;
+    if (!userImage) return null;
+    if (role === 'SUPER_ADMIN') return userImage;
+    if (role === 'ADMIN') return userImage;
+    return userImage;
+  }, [session?.user?.image, role]);
+
   if (status === 'loading') {
     return <div className="text-sm text-muted-foreground">Loading...</div>;
   }
@@ -52,8 +62,8 @@ export function UserNav() {
         className="flex h-11 w-11 items-center justify-center rounded-full border border-muted/40 bg-surface text-sm font-semibold text-foreground shadow-sm transition hover:bg-muted/50"
         aria-label="Open user menu"
       >
-        {session.user.image ? (
-          <img src={session.user.image} alt={displayName} className="h-11 w-11 rounded-full object-cover" />
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={displayName} className="h-11 w-11 rounded-full object-cover" />
         ) : (
           <span>{initials}</span>
         )}
@@ -64,7 +74,11 @@ export function UserNav() {
           <div className="bg-muted/30 px-4 py-4">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-700 ring-1 ring-cyan-200">
-                {initials}
+                 {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} className="h-11 w-11 rounded-full object-cover" />
+                ) : (
+                  <span>{initials}</span>
+                )}
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">{displayName}</p>

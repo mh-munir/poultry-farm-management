@@ -35,8 +35,7 @@ export async function createOrUpdateCategory(formData: FormData) {
     const message = parsed.error.issues[0]?.message ?? 'Validation failed.';
     const url = new URL('/dashboard/product-categories', 'http://localhost');
     url.searchParams.set('error', message);
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    redirect(url.toString() as never);
   }
 
   const data = parsed.data;
@@ -59,16 +58,14 @@ export async function createOrUpdateCategory(formData: FormData) {
   } catch (error) {
     const url = new URL('/dashboard/product-categories', 'http://localhost');
     url.searchParams.set('error', 'Category save failed. Please verify the data and try again.');
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    redirect(url.toString() as never);
   }
 
   revalidateTags([CACHE_TAGS.categories, CACHE_TAGS.products, CACHE_TAGS.dashboard]);
   revalidatePath('/dashboard/product-categories');
   const url = new URL('/dashboard/product-categories', 'http://localhost');
   url.searchParams.set('success', data.id ? 'Category updated successfully.' : 'Category created successfully.');
-  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
-  redirect(url.toString());
+  redirect(url.toString() as never);
 }
 
 export async function deleteCategory(formData: FormData) {
@@ -78,8 +75,7 @@ export async function deleteCategory(formData: FormData) {
   if (!categoryId) {
     const url = new URL('/dashboard/product-categories', 'http://localhost');
     url.searchParams.set('error', 'A valid category id is required.');
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    redirect(url.toString() as never);
   }
 
   try {
@@ -87,16 +83,14 @@ export async function deleteCategory(formData: FormData) {
   } catch (error) {
     const url = new URL('/dashboard/product-categories', 'http://localhost');
     url.searchParams.set('error', 'Category deletion failed.');
-    // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for error messages
-    redirect(url.toString());
+    redirect(url.toString() as never);
   }
 
   revalidateTags([CACHE_TAGS.categories, CACHE_TAGS.products, CACHE_TAGS.dashboard]);
   revalidatePath('/dashboard/product-categories');
   const url = new URL('/dashboard/product-categories', 'http://localhost');
   url.searchParams.set('success', 'Category deleted successfully.');
-  // @ts-expect-error typedRoutes only accepts literal paths, but dynamic query params are necessary for success messages
-  redirect(url.toString());
+  redirect(url.toString() as never);
 }
 
 export async function getCategoryPageData({

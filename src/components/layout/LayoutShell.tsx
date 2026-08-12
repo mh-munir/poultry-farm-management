@@ -132,7 +132,7 @@ export default function LayoutShell({ children, theme, branding }: { children: R
 
       <div className="min-w-0 flex-1 min-h-screen md:pl-[260px]">
         <header className="sticky top-0 z-40 border-b border-border bg-surface/95 shadow-sm backdrop-blur-lg">
-          <div className="mx-auto flex max-w-screen-3xl flex-col gap-3 px-3 py-3 md:flex-row md:items-center md:justify-between md:px-8 md:py-4">
+          <div className="mx-auto flex max-w-screen-3xl gap-3 px-3 py-3 items-center justify-between md:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <button className="md:hidden p-2 rounded-lg hover:bg-muted/60 transition-colors" onClick={() => setOpen(!open)} aria-label="Toggle menu">
                 {open ? <X size={18} /> : <Menu size={18} />}

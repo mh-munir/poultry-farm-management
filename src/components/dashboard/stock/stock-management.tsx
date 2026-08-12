@@ -281,6 +281,9 @@ export function StockManagement({
   }, []);
 
   const getProductDisplayLabel = (product: StockItem) => {
+    if (stockType === 'MEDICINE') {
+      return `${product.name} — Gram`;
+    }
     return product.unit ? `${product.name} — ${product.unit}` : product.name;
   };
 
@@ -289,9 +292,7 @@ export function StockManagement({
       const normalizedValue = value.trim().toLowerCase();
       updateRow(rowId, 'productName', value);
 
-      // Match by the full display label (name + unit/variant identity), never by name alone.
-      // This ensures medicine variants with the same name but different gram/weight
-      // remain distinct and are never merged into a single Product record.
+      // Match by the display label for the current stock type.
       const exactMatch = availableProducts.find(
         (p) => getProductDisplayLabel(p).toLowerCase() === normalizedValue
       );

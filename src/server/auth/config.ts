@@ -10,6 +10,7 @@ const { compare } = bcrypt;
 
 const jwtUserCache = new Map<string, { name?: string | null; role?: string | null; image?: string | null; expiry: number }>();
 const JWT_USER_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const JWT_REFRESH_INTERVAL = 5 * 60 * 1000; // Refresh JWT profile data every 5 minutes
 
 export const authConfig: AuthOptions = {
   pages: {
@@ -97,7 +98,12 @@ export const authConfig: AuthOptions = {
       return true;
     },
     async jwt({ token, user }: { token: JWT; user?: User }) {
-      const needsRefresh = token.sub && (!token.name || !token.role || token.image === undefined);
+      const tokenIat = Number(token.iat ?? 0);
+      const tokenAgeMs = tokenIat > 0 ? Date.now() - tokenIat * 1000 : Number.MAX_SAFE_INTEGER;
+      const needsRefresh =
+        token.sub &&
+        (token.name == null || token.role == null || token.image == null || tokenAgeMs > JWT_REFRESH_INTERVAL);
+
       if (user) {
         const jwtToken = token as JWT & { image?: string | null };
         jwtToken.name = user.name ?? jwtToken.name;

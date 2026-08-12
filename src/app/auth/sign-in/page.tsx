@@ -36,8 +36,11 @@ export default async function SignInPage({ searchParams }: { searchParams?: Prom
           <SignInForm />
 
           <div className="mt-8 flex flex-col gap-2 text-sm text-muted-foreground">
-            <Link href="/auth/reset-admin" className="text-primary transition hover:underline">
-              Forgot admin password? Reset it with a token.
+            <Link href="/auth/forgot-password" className="text-primary transition hover:underline">
+              Forgot your password? Recover it with a verification code.
+            </Link>
+            <Link href="/auth/reset-admin" className="text-foreground/70 transition hover:text-foreground">
+              Need the shared admin reset token?
             </Link>
             <Link href="/" className="text-foreground/70 transition hover:text-foreground">
               Back home

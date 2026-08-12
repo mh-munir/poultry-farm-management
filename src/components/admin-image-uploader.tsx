@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { Camera, Upload } from 'lucide-react';
 
 type Props = {
   existingImageUrl?: string | null;
@@ -10,11 +11,13 @@ type Props = {
 
 export default function AdminImageUploader({ existingImageUrl, onFileSelected, onImageUploaded }: Props) {
   const [preview, setPreview] = useState<string | null>(existingImageUrl ?? null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(existingImageUrl ?? null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     setPreview(existingImageUrl ?? null);
+    setCurrentImageUrl(existingImageUrl ?? null);
 
     return () => {
       if (preview && preview.startsWith('blob:')) URL.revokeObjectURL(preview);
@@ -53,6 +56,7 @@ export default function AdminImageUploader({ existingImageUrl, onFileSelected, o
     const uploadedUrl = await handleFileUpload(file);
     if (uploadedUrl) {
       setPreview(uploadedUrl);
+      setCurrentImageUrl(uploadedUrl);
       onImageUploaded?.(uploadedUrl);
       if (inputRef.current) {
         inputRef.current.value = '';
@@ -61,18 +65,22 @@ export default function AdminImageUploader({ existingImageUrl, onFileSelected, o
   }
 
   return (
-    <div>
-      <div className="mb-2">
+    <div className="flex flex-col items-center text-center">
+      <div className="relative rounded-full border border-green-100 bg-green-50 p-1.5 shadow-sm">
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="Preview" className="h-20 w-20 sm:h-24 sm:w-24 rounded-full object-cover border shadow-sm" />
+          <img src={preview} alt="Profile preview" className="h-28 w-28 rounded-full object-cover sm:h-32 sm:w-32" />
         ) : (
-          <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border bg-muted text-3xl font-semibold text-muted-foreground flex items-center justify-center">A</div>
+          <div className="flex h-28 w-28 items-center justify-center rounded-full bg-green-100 text-4xl font-semibold text-green-700 sm:h-32 sm:w-32">A</div>
         )}
+        <span className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-green-600 text-white shadow"><Camera className="h-4 w-4" /></span>
       </div>
-
-      <input ref={inputRef} id="imageFile" name="imageFile" type="file" accept="image/*" onChange={onFileChange} className="w-full rounded-md border bg-background px-3 py-2 sm:px-3 sm:py-2" />
-      <input type="hidden" name="existingImageUrl" value={existingImageUrl ?? ''} />
+      <label htmlFor="imageFile" className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-green-200 bg-white px-4 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-50">
+        <Upload className="h-4 w-4" />{uploading ? 'Uploading...' : 'Change photo'}
+      </label>
+      <p className="mt-2 text-xs text-slate-500">JPG, PNG or GIF. Max size 2MB.</p>
+      <input ref={inputRef} id="imageFile" name="imageFile" type="file" accept="image/*" onChange={onFileChange} className="sr-only" disabled={uploading} />
+      <input type="hidden" name="existingImageUrl" value={currentImageUrl ?? ''} />
     </div>
   );
 }

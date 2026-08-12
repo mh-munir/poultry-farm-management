@@ -205,7 +205,7 @@ export default function Invoice(props: InvoiceProps) {
             await exportPdf(el, `invoice-${invoiceNumber}.pdf`)
             showSuccess('PDF saved')
           } catch (err: any) {
-            // eslint-disable-next-line no-console
+             
             console.error('PDF export failed', err)
             showError(err?.message ?? 'Failed to export PDF')
           } finally {

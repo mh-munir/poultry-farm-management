@@ -2,7 +2,7 @@ import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/server/db'
-import { requireUser } from '@/lib/auth'
+import { auth } from '@/server/auth'
 import { invalidateBrandingCache } from '@/lib/branding'
 import { revalidateSettingsData } from '@/lib/cache'
 
@@ -17,6 +17,8 @@ function isMissingSettingsTableError(err: any) {
 }
 
 export async function GET(request: Request) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const url = new URL(request.url);
   const key = url.searchParams.get('key');
 
@@ -38,12 +40,14 @@ export async function GET(request: Request) {
         { status: 500 }
       );
     }
-    return NextResponse.json({ error: 'settings_unavailable', message: err?.message ?? String(err) }, { status: 500 });
+    console.error('Unable to read settings', err);
+    return NextResponse.json({ error: 'settings_unavailable' }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
-  const session = await requireUser();
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = await request.json().catch(() => null);
   const parsed = payloadSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
@@ -70,16 +74,14 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-    return NextResponse.json({ error: 'settings_save_failed', message: err?.message ?? String(err) }, { status: 500 });
+    console.error('Unable to save settings', err);
+    return NextResponse.json({ error: 'settings_save_failed' }, { status: 500 });
   }
 }
 
 export async function DELETE(request: Request) {
-  try {
-    await requireUser()
-  } catch {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const url = new URL(request.url);
   const key = url.searchParams.get('key');
   if (!key) return NextResponse.json({ error: 'missing_key' }, { status: 400 });
@@ -100,6 +102,7 @@ export async function DELETE(request: Request) {
         { status: 500 }
       );
     }
-    return NextResponse.json({ error: 'settings_delete_failed', message: err?.message ?? String(err) }, { status: 500 });
+    console.error('Unable to delete settings', err);
+    return NextResponse.json({ error: 'settings_delete_failed' }, { status: 500 });
   }
 }

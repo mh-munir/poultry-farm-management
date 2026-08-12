@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { EMPTY_PROFIT_ANALYTICS, getProfitAnalytics } from '@/features/dashboard/actions';
+import { auth } from '@/server/auth';
 
 function parseDateParam(value: string | null) {
   if (!value) return null;
@@ -9,6 +10,11 @@ function parseDateParam(value: string | null) {
 }
 
 export async function GET(request: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
   const url = new URL(request.url);
   const startParam = url.searchParams.get('start');
   const endParam = url.searchParams.get('end');

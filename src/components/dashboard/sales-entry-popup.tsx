@@ -391,7 +391,7 @@ export function SalesEntryPopup({
                       <option value="">Select stock product</option>
                        {visibleProductOptions.map((product) => (
                          <option key={product.id} value={product.id}>
-                           {product.name}{product.code ? ` (${product.code})` : ''} — {product.unit} — {getProductTypeLabel(product.productType)} — Stock {product.stockQuantity} {product.unit}{product.defaultPurchasePrice != null ? ` — Buy ৳${Number(product.defaultPurchasePrice).toFixed(2)}` : ''}
+                           {product.name} — {product.unit}
                          </option>
                        ))}
                     </select>

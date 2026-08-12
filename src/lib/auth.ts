@@ -7,37 +7,34 @@ export interface AppSessionUser {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  role?: 'ADMIN' | 'MANAGER' | 'USER' | string;
+  role?: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'USER' | string;
 }
 
 export interface AppSession {
   user: AppSessionUser;
 }
 
-export const requireUser = cache(async (): Promise<AppSession> => {
-  try {
-    const session = (await auth()) as AppSession | null;
+export async function requireUser(): Promise<AppSession> {
+  const session = (await auth()) as AppSession | null;
 
-    if (!session?.user) {
-      redirect('/auth/sign-in');
-    }
-
-    return session ?? { user: { role: 'USER' } };
-  } catch {
+  if (!session?.user) {
     redirect('/auth/sign-in');
   }
-});
+
+  return session ?? { user: { role: 'USER' } };
+}
 
 export async function requireRole(allowedRoles: Array<'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'USER'>) {
-  try {
-    const session = await requireUser();
+  const session = await requireUser();
+  const sessionRole = (session.user.role ?? 'USER') as 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'USER' | string;
 
-    if (!allowedRoles.includes((session.user.role ?? 'USER') as 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'USER')) {
-      redirect('/unauthorized');
-    }
-
+  if (sessionRole === 'SUPER_ADMIN') {
     return session;
-  } catch {
+  }
+
+  if (!allowedRoles.includes(sessionRole as 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'USER')) {
     redirect('/unauthorized');
   }
+
+  return session;
 }
