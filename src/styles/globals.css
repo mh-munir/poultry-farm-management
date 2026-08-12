@@ -466,7 +466,11 @@ input[type="number"] {
     color: #111827 !important;
   }
 
-  header,
+  .invoice-brand-header {
+    display: flex !important;
+  }
+
+  header:not(.invoice-brand-header),
   .sidebar,
   .no-print,
   [class*="md:ml-64"] > header,

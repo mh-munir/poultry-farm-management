@@ -61,12 +61,12 @@ const getInvoiceCompanyProfileCached = unstable_cache(async (): Promise<InvoiceC
   const profile = typeof rawProfile === 'string' ? JSON.parse(rawProfile) : rawProfile
 
   return {
-    name: profile?.name ?? branding?.name,
-    logo: branding?.logo,
-    favicon: branding?.favicon,
-    address: profile?.address,
-    phone: profile?.phone,
-    website: profile?.website
+    name: profile?.name ?? branding?.name ?? 'Your Brand Name',
+    logo: branding?.logo ?? undefined,
+    favicon: branding?.favicon ?? undefined,
+    address: profile?.address ?? undefined,
+    phone: profile?.phone ?? undefined,
+    website: profile?.website ?? undefined
   }
 }, ['company-profile'], { tags: [CACHE_TAGS.branding, CACHE_TAGS.companyProfile], revalidate: 300 });
 

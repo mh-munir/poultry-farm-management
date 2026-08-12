@@ -94,6 +94,17 @@ export function TransactionInvoiceView({
   showTotalKg = false,
   displaySettings = {}
 }: TransactionInvoiceViewProps) {
+  const brandName = company?.name?.trim() || 'Your Brand Name';
+  const brandAddress = company?.address?.trim() || '';
+  const brandPhone = company?.phone?.trim() || '';
+  const brandWebsite = company?.website?.trim() || '';
+  const brandShortName = brandName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() ?? '')
+    .join('') || 'BR';
+
   return (
     <div className="invoice-print-area max-w-4xl mx-auto bg-white print:bg-white">
       <style>{`
@@ -107,37 +118,39 @@ export function TransactionInvoiceView({
       `}</style>
 
       <div className="shadow-sm border rounded-md overflow-visible">
-        <header className="bg-white p-4 sm:p-6 border-b border-slate-100">
+        <header className="invoice-brand-header bg-white p-4 sm:p-6 border-b border-slate-100">
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between gap-4">
               <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden rounded border bg-white">
                 {company.logo ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={company.logo} alt={company.name ?? 'Company'} className="h-full w-full object-contain" />
+                  <img src={company.logo} alt={brandName} className="h-full w-full object-contain" />
                 ) : (
-                  <div className="h-8 w-8 bg-slate-100 rounded flex items-center justify-center text-slate-500 font-semibold">LOGO</div>
+                  <div className="h-8 w-8 bg-slate-100 rounded flex items-center justify-center text-slate-500 font-semibold leading-5">{brandShortName}</div>
                 )}
               </div>
               <div>
-                <div className="text-sm text-slate-600 font-semibold">{company.name ?? 'Company'}</div>
-                <div className="text-xs text-slate-400">{company.address ?? ''}</div>
+                <div className="text-lg text-slate-800 font-bold leading-6 mb-1 w-52">{brandName}</div>
+                {brandAddress ? <div className="text-xs text-slate-400 w-60">{brandAddress}</div> : null}
               </div>
             </div>
 
-            <div className="flex-1 mx-6 hidden md:block">
-              <div className="h-5 bg-yellow-400 w-full rounded" />
-            </div>
+            <div className="flex">
+              <div className="">
+                <div className="h-5 bg-yellow-400 w-full rounded" />
+              </div>
 
-            <div className="text-left sm:text-right">
-              <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">INVOICE</div>
+              <div className="text-left sm:text-right">
+                <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">INVOICE</div>
+              </div>
             </div>
           </div>
         </header>
 
-        <div className="h-3 bg-yellow-400" />
+        <div className="h-3 bg-yellow-400 rounded-t" />
 
         <main className="p-4 sm:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-4 mb-6 px-4">
             <div>
               <div className="text-xs text-slate-500">Invoice to:</div>
               <div className="font-medium text-slate-900 text-lg">{party.name}</div>
@@ -158,7 +171,7 @@ export function TransactionInvoiceView({
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-md border">
+          <div className="overflow-hidden border-t border-b">
             <ResponsiveTable minWidth="700px">
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-900 text-white">
@@ -201,7 +214,7 @@ export function TransactionInvoiceView({
             </ResponsiveTable>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_320px] gap-4">
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_320px] gap-4 px-4">
             <div>
               <div className="text-sm text-slate-600">Thank you for your business</div>
             </div>
@@ -219,7 +232,7 @@ export function TransactionInvoiceView({
             </div>
           </div>
 
-          <div className="mt-8 grid grid-cols-1 gap-6 text-sm text-slate-600 sm:grid-cols-2">
+          <div className="mt-8 grid grid-cols-1 gap-6 text-sm text-slate-600 sm:grid-cols-2 px-4">
             <div>
               <div className="font-semibold text-slate-800 mb-2">Terms & Conditions</div>
               <div>Payment due within 15 days. Late payments may be subject to fees.</div>

@@ -14,7 +14,10 @@ function makeFormData(obj: Record<string, string>) {
 
 test('server actions reject non-SUPER_ADMIN (unauthenticated or ADMIN)', async () => {
   // Simulate unauthenticated / non-super-admin by making requireRole throw
-  authMod.requireRole = async () => { throw new Error('not allowed') }
+  Object.defineProperty(authMod, 'requireRole', {
+    value: async () => { throw new Error('not allowed') },
+    configurable: true
+  })
 
   const sendResult = await actions.sendAdminCreationOtp(makeFormData({ contact: 'x@example.com' }))
   assert.equal((sendResult as any).error?.includes('Only Super Admin'), true)
@@ -31,7 +34,10 @@ test('server actions reject non-SUPER_ADMIN (unauthenticated or ADMIN)', async (
 
 test('SUPER_ADMIN can run createAdminAccount but role override is ignored', async () => {
   // Mock requireRole to return a SUPER_ADMIN session
-  authMod.requireRole = async () => ({ user: { id: 'sa-1', role: 'SUPER_ADMIN' } } as any)
+  Object.defineProperty(authMod, 'requireRole', {
+    value: async () => ({ user: { id: 'sa-1', role: 'SUPER_ADMIN' } } as any),
+    configurable: true
+  })
 
   // Prepare a mock transaction to capture created user data
   let lastCreated: any = null
@@ -43,7 +49,8 @@ test('SUPER_ADMIN can run createAdminAccount but role override is ignored', asyn
   prisma.$transaction = async (cb: any) => {
     const tx = {
       adminCreationOtp: {
-        findFirst: async (q: any) => ({ id: 'otp-1', contact: 'creator@example.com', verifiedAt: new Date(), expiresAt: new Date(Date.now() + 10000) })
+        findFirst: async (q: any) => ({ id: 'otp-1', contact: 'creator@example.com', verifiedAt: new Date(), expiresAt: new Date(Date.now() + 10000) }),
+        delete: async () => {}
       },
       user: {
         findUnique: async () => null,
@@ -52,9 +59,6 @@ test('SUPER_ADMIN can run createAdminAccount but role override is ignored', asyn
       },
       auditLog: {
         create: async ({ data }: any) => data
-      },
-      adminCreationOtp: {
-        delete: async () => {}
       }
     }
     return cb(tx)
