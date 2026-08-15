@@ -13,6 +13,8 @@ import { Dialog } from '@/components/ui/dialog';
 import { formatDateBD as formatDate, toDateInputValueBD as toDateInputValue } from '@/lib/dates';
 import { useLocale } from '@/i18n/provider';
 import { updatePurchaseItem } from '@/features/purchases/actions';
+import { formatLocalizedCurrency, formatLocalizedDate, formatLocalizedNumber } from '@/lib/localized-formatters';
+import { localizeProductText } from '@/i18n/display';
 
 type ProductRow = {
   id: string;
@@ -59,69 +61,13 @@ function getInclusiveToDate(value: string | null | undefined) {
   return new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 59, 59, 999);
 }
 
-function printProductRows(title: string, rows: ProductRow[], showTotalKg = false) {
-  if (typeof window === 'undefined') return;
-
-  const printWindow = window.open('', '_blank', 'width=900,height=700');
-  if (!printWindow) return;
-
-  const headerCells = [
-    'Date',
-    'Media',
-    'Product Name',
-    'Quantity',
-    ...(showTotalKg ? ['Total Kg'] : []),
-    'Unit Price',
-    'Line Total'
-  ];
-
-  const bodyRows = rows.map((row) => {
-    const cells = [
-      formatDate(row.transactionDate),
-      row.mediaName ?? '—',
-      row.productName,
-      String(row.quantity),
-      ...(showTotalKg && row.totalKg > 0 ? [row.totalKg.toFixed(2)] : showTotalKg ? [''] : []),
-      formatCurrency(row.unitPrice),
-      formatCurrency(row.lineTotal)
-    ];
-    return `<tr>${cells.map((cell) => `<td>${cell}</td>`).join('')}</tr>`;
-  }).join('');
-
-  printWindow.document.write(`<!doctype html>
-    <html>
-      <head>
-        <title>${title}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
-          h1 { margin-bottom: 8px; }
-          p { color: #6b7280; margin-bottom: 16px; }
-          table { width: 100%; border-collapse: collapse; font-size: 12px; }
-          th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
-          th { background: #f3f4f6; }
-        </style>
-      </head>
-      <body>
-        <h1>${title}</h1>
-        <p>Generated on ${formatDate(new Date())}</p>
-        <table>
-          <thead>
-            <tr>
-              ${headerCells.map((cell) => `<th>${cell}</th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>${bodyRows}</tbody>
-        </table>
-      </body>
-    </html>
-  `);
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.print();
+function openTransactionPrint(transactionId: number) {
+  window.open(`/dashboard/transactions/${transactionId}/print`, '_blank');
 }
 
 function RowActionsMenu({ row, onEdit, onPrint }: { row: ProductRow; onEdit?: (row: ProductRow) => void; onPrint?: (row: ProductRow) => void; }) {
   const [open, setOpen] = useState(false);
+  const { dict } = useLocale();
 
   return (
     <DropdownMenu.Root open={open} onOpenChange={setOpen}>
@@ -153,7 +99,7 @@ function RowActionsMenu({ row, onEdit, onPrint }: { row: ProductRow; onEdit?: (r
             }}
           >
             <Pencil className="h-4 w-4" />
-            Edit
+            {dict.common.edit}
           </DropdownMenu.Item>
           <DropdownMenu.Item
             className="flex w-full cursor-default items-center gap-2 rounded-lg px-3 py-2 text-left font-medium text-slate-700 outline-none transition hover:bg-slate-100 focus:bg-slate-100 data-[highlighted]:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus:bg-slate-800 dark:data-[highlighted]:bg-slate-800"
@@ -163,7 +109,7 @@ function RowActionsMenu({ row, onEdit, onPrint }: { row: ProductRow; onEdit?: (r
             }}
           >
             <Printer className="h-4 w-4" />
-            Print
+            {dict.common.print}
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
@@ -174,14 +120,14 @@ function RowActionsMenu({ row, onEdit, onPrint }: { row: ProductRow; onEdit?: (r
 function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg = false, summary, onEdit, onPrint }: { title: string; rows: ProductRow[]; totalItems?: number; headerActions?: ReactNode; showTotalKg?: boolean; summary?: { quantity: number; totalKg: number; lineTotal: number }; onEdit?: (row: ProductRow) => void; onPrint?: (row: ProductRow) => void; }) {
   const itemCount = totalItems ?? rows.length;
   const colSpan = showTotalKg ? 8 : 7;
-  const { dict } = useLocale();
+  const { dict, locale } = useLocale();
 
   return (
     <div className="mt-5 overflow-visible rounded-2xl border border-border bg-card shadow-sm">
       <div className="flex flex-col gap-3 border-b border-border bg-muted/30 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
           <h3 className="text-card-title">{title}</h3>
-          <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground">{itemCount} items</span>
+          <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground">{formatLocalizedNumber(itemCount, locale)} {dict.common.product}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {headerActions}
@@ -206,17 +152,17 @@ function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg
           <tbody>
             {rows.length > 0 ? rows.map((row) => (
               <tr key={row.id} className="border-t border-border transition-colors hover:bg-muted/20">
-                <td className="whitespace-nowrap px-4 py-3">{formatDate(row.transactionDate)}</td>
+                <td className="whitespace-nowrap px-4 py-3">{formatLocalizedDate(row.transactionDate, locale)}</td>
                 <td className="px-4 py-3">{row.mediaName ?? '—'}</td>
-                <td className="min-w-48 px-4 py-3">{row.productName}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{row.quantity}</td>
+                <td className="min-w-48 px-4 py-3">{localizeProductText(row.productName, locale)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatLocalizedNumber(row.quantity, locale)}</td>
                 {showTotalKg && (
                   <td className="px-4 py-3 text-right tabular-nums">
-                    {row.totalKg > 0 ? row.totalKg.toFixed(2) : '—'}
+                    {row.totalKg > 0 ? (locale === 'bn' ? `${formatLocalizedCurrency(row.totalKg, locale).replace('৳ ', '')}` : row.totalKg.toFixed(2)) : '—'}
                   </td>
                 )}
-                <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.unitPrice)}</td>
-                <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.lineTotal)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatLocalizedCurrency(row.unitPrice, locale)}</td>
+                <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatLocalizedCurrency(row.lineTotal, locale)}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end">
                     <RowActionsMenu row={row} onEdit={onEdit} onPrint={onPrint} />
@@ -226,7 +172,7 @@ function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg
             )) : (
               <tr>
                 <td colSpan={colSpan} className="px-4 py-12 text-center text-muted-foreground">
-                  No items found for this product type.
+                  {dict.common.noData}
                 </td>
               </tr>
             )}
@@ -415,7 +361,7 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
     <>
       <div className="mb-6">
         <ProductItemsTable
-          title="Sales Items"
+          title={`${dict.common.sales} ${dict.common.product}`}
           rows={visibleSaleRows}
           totalItems={filteredSaleRows.length}
           headerActions={(
@@ -437,7 +383,7 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
                 />
               </div>
               <label htmlFor="salesProductTypeFilter" className="text-sm font-medium text-muted-foreground">
-                Product type
+                {dict.common.type}
               </label>
               <select
                 id="salesProductTypeFilter"
@@ -445,22 +391,25 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
                 onChange={(event) => setSalesTypeFilter(event.target.value as ProductTypeFilter)}
                 className="form-select"
               >
-                <option value="ALL">All</option>
-                <option value="FEED">Feeds</option>
-                <option value="MEDICINE">Medicine</option>
-                <option value="CHICK">Hatchling / Chick</option>
+                <option value="ALL">{dict.common.all}</option>
+                <option value="FEED">{dict.productTypes.feeds}</option>
+                <option value="MEDICINE">{dict.productTypes.medicine}</option>
+                <option value="CHICK">{dict.productTypes.chick}</option>
               </select>
               <Button type="button" variant="outline" className="h-[42px]" onClick={() => { setDateFrom(''); setDateTo(''); }}>
                 {dict.common.clear}
               </Button>
-              <Button type="button" variant="outline" className="h-[42px]" onClick={() => printProductRows('Sales Items', filteredSaleRows, false)}>
+              <Button type="button" variant="outline" className="h-[42px]" onClick={() => {
+                const rows = filteredSaleRows;
+                if (rows.length > 0) openTransactionPrint(rows[0].transactionId);
+              }}>
                 <Printer className="mr-2 h-4 w-4" />
-                Print
+                {dict.common.print}
               </Button>
             </>
           )}
           showTotalKg={false}
-          onPrint={(row) => printProductRows('Sales Items', [row], false)}
+          onPrint={(row) => openTransactionPrint(row.transactionId)}
         />
         {salePageCount > 1 && (
           <div className="mt-4 flex items-center justify-end">
@@ -471,7 +420,7 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
 
       <div className="mb-6">
         <ProductItemsTable
-          title="Purchase Items"
+          title={`${dict.common.purchases} ${dict.common.product}`}
           rows={visibleBuyRows}
           totalItems={filteredBuyRows.length}
           headerActions={(
@@ -493,7 +442,7 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
                 />
               </div>
               <label htmlFor="purchaseProductTypeFilter" className="text-sm font-medium text-muted-foreground">
-                Product type
+                {dict.common.type}
               </label>
               <select
                 id="purchaseProductTypeFilter"
@@ -501,24 +450,27 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
                 onChange={(event) => setPurchaseTypeFilter(event.target.value as ProductTypeFilter)}
                 className="form-select"
               >
-                <option value="ALL">All</option>
-                <option value="EGG">Egg</option>
-                <option value="CHICKEN">Chicken</option>
-                <option value="CHICK">Hatchling / Chick</option>
+                <option value="ALL">{dict.common.all}</option>
+                <option value="EGG">{dict.productTypes.egg}</option>
+                <option value="CHICKEN">{dict.productTypes.chicken}</option>
+                <option value="CHICK">{dict.productTypes.chick}</option>
               </select>
               <Button type="button" variant="outline" className="h-[42px]" onClick={() => { setDateFrom(''); setDateTo(''); }}>
                 {dict.common.clear}
               </Button>
-              <Button type="button" variant="outline" className="h-[42px]" onClick={() => printProductRows('Purchase Items', filteredBuyRows, true)}>
+              <Button type="button" variant="outline" className="h-[42px]" onClick={() => {
+                const rows = filteredBuyRows;
+                if (rows.length > 0) openTransactionPrint(rows[0].transactionId);
+              }}>
                 <Printer className="mr-2 h-4 w-4" />
-                Print
+                {dict.common.print}
               </Button>
             </>
           )}
           showTotalKg={true}
           summary={purchaseSummary}
           onEdit={openEditDialog}
-          onPrint={(row) => printProductRows('Purchase Items', [row], true)}
+          onPrint={(row) => openTransactionPrint(row.transactionId)}
         />
         {purchasePageCount > 1 && (
           <div className="mt-4 flex items-center justify-end">
@@ -530,7 +482,7 @@ export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurcha
         <Dialog
           open={Boolean(editingRow)}
           onOpenChange={(open) => !open && setEditingRow(null)}
-          title="Edit Purchase Item"
+          title={`${dict.common.edit} ${dict.common.purchases} ${dict.common.product}`}
           footer={(
             <>
               <Button type="button" variant="outline" onClick={() => setEditingRow(null)} disabled={isSavingItem}>

@@ -5,7 +5,6 @@ import { prisma } from '@/server/db';
 import PrintTrigger from './print-trigger';
 import { getBranding } from '@/lib/branding';
 import { Receipt, Landmark, BadgeCheck, Wallet, Package, CircleDollarSign, UserRound } from 'lucide-react';
-import styles from './print-styles.module.css';
 import { formatDateBD as formatDate, formatDateTimeBD as formatDateTime } from '@/lib/dates';
 
 function formatCurrency(value: number | string | { toString(): string } | null | undefined) {
@@ -107,7 +106,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
   const printDate = new Date();
 
   return (
-    <div className={`${styles.printPage} min-h-screen bg-slate-100 px-4 py-6 print:bg-white print:px-0 print:py-0`}>
+    <div className="min-h-screen bg-slate-100 px-4 py-6 print:bg-white print:px-0 print:py-0">
       <PrintTrigger />
       <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-0 shadow-sm print:max-w-none print:rounded-none print:border-0 print:shadow-none print:p-0">
         <div className="overflow-hidden">

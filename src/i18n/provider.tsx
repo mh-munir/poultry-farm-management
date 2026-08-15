@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DEFAULT_LOCALE, LOCALE_COOKIE, getLocaleFromValue, type Locale } from './config';
 import { getDictionary } from './index';
 
@@ -21,6 +22,7 @@ function setCookieLocale(locale: Locale) {
 }
 
 export function LocaleProvider({ children, initialLocale }: { children: React.ReactNode; initialLocale?: string }) {
+  const router = useRouter();
   const [locale, setLocaleState] = useState<Locale>(() => getLocaleFromValue(initialLocale ?? DEFAULT_LOCALE));
 
   useEffect(() => {
@@ -35,12 +37,26 @@ export function LocaleProvider({ children, initialLocale }: { children: React.Re
     document.documentElement.lang = resolved === 'bn' ? 'bn' : 'en';
   }, [initialLocale]);
 
+  useEffect(() => {
+    const syncLocaleFromOtherTab = (event: StorageEvent) => {
+      if (event.key !== STORAGE_KEY || !event.newValue) return;
+      const nextLocale = getLocaleFromValue(event.newValue);
+      setLocaleState(nextLocale);
+      setCookieLocale(nextLocale);
+      document.documentElement.lang = nextLocale;
+      router.refresh();
+    };
+    window.addEventListener('storage', syncLocaleFromOtherTab);
+    return () => window.removeEventListener('storage', syncLocaleFromOtherTab);
+  }, [router]);
+
   const setLocale = useCallback((nextLocale: Locale) => {
     setLocaleState(nextLocale);
     localStorage.setItem(STORAGE_KEY, nextLocale);
     setCookieLocale(nextLocale);
     document.documentElement.lang = nextLocale === 'bn' ? 'bn' : 'en';
-  }, []);
+    router.refresh();
+  }, [router]);
 
   const dict = useMemo(() => getDictionary(locale), [locale]);
 

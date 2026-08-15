@@ -466,22 +466,15 @@ input[type="number"] {
     color: #111827 !important;
   }
 
-  .invoice-brand-header {
-    display: flex !important;
+  .invoice-print-area {
+    max-width: none !important;
   }
 
-  header:not(.invoice-brand-header),
   .sidebar,
   .no-print,
   [class*="md:ml-64"] > header,
   [class*="md:ml-64"] > div {
     display: none !important;
-  }
-
-  main {
-    padding: 0 !important;
-    margin: 0 !important;
-    max-width: 100% !important;
   }
 
   .print\:hidden {

@@ -1,7 +1,9 @@
+'use client';
+
 import type { InvoiceCompanyProfile } from '@/lib/branding';
-import { ResponsiveTable } from '@/components/ui/responsive-table';
-import { formatDateBD as formatDate, formatDateTimeBD as formatDateTime } from '@/lib/dates';
-import { formatLocalizedCurrency } from '@/lib/localized-formatters';
+import { convertToBanglaDigits, formatLocalizedCurrency, formatLocalizedDate } from '@/lib/localized-formatters';
+import { useLocale } from '@/i18n/provider';
+import { localizeProductText } from '@/i18n/display';
 
 export type InvoiceDisplaySettings = {
   hideFeedUnitPrice?: boolean;
@@ -28,20 +30,15 @@ export type InvoiceParty = {
 
 export type TransactionInvoiceViewProps = {
   company: InvoiceCompanyProfile;
-  title: string;
   invoiceNumber: string;
-  transactionNumber: string;
-  transactionType: string;
   transactionDate: Date;
-  printDate: Date;
   party: InvoiceParty;
   items: InvoiceLineItem[];
   subtotal: number;
+  totalAmount: number;
   discount?: number;
   paidAmount: number;
   dueAmount: number;
-  previousDue?: number | null;
-  totalDueAfter?: number | null;
   paymentMethod?: string | null;
   referenceNumber?: string | null;
   notes?: string | null;
@@ -49,245 +46,108 @@ export type TransactionInvoiceViewProps = {
   showTotalKg?: boolean;
   displaySettings?: InvoiceDisplaySettings;
   locale?: 'en' | 'bn';
-  dict?: any;
+  dict?: Record<string, string>;
 };
 
-function formatCurrency(value: number | null | undefined) {
-  return `Tk ${new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(Number(value ?? 0))}`;
-}
-
-// using centralized Bangladesh-aware formatters
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-medium text-slate-900">{value || '-'}</p>
-    </div>
-  );
-}
+const english = {
+  invoice: 'INVOICE', invoiceTo: 'Invoice to:', invoiceNumber: 'Invoice #', date: 'Date', media: 'Media', reference: 'Reference', address: 'Address', phone: 'Mobile:', notSet: 'Not set',
+  itemDescription: 'Product Name', price: 'Unit Price', qty: 'Quantity', totalLabel: 'Total Amount', totalKg: 'Total KG',
+  thankYou: 'Thank you for your business', subTotal: 'Sub Total:', discount: 'Discount:', paid: 'Paid:', due: 'Due:',
+  total: 'Total:', notes: 'Notes', authorizedSign: 'Authorized Sign', hidden: 'Hidden'
+};
 
 function isFeedProduct(productType?: string | null) {
-  return typeof productType === 'string' && productType.trim().toUpperCase() === 'FEED';
+  return productType?.trim().toUpperCase() === 'FEED';
 }
 
 export function TransactionInvoiceView({
-  company,
-  title,
-  invoiceNumber,
-  transactionNumber,
-  transactionType,
-  transactionDate,
-  printDate,
-  party,
-  items,
-  subtotal,
-  discount = 0,
-  paidAmount,
-  dueAmount,
-  previousDue,
-  totalDueAfter,
-  paymentMethod,
-  referenceNumber,
-  notes,
-  mediaName,
-  showTotalKg = false,
-  displaySettings = {},
-  locale = 'en',
-  dict = {}
+  company, invoiceNumber, transactionDate, party, items, subtotal, totalAmount, discount = 0, paidAmount, dueAmount,
+  paymentMethod, referenceNumber, notes, mediaName, showTotalKg = false, displaySettings = {}, locale = 'en', dict = {}
 }: TransactionInvoiceViewProps) {
-  const brandName = company?.name?.trim() || 'Your Brand Name';
-  const brandAddress = company?.address?.trim() || '';
-  const brandPhone = company?.phone?.trim() || '';
-  const brandWebsite = company?.website?.trim() || '';
-  const brandShortName = brandName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? '')
-    .join('') || 'BR';
-
-  // Default English dictionary for offline use
-  const defaultDict = {
-    invoice: {
-      invoice: locale === 'bn' ? 'ইনভয়েস' : 'INVOICE',
-      invoiceTo: locale === 'bn' ? 'কে ইনভয়েস:' : 'Invoice to:',
-      invoiceNumber: locale === 'bn' ? 'ইনভয়েস #' : 'Invoice #',
-      date: locale === 'bn' ? 'তারিখ' : 'Date',
-      media: locale === 'bn' ? 'মিডিয়া' : 'Media',
-      sl: locale === 'bn' ? 'ক্রমিক.' : 'SL.',
-      itemDescription: locale === 'bn' ? 'আইটেমের বিবরণ' : 'Item Description',
-      price: locale === 'bn' ? 'দাম' : 'Price',
-      qty: locale === 'bn' ? 'পরিমাণ' : 'Qty',
-      totalLabel: locale === 'bn' ? 'মোট' : 'Total',
-      totalKg: locale === 'bn' ? 'মোট কেজি' : 'Total Kg',
-      thankYou: locale === 'bn' ? 'আপনার ব্যবসার জন্য ধন্যবাদ' : 'Thank you for your business',
-      subTotal: locale === 'bn' ? 'উপ মোট:' : 'Sub Total:',
-      tax: locale === 'bn' ? 'কর:' : 'Tax:',
-      total: locale === 'bn' ? 'মোট:' : 'Total:',
-      termsAndConditions: locale === 'bn' ? 'শর্তাবলী' : 'Terms & Conditions',
-      paymentInfo: locale === 'bn' ? 'পেমেন্ট তথ্য' : 'Payment Info',
-      authorizedSign: locale === 'bn' ? 'অনুমোদিত স্বাক্ষর' : 'Authorized Sign',
-      paymentDueNote: locale === 'bn' ? '১৫ দিনে পেমেন্ট দিতে হবে। দেরি হলে ফি ধার্য হতে পারে।' : 'Payment due within 15 days. Late payments may be subject to fees.',
-      accountNumber: locale === 'bn' ? 'অ্যাকাউন্ট #: ১২৩৪ ৫৬৭৮ ৯০১२' : 'Account #: 1234 5678 9012',
-      bank: locale === 'bn' ? 'ব্যাংক: উদাহরণ ব্যাংক' : 'Bank: Example Bank',
-      hidden: locale === 'bn' ? 'লুকানো' : 'Hidden'
-    }
-  };
-
-  const safeDict = { ...defaultDict, ...(dict || {}) };
+  const { locale: liveLocale, dict: liveDict } = useLocale();
+  const currentLocale = liveLocale ?? locale;
+  const copy = { ...english, ...dict, ...liveDict.invoice };
+  const formatDecimal = (value: number) => currentLocale === 'bn' ? convertToBanglaDigits(value.toFixed(2)) : value.toFixed(2);
+  const brandName = company.name?.trim() || 'Your Brand Name';
+  const companyAddress = company.address?.trim() || copy.notSet;
+  const companyPhone = company.phone?.trim() || copy.notSet;
+  const brandInitials = brandName.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join('').toUpperCase() || 'BR';
+  const hasDiscount = discount > 0;
+  const hasPayment = paidAmount > 0 || dueAmount > 0;
 
   return (
-    <div className="invoice-print-area max-w-4xl mx-auto bg-white print:bg-white">
-      <style>{`
-        @page { size: A4; margin: 12mm; }
-        @media print {
-          .no-print { display: none !important; }
-          body { background: #fff !important; }
-          table { page-break-inside: auto; }
-          tr { page-break-inside: avoid; page-break-after: auto; }
-        }
-      `}</style>
-
-      <div className="shadow-sm border rounded-md overflow-visible">
-        <header className="invoice-brand-header bg-white p-4 sm:p-6 border-b border-slate-100">
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <div className="flex items-center justify-between gap-4">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden rounded border bg-white">
-                {company.logo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={company.logo} alt={brandName} className="h-full w-full object-contain" />
-                ) : (
-                  <div className="h-8 w-8 bg-slate-100 rounded flex items-center justify-center text-slate-500 font-semibold leading-5">{brandShortName}</div>
-                )}
-              </div>
-              <div>
-                <div className="text-lg text-slate-800 font-bold leading-6 mb-1 w-52">{brandName}</div>
-                {brandAddress ? <div className="text-xs text-slate-400 w-60">{brandAddress}</div> : null}
-              </div>
+    <article className="invoice-print-area mx-auto w-full max-w-[190mm] bg-white text-slate-800">
+      <div className="overflow-hidden border border-slate-200">
+        <header className="invoice-brand-header flex items-center justify-between gap-5 px-7 pt-6 pb-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded border border-slate-300 text-sm font-bold text-slate-700">
+              {company.logo ? <img src={company.logo} alt={brandName} className="h-full w-full object-contain" /> : brandInitials}
             </div>
-
-            <div className="flex">
-              <div className="">
-                <div className="h-5 bg-yellow-400 w-full rounded" />
-              </div>
-
-              <div className="text-left sm:text-right">
-                <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">{safeDict.invoice.invoice}</div>
-              </div>
+            <div className="min-w-0">
+              <h1 className="text-base font-bold leading-tight text-slate-900">{brandName}</h1>
+              <p className="mt-1 text-[10px] leading-tight text-slate-500">{copy.address}: {companyAddress}</p>
+              <p className="text-[10px] leading-tight text-slate-500">{copy.phone} {companyPhone}</p>
             </div>
           </div>
+          <h2 className="text-3xl font-light tracking-wide text-slate-900 sm:text-4xl">{copy.invoice}</h2>
         </header>
+        <div className="h-2.5 bg-amber-400" />
 
-        <div className="h-3 bg-yellow-400 rounded-t" />
-
-        <main className="p-4 sm:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-4 mb-6 px-4">
+        <div className="px-7 py-5">
+          <section className="grid grid-cols-2 gap-8 pb-6 text-xs">
             <div>
-              <div className="text-xs text-slate-500">{safeDict.invoice.invoiceTo}</div>
-              <div className="font-medium text-slate-900 text-lg">{party.name}</div>
-              <div className="mt-1 text-sm text-slate-600">{party.address ?? ''}</div>
+              <p className="font-semibold text-slate-600">{copy.invoiceTo}</p>
+              <p className="mt-1 font-bold text-slate-900">{party.name}</p>
+              {party.address ? <p className="mt-1 whitespace-pre-line text-slate-600">{party.address}</p> : null}
+              {party.phone ? <p className="text-slate-600">{party.phone}</p> : null}
             </div>
+            <dl className="grid grid-cols-[auto_1fr] justify-self-end gap-x-5 gap-y-1 text-right">
+              <dt className="font-semibold text-slate-600">{copy.invoiceNumber}</dt><dd>{invoiceNumber}</dd>
+              <dt className="font-semibold text-slate-600">{copy.date}</dt><dd>{formatLocalizedDate(transactionDate, currentLocale)}</dd>
+              {mediaName ? <><dt className="font-semibold text-slate-600">{copy.media}</dt><dd>{mediaName}</dd></> : null}
+              {referenceNumber ? <><dt className="font-semibold text-slate-600">{copy.reference}</dt><dd>{referenceNumber}</dd></> : null}
+            </dl>
+          </section>
 
-            <div className="text-right">
-              <div className="text-xs text-slate-500">{safeDict.invoice.invoiceNumber}</div>
-              <div className="font-medium text-slate-900">{invoiceNumber}</div>
-              <div className="mt-2 text-xs text-slate-500">{safeDict.invoice.date}</div>
-              <div className="font-medium text-slate-900">{formatDate(transactionDate)}</div>
-              {mediaName ? (
-                <div className="mt-2 text-xs text-slate-500">{safeDict.invoice.media}</div>
-              ) : null}
-              {mediaName ? (
-                <div className="font-medium text-slate-900">{mediaName}</div>
-              ) : null}
-            </div>
-          </div>
+          <table className="w-full border-collapse text-xs">
+            <thead className="bg-slate-800 text-left text-white">
+              <tr>
+                <th className="px-2 py-2 font-semibold">{copy.itemDescription}</th><th className="px-2 py-2 text-center font-semibold">{copy.qty}</th>
+                <th className="px-2 py-2 text-right font-semibold">{copy.price}</th>
+                {showTotalKg ? <th className="px-2 py-2 text-right font-semibold">{copy.totalKg}</th> : null}<th className="px-2 py-2 text-right font-semibold">{copy.totalLabel}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, index) => {
+                const hidePrice = isFeedProduct(item.productType) && displaySettings.hideFeedUnitPrice;
+                const hideTotal = isFeedProduct(item.productType) && displaySettings.hideFeedLineTotal;
+                return <tr key={item.id} className={index % 2 ? 'bg-slate-50' : 'bg-white'}>
+                  <td className="px-2 py-2.5">{localizeProductText(item.productName, currentLocale)}</td>
+                  <td className="px-2 py-2.5 text-center">{formatDecimal(item.quantity)} {localizeProductText(item.unit, currentLocale)}</td>
+                  <td className="px-2 py-2.5 text-right">{hidePrice ? copy.hidden : formatLocalizedCurrency(item.unitPrice, currentLocale)}</td>
+                  {showTotalKg ? <td className="px-2 py-2.5 text-right">{typeof item.totalKg === 'number' ? `${formatDecimal(item.totalKg)} ${currentLocale === 'bn' ? 'কেজি' : 'kg'}` : '—'}</td> : null}
+                  <td className="px-2 py-2.5 text-right font-semibold">{hideTotal ? copy.hidden : formatLocalizedCurrency(item.lineTotal, currentLocale)}</td>
+                </tr>;
+              })}
+            </tbody>
+          </table>
 
-          <div className="overflow-hidden border-t border-b">
-            <ResponsiveTable minWidth="700px">
-              <table className="min-w-full divide-y divide-slate-200 text-sm">
-                <thead className="bg-slate-900 text-white">
-                  <tr>
-                    <th className="px-4 py-3 text-left">{safeDict.invoice.sl}</th>
-                    <th className="px-4 py-3 text-left">{safeDict.invoice.itemDescription}</th>
-                    <th className="px-4 py-3 text-right">{safeDict.invoice.price}</th>
-                    <th className="px-4 py-3 text-center">{safeDict.invoice.qty}</th>
-                    {showTotalKg ? <th className="px-4 py-3 text-right">{safeDict.invoice.totalKg}</th> : null}
-                    <th className="px-4 py-3 text-right">{safeDict.invoice.totalLabel}</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-slate-200">
-                  {items.map((it, idx) => {
-                    const isFeed = isFeedProduct(it.productType);
-                    const hideUnitPrice = Boolean(isFeed && displaySettings.hideFeedUnitPrice);
-                    const hideLineTotal = Boolean(isFeed && displaySettings.hideFeedLineTotal);
-
-                    return (
-                      <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                        <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
-                        <td className="px-4 py-3 text-slate-700">{it.productName}</td>
-                        <td className="px-4 py-3 text-right text-slate-700">{hideUnitPrice ? safeDict.invoice.hidden : formatLocalizedCurrency(it.unitPrice, locale)}</td>
-                        <td className="px-4 py-3 text-center text-slate-700">
-                          {showTotalKg && it.unit.toLowerCase() === 'kg'
-                            ? it.quantity.toFixed(2)
-                            : `${it.quantity.toFixed(2)} ${it.unit}`}
-                        </td>
-                        {showTotalKg ? (
-                          <td className="px-4 py-3 text-right text-slate-700">
-                            {typeof it.totalKg === 'number' && it.totalKg > 0 ? `${it.totalKg.toFixed(2)} kg` : '—'}
-                          </td>
-                        ) : null}
-                        <td className="px-4 py-3 text-right font-medium text-slate-900">{hideLineTotal ? safeDict.invoice.hidden : formatLocalizedCurrency(it.lineTotal, locale)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </ResponsiveTable>
-          </div>
-
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_320px] gap-4 px-4">
-            <div>
-              <div className="text-sm text-slate-600">{safeDict.invoice.thankYou}</div>
-            </div>
-            <div className="flex justify-end">
-              <div className="w-full max-w-xs">
-                <div className="flex justify-between text-sm text-slate-600"><div>{safeDict.invoice.subTotal}</div><div>{formatLocalizedCurrency(subtotal, locale)}</div></div>
-                <div className="flex justify-between text-sm text-slate-600 mt-1"><div>{safeDict.invoice.tax}</div><div>{formatLocalizedCurrency(0, locale)}</div></div>
-                <div className="mt-3">
-                  <div className="flex items-center justify-between bg-yellow-400 px-4 py-3">
-                    <div className="text-sm font-semibold text-slate-900">{safeDict.invoice.total}</div>
-                    <div className="text-xl font-extrabold text-slate-900">{formatLocalizedCurrency(totalDueAfter ?? subtotal, locale)}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 grid grid-cols-1 gap-6 text-sm text-slate-600 sm:grid-cols-2 px-4">
-            <div>
-              <div className="font-semibold text-slate-800 mb-2">{safeDict.invoice.termsAndConditions}</div>
-              <div>{safeDict.invoice.paymentDueNote}</div>
-            </div>
-            <div>
-              <div className="font-semibold text-slate-800 mb-2">{safeDict.invoice.paymentInfo}</div>
-              <div>{safeDict.invoice.accountNumber}</div>
-              <div>{safeDict.invoice.bank}</div>
-            </div>
-          </div>
-        </main>
-
-        <footer className="p-4 sm:p-6 bg-white border-t text-sm text-slate-500 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>Phone: {company.phone ?? '—'} | Address: {company.address ?? '—'} | {company.website ?? ''}</div>
-          <div className="text-left sm:text-right">
-            <div className="font-semibold text-slate-800">{safeDict.invoice.authorizedSign}</div>
-            <div className="mt-4 h-8 w-40 sm:w-48 border-b border-slate-300" />
-          </div>
+          <section className="mt-5 grid grid-cols-[1fr_190px] gap-8 text-xs">
+            <div className="text-slate-600"><p className="font-semibold">{copy.thankYou}</p>{notes ? <div className="mt-5"><p className="font-semibold text-slate-700">{copy.notes}</p><p className="mt-1 whitespace-pre-line">{notes}</p></div> : null}</div>
+            <dl className="space-y-1.5">
+              <div className="flex justify-between"><dt>{copy.subTotal}</dt><dd>{formatLocalizedCurrency(subtotal, currentLocale)}</dd></div>
+              {hasDiscount ? <div className="flex justify-between"><dt>{copy.discount}</dt><dd>-{formatLocalizedCurrency(discount, currentLocale)}</dd></div> : null}
+              {hasPayment ? <><div className="flex justify-between"><dt>{copy.paid}</dt><dd>{formatLocalizedCurrency(paidAmount, currentLocale)}</dd></div><div className="flex justify-between"><dt>{copy.due}</dt><dd>{formatLocalizedCurrency(dueAmount, currentLocale)}</dd></div></> : null}
+              <div className="mt-3 flex justify-between bg-amber-400 px-3 py-2.5 text-sm font-bold"><dt>{copy.total}</dt><dd>{formatLocalizedCurrency(totalAmount, currentLocale)}</dd></div>
+              {paymentMethod ? <p className="pt-1 text-right text-[10px] text-slate-500">{paymentMethod}</p> : null}
+            </dl>
+          </section>
+        </div>
+        <footer className="flex items-end justify-between border-t-2 border-amber-400 px-7 py-4 text-[10px] text-slate-600">
+          <p>{[`${copy.phone} ${companyPhone}`, `${copy.address}: ${companyAddress}`, company.website].filter(Boolean).join('  |  ')}</p>
+          <div className="w-28 text-center"><div className="h-7 border-b border-slate-400" /><p className="mt-1 font-semibold">{copy.authorizedSign}</p></div>
         </footer>
       </div>
-    </div>
+    </article>
   );
 }

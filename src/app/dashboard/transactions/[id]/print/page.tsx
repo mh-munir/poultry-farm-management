@@ -17,14 +17,6 @@ function numberValue(value: unknown) {
   return Number((value as { toString?: () => string } | null | undefined)?.toString?.() ?? value ?? 0);
 }
 
-function titleCase(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
 function parseInvoiceDisplaySettings(value: unknown): InvoiceDisplaySettings {
   if (!value || typeof value !== 'object') {
     return {};
@@ -72,12 +64,6 @@ export default async function TransactionPrintPage({ params }: { params: Promise
 
   if (!transaction) notFound();
 
-  const mainLedger = transaction.ledgerEntries.find((entry) => entry.entryType === transaction.transactionType);
-  const lastLedger = transaction.ledgerEntries.at(-1);
-  const previousDue = mainLedger
-    ? numberValue(mainLedger.runningBalance) - numberValue(mainLedger.amount)
-    : null;
-  const totalDueAfter = lastLedger ? numberValue(lastLedger.runningBalance) : numberValue(transaction.dueAmount);
   const firstPayment = transaction.payments[0]?.payment;
   const counterparty = transaction.company ?? transaction.party;
   const displaySettings = parseInvoiceDisplaySettings(invoiceSettingsRecord?.value);
@@ -87,12 +73,8 @@ export default async function TransactionPrintPage({ params }: { params: Promise
       <InvoicePrintTrigger />
       <TransactionInvoiceView
       company={companyProfile}
-      title={`${titleCase(transaction.transactionType)} Transaction`}
       invoiceNumber={transaction.invoiceNumber}
-      transactionNumber={String(transaction.id).padStart(6, '0')}
-      transactionType={titleCase(transaction.transactionType)}
       transactionDate={transaction.transactionDate}
-      printDate={new Date()}
       party={{
         label: transaction.company ? 'Company' : transaction.transactionType === 'SALE' ? 'Customer' : 'Supplier',
         name: counterparty?.name ?? 'Unknown',
@@ -111,16 +93,13 @@ export default async function TransactionPrintPage({ params }: { params: Promise
       }))}
       showTotalKg={transaction.transactionType === 'PURCHASE'}
       subtotal={numberValue(transaction.subtotal)}
+      totalAmount={numberValue(transaction.totalAmount)}
       discount={numberValue(transaction.discount)}
       paidAmount={numberValue(transaction.paidAmount)}
       dueAmount={numberValue(transaction.dueAmount)}
-      previousDue={previousDue}
-      totalDueAfter={totalDueAfter}
       paymentMethod={firstPayment?.paymentMethod ?? null}
       referenceNumber={transaction.referenceNumber ?? firstPayment?.referenceNumber ?? null}
       notes={transaction.notes}
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore - adding mediaName prop for now
       mediaName={transaction.mediaName}
       displaySettings={displaySettings}
       locale={locale}
