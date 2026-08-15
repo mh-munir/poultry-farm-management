@@ -12,6 +12,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { createOrUpdateParty, deleteParty } from '@/features/parties/actions';
 import { useToast } from '@/hooks/use-toast';
 import { getFriendlyServerActionError, handleStaleServerActionError } from '@/lib/server-action-errors';
+import { useLocale } from '@/i18n/provider';
 
 export type PartyRowEditPayload = {
   id: number;
@@ -39,6 +40,7 @@ type PartyRowActionsProps = {
 
 export function PartyRowActions({ party, editOnly = false, printHref, editButtonClassName, printButtonClassName }: PartyRowActionsProps) {
   const router = useRouter();
+  const { dict } = useLocale();
   const { success, error: showToastError } = useToast();
   const [actionOpen, setActionOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -144,7 +146,7 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
         <div className="inline-flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" onClick={() => setEditOpen(true)} className={editButtonClassName}>
             <Pencil className="mr-2 h-4 w-4" />
-            Edit Party
+            {dict.common.editProfile}
           </Button>
           {printHref ? (
             <Button asChild size="sm" className={printButtonClassName}>
@@ -185,7 +187,7 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
                 }}
               >
                 <Pencil className="h-4 w-4" />
-                Edit
+                {dict.common.edit}
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="mx-2 h-px bg-slate-200" />
               <DropdownMenu.Item
@@ -193,23 +195,23 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
                 className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-red-600 outline-none data-[highlighted]:bg-red-50"
               >
                 <Trash2 className="h-4 w-4" />
-                Delete
+                {dict.common.delete}
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
       )}
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen} title="Edit Party">
+      <Dialog open={editOpen} onOpenChange={setEditOpen} title={dict.common.editProfile}>
         <form onSubmit={handleEditSubmit} encType="multipart/form-data" autoComplete="off" className="grid gap-4 md:grid-cols-2">
           <input type="hidden" name="id" value={party.id} />
           <input type="hidden" name="existingImageUrl" value={party.imageUrl ?? ''} />
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Party name</label>
+            <label className="mb-2 block text-sm font-medium">{dict.common.companyName}</label>
             <input name="name" required defaultValue={party.name} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium">Phone</label>
+            <label className="mb-2 block text-sm font-medium">{dict.settings.phone ?? 'Phone'}</label>
             <input
               name="phone"
               required
@@ -221,11 +223,11 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium">Email</label>
+            <label className="mb-2 block text-sm font-medium">{dict.common.email}</label>
             <input type="email" name="email" defaultValue={party.email ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium">Party type</label>
+            <label className="mb-2 block text-sm font-medium">{dict.common.type}</label>
             <select name="partyType" defaultValue={party.partyType} className="w-full form-select">
               <option value="CUSTOMER">Customer</option>
               <option value="PARTY">Party Supplier (Eggs & Chicken)</option>
@@ -233,46 +235,46 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
             </select>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium">Tax number</label>
+            <label className="mb-2 block text-sm font-medium">{dict.settings.taxNumber ?? 'Tax number'}</label>
             <input name="taxNumber" defaultValue={party.taxNumber ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium">Credit limit</label>
+            <label className="mb-2 block text-sm font-medium">{dict.settings.creditLimit ?? 'Credit limit'}</label>
             <input type="number" step="0.01" min="0" name="creditLimit" defaultValue={party.creditLimit ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div className="md:col-span-2 rounded-xl border bg-background p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold">Opening Balance</p>
-                <p className="text-xs text-muted-foreground">Creates an opening ledger entry when the amount is non-zero.</p>
+                <p className="text-sm font-semibold">{dict.settings.openingBalance ?? 'Opening Balance'}</p>
+                <p className="text-xs text-muted-foreground">{dict.settings.openingBalanceHint ?? 'Creates an opening ledger entry when the amount is non-zero.'}</p>
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-medium">Opening Balance Amount</label>
+                <label className="mb-2 block text-sm font-medium">{dict.settings.openingBalanceAmount ?? 'Opening Balance Amount'}</label>
                 <input type="number" step="0.01" min="0" name="openingBalanceAmount" defaultValue={Number(party.openingBalance ?? 0) === 0 ? 0 : Math.abs(Number(party.openingBalance ?? 0))} className="w-full rounded-md border bg-background px-3 py-2" />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium">Balance Type</label>
+                <label className="mb-2 block text-sm font-medium">{dict.settings.balanceType ?? 'Balance Type'}</label>
                 <div className="flex flex-col gap-2 rounded-md border bg-background px-3 py-3">
                   <label className="flex items-center gap-2 text-sm">
                     <input type="radio" name="openingBalanceType" value="CUSTOMER_DUE" defaultChecked={party.openingBalanceType !== 'CUSTOMER_ADVANCE'} className="h-4 w-4" />
-                    Customer Due
+                    {dict.settings.customerDue ?? 'Customer Due'}
                   </label>
                   <label className="flex items-center gap-2 text-sm">
                     <input type="radio" name="openingBalanceType" value="CUSTOMER_ADVANCE" defaultChecked={party.openingBalanceType === 'CUSTOMER_ADVANCE'} className="h-4 w-4" />
-                    Customer Advance
+                    {dict.settings.customerAdvance ?? 'Customer Advance'}
                   </label>
                 </div>
               </div>
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium">Description</label>
+                <label className="mb-2 block text-sm font-medium">{dict.common.notes}</label>
                 <textarea name="openingBalanceDescription" rows={2} defaultValue={party.openingBalanceDescription ?? ''} className="w-full rounded-md border bg-background px-3 py-2" placeholder="Opening balance note..." />
               </div>
             </div>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium">Party image</label>
+            <label className="mb-2 block text-sm font-medium">{dict.settings.partyImage ?? 'Party image'}</label>
             <input type="file" name="image" accept="image/*" onChange={handleImageCompress} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
             {imageCompressionStatus ? <p className="mt-1 text-xs text-muted-foreground">{imageCompressionStatus}</p> : null}
             {party.imageUrl ? (
@@ -284,15 +286,15 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
           </div>
           <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-3">
             <input id={`isActive-${party.id}`} name="isActive" type="checkbox" defaultChecked={party.isActive} className="h-4 w-4" />
-            <label htmlFor={`isActive-${party.id}`} className="text-sm">Active party</label>
+            <label htmlFor={`isActive-${party.id}`} className="text-sm">{dict.common.activeParty}</label>
           </div>
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Address</label>
+            <label className="mb-2 block text-sm font-medium">{dict.settings.address ?? 'Address'}</label>
             <textarea name="address" rows={3} defaultValue={party.address ?? ''} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
           <div className="md:col-span-2 flex flex-wrap gap-3">
-            <Button type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Changes'}</Button>
-            <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={isSaving}>{isSaving ? dict.common.loading : dict.common.save}</Button>
+            <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>{dict.common.cancel}</Button>
           </div>
         </form>
       </Dialog>
@@ -300,10 +302,10 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title={`Delete ${party.name}?`}
+        title={`${dict.common.delete} ${party.name}?`}
         description="If this party has historical records, it will be deactivated instead of permanently deleted."
-        confirmText="Delete"
-        cancelText="Cancel"
+        confirmText={dict.common.delete}
+        cancelText={dict.common.cancel}
         onConfirm={handleConfirmDeleteParty}
         onCancel={() => setConfirmOpen(false)}
         isLoading={isDeleting}

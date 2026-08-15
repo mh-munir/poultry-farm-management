@@ -1,11 +1,16 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { SignInForm } from '@/components/auth/sign-in-form';
 import { AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
+import { getDictionary } from '@/i18n';
 
 export default async function SignInPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string }> }) {
   const params = await searchParams;
   const success = params?.success ?? '';
   const error = params?.error ?? '';
+  const locale = getLocaleFromValue((await cookies()).get(LOCALE_COOKIE)?.value ?? undefined);
+  const dict = getDictionary(locale);
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
@@ -15,10 +20,10 @@ export default async function SignInPage({ searchParams }: { searchParams?: Prom
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/20">
               <Clock className="h-6 w-6" />
             </div>
-            <p className="text-sm font-medium uppercase tracking-[0.3em] text-primary/80">Welcome back</p>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">Sign in</h1>
+            <p className="text-sm font-medium uppercase tracking-[0.3em] text-primary/80">{dict.auth.welcomeBack}</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">{dict.auth.signInTitle}</h1>
             <p className="text-sm text-muted-foreground">
-              Use your credentials to access the farm management workspace.
+              {dict.auth.signInDescription}
             </p>
           </div>
 
@@ -37,13 +42,13 @@ export default async function SignInPage({ searchParams }: { searchParams?: Prom
 
           <div className="mt-8 flex flex-col gap-2 text-sm text-muted-foreground">
             <Link href="/auth/forgot-password" className="text-primary transition hover:underline">
-              Forgot your password? Recover it with a verification code.
+              {dict.auth.forgotPasswordLink}
             </Link>
             <Link href="/auth/reset-admin" className="text-foreground/70 transition hover:text-foreground">
-              Need the shared admin reset token?
+              {dict.auth.needAdminResetToken}
             </Link>
             <Link href="/" className="text-foreground/70 transition hover:text-foreground">
-              Back home
+              {dict.auth.backHome}
             </Link>
           </div>
         </div>

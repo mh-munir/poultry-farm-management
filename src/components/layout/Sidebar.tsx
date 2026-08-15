@@ -4,9 +4,11 @@ import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import { Home, Users, Factory, BarChart2, Settings, LogOut, Wallet } from 'lucide-react';
+import { useLocale } from '@/i18n/provider';
 
 export function Sidebar({ open, onClose, branding }: { open?: boolean; onClose?: () => void; branding: any }) {
   const pathname = usePathname() || '';
+  const { dict } = useLocale();
   const logoUrl = branding?.logo ?? null;
   const brandingName = branding?.name ?? null;
 
@@ -44,54 +46,54 @@ export function Sidebar({ open, onClose, branding }: { open?: boolean; onClose?:
 
           <nav className="space-y-5">
             <div className="space-y-3">
-              <div className="px-3 pt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-primary">Main</div>
+              <div className="px-3 pt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-primary">{dict.nav.main}</div>
               <ul className="space-y-1">
                 <li>
                   <Link href="/dashboard" onClick={() => onClose?.()} className={linkClass('/dashboard')}>
                     <Home size={20} className={pathname === '/dashboard' ? 'text-primary' : 'text-muted-foreground'} />
-                    <span className="text-sm font-medium">Dashboard</span>
+                    <span className="text-sm font-medium">{dict.nav.dashboard}</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="/dashboard/parties" onClick={() => onClose?.()} className={linkClass('/dashboard/parties')}>
                     <Users size={20} className={pathname === '/dashboard/parties' ? 'text-primary' : 'text-muted-foreground'} />
-                    <span className="text-sm font-medium">Parties</span>
+                    <span className="text-sm font-medium">{dict.nav.parties}</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="/dashboard/companies" onClick={() => onClose?.()} className={linkClass('/dashboard/companies')}>
                     <Factory size={20} className={pathname === '/dashboard/companies' ? 'text-primary' : 'text-muted-foreground'} />
-                    <span className="text-sm font-medium">Companies</span>
+                    <span className="text-sm font-medium">{dict.nav.companies}</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="/dashboard/stock/reports" onClick={() => onClose?.()} className={linkClass('/dashboard/stock/reports')}>
                     <BarChart2 size={20} className={pathname === '/dashboard/stock/reports' ? 'text-primary' : 'text-muted-foreground'} />
-                    <span className="text-sm font-medium">Stock Reports</span>
+                    <span className="text-sm font-medium">{dict.nav.stockReports}</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="/dashboard/expenses" onClick={() => onClose?.()} className={linkClass('/dashboard/expenses')}>
                     <Wallet size={20} className={pathname === '/dashboard/expenses' ? 'text-primary' : 'text-muted-foreground'} />
-                    <span className="text-sm font-medium">Expenses</span>
+                    <span className="text-sm font-medium">{dict.nav.expenses}</span>
                   </Link>
                 </li>
               </ul>
             </div>
 
             <div className="space-y-3">
-              <div className="px-3 pt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-primary">Settings</div>
+              <div className="px-3 pt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-primary">{dict.nav.settings}</div>
               <ul className="space-y-1">
                 <li>
                   <Link href="/dashboard/reports" onClick={() => onClose?.()} className={linkClass('/dashboard/reports')}>
                     <BarChart2 size={20} className={pathname === '/dashboard/reports' ? 'text-primary' : 'text-muted-foreground'} />
-                    <span className="text-sm font-medium">Reports</span>
+                    <span className="text-sm font-medium">{dict.nav.reports}</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="/dashboard/settings" onClick={() => onClose?.()} className={linkClass('/dashboard/settings')}>
                     <Settings size={20} className={pathname === '/dashboard/settings' ? 'text-primary' : 'text-muted-foreground'} />
-                    <span className="text-sm font-medium">Settings</span>
+                    <span className="text-sm font-medium">{dict.nav.settings}</span>
                   </Link>
                 </li>
               </ul>
@@ -109,7 +111,7 @@ export function Sidebar({ open, onClose, branding }: { open?: boolean; onClose?:
             className="group flex w-full items-center gap-3 rounded-[12px] border border-border bg-background px-4 h-11 text-foreground transition-colors duration-200 ease-in-out hover:bg-muted/60"
           >
             <LogOut size={20} className="text-muted-foreground transition-colors duration-200 group-hover:text-primary" />
-            <span className="text-sm font-medium">Logout</span>
+            <span className="text-sm font-medium">{dict.common.logout}</span>
           </button>
         </div>
       </div>

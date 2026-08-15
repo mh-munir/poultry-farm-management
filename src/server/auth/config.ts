@@ -98,7 +98,12 @@ export const authConfig: AuthOptions = {
       return true;
     },
     async jwt({ token, user }: { token: JWT; user?: User }) {
-      const tokenIat = Number(token.iat ?? 0);
+      const tokenIatValue = token.iat;
+      const tokenIat = typeof tokenIatValue === 'number'
+        ? tokenIatValue
+        : typeof tokenIatValue === 'string'
+          ? Number(tokenIatValue)
+          : 0;
       const tokenAgeMs = tokenIat > 0 ? Date.now() - tokenIat * 1000 : Number.MAX_SAFE_INTEGER;
       const needsRefresh =
         token.sub &&

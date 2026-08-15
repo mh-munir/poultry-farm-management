@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 
-export type AnalyticsPresetValue = 'custom' | 'today' | 'yesterday' | '7' | '30' | 'month' | 'lastMonth' | 'year' | 'thisYear';
+export type AnalyticsPresetValue = 'none' | 'custom' | 'today' | 'yesterday' | '7' | '30' | 'month' | 'lastMonth' | 'year' | 'thisYear';
 
 export type AnalyticsFilterState = {
   start: string;

@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
-import { getSupplierOptions, getSupplierCurrentPayable, paySupplierPayment } from '@/features/parties/actions';
+import { useLocale } from '@/i18n/provider';
+import { getPartyAccountSummary, getSupplierOptions, paySupplierPayment } from '@/features/parties/actions';
 import { DateInput } from '@/components/ui/date-input';
 import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
@@ -16,10 +17,12 @@ type PaySupplierModalProps = {
 };
 
 export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) {
+  const { dict } = useLocale();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partyOptions, setPartyOptions] = useState<ComboboxOption[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState<number | null>(null);
   const [currentPayable, setCurrentPayable] = useState(0);
+  const [customerDue, setCustomerDue] = useState(0);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(() => todayDateStr());
   const router = useRouter();
@@ -32,6 +35,7 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
       });
       setSelectedPartyId(null);
       setCurrentPayable(0);
+      setCustomerDue(0);
       setPaymentAmount('');
       setPaymentDate(todayDateStr());
     }
@@ -44,13 +48,17 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
       setCurrentPayable(0);
     } else {
       setSelectedPartyId(id);
-      const payable = await getSupplierCurrentPayable(id);
-      setCurrentPayable(payable);
+      const summary = await getPartyAccountSummary(id);
+      setCurrentPayable(Number(summary.supplierPayable));
+      setCustomerDue(Number(summary.customerDue));
     }
     setPaymentAmount('');
   };
 
-  const remainingPayable = currentPayable - (Number(paymentAmount) || 0);
+  const enteredAmount = Number(paymentAmount) || 0;
+  const payableSettlement = Math.min(currentPayable, enteredAmount);
+  const supplierAdvance = Math.max(0, enteredAmount - currentPayable);
+  const remainingPayable = Math.max(0, currentPayable - enteredAmount);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -71,26 +79,26 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Pay Supplier">
+    <Dialog open={open} onOpenChange={onOpenChange} title={dict.common.paySupplier}>
       <form onSubmit={handleSubmit} className="mt-2 grid gap-4 md:gap-5 grid-cols-1 md:grid-cols-2">
         <input type="hidden" name="status" value="COMPLETED" />
         <input type="hidden" name="paymentMethod" value="Cash" />
 
         <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-slate-700">Party</label>
+          <label className="mb-2 block text-sm font-medium text-slate-700">{dict.common.partyName}</label>
           <SearchableCombobox
             options={partyOptions}
             value={String(selectedPartyId ?? '')}
             onValueChange={handlePartyChange}
-            placeholder="Search supplier..."
-            emptyText="No supplier found"
+            placeholder={dict.forms.searchSupplier}
+            emptyText={dict.stock.noCompanyFound}
             required
           />
           <input type="hidden" name="partyId" value={String(selectedPartyId ?? '')} />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Payment Date</label>
+          <label className="mb-2 block text-sm font-medium text-slate-700">{dict.common.paymentDate}</label>
           <DateInput
             name="paymentDate"
             value={paymentDate}
@@ -101,7 +109,7 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Payment Amount</label>
+          <label className="mb-2 block text-sm font-medium text-slate-700">{dict.stock.paymentAmount}</label>
           <input
             type="number"
             name="amount"
@@ -111,13 +119,13 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
             onChange={(e) => setPaymentAmount(e.target.value)}
             required
             className="w-full h-[50px] rounded-[12px] border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-            placeholder="Enter amount"
+            placeholder={dict.forms.enterAmount}
           />
         </div>
 
         <div className="md:col-span-2 grid gap-3 md:grid-cols-3 bg-slate-50 rounded-[20px] p-4">
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <label className="text-xs font-medium text-slate-500">Current Payable</label>
+            <label className="text-xs font-medium text-slate-500">{dict.common.currentDue}</label>
             <input
               type="text"
               readOnly
@@ -126,7 +134,7 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
             />
           </div>
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <label className="text-xs font-medium text-slate-500">Payment Amount</label>
+            <label className="text-xs font-medium text-slate-500">{dict.stock.paymentAmount}</label>
             <input
               type="text"
               readOnly
@@ -135,7 +143,7 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
             />
           </div>
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <label className="text-xs font-medium text-slate-500">Remaining Payable</label>
+            <label className="text-xs font-medium text-slate-500">{dict.common.remainingDue}</label>
             <input
               type="text"
               readOnly
@@ -145,11 +153,31 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
           </div>
         </div>
 
+        <div className="md:col-span-2 grid gap-3 md:grid-cols-2 lg:grid-cols-4 bg-slate-50 rounded-[20px] p-4">
+          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Customer Due</p>
+            <p className="mt-3 text-right text-lg font-semibold text-slate-950">à§³ {customerDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="mt-2 text-xs text-slate-500">This party owes you</p>
+          </div>
+          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Supplier Payable Settlement</p>
+            <p className="mt-3 text-right text-lg font-semibold text-slate-950">à§³ {payableSettlement.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Supplier Advance</p>
+            <p className="mt-3 text-right text-lg font-semibold text-slate-950">à§³ {supplierAdvance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+          <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Remaining Supplier Payable</p>
+            <p className="mt-3 text-right text-lg font-semibold text-slate-950">à§³ {remainingPayable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+        </div>
+
         <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-3">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-            Cancel
+            {dict.common.cancel}
           </Button>
-          <Button type="submit" disabled={isSubmitting || !selectedPartyId || !paymentAmount || Number(paymentAmount) <= 0 || remainingPayable < 0}>
+          <Button type="submit" disabled={isSubmitting || !selectedPartyId || !paymentAmount || Number(paymentAmount) <= 0}>
             {isSubmitting ? 'Saving...' : 'Save Payment'}
           </Button>
         </div>

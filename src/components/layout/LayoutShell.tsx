@@ -2,87 +2,82 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Menu, X, ChevronRight, Sun, Moon } from 'lucide-react';
+import { Menu, X, ChevronRight, Sun, Moon, Languages } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Sidebar from './Sidebar';
 import { UserNav } from '@/components/auth/user-nav';
 import { ToastContainer } from '@/components/toast-container';
+import { useLocale } from '@/i18n/provider';
 
-const PAGE_TITLES: Record<string, string[]> = {
-  '/dashboard': ['Dashboard'],
-  '/dashboard/parties': ['Parties'],
-  '/dashboard/parties/new': ['Parties', 'New'],
-  '/dashboard/stock/reports': ['Stock Reports'],
-  '/dashboard/expenses': ['Expenses'],
-  '/dashboard/sales': ['Sales'],
-  '/dashboard/purchases': ['Purchases'],
-  '/dashboard/products': ['Products'],
-  '/dashboard/products/new': ['Products', 'New'],
-  '/dashboard/product-categories': ['Product Categories'],
-  '/dashboard/product-categories/new': ['Product Categories', 'New'],
-  '/dashboard/settings': ['Settings'],
-  '/dashboard/settings/logo': ['Settings', 'Logo'],
-  '/dashboard/settings/users': ['Settings', 'Users'],
-  '/dashboard/settings/company': ['Settings', 'Company'],
-  '/dashboard/settings/invoice': ['Settings', 'Invoice'],
-  '/dashboard/settings/backup': ['Settings', 'Backup'],
-  '/dashboard/settings/restore': ['Settings', 'Restore'],
-  '/dashboard/reports': ['Reports'],
-  '/dashboard/reports/daily': ['Reports', 'Daily'],
-  '/dashboard/reports/monthly': ['Reports', 'Monthly'],
-  '/dashboard/reports/yearly': ['Reports', 'Yearly'],
-  '/dashboard/reports/profit-loss': ['Reports', 'Profit Loss'],
-  '/dashboard/reports/sales': ['Reports', 'Sales'],
-  '/dashboard/reports/purchases': ['Reports', 'Purchases'],
-  '/dashboard/reports/stock': ['Reports', 'Stock'],
-  '/dashboard/reports/party-statement': ['Reports', 'Party Statement']
-};
+function getPageTitle(pathname: string, dict: any): string[] {
+  const pageTitles: Record<string, string[]> = {
+    '/dashboard': [dict.nav.dashboard],
+    '/dashboard/parties': [dict.nav.parties],
+    '/dashboard/parties/new': [dict.nav.parties, dict.common.new],
+    '/dashboard/stock/reports': [dict.nav.stockReports],
+    '/dashboard/expenses': [dict.nav.expenses],
+    '/dashboard/sales': [dict.common.sales],
+    '/dashboard/purchases': [dict.common.purchases],
+    '/dashboard/products': [dict.common.products],
+    '/dashboard/products/new': [dict.common.products, dict.common.new],
+    '/dashboard/settings': [dict.nav.settings],
+    '/dashboard/settings/logo': [dict.nav.settings, 'Logo'],
+    '/dashboard/settings/users': [dict.nav.settings, dict.common.users ?? 'Users'],
+    '/dashboard/settings/company': [dict.nav.settings, dict.common.companies],
+    '/dashboard/settings/invoice': [dict.nav.settings, dict.common.invoice ?? 'Invoice'],
+    '/dashboard/settings/backup': [dict.nav.settings, dict.settings.backup],
+    '/dashboard/settings/restore': [dict.nav.settings, dict.settings.restore],
+    '/dashboard/reports': [dict.nav.reports],
+    '/dashboard/reports/daily': [dict.nav.reports, dict.reports.daily],
+    '/dashboard/reports/monthly': [dict.nav.reports, dict.reports.monthly],
+    '/dashboard/reports/yearly': [dict.nav.reports, dict.reports.yearly],
+    '/dashboard/reports/profit-loss': [dict.nav.reports, dict.reports.profitLoss],
+    '/dashboard/reports/sales': [dict.nav.reports, dict.common.sales],
+    '/dashboard/reports/purchases': [dict.nav.reports, dict.common.purchases],
+    '/dashboard/reports/stock': [dict.nav.reports, dict.common.stock],
+    '/dashboard/reports/party-statement': [dict.nav.reports, dict.reports.partyStatement]
+  };
 
-function getPageTitle(pathname: string): string[] {
-  if (PAGE_TITLES[pathname]) {
-    return PAGE_TITLES[pathname];
-  }
+  if (pageTitles[pathname]) return pageTitles[pathname];
 
   const parts = pathname.split('/').filter(Boolean);
   if (!parts.length) return ['Home'];
 
   const cleanSegment = (segment: string) =>
-    segment
-      .replace(/-/g, ' ')
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+    segment.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
   if (parts[0] === 'dashboard' && parts[1] === 'parties' && parts[2] && parts[2] !== 'new' && parts[2] !== 'edit' && parts[2] !== 'print') {
-    return ['Parties', 'Profile'];
+    return [dict.nav.parties, dict.common.profile];
   }
   if (parts[0] === 'dashboard' && parts[1] === 'parties' && parts[2] === 'new') {
-    return ['Parties', 'New'];
+    return [dict.nav.parties, dict.common.new];
   }
   if (parts[0] === 'dashboard' && parts[1] === 'parties' && parts[2] === 'edit') {
-    return ['Parties', 'Edit'];
+    return [dict.nav.parties, dict.common.edit];
   }
   if (parts[0] === 'dashboard' && parts[1] === 'parties' && parts[2] === 'print') {
-    return ['Parties', 'Print'];
+    return [dict.nav.parties, dict.common.print];
   }
   if (parts[0] === 'dashboard' && parts[1] === 'sales' && parts[2]) {
-    return ['Sales', 'Detail'];
+    return [dict.common.sales, dict.common.detail];
   }
   if (parts[0] === 'dashboard' && parts[1] === 'purchases' && parts[2]) {
-    return ['Purchases', 'Detail'];
+    return [dict.common.purchases, dict.common.detail];
   }
   if (parts[0] === 'dashboard' && parts[1] === 'products' && parts[2] === 'new') {
-    return ['Products', 'New'];
+    return [dict.common.products, dict.common.new];
   }
   if (parts[0] === 'dashboard' && parts[1] === 'companies' && parts[2] && parts[2] !== 'new') {
-    return ['Companies', 'Profile'];
+    return [dict.nav.companies, dict.common.profile];
   }
   if (parts[0] === 'dashboard' && parts[1] === 'products' && parts[3] === 'edit') {
-    return ['Products', 'Edit'];
+    return [dict.common.products, dict.common.edit];
   }
   if (parts[0] === 'dashboard' && parts[1] === 'product-categories' && parts[2] === 'new') {
-    return ['Product Categories', 'New'];
+    return ['Product Categories', dict.common.new];
   }
   if (parts[0] === 'dashboard' && parts[1] === 'product-categories' && parts[2]) {
-    return ['Product Categories', 'Edit'];
+    return ['Product Categories', dict.common.edit];
   }
 
   if (parts.length === 1) {
@@ -97,14 +92,16 @@ export default function LayoutShell({ children, theme, branding }: { children: R
   const pathname = usePathname() || '';
   const { theme: currentTheme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { locale, setLocale, dict } = useLocale();
+
+  const languageText = locale === 'en' ? dict.common.bangla : dict.common.english;
+  const languageLabel = locale === 'en' ? dict.common.switchToBangla : dict.common.switchToEnglish;
 
   useEffect(() => {
     setMounted(true);
   }, []);
   const hideShell = useMemo(() => {
     if (!pathname) return false;
-    // Hide the app chrome for auth/unauthorized pages and any print/invoice print routes
-    // Examples: /dashboard/parties/123/print, /dashboard/transactions/123/print
     return (
       pathname.startsWith('/auth') ||
       pathname === '/unauthorized' ||
@@ -112,7 +109,7 @@ export default function LayoutShell({ children, theme, branding }: { children: R
       pathname.includes('/print/')
     );
   }, [pathname]);
-  const breadcrumbs = useMemo(() => getPageTitle(pathname), [pathname]);
+  const breadcrumbs = useMemo(() => getPageTitle(pathname, dict), [pathname, dict]);
 
   if (hideShell) {
     return (
@@ -134,7 +131,7 @@ export default function LayoutShell({ children, theme, branding }: { children: R
         <header className="sticky top-0 z-40 border-b border-border bg-surface/95 shadow-sm backdrop-blur-lg">
           <div className="mx-auto flex max-w-screen-3xl gap-3 px-3 py-3 items-center justify-between md:px-8">
             <div className="flex min-w-0 items-center gap-3">
-              <button className="md:hidden p-2 rounded-lg hover:bg-muted/60 transition-colors" onClick={() => setOpen(!open)} aria-label="Toggle menu">
+              <button className="md:hidden p-2 rounded-lg hover:bg-muted/60 transition-colors" onClick={() => setOpen(!open)} aria-label={dict.common.toggleMenu}>
                 {open ? <X size={18} /> : <Menu size={18} />}
               </button>
               <nav className="flex flex-1 items-center gap-2 text-sm overflow-x-auto whitespace-nowrap min-w-0">
@@ -158,11 +155,22 @@ export default function LayoutShell({ children, theme, branding }: { children: R
               </nav>
             </div>
 
-            <div className="flex shrink-0 items-center gap-4">
+            <div className="flex shrink-0 items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setLocale(locale === 'en' ? 'bn' : 'en')}
+                aria-label={languageLabel}
+                title={languageLabel}
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-2.5 py-2 text-xs font-medium text-foreground transition hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+              >
+                <Languages className="h-4 w-4" />
+                <span>{languageText}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-                aria-label="Toggle color theme"
+                aria-label={dict.common.themeToggle}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-background text-foreground transition hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
               >
                 {mounted ? (

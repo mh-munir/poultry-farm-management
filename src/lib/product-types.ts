@@ -1,10 +1,22 @@
-export function getProductTypeLabel(type: string): string {
-  if (type === 'FEED') return 'Feed';
-  if (type === 'MEDICINE') return 'Medicine';
-  if (type === 'EGG') return 'Egg';
-  if (type === 'CHICKEN') return 'Chicken';
-  if (type === 'CHICK') return 'Hatchling / Chick';
-  return type;
+export function getProductTypeLabel(type: string, locale: 'en' | 'bn' = 'en'): string {
+  const labels = {
+    en: {
+      FEED: 'Feed',
+      MEDICINE: 'Medicine',
+      EGG: 'Egg',
+      CHICKEN: 'Chicken',
+      CHICK: 'Hatchling / Chick',
+    },
+    bn: {
+      FEED: 'খাদ্য',
+      MEDICINE: 'ওষুধ',
+      EGG: 'ডিম',
+      CHICKEN: 'মুরগি',
+      CHICK: 'হ্যাচলিং / চিক',
+    }
+  } as const;
+
+  return labels[locale][type as keyof (typeof labels)[typeof locale]] ?? type;
 }
 
 export function getProductTypeBadgeClass(type: string): string {

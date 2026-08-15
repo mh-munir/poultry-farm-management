@@ -10,6 +10,8 @@ import { AnalyticsFilterBar } from './analytics/analytics-filter-bar';
 import { AnalyticsKpiCard } from './analytics/analytics-kpi-card';
 import { AnalyticsSection } from './analytics/analytics-section';
 import type { AnalyticsFilterState, AnalyticsMetric, AnalyticsPresetValue } from './analytics/analytics-types';
+import { useLocalizedFormat } from '@/i18n/use-localized-format';
+import { useLocale } from '@/i18n/provider';
 
 type Summary = {
   totalSales: number;
@@ -27,10 +29,6 @@ type ApiResponse = {
 
 type PresetValue = AnalyticsPresetValue;
 
-const formatCurrency = (v: number) => `৳ ${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(v)}`;
-const formatCompactCurrency = (v: number) => `৳ ${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(v)}`;
-const formatPercent = (v: number) => `${v.toFixed(1)}%`;
-
 function toISODate(d: Date) {
   return d.toISOString();
 }
@@ -44,6 +42,10 @@ function formatDateInput(value: string) {
 }
 
 function getInitialPreset(start: string, end: string): PresetValue {
+  if (!start || !end) {
+    return 'none';
+  }
+
   const now = new Date();
   const startDate = new Date(start);
   const endDate = new Date(end);
@@ -108,7 +110,14 @@ function buildSparkBars(value: number, maxValue: number) {
   return [24, 38, 52, 64, 72].map((base) => Math.max(10, Math.round(base * normalized)));
 }
 
-export default function ProfitAnalyticsClient({ initialStart, initialEnd, initialData, initialLoadError }: { initialStart: string; initialEnd: string; initialData: ApiResponse; initialLoadError?: boolean }) {
+export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = '', initialData, initialLoadError }: { initialStart?: string; initialEnd?: string; initialData: ApiResponse; initialLoadError?: boolean }) {
+  const { dict } = useLocale();
+  const { formatCurrency, formatPercentage } = useLocalizedFormat();
+  
+  // Wrapper for formatting without decimals (compact)
+  const formatCompactCurrency = (v: number) => formatCurrency(Math.round(v));
+  const formatPercent = (v: number) => formatPercentage(v);
+  
   const [start, setStart] = useState(initialStart);
   const [end, setEnd] = useState(initialEnd);
   const [data, setData] = useState<ApiResponse | null>(initialData ?? null);
@@ -131,6 +140,26 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
     setLoading(true);
     try {
       const res = await fetch(`/api/dashboard/profit?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`, { cache: 'no-store' });
+      if (!res.ok) {
+        const message = await res.text();
+        throw new Error(message || 'Unable to load analytics');
+      }
+      const json = await res.json();
+      setData(json as ApiResponse);
+      setFetchError(false);
+    } catch (err) {
+      console.error('Profit analytics fetch failed', err);
+      setFetchError(true);
+      setData({ summary: { totalSales: 0, totalCost: 0, grossProfit: 0, profitMargin: 0 }, pieChart: { profit: 0, cost: 0 }, topProducts: [], unavailable: true });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchAll() {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/dashboard/profit', { cache: 'no-store' });
       if (!res.ok) {
         const message = await res.text();
         throw new Error(message || 'Unable to load analytics');
@@ -280,7 +309,28 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
     setSelectedPreset(next.preset);
     setStart(next.start);
     setEnd(next.end);
+
+    if (next.preset === 'none') {
+      setStart('');
+      setEnd('');
+      fetchAll();
+      return;
+    }
+
     if (next.preset === 'custom') {
+      if (!next.start || !next.end) {
+        return;
+      }
+
+      const customStart = new Date(next.start);
+      customStart.setHours(0, 0, 0, 0);
+      const customEnd = new Date(next.end);
+      customEnd.setHours(23, 59, 59, 999);
+      const startIso = toISODate(customStart);
+      const endIso = toISODate(new Date(customEnd.getTime() + 1));
+      setStart(startIso);
+      setEnd(endIso);
+      fetchRange(startIso, endIso);
       return;
     }
     if (next.preset === 'today') {
@@ -359,36 +409,36 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
 
   const metrics: AnalyticsMetric[] = [
     {
-      title: 'Total Sales',
+      title: dict.analytics.totalSales,
       value: formatCompactCurrency(sales),
-      subtitle: 'Revenue generated this period',
+      subtitle: dict.analytics.totalSales,
       trend: '—',
       tone: 'accent',
       icon: CircleDollarSign,
       loading,
     },
     {
-      title: 'Total Cost',
+      title: dict.analytics.totalCost,
       value: formatCompactCurrency(cost),
-      subtitle: 'Direct costs and purchase impact',
+      subtitle: dict.analytics.totalCost,
       trend: '—',
       tone: 'neutral',
       icon: TrendingDown,
       loading,
     },
     {
-      title: 'Gross Profit',
+      title: dict.analytics.grossProfit,
       value: formatCompactCurrency(profit),
-      subtitle: 'Net earnings before overhead',
+      subtitle: dict.analytics.grossProfit,
       trend: '—',
       tone: profit >= 0 ? 'positive' : 'negative',
       icon: profit >= 0 ? ArrowUpRight : ArrowDownRight,
       loading,
     },
     {
-      title: 'Profit Margin',
+      title: dict.analytics.margin,
       value: formatPercent(summary.profitMargin),
-      subtitle: 'Efficiency of revenue conversion',
+      subtitle: dict.analytics.margin,
       trend: '—',
       tone: summary.profitMargin >= 0 ? 'positive' : 'negative',
       icon: Percent,
@@ -401,20 +451,20 @@ export default function ProfitAnalyticsClient({ initialStart, initialEnd, initia
       <div className="rounded-[28px] border border-border bg-card/95 p-6 shadow-sm">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Profit Analytics</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Track profit, revenue & performance.</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{dict.analytics.title}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{dict.analytics.subtitle}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" onClick={handleExportPdf} className="inline-flex h-11 items-center justify-center gap-2 rounded-[20px] border border-border bg-background px-4 text-sm font-semibold text-foreground shadow-sm transition hover:bg-muted/20">
               <span className="h-4 w-4 rounded-sm bg-red-500" />
-              Export PDF
+              {dict.analytics.exportPdf}
             </button>
             <button type="button" onClick={handleExportExcel} className="inline-flex h-11 items-center justify-center gap-2 rounded-[20px] border border-border bg-background px-4 text-sm font-semibold text-foreground shadow-sm transition hover:bg-muted/20">
               <span className="h-4 w-4 rounded-sm bg-emerald-600" />
-              Export Excel
+              {dict.analytics.exportExcel}
             </button>
             <button type="button" onClick={handlePrint} className="inline-flex h-11 items-center justify-center gap-2 rounded-[20px] border border-border bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700">
-              Print
+              {dict.common.print}
             </button>
           </div>
         </div>

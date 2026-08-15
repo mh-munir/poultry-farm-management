@@ -1,9 +1,12 @@
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
 import { getInvoiceCompanyProfile } from '@/lib/branding';
 import { prisma } from '@/server/db';
 import { TransactionInvoiceView } from '@/components/invoice/transaction-invoice-view';
 import { InvoicePrintTrigger } from '@/components/invoice/invoice-print-trigger';
+import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
+import { getDictionary } from '@/i18n';
 
 type InvoiceDisplaySettings = {
   hideFeedUnitPrice?: boolean;
@@ -39,6 +42,10 @@ export default async function TransactionPrintPage({ params }: { params: Promise
   const { id } = await params;
   const transactionId = Number(id);
   if (!Number.isInteger(transactionId) || transactionId <= 0) notFound();
+
+  const cookieStore = await cookies();
+  const locale = getLocaleFromValue(cookieStore.get(LOCALE_COOKIE)?.value ?? undefined);
+  const dict = getDictionary(locale);
 
   const [companyProfile, transaction, invoiceSettingsRecord] = await Promise.all([
     getInvoiceCompanyProfile(),
@@ -112,14 +119,12 @@ export default async function TransactionPrintPage({ params }: { params: Promise
       paymentMethod={firstPayment?.paymentMethod ?? null}
       referenceNumber={transaction.referenceNumber ?? firstPayment?.referenceNumber ?? null}
       notes={transaction.notes}
-      // pass media as part of notes replacement; TransactionInvoiceView will read `notes` separately
-      // add media into the party label area via notes or pass separately if needed
-      // ensure media is available in the invoice view via transaction.mediaName
-      // (we will update TransactionInvoiceView to accept mediaName)
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore - adding mediaName prop for now
       mediaName={transaction.mediaName}
       displaySettings={displaySettings}
+      locale={locale}
+      dict={dict.invoice}
     />
     </>
   );

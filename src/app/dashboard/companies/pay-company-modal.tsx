@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale } from '@/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -17,6 +18,7 @@ type PayCompanyModalProps = {
 };
 
 export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: PayCompanyModalProps) {
+  const { dict } = useLocale();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [companyOptions, setCompanyOptions] = useState<ComboboxOption[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(preselectedCompanyId ?? null);
@@ -92,26 +94,26 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Pay Company">
+    <Dialog open={open} onOpenChange={onOpenChange} title={`${dict.common.pay} ${dict.common.companies}`}>
       <form onSubmit={handleSubmit} className="mt-2 grid gap-4 md:grid-cols-2">
         <input type="hidden" name="companyId" value={String(selectedCompanyId ?? '')} />
         <input type="hidden" name="status" value="COMPLETED" />
         <input type="hidden" name="paymentMethod" value="Cash" />
 
         <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium">Company</label>
+          <label className="mb-2 block text-sm font-medium">{dict.stock.company}</label>
           <SearchableCombobox
             options={companyOptions}
             value={String(selectedCompanyId ?? '')}
             onValueChange={handleCompanyChange}
-            placeholder="Search company..."
-            emptyText="No company found"
+            placeholder={dict.stock.searchCompany}
+            emptyText={dict.stock.noCompanyFound}
             required
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium">Payment Date</label>
+          <label className="mb-2 block text-sm font-medium">{dict.common.paymentDate}</label>
           <DateInput
             name="paymentDate"
             value={paymentDate}
@@ -122,7 +124,7 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium">Payment Amount</label>
+          <label className="mb-2 block text-sm font-medium">{dict.stock.paymentAmount}</label>
           <input
             type="number"
             name="amount"
@@ -132,22 +134,22 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
             onChange={(e) => setPaymentAmount(e.target.value)}
             required
             className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            placeholder="Enter amount"
+            placeholder={dict.forms.enterAmount}
           />
         </div>
 
         <div className="md:col-span-2 rounded-2xl border border-border bg-slate-50 p-4">
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Current Due</p>
+              <p className="text-sm font-medium text-muted-foreground">{dict.common.currentDue}</p>
               <p className="mt-1 text-lg font-semibold">৳ {currentDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Payment</p>
+              <p className="text-sm font-medium text-muted-foreground">{dict.common.payment}</p>
               <p className="mt-1 text-lg font-semibold">৳ {(Number(paymentAmount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Remaining Due</p>
+              <p className="text-sm font-medium text-muted-foreground">{dict.common.remainingDue}</p>
               <p className={`mt-1 text-lg font-semibold ${remainingDue < 0 ? 'text-red-600' : remainingDue === 0 && paymentAmount ? 'text-emerald-600' : ''}`}>
                 ৳ {remainingDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
@@ -157,10 +159,10 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
 
         <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-3">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-            Cancel
+            {dict.common.cancel}
           </Button>
           <Button type="submit" disabled={isSubmitting || !selectedCompanyId || !paymentAmount || Number(paymentAmount) <= 0 || remainingDue < 0}>
-            {isSubmitting ? 'Saving...' : 'Save Payment'}
+            {isSubmitting ? dict.common.loading : dict.common.savePayment}
           </Button>
         </div>
       </form>

@@ -67,6 +67,26 @@ function isProductTypeAllowedForCompanyType(productType: string, companyType: st
   }
 }
 
+/**
+ * Calculate line total for a purchase item based on product type.
+ * 
+ * CHICKEN products: lineTotal = unitPrice × totalKg (quantity is chicken count, not kg)
+ * Other products: lineTotal = unitPrice × quantity
+ */
+function calculateLineTotal(
+  productType: string,
+  unitPrice: Prisma.Decimal,
+  quantity: Prisma.Decimal,
+  totalKg?: number | null
+): Prisma.Decimal {
+  if (productType === 'CHICKEN' && totalKg && totalKg > 0) {
+    // For chicken: use total kg as the multiplier
+    return unitPrice.times(new Prisma.Decimal(totalKg));
+  }
+  // For all other products: use quantity
+  return unitPrice.times(quantity);
+}
+
 const purchaseItemSchema = z.object({
   productId: z.preprocess((val) => {
     if (!val || val === '' || val === null || val === undefined) return undefined;
@@ -75,6 +95,7 @@ const purchaseItemSchema = z.object({
   productName: z.string().trim().optional().or(z.literal('')),
   productType: z.enum(['FEED', 'MEDICINE', 'EGG', 'CHICKEN', 'CHICK']).optional().default('FEED'),
   quantity: z.coerce.number().min(0.0001, 'Quantity must be greater than zero.'),
+  totalKg: z.coerce.number().min(0, 'Total kg cannot be negative.').optional().default(0),
   unitPrice: z.coerce.number().min(0, 'Rate cannot be negative.'),
   buyRate: z.coerce.number().min(0, 'Buy rate cannot be negative.').optional().default(0),
   description: z.string().trim().max(250).optional().or(z.literal('')),
@@ -113,6 +134,7 @@ function normalizePurchaseInput(formData: FormData) {
   const productNames = formData.getAll('productName').map((value) => value?.toString() ?? '');
   const productTypes = formData.getAll('productType').map((value) => value?.toString() ?? 'FEED');
   const quantities = formData.getAll('quantity').map((value) => value?.toString() ?? '0');
+  const totalKgs = formData.getAll('totalKg').map((value) => value?.toString() ?? '0');
   const units = formData.getAll('unit').map((value) => value?.toString() ?? '');
   const buyRates = formData.getAll('buyRate').map((value) => value?.toString() ?? '0');
   const unitPrices = formData.getAll('unitPrice').map((value) => value?.toString() ?? '0');
@@ -123,6 +145,7 @@ function normalizePurchaseInput(formData: FormData) {
     productName: productNames[index] ?? '',
     productType: productTypes[index] ?? 'FEED',
     quantity: quantities[index] ?? '0',
+    totalKg: totalKgs[index] ?? '0',
     unitPrice: unitPrices[index] ?? buyRates[index] ?? '0',
     buyRate: buyRates[index] ?? '0',
     description: descriptions[index] ?? '',
@@ -186,7 +209,10 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
   }
 
   const subtotal = items.reduce((sum, item) => {
-    return sum.plus(new Prisma.Decimal(item.quantity).times(new Prisma.Decimal(item.unitPrice)));
+    const itemUnitPrice = new Prisma.Decimal(item.unitPrice);
+    const itemQuantity = new Prisma.Decimal(item.quantity);
+    const itemTotalKg = item.productType === 'CHICKEN' ? Number(item.totalKg ?? 0) : undefined;
+    return sum.plus(calculateLineTotal(item.productType || 'FEED', itemUnitPrice, itemQuantity, itemTotalKg));
   }, new Prisma.Decimal(0));
   const totalAmount = subtotal.minus(new Prisma.Decimal(data.discount));
 
@@ -324,14 +350,21 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
           notes: data.notes || null,
           transactionItems: {
             createMany: {
-              data: resolvedItems.map((item) => ({
-                productId: item.productId,
-                quantity: new Prisma.Decimal(item.quantity),
-                unitPrice: new Prisma.Decimal(item.unitPrice),
-                lineTotal: new Prisma.Decimal(item.quantity).times(new Prisma.Decimal(item.unitPrice)),
-                taxAmount: new Prisma.Decimal(0),
-                description: item.description || (item.unit ? `Unit: ${item.unit}` : null)
-              }))
+              data: resolvedItems.map((item) => {
+                const itemUnitPrice = new Prisma.Decimal(item.unitPrice);
+                const itemQuantity = new Prisma.Decimal(item.quantity);
+                const itemTotalKg = item.productType === 'CHICKEN' ? Number(item.totalKg ?? 0) : undefined;
+                const lineTotal = calculateLineTotal(item.productType || 'FEED', itemUnitPrice, itemQuantity, itemTotalKg);
+                return {
+                  productId: item.productId,
+                  quantity: itemQuantity,
+                  unitPrice: itemUnitPrice,
+                  lineTotal,
+                  taxAmount: new Prisma.Decimal(0),
+                  description: item.description || (item.unit ? `Unit: ${item.unit}` : null),
+                  chickenQuantity: item.productType === 'CHICKEN' && itemTotalKg && itemTotalKg > 0 ? new Prisma.Decimal(itemTotalKg) : null
+                };
+              })
             }
           }
         }
@@ -363,6 +396,7 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
               companyId: companyIdToUse,
               paymentMethod: data.paymentMethod,
               amount: new Prisma.Decimal(data.paymentAmount),
+              paymentDirection: 'SUPPLIER_PAYMENT',
               referenceNumber: data.referenceNumber || null,
               status: new Prisma.Decimal(data.paymentAmount).lt(totalAmount) ? PARTIAL_PAYMENT_STATUS : COMPLETED_PAYMENT_STATUS,
               notes: data.notes || null
@@ -421,6 +455,7 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
               partyId: partyIdToUse,
               paymentMethod: data.paymentMethod,
               amount: new Prisma.Decimal(data.paymentAmount),
+              paymentDirection: 'SUPPLIER_PAYMENT',
               referenceNumber: data.referenceNumber || null,
               status: new Prisma.Decimal(data.paymentAmount).lt(totalAmount) ? PARTIAL_PAYMENT_STATUS : COMPLETED_PAYMENT_STATUS,
               notes: data.notes || null
@@ -573,6 +608,344 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
     return { success: true, message: successMessage, transactionId: purchaseId };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : 'Purchase creation failed.' };
+  }
+}
+
+export async function rebuildLedgerRunningBalancesForAccount(
+  tx: Prisma.TransactionClient,
+  { partyId, companyId }: { partyId?: number | null; companyId?: number | null }
+): Promise<void> {
+  if (!partyId && !companyId) {
+    return;
+  }
+
+  const accountFilter = partyId && companyId
+    ? Prisma.sql`("partyId" = ${partyId} OR "companyId" = ${companyId})`
+    : partyId
+      ? Prisma.sql`"partyId" = ${partyId}`
+      : Prisma.sql`"companyId" = ${companyId!}`;
+
+  await tx.$executeRaw(Prisma.sql`
+    WITH recalculated AS (
+      SELECT
+        "id",
+        SUM("amount") OVER (ORDER BY "entryDate" ASC, "id" ASC) AS "runningBalance"
+      FROM "LedgerEntry"
+      WHERE ${accountFilter}
+    )
+    UPDATE "LedgerEntry" AS target
+    SET "runningBalance" = recalculated."runningBalance"
+    FROM recalculated
+    WHERE target."id" = recalculated."id"
+      AND target."runningBalance" IS DISTINCT FROM recalculated."runningBalance"
+  `);
+}
+
+export async function updatePurchaseItem(formData: FormData): Promise<{ success: boolean; message: string }> {
+  await requireUser();
+
+  const itemId = Number(formData.get('itemId'));
+  const productId = Number(formData.get('productId') ?? 0);
+  const quantity = Number(formData.get('quantity'));
+  const totalKg = Number(formData.get('totalKg') ?? 0);
+  const unitPrice = Number(formData.get('unitPrice'));
+  const discount = Number(formData.get('discount') ?? 0);
+  const transactionDate = formData.get('transactionDate')?.toString();
+
+  if (!Number.isFinite(itemId) || itemId <= 0) {
+    return { success: false, message: 'Invalid purchase item.' };
+  }
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return { success: false, message: 'Quantity must be greater than zero.' };
+  }
+
+  if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+    return { success: false, message: 'Unit price cannot be negative.' };
+  }
+
+  if (!Number.isFinite(discount) || discount < 0) {
+    return { success: false, message: 'Discount cannot be negative.' };
+  }
+
+  if (!Number.isFinite(totalKg) || totalKg < 0) {
+    return { success: false, message: 'Total KG cannot be negative.' };
+  }
+
+  try {
+    const transactionStartedAt = Date.now();
+    console.info('[updatePurchaseItem] entering-transaction', { itemId, transactionStartedAt });
+
+    const transactionResult = await prisma.$transaction(async (tx) => {
+      console.info('[updatePurchaseItem] transaction-callback-start', { itemId });
+
+      const currentItem = await tx.transactionItem.findUnique({
+        where: { id: itemId },
+        select: {
+          id: true,
+          transactionId: true,
+          productId: true,
+          quantity: true,
+          unitPrice: true,
+          lineTotal: true,
+          chickenQuantity: true,
+          description: true,
+          product: { select: { productType: true } },
+          transaction: {
+            select: {
+              partyId: true,
+              companyId: true,
+              transactionDate: true,
+              invoiceNumber: true,
+              subtotal: true,
+              discount: true,
+              totalAmount: true
+            }
+          }
+        }
+      });
+
+      if (!currentItem) {
+        throw new Error('Purchase item not found.');
+      }
+
+      const paymentTotal = await tx.paymentAllocation.aggregate({
+        where: { transactionId: currentItem.transactionId },
+        _sum: { amount: true }
+      });
+      const totalPaid = new Prisma.Decimal(paymentTotal._sum.amount?.toString() ?? '0');
+
+      const item = {
+        ...currentItem,
+        transaction: currentItem.transaction,
+        product: currentItem.product
+      };
+
+      const resolvedProductId = productId > 0 ? productId : item.productId;
+      const oldQuantity = new Prisma.Decimal(item.quantity.toString());
+      const newQuantity = new Prisma.Decimal(quantity);
+      const oldUnitPrice = new Prisma.Decimal(item.unitPrice.toString());
+      const newUnitPrice = new Prisma.Decimal(unitPrice);
+      const oldLineTotal = new Prisma.Decimal(item.lineTotal.toString());
+      
+      // Calculate gross line totals based on product type
+      const productType = item.product?.productType ?? 'FEED';
+      const oldGrossLineTotal = calculateLineTotal(productType, oldUnitPrice, oldQuantity, item.chickenQuantity?.toNumber());
+      const grossNewLineTotal = calculateLineTotal(productType, newUnitPrice, newQuantity, totalKg > 0 ? totalKg : undefined);
+      const normalizedDiscount = new Prisma.Decimal(Math.min(discount, Number(grossNewLineTotal.toString())));
+      const newLineTotal = grossNewLineTotal.minus(normalizedDiscount);
+
+      if (newLineTotal.lt(0)) {
+        throw new Error('Updated line total cannot be negative.');
+      }
+
+      const previousLineDiscount = oldGrossLineTotal.minus(oldLineTotal);
+      const nextLineDiscount = grossNewLineTotal.minus(newLineTotal);
+      const transactionDiscountDelta = nextLineDiscount.minus(previousLineDiscount);
+      const previousTransactionSubtotal = new Prisma.Decimal(item.transaction.subtotal.toString());
+      const previousTransactionDiscount = new Prisma.Decimal(item.transaction.discount.toString());
+      const previousTransactionTotal = new Prisma.Decimal(item.transaction.totalAmount.toString());
+      const nextTransactionSubtotal = previousTransactionSubtotal.plus(grossNewLineTotal).minus(oldGrossLineTotal);
+      let nextTransactionDiscount = previousTransactionDiscount.plus(transactionDiscountDelta);
+
+      // Cap discount to not exceed subtotal (business rule: totalAmount = subtotal - discount must be >= 0)
+      if (nextTransactionDiscount.gt(nextTransactionSubtotal)) {
+        nextTransactionDiscount = nextTransactionSubtotal;
+      }
+
+      const nextTransactionTotal = nextTransactionSubtotal.minus(nextTransactionDiscount);
+
+      console.info('[updatePurchaseItem] purchase-item-edit-debug', {
+        purchaseItemId: item.id,
+        transactionId: item.transactionId,
+        productType,
+        oldQuantity: oldQuantity.toString(),
+        newQuantity: newQuantity.toString(),
+        oldTotalKg: item.chickenQuantity?.toString() ?? '0',
+        newTotalKg: totalKg,
+        oldPrice: oldUnitPrice.toString(),
+        newPrice: newUnitPrice.toString(),
+        oldDiscount: previousLineDiscount.toString(),
+        newDiscount: nextLineDiscount.toString(),
+        oldLineTotal: oldLineTotal.toString(),
+        newLineTotal: newLineTotal.toString(),
+        previousTransactionSubtotal: previousTransactionSubtotal.toString(),
+        previousTransactionDiscount: previousTransactionDiscount.toString(),
+        previousTransactionTotal: previousTransactionTotal.toString(),
+        previousLineDiscount: previousLineDiscount.toString(),
+        discountDelta: transactionDiscountDelta.toString(),
+        nextTransactionSubtotal: nextTransactionSubtotal.toString(),
+        nextTransactionDiscount: nextTransactionDiscount.toString(),
+        nextTransactionTotal: nextTransactionTotal.toString(),
+        discountCapped: !previousTransactionDiscount.plus(transactionDiscountDelta).equals(nextTransactionDiscount)
+      });
+
+      if (nextTransactionTotal.lt(0)) {
+        throw new Error('Updated transaction total cannot be negative.');
+      }
+
+      const nextDue = nextTransactionTotal.minus(totalPaid);
+      const nextStatus = nextDue.gt(0) ? 'PENDING' : 'COMPLETED';
+
+      await tx.transaction.update({
+        where: { id: item.transactionId },
+        data: {
+          transactionDate: transactionDate ? new Date(transactionDate) : item.transaction.transactionDate,
+          subtotal: nextTransactionSubtotal,
+          discount: nextTransactionDiscount,
+          totalAmount: nextTransactionTotal,
+          paidAmount: totalPaid,
+          dueAmount: nextDue,
+          status: nextStatus,
+          updatedAt: new Date()
+        }
+      });
+
+      await tx.transactionItem.update({
+        where: { id: itemId },
+        data: {
+          productId: resolvedProductId,
+          quantity: newQuantity,
+          unitPrice: newUnitPrice,
+          lineTotal: newLineTotal,
+          chickenQuantity: productType === 'CHICKEN' && totalKg > 0 ? new Prisma.Decimal(totalKg) : (productType === 'CHICKEN' ? null : item.chickenQuantity ?? null),
+          description: item.description ?? null,
+          taxAmount: new Prisma.Decimal(0)
+        }
+      });
+
+      const oldMovement = await tx.stockMovement.findFirst({
+        where: {
+          transactionId: item.transactionId,
+          productId: item.productId,
+          movementType: 'PURCHASE'
+        },
+        orderBy: { id: 'asc' }
+      });
+
+      const stockDelta = newQuantity.minus(oldQuantity);
+      const currentStock = await tx.stockBalance.findUnique({ where: { productId: resolvedProductId } });
+      const nextStockQuantity = new Prisma.Decimal(currentStock?.quantityOnHand?.toString() ?? '0').plus(stockDelta);
+
+      if (nextStockQuantity.lt(0)) {
+        throw new Error('Stock cannot go below zero for this item.');
+      }
+
+      await tx.stockBalance.upsert({
+        where: { productId: resolvedProductId },
+        update: {
+          quantityOnHand: nextStockQuantity,
+          lastUpdatedAt: new Date()
+        },
+        create: {
+          productId: resolvedProductId,
+          quantityOnHand: nextStockQuantity,
+          reservedQuantity: new Prisma.Decimal(0),
+          averageCost: newUnitPrice
+        }
+      });
+
+      if (oldMovement) {
+        await tx.stockMovement.update({
+          where: { id: oldMovement.id },
+          data: {
+            productId: resolvedProductId,
+            quantity: newQuantity,
+            unitCost: newUnitPrice,
+            notes: `Purchase invoice ${item.transaction.invoiceNumber}`
+          }
+        });
+      } else {
+        await tx.stockMovement.create({
+          data: {
+            productId: resolvedProductId,
+            transactionId: item.transactionId,
+            movementType: 'PURCHASE',
+            quantity: newQuantity,
+            unitCost: newUnitPrice,
+            notes: `Purchase invoice ${item.transaction.invoiceNumber}`
+          }
+        });
+      }
+
+      console.info('[updatePurchaseItem] before-ledgerEntry-findFirst', { transactionId: item.transactionId });
+      const purchaseLedger = await tx.ledgerEntry.findFirst({
+        where: {
+          transactionId: item.transactionId,
+          entryType: 'PURCHASE'
+        },
+        orderBy: { id: 'asc' }
+      });
+      console.info('[updatePurchaseItem] after-ledgerEntry-findFirst', { transactionId: item.transactionId, found: !!purchaseLedger });
+
+      // Create reversal and new entry instead of modifying in-place (preserves audit trail)
+      if (purchaseLedger) {
+        const reversalAmount = new Prisma.Decimal(purchaseLedger.amount.toString()).negated();
+        
+        console.info('[updatePurchaseItem] before-ledgerEntry-create-reversal', { transactionId: item.transactionId });
+        await tx.ledgerEntry.create({
+          data: {
+            partyId: purchaseLedger.partyId,
+            companyId: purchaseLedger.companyId,
+            transactionId: purchaseLedger.transactionId,
+            paymentId: null,
+            entryDate: new Date(),
+            entryType: 'PURCHASE_REVERSAL',
+            amount: reversalAmount,
+            runningBalance: new Prisma.Decimal(0),
+            description: `Reversal of purchase item edit ${item.transaction.invoiceNumber}`,
+            referenceNumber: purchaseLedger.referenceNumber
+          }
+        });
+        console.info('[updatePurchaseItem] after-ledgerEntry-create-reversal', { transactionId: item.transactionId });
+
+        console.info('[updatePurchaseItem] before-ledgerEntry-create-new', { transactionId: item.transactionId });
+        await tx.ledgerEntry.create({
+          data: {
+            partyId: purchaseLedger.partyId,
+            companyId: purchaseLedger.companyId,
+            transactionId: purchaseLedger.transactionId,
+            paymentId: null,
+            entryDate: new Date(),
+            entryType: 'PURCHASE',
+            amount: nextTransactionTotal,
+            runningBalance: new Prisma.Decimal(0),
+            description: purchaseLedger.description ?? `Purchase invoice ${item.transaction.invoiceNumber}`,
+            referenceNumber: purchaseLedger.referenceNumber
+          }
+        });
+        console.info('[updatePurchaseItem] after-ledgerEntry-create-new', { transactionId: item.transactionId });
+      }
+
+      await rebuildLedgerRunningBalancesForAccount(tx, {
+        partyId: item.transaction.partyId ?? null,
+        companyId: item.transaction.companyId ?? null
+      });
+      console.info('[updatePurchaseItem] after-rebuildLedgerRunningBalances', { transactionId: item.transactionId });
+
+      console.info('[updatePurchaseItem] transaction-callback-end', { itemId, transactionId: item.transactionId });
+
+      return {
+        success: true,
+        message: 'Purchase item updated successfully.',
+        partyId: item.transaction.partyId ?? null,
+        companyId: item.transaction.companyId ?? null
+      };
+    });
+
+    console.info('[updatePurchaseItem] transaction-committed', { itemId, transactionDuration: Date.now() - transactionStartedAt });
+
+    revalidatePurchaseData({
+      partyId: transactionResult.partyId ?? undefined,
+      companyId: transactionResult.companyId ?? undefined
+    });
+
+    return { success: true, message: transactionResult.message };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to update the purchase item.'
+    };
   }
 }
 
@@ -763,7 +1136,7 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
                     productId: resolvedEggProductId,
                     quantity: new Prisma.Decimal(eggQuantity),
                     unitPrice: new Prisma.Decimal(eggPrice),
-                    lineTotal: new Prisma.Decimal(eggQuantity).times(new Prisma.Decimal(eggPrice)),
+                    lineTotal: calculateLineTotal('EGG', new Prisma.Decimal(eggPrice), new Prisma.Decimal(eggQuantity)),
                     taxAmount: new Prisma.Decimal(0),
                     description: `Eggs (per piece) @ ৳${eggPrice}`
                   }] : []),
@@ -771,7 +1144,7 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
                     productId: resolvedChickenProductId,
                     quantity: new Prisma.Decimal(chickenQuantity),
                     unitPrice: new Prisma.Decimal(chickenPrice),
-                    lineTotal: new Prisma.Decimal(chickenQuantity).times(new Prisma.Decimal(chickenPrice)),
+                    lineTotal: calculateLineTotal('CHICKEN', new Prisma.Decimal(chickenPrice), new Prisma.Decimal(chickenQuantity), chickenQuantity),
                     taxAmount: new Prisma.Decimal(0),
                     description: `Chicken (per kg) @ ৳${chickenPrice}`
                   }] : [])

@@ -193,8 +193,12 @@ export const EMPTY_PROFIT_ANALYTICS: ProfitAnalyticsData = {
   unavailable: false,
 };
 
-export async function getProfitAnalytics({ start, end }: { start: Date; end: Date }): Promise<ProfitAnalyticsData> {
+export async function getProfitAnalytics({ start, end }: { start?: Date; end?: Date } = {}): Promise<ProfitAnalyticsData> {
   try {
+    const dateFilter = start && end
+      ? Prisma.sql` AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end}`
+      : Prisma.empty;
+
     // Summary aggregates: compute using transaction items joined with latest purchase unitCost per product before sale date
      const [summaryRow] = await prisma.$queryRaw<Array<{ total_sales: Prisma.Decimal | null; total_cost: Prisma.Decimal | null; gross_profit: Prisma.Decimal | null }>>`
      SELECT
@@ -220,8 +224,7 @@ export async function getProfitAnalytics({ start, end }: { start: Date; end: Dat
        LIMIT 1
      ) sm_purchase ON true
      WHERE tr."transactionType" = 'SALE'
-       AND tr."transactionDate" >= ${start}
-       AND tr."transactionDate" < ${end}
+       ${dateFilter}
    `;
 
   const totalSales = Number(summaryRow?.total_sales ?? 0);
@@ -265,7 +268,7 @@ export async function getProfitAnalytics({ start, end }: { start: Date; end: Dat
        ORDER BY sm."createdAt" DESC
        LIMIT 1
      ) sm_purchase ON true
-     WHERE tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end}
+     WHERE tr."transactionType" = 'SALE' ${dateFilter}
      GROUP BY p.id, p.name, p."productType"
      ORDER BY gross_profit DESC
      LIMIT 10

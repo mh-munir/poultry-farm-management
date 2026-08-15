@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useLocale } from '@/i18n/provider';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { formatDateBD as formatDate } from '@/lib/dates';
 
@@ -47,6 +48,7 @@ export function PartyPaymentsSection({
   showForm = true,
   showDeleteButton = true
 }: PartyPaymentsSectionProps) {
+  const { dict } = useLocale();
   const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
   const [drafts, setDrafts] = useState<Record<number, Partial<InitialPayment>>>({});
 
@@ -82,36 +84,36 @@ export function PartyPaymentsSection({
         }} className="mt-6 grid gap-4 rounded-xl border bg-background p-4 md:grid-cols-2">
         <input type="hidden" name="partyId" value={partyId} />
         <div>
-          <label className="mb-2 block text-form-label">Amount</label>
-          <input type="number" min="0.01" step="0.01" name="amount" required className="w-full rounded-lg border bg-background px-4 py-2.5 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" placeholder="Enter amount" />
+          <label className="mb-2 block text-form-label">{dict.common.amount}</label>
+          <input type="number" min="0.01" step="0.01" name="amount" required className="w-full rounded-lg border bg-background px-4 py-2.5 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" placeholder={dict.forms.enterAmount} />
         </div>
         <div>
-          <label className="mb-2 block text-form-label">Payment method</label>
+          <label className="mb-2 block text-form-label">{dict.common.payment}</label>
           <select name="paymentMethod" required className="w-full form-select">
-            <option value="Cash">Cash</option>
-            <option value="Bank">Bank</option>
-            <option value="Mobile">Mobile</option>
-            <option value="Cheque">Cheque</option>
+            <option value="Cash">{dict.paymentMethods.cash}</option>
+            <option value="Bank">{dict.paymentMethods.bank}</option>
+            <option value="Mobile">{dict.paymentMethods.mobile}</option>
+            <option value="Cheque">{dict.paymentMethods.cheque}</option>
           </select>
         </div>
         <div>
-          <label className="mb-2 block text-form-label">Reference number</label>
-          <input name="referenceNumber" className="w-full rounded-lg border bg-background px-4 py-2.5 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" placeholder="Optional" />
+          <label className="mb-2 block text-form-label">{dict.common.referenceNumber}</label>
+          <input name="referenceNumber" className="w-full rounded-lg border bg-background px-4 py-2.5 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" placeholder={dict.forms.optional} />
         </div>
         <div>
-          <label className="mb-2 block text-form-label">Status</label>
+          <label className="mb-2 block text-form-label">{dict.common.status}</label>
           <select name="status" defaultValue="COMPLETED" className="w-full form-select">
-            <option value="COMPLETED">Completed</option>
-            <option value="PENDING">Pending</option>
-            <option value="CANCELLED">Cancelled</option>
+            <option value="COMPLETED">{dict.paymentStatus.completed}</option>
+            <option value="PENDING">{dict.paymentStatus.pending}</option>
+            <option value="CANCELLED">{dict.paymentStatus.cancelled}</option>
           </select>
         </div>
         <div className="md:col-span-2">
-          <label className="mb-2 block text-form-label">Notes</label>
-          <textarea name="notes" rows={3} className="w-full rounded-lg border bg-background px-4 py-2.5 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" placeholder="Optional notes" />
+          <label className="mb-2 block text-form-label">{dict.common.notes}</label>
+          <textarea name="notes" rows={3} className="w-full rounded-lg border bg-background px-4 py-2.5 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" placeholder={dict.forms.optionalNotes} />
         </div>
         <div className="md:col-span-2 flex flex-wrap items-center gap-3">
-          <Button type="submit">Save payment</Button>
+          <Button type="submit">{dict.common.savePayment}</Button>
         </div>
         </form>
       )}
@@ -122,13 +124,13 @@ export function PartyPaymentsSection({
         <table className="min-w-full text-table-body">
           <thead className="bg-muted/20 text-left">
             <tr>
-              <th className="px-4 py-3 font-medium">Date</th>
-              <th className="px-4 py-3 font-medium">Amount</th>
-              <th className="px-4 py-3 font-medium">Method</th>
-              <th className="px-4 py-3 font-medium">Reference</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Notes</th>
-              <th className="px-4 py-3 font-medium">Actions</th>
+              <th className="px-4 py-3 font-medium">{dict.common.date}</th>
+              <th className="px-4 py-3 font-medium">{dict.common.amount}</th>
+              <th className="px-4 py-3 font-medium">{dict.common.payment}</th>
+              <th className="px-4 py-3 font-medium">{dict.common.referenceNumber}</th>
+              <th className="px-4 py-3 font-medium">{dict.common.status}</th>
+              <th className="px-4 py-3 font-medium">{dict.common.notes}</th>
+              <th className="px-4 py-3 font-medium">{dict.common.actions}</th>
             </tr>
           </thead>
           <tbody>
@@ -144,7 +146,7 @@ export function PartyPaymentsSection({
                           <input type="hidden" name="partyId" value={partyId} />
                           <input type="hidden" name="paymentId" value={payment.id} />
                           <div>
-                            <label className="mb-1 block text-form-label">Amount</label>
+                            <label className="mb-1 block text-form-label">{dict.common.amount}</label>
                             <input
                               type="number"
                               min="0.01"
@@ -157,21 +159,21 @@ export function PartyPaymentsSection({
                             />
                           </div>
                           <div>
-                            <label className="mb-1 block text-form-label">Method</label>
+                            <label className="mb-1 block text-form-label">{dict.common.payment}</label>
                             <select
                               name="paymentMethod"
                               value={drafts[payment.id]?.paymentMethod ?? payment.paymentMethod}
                               onChange={(event) => handleDraftChange(payment.id, 'paymentMethod', event.target.value)}
                               className="w-full form-select"
                             >
-                              <option value="Cash">Cash</option>
-                              <option value="Bank">Bank</option>
-                              <option value="Mobile">Mobile</option>
-                              <option value="Cheque">Cheque</option>
+                              <option value="Cash">{dict.paymentMethods.cash}</option>
+                              <option value="Bank">{dict.paymentMethods.bank}</option>
+                              <option value="Mobile">{dict.paymentMethods.mobile}</option>
+                              <option value="Cheque">{dict.paymentMethods.cheque}</option>
                             </select>
                           </div>
                           <div>
-                            <label className="mb-1 block text-form-label">Reference</label>
+                            <label className="mb-1 block text-form-label">{dict.common.referenceNumber}</label>
                             <input
                               name="referenceNumber"
                               value={drafts[payment.id]?.referenceNumber ?? ''}
@@ -180,20 +182,20 @@ export function PartyPaymentsSection({
                             />
                           </div>
                           <div>
-                            <label className="mb-1 block text-form-label">Status</label>
+                            <label className="mb-1 block text-form-label">{dict.common.status}</label>
                             <select
                               name="status"
                               value={drafts[payment.id]?.status ?? payment.status}
                               onChange={(event) => handleDraftChange(payment.id, 'status', event.target.value)}
                               className="w-full form-select"
                             >
-                              <option value="COMPLETED">Completed</option>
-                              <option value="PENDING">Pending</option>
-                              <option value="CANCELLED">Cancelled</option>
+                              <option value="COMPLETED">{dict.paymentStatus.completed}</option>
+                              <option value="PENDING">{dict.paymentStatus.pending}</option>
+                              <option value="CANCELLED">{dict.paymentStatus.cancelled}</option>
                             </select>
                           </div>
                           <div className="md:col-span-2">
-                            <label className="mb-1 block text-form-label">Notes</label>
+                            <label className="mb-1 block text-form-label">{dict.common.notes}</label>
                             <textarea
                               name="notes"
                               rows={3}
@@ -203,8 +205,8 @@ export function PartyPaymentsSection({
                             />
                           </div>
                           <div className="md:col-span-2 flex gap-2">
-                            <Button type="submit" size="sm">Save</Button>
-                            <Button type="button" variant="outline" size="sm" onClick={() => setEditingPaymentId(null)}>Cancel</Button>
+                            <Button type="submit" size="sm">{dict.common.save}</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => setEditingPaymentId(null)}>{dict.common.cancel}</Button>
                           </div>
                         </form>
                       </td>
@@ -221,7 +223,7 @@ export function PartyPaymentsSection({
                         <div className="flex flex-wrap gap-2">
                           <Button type="button" variant="outline" size="sm" onClick={() => startEditing(payment)}>
                             <Pencil className="mr-1 h-3.5 w-3.5" />
-                            Edit
+                            {dict.common.edit}
                           </Button>
                           {showDeleteButton ? (
                             <form action={async (formData: FormData) => {
@@ -231,7 +233,7 @@ export function PartyPaymentsSection({
                               <input type="hidden" name="paymentId" value={payment.id} />
                               <Button type="submit" variant="destructive" size="sm">
                                 <Trash2 className="mr-1 h-3.5 w-3.5" />
-                                Delete
+                                {dict.common.delete}
                               </Button>
                             </form>
                           ) : null}

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { useToast } from '@/hooks/use-toast';
+import { useLocale } from '@/i18n/provider';
 import { getCustomerOptions, getCustomerCurrentDue, receiveCustomerPayment } from '@/features/parties/actions';
 import { DateInput } from '@/components/ui/date-input';
 import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
@@ -16,6 +17,7 @@ type ReceivePaymentModalProps = {
 };
 
 export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalProps) {
+  const { dict } = useLocale();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partyOptions, setPartyOptions] = useState<ComboboxOption[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState<number | null>(null);
@@ -86,27 +88,27 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Receive Payment">
+    <Dialog open={open} onOpenChange={onOpenChange} title={dict.common.customerPayment}>
       <form onSubmit={handleSubmit} className="mt-2 grid gap-4 md:gap-5 grid-cols-1 md:grid-cols-2">
         <input type="hidden" name="status" value="COMPLETED" />
         <input type="hidden" name="paymentMethod" value="Cash" />
 
         <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-slate-700">Party</label>
+          <label className="mb-2 block text-sm font-medium text-slate-700">{dict.common.partyName}</label>
           <SearchableCombobox
             options={partyOptions}
             value={selectedPartyId ? String(selectedPartyId) : partyName}
             onValueChange={handlePartyChange}
             onOptionSelect={handlePartySelect}
-            placeholder="Search customer..."
-            emptyText="No customer found"
+            placeholder={dict.forms.searchCustomer}
+            emptyText={dict.stock.noCompanyFound}
             required
           />
           <input type="hidden" name="partyId" value={String(selectedPartyId ?? '')} />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Payment Date</label>
+          <label className="mb-2 block text-sm font-medium text-slate-700">{dict.common.paymentDate}</label>
           <DateInput
             name="paymentDate"
             value={paymentDate}
@@ -117,7 +119,7 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Receive Amount</label>
+          <label className="mb-2 block text-sm font-medium text-slate-700">{dict.stock.paymentAmount}</label>
           <input
             type="number"
             name="amount"
@@ -127,13 +129,13 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
             onChange={(e) => setReceiveAmount(e.target.value)}
             required
             className="w-full h-[50px] rounded-[12px] border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-            placeholder="Enter amount"
+            placeholder={dict.forms.enterAmount}
           />
         </div>
 
         <div className="md:col-span-2 grid gap-3 md:grid-cols-3 bg-slate-50 rounded-[20px] p-4">
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <label className="text-xs font-medium text-slate-500">Current Due</label>
+            <label className="text-xs font-medium text-slate-500">{dict.common.currentDue}</label>
             <input
               type="text"
               readOnly
@@ -142,7 +144,7 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
             />
           </div>
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <label className="text-xs font-medium text-slate-500">Receive Amount</label>
+            <label className="text-xs font-medium text-slate-500">{dict.stock.paymentAmount}</label>
             <input
               type="text"
               readOnly
@@ -151,7 +153,7 @@ export function ReceivePaymentModal({ open, onOpenChange }: ReceivePaymentModalP
             />
           </div>
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <label className="text-xs font-medium text-slate-500">Remaining Due</label>
+            <label className="text-xs font-medium text-slate-500">{dict.common.remainingDue}</label>
             <input
               type="text"
               readOnly

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PaginationLabels } from '@/components/ui/pagination-labels';
 
 type PaginationProps = {
   currentPage: number;
@@ -72,16 +73,14 @@ export function Pagination({
   return (
     <div className={cn('flex flex-wrap items-center justify-center gap-2 sm:justify-end', className)}>
       {/* Page Info */}
-      <span className="text-sm text-muted-foreground font-medium mr-2">
-        Page <span className="font-semibold text-foreground">{currentPage}</span> of <span className="font-semibold text-foreground">{totalPages}</span>
-      </span>
+      <PaginationLabels variant="page-info" currentPage={currentPage} totalPages={totalPages} />
       
       {/* Previous Button */}
       {hrefBuilder ? (
         prevDisabled ? (
           <div className={navButtonClass(true)}>
             <ChevronLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Previous</span>
+            <PaginationLabels variant="previous" />
           </div>
         ) : (
           <Link
@@ -89,7 +88,7 @@ export function Pagination({
             className={navButtonClass(false)}
           >
             <ChevronLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Previous</span>
+            <PaginationLabels variant="previous" />
           </Link>
         )
       ) : (
@@ -101,7 +100,7 @@ export function Pagination({
           aria-label="Previous page"
         >
           <ChevronLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">Previous</span>
+          <PaginationLabels variant="previous" />
         </button>
       )}
       
@@ -114,7 +113,7 @@ export function Pagination({
       {hrefBuilder ? (
         nextDisabled ? (
           <div className={navButtonClass(true)}>
-            <span className="hidden sm:inline">Next</span>
+            <PaginationLabels variant="next" />
             <ChevronRight className="h-4 w-4" />
           </div>
         ) : (
@@ -122,7 +121,7 @@ export function Pagination({
             href={hrefBuilder(nextPage) as any}
             className={navButtonClass(false)}
           >
-            <span className="hidden sm:inline">Next</span>
+            <PaginationLabels variant="next" />
             <ChevronRight className="h-4 w-4" />
           </Link>
         )
@@ -134,7 +133,7 @@ export function Pagination({
           disabled={nextDisabled}
           aria-label="Next page"
         >
-          <span className="hidden sm:inline">Next</span>
+          <PaginationLabels variant="next" />
           <ChevronRight className="h-4 w-4" />
         </button>
       )}

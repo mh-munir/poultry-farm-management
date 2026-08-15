@@ -1,6 +1,7 @@
 import type { InvoiceCompanyProfile } from '@/lib/branding';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { formatDateBD as formatDate, formatDateTimeBD as formatDateTime } from '@/lib/dates';
+import { formatLocalizedCurrency } from '@/lib/localized-formatters';
 
 export type InvoiceDisplaySettings = {
   hideFeedUnitPrice?: boolean;
@@ -47,6 +48,8 @@ export type TransactionInvoiceViewProps = {
   mediaName?: string | null;
   showTotalKg?: boolean;
   displaySettings?: InvoiceDisplaySettings;
+  locale?: 'en' | 'bn';
+  dict?: any;
 };
 
 function formatCurrency(value: number | null | undefined) {
@@ -92,7 +95,9 @@ export function TransactionInvoiceView({
   notes,
   mediaName,
   showTotalKg = false,
-  displaySettings = {}
+  displaySettings = {},
+  locale = 'en',
+  dict = {}
 }: TransactionInvoiceViewProps) {
   const brandName = company?.name?.trim() || 'Your Brand Name';
   const brandAddress = company?.address?.trim() || '';
@@ -104,6 +109,36 @@ export function TransactionInvoiceView({
     .slice(0, 2)
     .map((word) => word[0]?.toUpperCase() ?? '')
     .join('') || 'BR';
+
+  // Default English dictionary for offline use
+  const defaultDict = {
+    invoice: {
+      invoice: locale === 'bn' ? 'ইনভয়েস' : 'INVOICE',
+      invoiceTo: locale === 'bn' ? 'কে ইনভয়েস:' : 'Invoice to:',
+      invoiceNumber: locale === 'bn' ? 'ইনভয়েস #' : 'Invoice #',
+      date: locale === 'bn' ? 'তারিখ' : 'Date',
+      media: locale === 'bn' ? 'মিডিয়া' : 'Media',
+      sl: locale === 'bn' ? 'ক্রমিক.' : 'SL.',
+      itemDescription: locale === 'bn' ? 'আইটেমের বিবরণ' : 'Item Description',
+      price: locale === 'bn' ? 'দাম' : 'Price',
+      qty: locale === 'bn' ? 'পরিমাণ' : 'Qty',
+      totalLabel: locale === 'bn' ? 'মোট' : 'Total',
+      totalKg: locale === 'bn' ? 'মোট কেজি' : 'Total Kg',
+      thankYou: locale === 'bn' ? 'আপনার ব্যবসার জন্য ধন্যবাদ' : 'Thank you for your business',
+      subTotal: locale === 'bn' ? 'উপ মোট:' : 'Sub Total:',
+      tax: locale === 'bn' ? 'কর:' : 'Tax:',
+      total: locale === 'bn' ? 'মোট:' : 'Total:',
+      termsAndConditions: locale === 'bn' ? 'শর্তাবলী' : 'Terms & Conditions',
+      paymentInfo: locale === 'bn' ? 'পেমেন্ট তথ্য' : 'Payment Info',
+      authorizedSign: locale === 'bn' ? 'অনুমোদিত স্বাক্ষর' : 'Authorized Sign',
+      paymentDueNote: locale === 'bn' ? '১৫ দিনে পেমেন্ট দিতে হবে। দেরি হলে ফি ধার্য হতে পারে।' : 'Payment due within 15 days. Late payments may be subject to fees.',
+      accountNumber: locale === 'bn' ? 'অ্যাকাউন্ট #: ১২৩৪ ৫৬৭৮ ৯০১२' : 'Account #: 1234 5678 9012',
+      bank: locale === 'bn' ? 'ব্যাংক: উদাহরণ ব্যাংক' : 'Bank: Example Bank',
+      hidden: locale === 'bn' ? 'লুকানো' : 'Hidden'
+    }
+  };
+
+  const safeDict = { ...defaultDict, ...(dict || {}) };
 
   return (
     <div className="invoice-print-area max-w-4xl mx-auto bg-white print:bg-white">
@@ -141,7 +176,7 @@ export function TransactionInvoiceView({
               </div>
 
               <div className="text-left sm:text-right">
-                <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">INVOICE</div>
+                <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">{safeDict.invoice.invoice}</div>
               </div>
             </div>
           </div>
@@ -152,18 +187,18 @@ export function TransactionInvoiceView({
         <main className="p-4 sm:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-4 mb-6 px-4">
             <div>
-              <div className="text-xs text-slate-500">Invoice to:</div>
+              <div className="text-xs text-slate-500">{safeDict.invoice.invoiceTo}</div>
               <div className="font-medium text-slate-900 text-lg">{party.name}</div>
               <div className="mt-1 text-sm text-slate-600">{party.address ?? ''}</div>
             </div>
 
             <div className="text-right">
-              <div className="text-xs text-slate-500">Invoice #</div>
+              <div className="text-xs text-slate-500">{safeDict.invoice.invoiceNumber}</div>
               <div className="font-medium text-slate-900">{invoiceNumber}</div>
-              <div className="mt-2 text-xs text-slate-500">Date</div>
+              <div className="mt-2 text-xs text-slate-500">{safeDict.invoice.date}</div>
               <div className="font-medium text-slate-900">{formatDate(transactionDate)}</div>
               {mediaName ? (
-                <div className="mt-2 text-xs text-slate-500">Media</div>
+                <div className="mt-2 text-xs text-slate-500">{safeDict.invoice.media}</div>
               ) : null}
               {mediaName ? (
                 <div className="font-medium text-slate-900">{mediaName}</div>
@@ -176,12 +211,12 @@ export function TransactionInvoiceView({
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-900 text-white">
                   <tr>
-                    <th className="px-4 py-3 text-left">SL.</th>
-                    <th className="px-4 py-3 text-left">Item Description</th>
-                    <th className="px-4 py-3 text-right">Price</th>
-                    <th className="px-4 py-3 text-center">Qty</th>
-                    {showTotalKg ? <th className="px-4 py-3 text-right">Total Kg</th> : null}
-                    <th className="px-4 py-3 text-right">Total</th>
+                    <th className="px-4 py-3 text-left">{safeDict.invoice.sl}</th>
+                    <th className="px-4 py-3 text-left">{safeDict.invoice.itemDescription}</th>
+                    <th className="px-4 py-3 text-right">{safeDict.invoice.price}</th>
+                    <th className="px-4 py-3 text-center">{safeDict.invoice.qty}</th>
+                    {showTotalKg ? <th className="px-4 py-3 text-right">{safeDict.invoice.totalKg}</th> : null}
+                    <th className="px-4 py-3 text-right">{safeDict.invoice.totalLabel}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
@@ -194,7 +229,7 @@ export function TransactionInvoiceView({
                       <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                         <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
                         <td className="px-4 py-3 text-slate-700">{it.productName}</td>
-                        <td className="px-4 py-3 text-right text-slate-700">{hideUnitPrice ? 'Hidden' : formatCurrency(it.unitPrice)}</td>
+                        <td className="px-4 py-3 text-right text-slate-700">{hideUnitPrice ? safeDict.invoice.hidden : formatLocalizedCurrency(it.unitPrice, locale)}</td>
                         <td className="px-4 py-3 text-center text-slate-700">
                           {showTotalKg && it.unit.toLowerCase() === 'kg'
                             ? it.quantity.toFixed(2)
@@ -205,7 +240,7 @@ export function TransactionInvoiceView({
                             {typeof it.totalKg === 'number' && it.totalKg > 0 ? `${it.totalKg.toFixed(2)} kg` : '—'}
                           </td>
                         ) : null}
-                        <td className="px-4 py-3 text-right font-medium text-slate-900">{hideLineTotal ? 'Hidden' : formatCurrency(it.lineTotal)}</td>
+                        <td className="px-4 py-3 text-right font-medium text-slate-900">{hideLineTotal ? safeDict.invoice.hidden : formatLocalizedCurrency(it.lineTotal, locale)}</td>
                       </tr>
                     );
                   })}
@@ -216,16 +251,16 @@ export function TransactionInvoiceView({
 
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_320px] gap-4 px-4">
             <div>
-              <div className="text-sm text-slate-600">Thank you for your business</div>
+              <div className="text-sm text-slate-600">{safeDict.invoice.thankYou}</div>
             </div>
             <div className="flex justify-end">
               <div className="w-full max-w-xs">
-                <div className="flex justify-between text-sm text-slate-600"><div>Sub Total:</div><div>{formatCurrency(subtotal)}</div></div>
-                <div className="flex justify-between text-sm text-slate-600 mt-1"><div>Tax:</div><div>{formatCurrency(0)}</div></div>
+                <div className="flex justify-between text-sm text-slate-600"><div>{safeDict.invoice.subTotal}</div><div>{formatLocalizedCurrency(subtotal, locale)}</div></div>
+                <div className="flex justify-between text-sm text-slate-600 mt-1"><div>{safeDict.invoice.tax}</div><div>{formatLocalizedCurrency(0, locale)}</div></div>
                 <div className="mt-3">
                   <div className="flex items-center justify-between bg-yellow-400 px-4 py-3">
-                    <div className="text-sm font-semibold text-slate-900">Total:</div>
-                    <div className="text-xl font-extrabold text-slate-900">{formatCurrency(totalDueAfter ?? subtotal)}</div>
+                    <div className="text-sm font-semibold text-slate-900">{safeDict.invoice.total}</div>
+                    <div className="text-xl font-extrabold text-slate-900">{formatLocalizedCurrency(totalDueAfter ?? subtotal, locale)}</div>
                   </div>
                 </div>
               </div>
@@ -234,13 +269,13 @@ export function TransactionInvoiceView({
 
           <div className="mt-8 grid grid-cols-1 gap-6 text-sm text-slate-600 sm:grid-cols-2 px-4">
             <div>
-              <div className="font-semibold text-slate-800 mb-2">Terms & Conditions</div>
-              <div>Payment due within 15 days. Late payments may be subject to fees.</div>
+              <div className="font-semibold text-slate-800 mb-2">{safeDict.invoice.termsAndConditions}</div>
+              <div>{safeDict.invoice.paymentDueNote}</div>
             </div>
             <div>
-              <div className="font-semibold text-slate-800 mb-2">Payment Info</div>
-              <div>Account #: 1234 5678 9012</div>
-              <div>Bank: Example Bank</div>
+              <div className="font-semibold text-slate-800 mb-2">{safeDict.invoice.paymentInfo}</div>
+              <div>{safeDict.invoice.accountNumber}</div>
+              <div>{safeDict.invoice.bank}</div>
             </div>
           </div>
         </main>
@@ -248,7 +283,7 @@ export function TransactionInvoiceView({
         <footer className="p-4 sm:p-6 bg-white border-t text-sm text-slate-500 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>Phone: {company.phone ?? '—'} | Address: {company.address ?? '—'} | {company.website ?? ''}</div>
           <div className="text-left sm:text-right">
-            <div className="font-semibold text-slate-800">Authorized Sign</div>
+            <div className="font-semibold text-slate-800">{safeDict.invoice.authorizedSign}</div>
             <div className="mt-4 h-8 w-40 sm:w-48 border-b border-slate-300" />
           </div>
         </footer>

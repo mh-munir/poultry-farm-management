@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale } from '@/i18n/provider';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,7 @@ export function AddStockModal({
   preselectedCompanyType,
   preselectedCompanyName,
 }: AddStockModalProps) {
+  const { dict } = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const [stockType, setStockType] = useState<'FEED' | 'MEDICINE' | 'CHICK'>(preselectedCompanyType ?? 'FEED');
   const { isSaving, saveError, save } = useModalSave();
@@ -119,7 +121,7 @@ export function AddStockModal({
 
   const getProductDisplayLabel = (product: StockItem) => {
     if (stockType === 'MEDICINE') {
-      return `${product.name} — Gram`;
+      return `${product.name} — ${dict.stock.gram}`;
     }
     return product.unit ? `${product.name} — ${product.unit}` : product.name;
   };
@@ -223,21 +225,21 @@ export function AddStockModal({
         onClick={() => setIsOpen(true)}
       >
         <Plus className="h-4 w-4 mr-2" />
-        Add Stock
+        {dict.stock.addStockButton}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen} title="Add Stock">
+      <Dialog open={isOpen} onOpenChange={setIsOpen} title={dict.stock.addStockTitle.replace('{title}', dict.common.stock ?? 'Stock')}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             {!preselectedCompanyType && (
               <div>
-                <label className="mb-1 block text-sm font-medium">Stock Type *</label>
+                <label className="mb-1 block text-sm font-medium">{dict.stock.stockType} *</label>
                 <SearchableCombobox
                   options={stockTypeOptions}
                   value={stockType}
                   onValueChange={handleStockTypeChange}
-                  placeholder="Select stock type..."
-                  emptyText="No stock type found"
+                  placeholder={dict.stock.selectStockType}
+                  emptyText={dict.stock.noStockTypeFound}
                   name="stockType"
                   required
                 />
@@ -247,7 +249,7 @@ export function AddStockModal({
               <input type="hidden" name="stockType" value={preselectedCompanyType} />
             )}
             <div>
-              <label className="mb-1 block text-sm font-medium">Company *</label>
+              <label className="mb-1 block text-sm font-medium">{dict.stock.company} *</label>
               {preselectedCompanyName ? (
                 <div className="w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium">
                   {preselectedCompanyName}
@@ -267,8 +269,8 @@ export function AddStockModal({
                       setCompanyId(0);
                     }
                   }}
-                  placeholder="Search company..."
-                  emptyText="No company found"
+                  placeholder={dict.stock.searchCompany}
+                  emptyText={dict.stock.noCompanyFound}
                   name="companyName"
                   required
                 />
@@ -287,8 +289,8 @@ export function AddStockModal({
           <div className="rounded-2xl border bg-muted/10 p-4">
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-semibold">Stock items</p>
-                <p className="text-xs text-muted-foreground">Select from existing items below, or add new ones with quantity and pricing.</p>
+                <p className="text-sm font-semibold">{dict.stock.stockItems}</p>
+                <p className="text-xs text-muted-foreground">{dict.stock.stockItemsDescription}</p>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -296,7 +298,7 @@ export function AddStockModal({
                   onClick={addRow}
                   className="whitespace-nowrap rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm"
                 >
-                  Add product
+                  {dict.dashboard.addProduct}
                 </button>
               </div>
             </div>
@@ -310,14 +312,14 @@ export function AddStockModal({
                         : 'md:grid-cols-[1.8fr_0.9fr_0.9fr_auto]'}`}
                     >
                       <div>
-                        <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? 'Stock Medicine' : stockType === 'CHICK' ? 'Hatchling / Chick' : 'Product'}</label>
+                        <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? dict.stock.productLabel : stockType === 'CHICK' ? dict.dashboard.hatchlingChick : dict.stock.product}</label>
                         <input
                           list={`add-stock-products-${stockType}`}
                           name="productName"
                           value={row.productName}
                           onChange={(event) => handleRowChange(row.rowId, 'productName', event.target.value)}
                           className="w-full h-10 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground"
-                          placeholder="Type or search product"
+                          placeholder={dict.stock.typeOrSearchProduct}
                           required
                         />
                         <datalist id={`add-stock-products-${stockType}`}>
@@ -336,7 +338,7 @@ export function AddStockModal({
                       </div>
                       {stockType === 'MEDICINE' && (
                         <div>
-                          <label className="mb-1 block text-sm font-medium">Gm</label>
+                          <label className="mb-1 block text-sm font-medium">{dict.stock.gm}</label>
                           <input
                             type="number"
                             name="unit"
@@ -350,7 +352,7 @@ export function AddStockModal({
                         </div>
                       )}
                       <div>
-                        <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? 'Quantity' : stockType === 'CHICK' ? 'Quantity (Pcs)' : 'Quantity Of Sack'}</label>
+                        <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? dict.stock.quantity : stockType === 'CHICK' ? dict.stock.quantityPcs : dict.stock.quantity}</label>
                         <input
                           type="number"
                           name="quantity"
@@ -363,7 +365,7 @@ export function AddStockModal({
                         />
                       </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium">Buy Rate</label>
+                      <label className="mb-1 block text-sm font-medium">{dict.stock.buyRate}</label>
                       <input
                         type="number"
                         name="buyRate"
@@ -393,7 +395,7 @@ export function AddStockModal({
 
           <div className="grid gap-4 md:grid-cols-2 mb-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">Payment Method</label>
+              <label className="mb-1 block text-sm font-medium">{dict.stock.paymentMethod}</label>
               <select
                 name="paymentMethod"
                 value={paymentMethod}
@@ -408,7 +410,7 @@ export function AddStockModal({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Payment Amount</label>
+              <label className="mb-1 block text-sm font-medium">{dict.stock.paymentAmount}</label>
               <input
                 type="number"
                 name="paymentAmount"
@@ -423,7 +425,7 @@ export function AddStockModal({
 
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <label className="mb-1 block text-sm font-medium">Company Discount</label>
+              <label className="mb-1 block text-sm font-medium">{dict.stock.companyDiscount}</label>
               <input
                 type="number"
                 name="discount"
@@ -436,11 +438,11 @@ export function AddStockModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Total Amount</label>
+              <label className="mb-1 block text-sm font-medium">{dict.stock.totalAmount}</label>
               <div className="rounded-md border bg-background px-3 py-2 text-sm">{discountedTotalAmount.toFixed(2)}</div>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Due Amount</label>
+              <label className="mb-1 block text-sm font-medium">{dict.stock.dueAmount}</label>
               <div className="rounded-md border bg-background px-3 py-2 text-sm">{dueAmount.toFixed(2)}</div>
             </div>
           </div>
@@ -451,7 +453,7 @@ export function AddStockModal({
               disabled={isSaving}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isSaving ? 'Saving...' : 'Save stock purchase'}
+              {isSaving ? dict.stock.saving : dict.stock.saveStockPurchase}
             </button>
             <button
               type="button"
@@ -459,12 +461,12 @@ export function AddStockModal({
               disabled={isSaving}
               className="rounded-md border px-4 py-2 text-sm"
             >
-              Cancel
+              {dict.common.cancel}
             </button>
           </div>
           {saveError && (
             <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4 shadow-sm">
-              <p className="text-sm font-semibold text-rose-900">⚠️ Error</p>
+              <p className="text-sm font-semibold text-rose-900">⚠️ {dict.common.warning}</p>
               <p className="mt-1 text-sm text-rose-800">{saveError}</p>
             </div>
           )}

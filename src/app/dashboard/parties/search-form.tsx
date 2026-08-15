@@ -62,7 +62,7 @@ export function PartySearchForm({ search, partyType, status }: SearchFormProps) 
         name="search"
         value={searchValue}
         onChange={(event) => handleChange(event.target.value)}
-        placeholder="Search party name..."
+        placeholder={"Search party name..."}
         autoComplete="off"
         className="w-full rounded-md border bg-background px-10 py-2 text-sm"
       />

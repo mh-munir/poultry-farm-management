@@ -354,26 +354,28 @@ model SmsNotification {
 }
 
 model Payment {
-  id              Int                 @id @default(autoincrement())
-  partyId         Int?
-  paymentDate     DateTime            @default(now())
-  paymentMethod   String
-  amount          Decimal
-  referenceNumber String?
-  status          String              @default("COMPLETED")
-  notes           String?
-  createdAt       DateTime            @default(now())
-  createdById     String?
-  companyId       Int?
-  ledgerEntries   LedgerEntry[]
-  company         Company?            @relation("CompanyPayments", fields: [companyId], references: [id])
-  createdBy       User?               @relation(fields: [createdById], references: [id])
-  party           Party?              @relation(fields: [partyId], references: [id])
-  allocations     PaymentAllocation[]
+  id               Int                 @id @default(autoincrement())
+  partyId          Int?
+  paymentDate      DateTime            @default(now())
+  paymentMethod    String
+  amount           Decimal
+  referenceNumber  String?
+  status           String              @default("COMPLETED")
+  notes            String?
+  createdAt        DateTime            @default(now())
+  createdById      String?
+  companyId        Int?
+  paymentDirection String?
+  ledgerEntries    LedgerEntry[]
+  company          Company?            @relation("CompanyPayments", fields: [companyId], references: [id])
+  createdBy        User?               @relation(fields: [createdById], references: [id])
+  party            Party?              @relation(fields: [partyId], references: [id])
+  allocations      PaymentAllocation[]
 
   @@index([partyId, paymentDate])
   @@index([companyId, paymentDate])
   @@index([paymentDate])
+  @@index([partyId, paymentDirection, paymentDate])
 }
 
 model PaymentAllocation {

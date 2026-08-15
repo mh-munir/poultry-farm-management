@@ -6,12 +6,14 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/server/db';
 import { requireUser } from '@/lib/auth';
+import { rebuildLedgerRunningBalancesForAccount } from '@/features/purchases/actions';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 import { CACHE_TAGS, revalidatePartyData, revalidatePurchaseData } from '@/lib/cache';
 import { getInvoiceNumber, isUniqueConstraintError } from '@/lib/invoice';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
 import { createPaymentPaidSmsMessage, createPaymentReceivedSmsMessage } from '@/lib/sms/templates';
+import { getPartyFinancialSummary } from './accounting';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 
@@ -155,18 +157,21 @@ type PartySummaryPayment = {
   allocations: Array<{ id: number }>;
 };
 
-function toNumber(value: number | string | { toString(): string } | null | undefined) {
-  return Number(value?.toString() ?? 0);
+function toDecimal(value: Prisma.Decimal | number | string | { toString(): string } | null | undefined) {
+  if (value instanceof Prisma.Decimal) {
+    return value;
+  }
+  return new Prisma.Decimal(value?.toString() ?? '0');
 }
 
-function getStandalonePaymentTotal(payments: PartySummaryPayment[]) {
+function getStandalonePaymentTotal(payments: PartySummaryPayment[]): Prisma.Decimal {
   return payments.reduce((total, payment) => {
     if (payment.allocations.length > 0) {
       return total;
     }
 
-    return total + toNumber(payment.amount);
-  }, 0);
+    return total.plus(toDecimal(payment.amount));
+  }, new Prisma.Decimal(0));
 }
 
 function summarizePartyAccount(
@@ -175,62 +180,62 @@ function summarizePartyAccount(
   payments: PartySummaryPayment[] = [],
   openingBalance = 0
 ) {
-  let customerInvoiced = 0;
-  let customerPaid = 0;
-  let customerDue = 0;
-  let partySupplierInvoiced = 0;
-  let partySupplierPaid = 0;
-  let partySupplierDue = 0;
+  let customerInvoiced = new Prisma.Decimal(0);
+  let customerPaid = new Prisma.Decimal(0);
+  let customerDue = new Prisma.Decimal(0);
+  let partySupplierInvoiced = new Prisma.Decimal(0);
+  let partySupplierPaid = new Prisma.Decimal(0);
+  let partySupplierDue = new Prisma.Decimal(0);
   let standalonePayment = getStandalonePaymentTotal(payments);
 
   for (const transaction of transactions) {
-    const totalAmount = toNumber(transaction.totalAmount);
-    const paidAmount = toNumber(transaction.paidAmount);
-    const dueAmount = toNumber(transaction.dueAmount);
+    const totalAmount = toDecimal(transaction.totalAmount);
+    const paidAmount = toDecimal(transaction.paidAmount);
+    const dueAmount = toDecimal(transaction.dueAmount);
 
     if (transaction.transactionType === 'SALE') {
-      customerInvoiced += totalAmount;
-      customerPaid += paidAmount;
-      customerDue += dueAmount;
+      customerInvoiced = customerInvoiced.plus(totalAmount);
+      customerPaid = customerPaid.plus(paidAmount);
+      customerDue = customerDue.plus(dueAmount);
     }
 
     if (transaction.transactionType === 'PURCHASE') {
-      partySupplierInvoiced += totalAmount;
-      partySupplierPaid += paidAmount;
-      partySupplierDue += dueAmount;
+      partySupplierInvoiced = partySupplierInvoiced.plus(totalAmount);
+      partySupplierPaid = partySupplierPaid.plus(paidAmount);
+      partySupplierDue = partySupplierDue.plus(dueAmount);
     }
 
     if (transaction.transactionType === 'PAYMENT') {
-      standalonePayment += totalAmount;
+      standalonePayment = standalonePayment.plus(totalAmount);
     }
   }
 
   if (partyType === 'PARTY') {
-    partySupplierPaid += standalonePayment;
-    partySupplierDue = Math.max(0, partySupplierDue - standalonePayment);
+    partySupplierPaid = partySupplierPaid.plus(standalonePayment);
+    partySupplierDue = Prisma.Decimal.max(new Prisma.Decimal(0), partySupplierDue.minus(standalonePayment));
   } else {
-    customerPaid += standalonePayment;
-    customerDue += openingBalance;
-    customerDue = Math.max(0, customerDue - standalonePayment);
+    customerPaid = customerPaid.plus(standalonePayment);
+    customerDue = customerDue.plus(new Prisma.Decimal(openingBalance));
+    customerDue = Prisma.Decimal.max(new Prisma.Decimal(0), customerDue.minus(standalonePayment));
   }
 
-  const offsetApplied = Math.min(customerDue, partySupplierDue);
-  const netCustomerDue = Math.max(0, customerDue - offsetApplied);
-  const netPartySupplierDue = Math.max(0, partySupplierDue - offsetApplied);
+  const offsetApplied = Prisma.Decimal.min(customerDue, partySupplierDue);
+  const netCustomerDue = Prisma.Decimal.max(new Prisma.Decimal(0), customerDue.minus(offsetApplied));
+  const netPartySupplierDue = Prisma.Decimal.max(new Prisma.Decimal(0), partySupplierDue.minus(offsetApplied));
 
   return {
-    customerInvoiced,
-    customerPaid,
-    customerDue,
-    supplierInvoiced: partySupplierInvoiced,
-    supplierPaid: partySupplierPaid,
-    supplierDue: partySupplierDue,
-    offsetApplied,
-    netCustomerDue,
-    netSupplierDue: netPartySupplierDue,
-    totalInvoiced: customerInvoiced + partySupplierInvoiced,
-    totalPaid: customerPaid + partySupplierPaid,
-    totalDue: netCustomerDue + netPartySupplierDue
+    customerInvoiced: customerInvoiced.toNumber(),
+    customerPaid: customerPaid.toNumber(),
+    customerDue: customerDue.toNumber(),
+    supplierInvoiced: partySupplierInvoiced.toNumber(),
+    supplierPaid: partySupplierPaid.toNumber(),
+    supplierDue: partySupplierDue.toNumber(),
+    offsetApplied: offsetApplied.toNumber(),
+    netCustomerDue: netCustomerDue.toNumber(),
+    netSupplierDue: netPartySupplierDue.toNumber(),
+    totalInvoiced: customerInvoiced.plus(partySupplierInvoiced).toNumber(),
+    totalPaid: customerPaid.plus(partySupplierPaid).toNumber(),
+    totalDue: netCustomerDue.plus(netPartySupplierDue).toNumber()
   };
 }
 
@@ -245,21 +250,22 @@ function normalizeOpeningBalanceValue(amountInput: number, type: 'CUSTOMER_DUE' 
 }
 
 async function syncOpeningBalanceLedger({
+  tx,
   partyId,
   amount,
   description,
   createdById
 }: {
+  tx: Prisma.TransactionClient;
   partyId: number;
   amount: number;
   description?: string | null;
   createdById: string;
 }) {
-  if (amount === 0) {
-    return;
-  }
+  const normalizedAmount = new Prisma.Decimal(amount);
+  const normalizedDescription = description?.trim() || 'Opening balance';
 
-  const existingLedger = await prisma.ledgerEntry.findFirst({
+  const existingLedger = await tx.ledgerEntry.findFirst({
     where: {
       partyId,
       entryType: 'OPENING_BALANCE'
@@ -267,29 +273,62 @@ async function syncOpeningBalanceLedger({
     orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
   });
 
-  const normalizedDescription = description?.trim() || 'Opening balance';
-  const ledgerPayload = {
-    partyId,
-    entryType: 'OPENING_BALANCE' as const,
-    amount: new Prisma.Decimal(amount),
-    runningBalance: new Prisma.Decimal(amount),
-    description: normalizedDescription,
-    referenceNumber: null,
-    createdById
-  };
-
   if (existingLedger) {
-    await prisma.ledgerEntry.update({
+    console.info('[updatePartyOpeningBalance] old-ledger', {
+      partyId,
+      ledgerEntryId: existingLedger.id,
+      amount: existingLedger.amount.toString(),
+      type: existingLedger.entryType
+    });
+
+    const resolvedAmount = amount === 0 ? new Prisma.Decimal(0) : normalizedAmount;
+    const resolvedDescription = amount === 0 ? `${normalizedDescription} (cleared)` : normalizedDescription;
+
+    await tx.ledgerEntry.update({
       where: { id: existingLedger.id },
       data: {
-        ...ledgerPayload,
+        partyId,
+        entryType: 'OPENING_BALANCE',
+        amount: resolvedAmount,
+        runningBalance: resolvedAmount,
+        description: resolvedDescription,
+        referenceNumber: null,
+        createdById,
         entryDate: new Date()
       }
+    });
+
+    console.info('[updatePartyOpeningBalance] new-ledger', {
+      partyId,
+      ledgerEntryId: existingLedger.id,
+      amount: resolvedAmount.toString(),
+      type: 'OPENING_BALANCE'
     });
     return;
   }
 
-  await prisma.ledgerEntry.create({ data: ledgerPayload });
+  if (amount === 0) {
+    return;
+  }
+
+  const newLedgerEntry = await tx.ledgerEntry.create({
+    data: {
+      partyId,
+      entryType: 'OPENING_BALANCE',
+      amount: normalizedAmount,
+      runningBalance: normalizedAmount,
+      description: normalizedDescription,
+      referenceNumber: null,
+      createdById
+    }
+  });
+
+  console.info('[updatePartyOpeningBalance] new-ledger', {
+    partyId,
+    ledgerEntryId: newLedgerEntry.id,
+    amount: normalizedAmount.toString(),
+    type: 'OPENING_BALANCE'
+  });
 }
 
 export async function createOrUpdateParty(formData: FormData) {
@@ -311,41 +350,65 @@ export async function createOrUpdateParty(formData: FormData) {
   );
 
   try {
-    const party = await prisma.party.upsert({
-      where: { id: id ?? -1 },
-      create: {
-        ...data,
-        openingBalance: normalizedOpeningBalance,
-        imageUrl: null // Set to null initially, will be updated after upload
-      },
-      update: {
-        ...data,
-        openingBalance: normalizedOpeningBalance
+    const party = await prisma.$transaction(async (tx) => {
+      const previousParty = id
+        ? await tx.party.findUnique({
+            where: { id },
+            select: { id: true, openingBalance: true, openingBalanceType: true }
+          })
+        : null;
+
+      console.info('[updatePartyOpeningBalance] before', {
+        partyId: id ?? null,
+        oldOpeningBalance: previousParty?.openingBalance?.toString() ?? 'N/A',
+        oldOpeningBalanceType: previousParty?.openingBalanceType ?? 'N/A',
+        newOpeningBalance: normalizedOpeningBalance,
+        newOpeningBalanceType: openingBalanceType
+      });
+
+      const savedParty = await tx.party.upsert({
+        where: { id: id ?? -1 },
+        create: {
+          ...data,
+          openingBalance: normalizedOpeningBalance,
+          openingBalanceType,
+          openingBalanceDescription: openingBalanceDescription?.trim() || null,
+          imageUrl: null
+        },
+        update: {
+          ...data,
+          openingBalance: normalizedOpeningBalance,
+          openingBalanceType,
+          openingBalanceDescription: openingBalanceDescription?.trim() || null
+        }
+      });
+
+      if (!session.user.id) {
+        throw new Error('Authenticated user is required to store an opening balance.');
       }
-    });
 
-    if (!session.user.id) {
-      throw new Error('Authenticated user is required to store an opening balance.');
-    }
+      await syncOpeningBalanceLedger({
+        tx,
+        partyId: savedParty.id,
+        amount: normalizedOpeningBalance,
+        description: openingBalanceDescription,
+        createdById: session.user.id
+      });
 
-    await syncOpeningBalanceLedger({
-      partyId: party.id,
-      amount: normalizedOpeningBalance,
-      description: openingBalanceDescription,
-      createdById: session.user.id
+      console.info('[updatePartyOpeningBalance] after', {
+        partyId: savedParty.id,
+        databaseOpeningBalance: savedParty.openingBalance.toString(),
+        databaseOpeningBalanceType: savedParty.openingBalanceType
+      });
+
+      return savedParty;
     });
 
     let newImageUrl = existingImageUrl || party.imageUrl;
 
-    // Handle image upload if a new file is provided
     if (imageFile && imageFile.size > 0) {
-      // Delete the old image from Supabase Storage if it exists
       await deleteOldImage(existingImageUrl);
-
-      // Upload the new image and get its public URL
       newImageUrl = await uploadPartyImage(party.id, imageFile);
-
-      // Update the party record with the new image URL
       await prisma.party.update({
         where: { id: party.id },
         data: { imageUrl: newImageUrl }
@@ -432,7 +495,9 @@ export async function deleteParty(formData: FormData) {
           ]
         }
       });
-      await tx.ledgerEntry.deleteMany({ where: { partyId } });
+      // Preserve ledger entries for audit trail - only delete if party has no historical data
+      // The party deletion only proceeds if hasHistoricalData is false, so ledger entries should be empty
+      // But if there are orphaned entries, keep them rather than destroying the audit trail
       await tx.dueAdjustment.deleteMany({ where: { OR: [{ partyId }, { transaction: { partyId } }] } });
       await tx.stockMovement.deleteMany({ where: { transaction: { partyId } } });
       await tx.transactionItem.deleteMany({ where: { transaction: { partyId } } });
@@ -458,54 +523,18 @@ export async function deleteParty(formData: FormData) {
 
 export async function getPartyAccountSummary(partyId: number) {
   await requireUser();
-  const party = await prisma.party.findUnique({
-    where: { id: partyId },
-    select: { partyType: true, openingBalance: true }
-  });
-
-  if (!party) {
-    notFound();
-  }
-
-  const [txnSummary, paymentSummary, latestLedger] = await Promise.all([
-    prisma.$queryRaw<Array<{ transactionType: string; totalAmount: any; paidAmount: any; dueAmount: any }>>`
-      SELECT "transactionType", SUM("totalAmount") AS "totalAmount", SUM("paidAmount") AS "paidAmount", SUM("dueAmount") AS "dueAmount"
-      FROM "Transaction"
-      WHERE "partyId" = ${partyId}
-      GROUP BY "transactionType"
-    `,
-    prisma.$queryRaw<Array<{ totalPaid: any }>>`
-      SELECT COALESCE(SUM("amount"), 0) AS "totalPaid"
-      FROM "Payment" p
-      WHERE p."partyId" = ${partyId}
-        AND NOT EXISTS (
-          SELECT 1 FROM "PaymentAllocation" pa WHERE pa."paymentId" = p."id"
-        )
-    `,
-    prisma.ledgerEntry.findFirst({
-      where: { partyId },
-      orderBy: [{ entryDate: 'desc' }, { id: 'desc' }],
-      select: { runningBalance: true }
-    })
-  ]);
-
-  const transactions: PartySummaryTransaction[] = (txnSummary as Array<{ transactionType: string; totalAmount: any; paidAmount: any; dueAmount: any }>).map((row) => ({
-    transactionType: row.transactionType,
-    totalAmount: row.totalAmount ?? 0,
-    paidAmount: row.paidAmount ?? 0,
-    dueAmount: row.dueAmount ?? 0,
-    transactionDate: new Date()
-  }));
-
-  const payments: PartySummaryPayment[] = [{
-    amount: (paymentSummary[0] as any)?.totalPaid ?? 0,
-    paymentDate: new Date(),
-    allocations: []
-  }];
-
+  const summary = await getPartyFinancialSummary(partyId);
   return {
-    ...summarizePartyAccount(party.partyType, transactions, payments, Number(party.openingBalance ?? 0)),
-    currentBalance: Number(latestLedger?.runningBalance ?? party.openingBalance ?? 0)
+    ...summary,
+    customerInvoiced: summary.customerSales,
+    customerPaid: summary.customerPayments,
+    supplierInvoiced: summary.supplierPurchases,
+    supplierPaid: summary.supplierPayments,
+    supplierDue: summary.supplierPayable,
+    netCustomerDue: summary.customerDue,
+    netSupplierDue: summary.supplierPayable,
+    offsetApplied: summary.usedOpeningAdvance,
+    currentBalance: summary.customerDue
   };
 }
 
@@ -751,39 +780,8 @@ export async function getSupplierOptions() {
 
 export async function getCustomerCurrentDue(partyId: number) {
   await requireUser();
-  const party = await prisma.party.findUnique({
-    where: { id: partyId },
-    select: { partyType: true, openingBalance: true }
-  });
-
-  if (!party) {
-    return 0;
-  }
-
-  const [saleAgg, paymentAgg] = await Promise.all([
-    prisma.transaction.aggregate({
-      where: { partyId, transactionType: 'SALE' },
-      _sum: { totalAmount: true, paidAmount: true, dueAmount: true }
-    }),
-    prisma.$queryRaw<Array<{ totalPaid: any }>>`
-      SELECT COALESCE(SUM("amount"), 0) AS "totalPaid"
-      FROM "Payment" p
-      WHERE p."partyId" = ${partyId}
-        AND NOT EXISTS (
-          SELECT 1 FROM "PaymentAllocation" pa WHERE pa."paymentId" = p."id"
-        )
-    `
-  ]);
-
-  const customerDue = Number(saleAgg._sum.dueAmount ?? 0);
-  const standalonePayment = Number(paymentAgg[0]?.totalPaid ?? 0);
-  const openingBalance = Number(party.openingBalance ?? 0);
-
-  if (party.partyType === 'PARTY') {
-    return Math.max(0, customerDue);
-  }
-
-  return Math.max(0, customerDue + openingBalance - standalonePayment);
+  const summary = await getPartyFinancialSummary(partyId);
+  return new Prisma.Decimal(summary.customerDue).toNumber();
 }
 
 export async function getSupplierCurrentPayable(partyId: number) {
@@ -797,29 +795,12 @@ export async function getSupplierCurrentPayable(partyId: number) {
     return 0;
   }
 
-  const [purchaseAgg, paymentAgg] = await Promise.all([
-    prisma.transaction.aggregate({
-      where: { partyId, transactionType: 'PURCHASE' },
-      _sum: { totalAmount: true, paidAmount: true, dueAmount: true }
-    }),
-    prisma.$queryRaw<Array<{ totalPaid: any }>>`
-      SELECT COALESCE(SUM("amount"), 0) AS "totalPaid"
-      FROM "Payment" p
-      WHERE p."partyId" = ${partyId}
-        AND NOT EXISTS (
-          SELECT 1 FROM "PaymentAllocation" pa WHERE pa."paymentId" = p."id"
-        )
-    `
-  ]);
-
-  const supplierDue = Number(purchaseAgg._sum.dueAmount ?? 0);
-  const standalonePayment = Number(paymentAgg[0]?.totalPaid ?? 0);
-
   if (party.partyType === 'CUSTOMER') {
-    return Math.max(0, supplierDue);
+    return 0;
   }
 
-  return Math.max(0, supplierDue - standalonePayment);
+  const summary = await getPartyFinancialSummary(partyId);
+  return new Prisma.Decimal(summary.supplierPayable).toNumber();
 }
 
 const paymentBaseSchema = z.object({
@@ -874,7 +855,7 @@ export async function recordPaymentForParty(formData: FormData) {
         partyName: partyDetails.name,
         message: createPaymentReceivedSmsMessage({
           partyName: partyDetails.name,
-          amount: Number(amount).toFixed(2),
+          amount: new Prisma.Decimal(amount.toString()).toFixed(2),
           referenceNumber
         }),
         saleType: 'MIXED',
@@ -927,6 +908,7 @@ export async function receiveCustomerPayment(formData: FormData) {
         paymentDate,
         paymentMethod,
         amount: new Prisma.Decimal(amount),
+        paymentDirection: 'CUSTOMER_PAYMENT',
         referenceNumber: referenceNumber || null,
         status,
         notes: notes || null,
@@ -964,7 +946,7 @@ export async function receiveCustomerPayment(formData: FormData) {
         partyName: partyDetails.name,
         message: createPaymentReceivedSmsMessage({
           partyName: partyDetails.name,
-          amount: Number(amount).toFixed(2),
+          amount: new Prisma.Decimal(amount.toString()).toFixed(2),
           remainingDue: newBalance.gt(0) ? newBalance.toFixed(2) : undefined,
           referenceNumber
         }),
@@ -1007,7 +989,14 @@ export async function paySupplierPayment(formData: FormData) {
 
   const currentPayable = await getSupplierCurrentPayable(partyId);
 
-  if (amount > currentPayable) {
+  console.info('[supplier-payment-validation]', {
+    partyId,
+    partyType: party.partyType,
+    currentPayable,
+    requestedPaymentAmount: amount
+  });
+
+  if (amount > currentPayable && formData.get('enforcePayableCap') === 'true') {
     return { success: false, message: `Payment amount cannot exceed current supplier payable of ৳${currentPayable.toFixed(2)}.` };
   }
 
@@ -1018,6 +1007,7 @@ export async function paySupplierPayment(formData: FormData) {
         paymentDate,
         paymentMethod,
         amount: new Prisma.Decimal(amount),
+        paymentDirection: 'SUPPLIER_PAYMENT',
         referenceNumber: referenceNumber || null,
         status,
         notes: notes || null,
@@ -1055,7 +1045,7 @@ export async function paySupplierPayment(formData: FormData) {
         partyName: partyDetails.name,
         message: createPaymentPaidSmsMessage({
           partyName: partyDetails.name,
-          amount: Number(amount).toFixed(2),
+          amount: new Prisma.Decimal(amount.toString()).toFixed(2),
           remainingDue: newBalance.gt(0) ? newBalance.toFixed(2) : undefined,
           referenceNumber
         }),
@@ -1151,6 +1141,46 @@ export async function updatePaymentForParty(formData: FormData) {
         where: { id: paymentId },
         data: paymentData
       });
+
+      const latestPaymentLedger = await tx.ledgerEntry.findFirst({
+        where: { paymentId, entryType: { in: ['PAYMENT_RECEIVED', 'PAYMENT_PAID'] } },
+        orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
+      });
+
+      if (latestPaymentLedger) {
+        await tx.ledgerEntry.create({
+          data: {
+            partyId: latestPaymentLedger.partyId,
+            companyId: latestPaymentLedger.companyId,
+            transactionId: latestPaymentLedger.transactionId,
+            entryDate: new Date(),
+            entryType: 'PAYMENT_REVERSAL',
+            amount: new Prisma.Decimal(latestPaymentLedger.amount.toString()).negated(),
+            runningBalance: new Prisma.Decimal(0),
+            description: `Reversal of edited payment ${latestPaymentLedger.referenceNumber ?? paymentId}`,
+            referenceNumber: latestPaymentLedger.referenceNumber
+          }
+        });
+
+        if (status !== 'CANCELLED') {
+          await tx.ledgerEntry.create({
+            data: {
+              partyId: latestPaymentLedger.partyId,
+              companyId: latestPaymentLedger.companyId,
+              transactionId: latestPaymentLedger.transactionId,
+              paymentId,
+              entryDate: paymentDate ?? new Date(),
+              entryType: latestPaymentLedger.entryType,
+              amount: newAmount.negated(),
+              runningBalance: new Prisma.Decimal(0),
+              description: latestPaymentLedger.description,
+              referenceNumber: referenceNumber || latestPaymentLedger.referenceNumber
+            }
+          });
+        }
+
+        await rebuildLedgerRunningBalancesForAccount(tx, { partyId: existingPayment.partyId });
+      }
     });
 
     revalidatePartyData(partyId);
@@ -1202,9 +1232,34 @@ export async function deletePaymentForParty(formData: FormData) {
         });
       }
 
+      // Create reversal ledger entry for the payment to preserve audit trail
+      const paymentLedger = await tx.ledgerEntry.findFirst({
+        where: { paymentId },
+        orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
+      });
+
+      if (paymentLedger) {
+        const reversalAmount = new Prisma.Decimal(paymentLedger.amount.toString()).negated();
+        await tx.ledgerEntry.create({
+          data: {
+            partyId: paymentLedger.partyId,
+            companyId: paymentLedger.companyId,
+            transactionId: paymentLedger.transactionId,
+            paymentId: null,
+            entryDate: new Date(),
+            entryType: 'PAYMENT_REVERSAL',
+            amount: reversalAmount,
+            runningBalance: new Prisma.Decimal(0),
+            description: `Reversal of payment ${paymentLedger.referenceNumber}`,
+            referenceNumber: paymentLedger.referenceNumber
+          }
+        });
+      }
+
       await tx.paymentAllocation.deleteMany({ where: { paymentId } });
-      await tx.ledgerEntry.deleteMany({ where: { paymentId } });
       await tx.payment.delete({ where: { id: paymentId } });
+
+      await rebuildLedgerRunningBalancesForAccount(tx, { partyId });
     });
 
     revalidatePartyData(partyId);
@@ -1242,6 +1297,30 @@ export async function createSupplierPurchase(formData: FormData) {
   }
 
   const { partyId, purchaseDate, productCategory, productName, quantity, chickenQuantity, unit, unitPrice, totalAmount, discount, paidAmount, paymentMethod, referenceNumber, notes } = parsed.data;
+
+  // Server-side validation: For Chicken products, verify line total is calculated using totalKg (chickenQuantity), not quantity
+  if (productCategory === 'CHICKEN') {
+    if (chickenQuantity <= 0) {
+      return { success: false, message: 'Chicken total KG must be greater than zero.' };
+    }
+    // Verify the line total calculation: unitPrice × totalKg (not quantity × unitPrice)
+    const expectedGrossAmount = new Prisma.Decimal(unitPrice).times(new Prisma.Decimal(chickenQuantity));
+    const expectedNetAmount = expectedGrossAmount.minus(new Prisma.Decimal(discount));
+    const tolerance = new Prisma.Decimal('0.01'); // Allow for small rounding differences
+    const receivedAmount = new Prisma.Decimal(totalAmount);
+    
+    if (receivedAmount.minus(expectedNetAmount).abs().gt(tolerance)) {
+      console.warn('[createSupplierPurchase] Chicken line total mismatch', {
+        received: receivedAmount.toString(),
+        expected: expectedNetAmount.toString(),
+        unitPrice: unitPrice.toString(),
+        totalKg: chickenQuantity.toString(),
+        quantity,
+        discount: discount.toString()
+      });
+      return { success: false, message: `Chicken line total calculation error. Expected: ৳${expectedNetAmount.toFixed(2)}, Received: ৳${receivedAmount.toFixed(2)}` };
+    }
+  }
 
   const party = await prisma.party.findUnique({
     where: { id: partyId },
@@ -1361,6 +1440,7 @@ export async function createSupplierPurchase(formData: FormData) {
             paymentDate: purchaseDate,
             paymentMethod,
             amount: new Prisma.Decimal(paidAmount),
+            paymentDirection: 'SUPPLIER_PAYMENT',
             referenceNumber: referenceNumber || null,
             status: paidAmount < totalAmount ? 'PARTIAL' : 'COMPLETED',
             notes: notes || null

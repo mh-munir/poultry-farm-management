@@ -203,6 +203,7 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
               partyId: data.partyId,
               paymentMethod: data.paymentMethod,
               amount: paymentAmount,
+              paymentDirection: 'CUSTOMER_PAYMENT',
               referenceNumber: data.referenceNumber || null,
               status: paymentAmount.lt(totalAmount) ? PARTIAL_PAYMENT_STATUS : COMPLETED_PAYMENT_STATUS,
               notes: data.notes || null

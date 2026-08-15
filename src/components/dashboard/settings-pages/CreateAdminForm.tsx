@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, LoaderCircle, CheckCircle2, Send, ShieldCheck, Clock } from 'lucide-react';
+import { useLocale } from '@/i18n/provider';
 import { useToast } from '@/hooks/use-toast';
 import { sendAdminCreationOtp, verifyAdminCreationOtp, createAdminAccount } from '@/app/dashboard/settings/users/actions';
 
@@ -13,6 +14,7 @@ interface CreateAdminFormProps {
 
 export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps) {
   const { success: showSuccess, error: showError } = useToast();
+  const { dict } = useLocale();
   const [step, setStep] = useState<Step>('details');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -61,7 +63,7 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
       setOtpSent(true);
       otpSentAt.current = Date.now();
       setStep('otp');
-      showSuccess('OTP sent successfully.');
+      showSuccess(dict.settings.otpSentSuccess);
     }
   }
 
@@ -108,7 +110,7 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
       return;
     }
 
-    showSuccess((result as any)?.success ?? 'Admin account created successfully.');
+    showSuccess((result as any)?.success ?? dict.settings.adminCreatedSuccess);
     setStep('done');
     onAdminCreated?.();
   }
@@ -158,35 +160,35 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
   return (
     <div className="rounded-2xl border bg-card p-6 shadow-sm">
       <div className="mb-6">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Admin creation</p>
-        <h2 className="mt-2 text-2xl font-semibold">Create new admin</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Add a new administrator account with OTP verification.</p>
+        <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">{dict.settings.adminCreation}</p>
+        <h2 className="mt-2 text-2xl font-semibold">{dict.settings.createNewAdmin}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{dict.settings.adminCreationDescription}</p>
       </div>
 
       {step === 'done' ? (
         <div className="flex flex-col items-center gap-4 py-8">
           <CheckCircle2 className="h-12 w-12 text-emerald-600" />
-          <p className="text-lg font-semibold">Admin account created successfully.</p>
+          <p className="text-lg font-semibold">{dict.settings.adminCreatedSuccess}</p>
           <button type="button" onClick={resetForm} className="rounded-full border px-4 py-2 text-sm font-medium hover:bg-slate-50">
-            Create another admin
+            {dict.settings.createAnotherAdmin}
           </button>
         </div>
       ) : step === 'creating' ? (
         <div className="flex flex-col items-center gap-4 py-8">
           <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Creating admin account...</p>
+          <p className="text-sm text-muted-foreground">{dict.settings.creatingAdmin}</p>
         </div>
       ) : step === 'otp' ? (
         <form onSubmit={handleVerifyOtp} className="grid gap-4">
           <div className="rounded-xl border bg-slate-50 p-4 text-sm text-slate-700">
-            <p className="font-medium">OTP sent</p>
+            <p className="font-medium">{dict.settings.otpSent}</p>
             <p className="mt-1">
-              We sent a 6-digit verification code to <span className="font-semibold">{email}</span> via email.
+              {dict.settings.otpSentDescription} <span className="font-semibold">{email}</span>.
             </p>
           </div>
 
           <div>
-            <label className="mb-3 block text-sm font-medium">Verification code</label>
+            <label className="mb-3 block text-sm font-medium">{dict.auth.verificationCode}</label>
             <div className="flex gap-2 justify-center">
               {otpDigits.map((digit, i) => (
                 <input
@@ -207,17 +209,17 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
 
           <button type="submit" className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" disabled={loading || otpDigits.some(d => !d)}>
             {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-            Verify OTP
+            {dict.settings.verifyOtp}
           </button>
 
           <div className="flex items-center justify-between">
             <button type="button" onClick={handleResendOtp} className="text-sm text-muted-foreground hover:text-foreground">
-              Change contact details
+              {dict.settings.changeContactDetails}
             </button>
             {remainingSeconds > 0 ? (
               <span className="text-sm text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                Resend in {remainingSeconds}s
+                {dict.settings.resendIn.replace('{seconds}', String(remainingSeconds))}
               </span>
             ) : (
               otpSentAt.current > 0 && (Date.now() - otpSentAt.current < 30000) && (
@@ -232,7 +234,7 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
                     showSuccess('OTP resent successfully.');
                   }
                 }} className="text-sm text-primary hover:underline">
-                  Resend OTP
+                  {dict.settings.resendOtp}
                 </button>
               )
             )}
@@ -241,24 +243,24 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
       ) : (
         <form onSubmit={handleSendOtp} className="grid gap-4">
           <div>
-            <label htmlFor="name" className="mb-2 block text-sm font-medium text-slate-700">Full Name</label>
-            <input id="name" name="name" type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none" placeholder="Admin name" />
+            <label htmlFor="name" className="mb-2 block text-sm font-medium text-slate-700">{dict.settings.fullName}</label>
+            <input id="name" name="name" type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none" placeholder={dict.settings.adminName} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="email" className="mb-2 block text-sm font-medium text-slate-700">Email</label>
-              <input id="email" name="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none" placeholder="admin@example.com" />
+              <label htmlFor="email" className="mb-2 block text-sm font-medium text-slate-700">{dict.common.email}</label>
+              <input id="email" name="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none" placeholder={dict.auth.youExample} />
             </div>
             <div>
-              <label htmlFor="phone" className="mb-2 block text-sm font-medium text-slate-700">Mobile Number</label>
-              <input id="phone" name="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none" placeholder="+1234567890" />
+              <label htmlFor="phone" className="mb-2 block text-sm font-medium text-slate-700">{dict.settings.mobileNumber}</label>
+              <input id="phone" name="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none" placeholder={dict.settings.phonePlaceholder} />
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-700">Password</label>
+              <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-700">{dict.common.password}</label>
               <div className="relative">
                 <input
                   id="password"
@@ -268,7 +270,7 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full rounded-md border bg-background px-3 py-2 pr-10 text-sm text-foreground outline-none"
-                  placeholder="Min. 8 characters"
+                  placeholder={dict.settings.passwordMinHint}
                 />
                 <button
                   type="button"
@@ -282,7 +284,7 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
               </div>
             </div>
             <div>
-              <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-slate-700">Confirm password</label>
+              <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-slate-700">{dict.common.confirmPassword}</label>
               <div className="relative">
                 <input
                   id="confirmPassword"
@@ -292,7 +294,7 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full rounded-md border bg-background px-3 py-2 pr-10 text-sm text-foreground outline-none"
-                  placeholder="Repeat password"
+                  placeholder={dict.settings.repeatPassword}
                 />
                 <button
                   type="button"
@@ -309,7 +311,7 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
 
           <button type="submit" className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" disabled={loading}>
             {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            Send OTP
+            {dict.settings.sendOtp}
           </button>
         </form>
       )}

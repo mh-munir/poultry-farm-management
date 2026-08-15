@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import {
   ArrowLeft,
@@ -36,7 +37,9 @@ import { SalesEntryPopup } from '@/components/dashboard/sales-entry-popup';
 import { TransactionTabs } from './transaction-tabs';
 import { SalesPurchaseSection } from './sales-purchase-section';
 import ToastRedirect from '../toast-redirect';
-import { formatDateBD as formatDate } from '@/lib/dates';
+import { formatLocalizedCurrency, formatLocalizedNumber, formatLocalizedDate } from '@/lib/localized-formatters';
+import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
+import { getDictionary } from '@/i18n';
 
 type PartyProfileRecord = {
   id: number;
@@ -76,6 +79,7 @@ type PartyTransactionRecord = {
     description: string | null;
     chickenQuantity: { toString(): string } | null;
     product: {
+      id: number;
       name: string;
       unit: string;
       productType: string;
@@ -124,12 +128,23 @@ function formatCurrency(value: number | string | { toString(): string } | null |
   }).format(number)}`;
 }
 
-// using centralized Bangladesh-aware formatter (formatDate alias is imported)
+// using centralized Bangladesh-aware formatters
 
-function formatPartyType(value: string) {
-  if (value === 'CUSTOMER') return 'Customer';
-  if (value === 'PARTY') return 'Supplier';
-  return 'Both';
+function getFormatters(locale: 'en' | 'bn') {
+  return {
+    formatCurrency: (value: number | string | { toString(): string } | null | undefined) =>
+      formatLocalizedCurrency(value, locale),
+    formatNumber: (value: number | string | null | undefined) =>
+      formatLocalizedNumber(value, locale),
+    formatDate: (value: Date | string | null | undefined) =>
+      formatLocalizedDate(value, locale),
+  };
+}
+
+function formatPartyType(value: string, dict: ReturnType<typeof getDictionary>) {
+  if (value === 'CUSTOMER') return dict.common.customer;
+  if (value === 'PARTY') return dict.common.supplier;
+  return dict.common.both;
 }
 
 function getInitials(name: string) {
@@ -183,6 +198,9 @@ export default async function PartyProfilePage({
   searchParams?: Promise<{ success?: string; error?: string }>;
 }) {
   await requireUser();
+  const locale = getLocaleFromValue((await cookies()).get(LOCALE_COOKIE)?.value ?? undefined);
+  const dict = getDictionary(locale);
+  const { formatCurrency, formatNumber, formatDate } = getFormatters(locale);
   const { id } = await params;
   const partyId = Number(id);
   const sp = await searchParams;
@@ -245,6 +263,7 @@ export default async function PartyProfilePage({
             chickenQuantity: true,
             product: {
               select: {
+                id: true,
                 name: true,
                 unit: true,
                 productType: true
@@ -312,19 +331,22 @@ export default async function PartyProfilePage({
   const productRows = transactions.flatMap((transaction) =>
     transaction.transactionItems.map((item) => ({
       id: `${transaction.id}-${item.id}`,
+      itemId: item.id,
       transactionId: transaction.id,
       invoiceNumber: transaction.invoiceNumber,
       transactionDate: transaction.transactionDate,
       transactionType: transaction.transactionType,
       mediaName: transaction.mediaName || null,
-      productName: item.product?.name ?? 'Unknown product',
+      productName: item.product?.name ?? dict.common.unknownProduct,
       productType: item.product?.productType ?? '-',
       quantity: Number(item.quantity ?? 0),
       unit: item.product?.unit ?? '-',
       unitPrice: Number(item.unitPrice ?? 0),
+      discount: 0,
       lineTotal: Number(item.lineTotal ?? 0),
       details: item.description ?? null,
-      totalKg: Number(item.chickenQuantity ?? 0)
+      totalKg: Number(item.chickenQuantity ?? 0),
+      productId: item.product?.id ?? 0
     }))
   );
 
@@ -335,16 +357,18 @@ export default async function PartyProfilePage({
   const latestLedger = ledgerEntries[0];
   const latestTransactionDate = latestLedger?.entryDate ?? transactions[0]?.transactionDate ?? payments[0]?.paymentDate ?? null;
   const currentBalance = Number(summary.currentBalance ?? party.openingBalance ?? 0);
-  const dueStatus = summary.netCustomerDue <= 0 && summary.netSupplierDue <= 0
-    ? 'Cleared'
-    : summary.netCustomerDue > 0 && summary.netSupplierDue > 0
-      ? 'Open'
-      : summary.netCustomerDue > 0
-        ? 'Customer Due'
-        : 'Supplier Payable';
-  const dueBadgeClass = dueStatus === 'Cleared'
+  const netCustomerDue = Number(summary.netCustomerDue);
+  const netSupplierDue = Number(summary.netSupplierDue);
+  const dueStatus = netCustomerDue <= 0 && netSupplierDue <= 0
+    ? dict.common.clear
+    : netCustomerDue > 0 && netSupplierDue > 0
+      ? dict.common.open
+      : netCustomerDue > 0
+        ? dict.common.customerDue
+        : dict.common.supplierPayable;
+  const dueBadgeClass = dueStatus === dict.common.clear
     ? 'bg-emerald-100 text-emerald-700'
-    : dueStatus === 'Supplier Payable'
+    : dueStatus === dict.common.supplierPayable
       ? 'bg-amber-100 text-amber-700'
       : 'bg-rose-100 text-rose-700';
   const partyTypeBadgeClass = party.partyType === 'CUSTOMER'
@@ -359,13 +383,13 @@ export default async function PartyProfilePage({
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-muted-foreground">Parties / Profile</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Party Profile</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-muted-foreground">{dict.common.partiesProfileBreadcrumb}</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">{dict.common.partyProfileTitle}</h1>
         </div>
         <Button asChild variant="outline" size="sm" className="text-muted-foreground">
           <Link href="/dashboard/parties">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Parties
+            {dict.common.backToParties}
           </Link>
         </Button>
       </div>
@@ -385,7 +409,7 @@ export default async function PartyProfilePage({
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-3xl font-semibold leading-tight text-foreground sm:text-4xl">{party.name}</h2>
                 <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${partyTypeBadgeClass}`}>
-                  {formatPartyType(party.partyType)}
+                  {formatPartyType(party.partyType, dict)}
                 </span>
               </div>
               <div className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
@@ -408,7 +432,7 @@ export default async function PartyProfilePage({
                 {dueStatus}
               </span>
               <span className={`inline-flex h-10 items-center rounded-full px-3 text-sm font-semibold ${party.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                {party.isActive ? 'Active' : 'Inactive'}
+                {party.isActive ? dict.common.active : dict.common.inactive}
               </span>
             </div>
             <div className="flex flex-col md:flex-row items-center justify-end gap-2">
@@ -442,7 +466,7 @@ export default async function PartyProfilePage({
                     buttonChildren={(
                       <>
                         <ShoppingCart className="h-4 w-4" />
-                        Sales Entry
+                        {dict.common.salesEntry}
                       </>
                     )}
                   />
@@ -451,11 +475,11 @@ export default async function PartyProfilePage({
                   <PaymentFormDialog
                     partyId={party.id}
                     partyName={party.name}
-                    title="Customer Payment"
-                    buttonLabel="Customer Payment"
-                    dueLabel="Customer Due"
-                    dueAmount={summary.netCustomerDue}
-                    toastSuccessMessage="Customer payment recorded successfully."
+                    title={dict.common.customerPayment}
+                    buttonLabel={dict.common.customerPayment}
+                    dueLabel={dict.common.customerDue}
+                    dueAmount={Number(summary.netCustomerDue)}
+                    toastSuccessMessage={dict.common.customerPayment + ' recorded successfully.'}
                     recordPaymentForParty={receiveCustomerPayment}
                     buttonClassName="h-[42px] bg-emerald-600 text-white hover:bg-emerald-700"
                   />
@@ -464,11 +488,11 @@ export default async function PartyProfilePage({
                   <PaymentFormDialog
                     partyId={party.id}
                     partyName={party.name}
-                    title="Pay Supplier"
-                    buttonLabel="Pay Supplier"
-                    dueLabel="Supplier Payable"
-                    dueAmount={summary.netSupplierDue}
-                    toastSuccessMessage="Supplier payment recorded successfully."
+                    title={dict.common.paySupplier}
+                    buttonLabel={dict.common.paySupplier}
+                    dueLabel={dict.common.supplierPayable}
+                    dueAmount={Number(summary.netSupplierDue)}
+                    toastSuccessMessage={dict.common.paySupplier + ' recorded successfully.'}
                     recordPaymentForParty={paySupplierPayment}
                     buttonClassName="h-[42px] bg-amber-500 text-white hover:bg-amber-600"
                   />
@@ -476,7 +500,7 @@ export default async function PartyProfilePage({
                 <Button asChild variant="outline" className="h-[42px]">
                   <a href={`/dashboard/parties/${party.id}/print`} target="_blank" rel="noreferrer" className="flex items-center gap-2 whitespace-nowrap">
                     <Printer className="h-4 w-4" />
-                    Print
+                    {dict.common.printReceipt}
                   </a>
                 </Button>
               </div>
@@ -487,106 +511,56 @@ export default async function PartyProfilePage({
 
       <section className="mt-5 gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 hidden">
         <KpiCard
-          title="Customer Due"
+          title={dict.common.customerDue}
           value={formatCurrency(summary.netCustomerDue)}
-          description="Current receivable position"
+          description={dict.common.salesAndReceivables}
           icon={CreditCard}
           accent="bg-rose-50 text-rose-600"
         />
         <KpiCard
-          title="Total Sales"
+          title={dict.common.sales}
           value={formatCurrency(summary.customerInvoiced)}
-          description="Customer invoice total"
+          description={dict.common.customerDue}
           icon={TrendingUp}
           accent="bg-sky-50 text-sky-600"
         />
         <KpiCard
-          title="Received"
+          title={dict.common.paid}
           value={formatCurrency(summary.customerPaid)}
-          description="Customer payment total"
+          description={dict.common.customerPayment}
           icon={CircleDollarSign}
           accent="bg-emerald-50 text-emerald-600"
         />
         <KpiCard
-          title="Supplier Payable"
+          title={dict.common.supplierPayable}
           value={formatCurrency(summary.netSupplierDue)}
-          description="Current payable position"
+          description={dict.common.purchasesAndPayables}
           icon={Wallet}
           accent="bg-amber-50 text-amber-600"
         />
       </section>
 
-      <section className="mt-5 grid gap-5 lg:grid-cols-2">
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
-              <CircleDollarSign className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">Customer Account</h2>
-              <p className="text-sm text-muted-foreground">Sales and receivable position</p>
-            </div>
-          </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <SummaryMiniCard label="Total Sales" value={formatCurrency(summary.customerInvoiced)} />
-            <SummaryMiniCard label="Received" value={formatCurrency(summary.customerPaid)} />
-            <SummaryMiniCard label="Customer Due" value={formatCurrency(summary.customerDue)} />
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-              <BadgeDollarSign className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">Supplier Account</h2>
-              <p className="text-sm text-muted-foreground">Purchases and payable position</p>
-            </div>
-          </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <SummaryMiniCard label="Total Purchase" value={formatCurrency(summary.supplierInvoiced)} />
-            <SummaryMiniCard label="Paid" value={formatCurrency(summary.supplierPaid)} />
-            <SummaryMiniCard label="Supplier Payable" value={formatCurrency(summary.supplierDue)} />
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-5 grid gap-5 lg:grid-cols-2">
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">Settlement Summary</h2>
-              <p className="text-sm text-muted-foreground">Offset and net account position</p>
-            </div>
-          </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <SummaryMiniCard label="Offset Applied" value={formatCurrency(summary.offsetApplied)} />
-            <SummaryMiniCard label="Net Customer Due" value={formatCurrency(summary.netCustomerDue)} />
-            <SummaryMiniCard label="Net Supplier Payable" value={formatCurrency(summary.netSupplierDue)} />
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-              <UserRound className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">Party Information</h2>
-              <p className="text-sm text-muted-foreground">Profile and activity details</p>
-            </div>
-          </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <SummaryMiniCard label="Opening Balance" value={formatCurrency(party.openingBalance)} />
-            <SummaryMiniCard label="Current Balance" value={formatCurrency(currentBalance)} />
-            <SummaryMiniCard label="Party Since" value={formatDate(party.createdAt)} />
-            <SummaryMiniCard label="Total Transactions" value={String(transactions.length)} />
-          </div>
-        </div>
+      <section className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <KpiCard
+          title={party.openingBalanceType === 'CUSTOMER_ADVANCE' ? 'Party Credit Balance (Advance)' : 'Party Owes You Money (Due)'}
+          value={formatCurrency(party.openingBalanceType === 'CUSTOMER_ADVANCE' ? summary.remainingOpeningAdvance : summary.remainingOpeningDue)}
+          description={party.openingBalanceType === 'CUSTOMER_ADVANCE'
+            ? `Opening: ${formatCurrency(summary.originalOpeningAdvance)} · Used: ${formatCurrency(summary.usedOpeningAdvance)}`
+            : `Opening: ${formatCurrency(summary.originalOpeningAmount)} · Received: ${formatCurrency(summary.customerPayments)}`}
+          icon={Wallet}
+          accent="bg-violet-50 text-violet-600"
+        />
+        <KpiCard title="Customer Due" value={formatCurrency(summary.customerDue)} description="Party → You" icon={CreditCard} accent="bg-rose-50 text-rose-600" />
+        <KpiCard title="Paid by Party" value={formatCurrency(summary.customerPayments)} description="Party → You" icon={CircleDollarSign} accent="bg-emerald-50 text-emerald-600" />
+        <KpiCard title="Total Purchase" value={formatCurrency(summary.supplierPurchases)} description="You ← Party" icon={ShoppingCart} accent="bg-sky-50 text-sky-600" />
+        <KpiCard title="Total Paid" value={formatCurrency(summary.supplierPayments)} description="You → Party" icon={BadgeDollarSign} accent="bg-amber-50 text-amber-600" />
+        <KpiCard
+          title="Supplier Payable"
+          value={formatCurrency(summary.supplierPayable)}
+          description={`You owe this party · Advance: ${formatCurrency(summary.supplierAdvance)}`}
+          icon={Wallet}
+          accent="bg-amber-50 text-amber-600"
+        />
       </section>
 
       <section className="mt-5 rounded-3xl border border-border bg-card shadow-sm hidden">
@@ -645,7 +619,7 @@ export default async function PartyProfilePage({
         />
       </section>
 
-      <p className="mt-6 text-sm text-muted-foreground">All amounts are in Bangladeshi Taka (Tk).</p>
+      <p className="mt-6 text-sm text-muted-foreground">{dict.common.allAmountsIn}</p>
     </main>
   );
 }

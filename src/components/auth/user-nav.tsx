@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, LifeBuoy, Lock, Settings, User, LogOut } from 'lucide-react';
+import { useLocale } from '@/i18n/provider';
 
 export function UserNav() {
   const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { dict } = useLocale();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -43,13 +45,13 @@ export function UserNav() {
   }, [session?.user?.image, role]);
 
   if (status === 'loading') {
-    return <div className="text-sm text-muted-foreground">Loading...</div>;
+    return <div className="text-sm text-muted-foreground">{dict.common.loading}</div>;
   }
 
   if (!session?.user) {
     return (
       <Link href="/auth/sign-in" className="rounded-full border px-4 py-2 text-sm hover:bg-muted/50">
-        Sign in
+        {dict.common.signIn}
       </Link>
     );
   }
@@ -60,7 +62,7 @@ export function UserNav() {
         type="button"
         onClick={() => setOpen((state) => !state)}
         className="flex h-11 w-11 items-center justify-center rounded-full border border-muted/40 bg-surface text-sm font-semibold text-foreground shadow-sm transition hover:bg-muted/50"
-        aria-label="Open user menu"
+        aria-label={dict.common.userMenu}
       >
         {avatarUrl ? (
           <img src={avatarUrl} alt={displayName} className="h-11 w-11 rounded-full object-cover" />
@@ -85,22 +87,22 @@ export function UserNav() {
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{role}</p>
               </div>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">Welcome back 👋</p>
+            <p className="mt-3 text-xs text-muted-foreground">{dict.common.welcomeBack} 👋</p>
           </div>
 
           <div className="divide-y divide-border">
             <div className="space-y-1 px-2 py-3">
               <Link href="/dashboard/settings/users" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-foreground transition hover:bg-muted/40">
                 <User size={16} className="text-muted-foreground" />
-                <span>Profile</span>
+                <span>{dict.common.profile}</span>
               </Link>
               <button type="button" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-foreground transition hover:bg-muted/40">
                 <Bell size={16} className="text-muted-foreground" />
-                <span>Notifications</span>
+                <span>{dict.common.notifications}</span>
               </button>
               <Link href="/dashboard/settings" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-foreground transition hover:bg-muted/40">
                 <Settings size={16} className="text-muted-foreground" />
-                <span>Account Settings</span>
+                <span>{dict.common.accountSettings}</span>
               </Link>
             </div>
 
@@ -111,7 +113,7 @@ export function UserNav() {
                 className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-foreground transition hover:bg-muted/40"
               >
                 <LogOut size={16} className="text-muted-foreground" />
-                <span>Log Out</span>
+                <span>{dict.common.logout}</span>
               </button>
             </div>
           </div>

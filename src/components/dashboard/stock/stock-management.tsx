@@ -9,10 +9,12 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { deleteStockItem, updateStockItem } from '@/features/stock/actions';
+import { getCompaniesByType } from '@/features/companies/actions';
 import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
 import { DateInput } from '@/components/ui/date-input';
 import { todayDateInputValueBD as todayDateStr, formatDateBD } from '@/lib/dates';
+import { useLocale } from '@/i18n/provider';
 
 export interface StockItem {
   id?: number;
@@ -78,6 +80,7 @@ export function StockManagement({
   defaultCompanyId,
   stockType: stockTypeProp,
 }: StockManagementProps) {
+  const { dict } = useLocale();
   const stockType = stockTypeProp ?? (title === 'Medicine' ? 'MEDICINE' : title === 'Hatchling / Chick' ? 'CHICK' : 'FEED');
   const [items, setItems] = useState<StockItem[]>(initialItems);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -87,6 +90,10 @@ export function StockManagement({
   const [editProductName, setEditProductName] = useState('');
   const [editCompanyName, setEditCompanyName] = useState('');
   const [editCompanyId, setEditCompanyId] = useState<number | null>(null);
+  const [editCompanies, setEditCompanies] = useState<PartyOption[]>(suppliers);
+  const [editCompanyOptions, setEditCompanyOptions] = useState<ComboboxOption[]>(companyNames ?? []);
+  const [isLoadingEditCompanies, setIsLoadingEditCompanies] = useState(false);
+  const [editCompanyLoadError, setEditCompanyLoadError] = useState<string | null>(null);
   const [editBuyRate, setEditBuyRate] = useState('');
   const [editQuantity, setEditQuantity] = useState('');
   const [editUnit, setEditUnit] = useState('');
@@ -107,6 +114,11 @@ export function StockManagement({
   useEffect(() => {
     setItems(initialItems);
   }, [initialItems]);
+
+  useEffect(() => {
+    setEditCompanies(suppliers);
+    setEditCompanyOptions(companyNames ?? []);
+  }, [companyNames, suppliers]);
 
   useEffect(() => {
     if (defaultCompanyName) {
@@ -160,17 +172,29 @@ export function StockManagement({
     setIsFormOpen(true);
   }, [stockType]);
 
-  const openEditModal = useCallback((item: StockItem) => {
+  const openEditModal = useCallback(async (item: StockItem) => {
     setEditingItemId(item.id ?? null);
     setEditProductName(item.name ?? '');
+
+    setEditCompanyId(item.companyId ?? null);
     setEditCompanyName(item.companyName ?? '');
-    const matchedCompany = suppliers.find((supplier) => supplier.name.toLowerCase() === String(item.companyName ?? '').toLowerCase());
-    setEditCompanyId(matchedCompany?.id ?? null);
     setEditBuyRate(String(item.buyRate ?? '0'));
     setEditQuantity(String(item.quantity ?? '0'));
     setEditUnit(String(item.unit ?? (stockType === 'MEDICINE' ? 'gm' : stockType === 'CHICK' ? 'pcs' : 'bag')));
     setIsEditModalOpen(true);
-  }, [suppliers, stockType]);
+    setIsLoadingEditCompanies(true);
+    setEditCompanyLoadError(null);
+
+    try {
+      const companies = await getCompaniesByType(stockType);
+      setEditCompanies(companies);
+      setEditCompanyOptions(companies.map((company) => ({ value: String(company.id), label: company.name })));
+    } catch (error) {
+      setEditCompanyLoadError(error instanceof Error ? error.message : 'Unable to load companies.');
+    } finally {
+      setIsLoadingEditCompanies(false);
+    }
+  }, [stockType]);
 
   const handleSaveEdit = useCallback(async () => {
     if (editingItemId === null) return;
@@ -180,13 +204,13 @@ export function StockManagement({
       return;
     }
 
-    if (!editCompanyName.trim()) {
+    if (editCompanyId === null) {
       showToastError('Company is required.');
       return;
     }
 
-    const matchedCompany = suppliers.find((supplier) => supplier.name.toLowerCase() === editCompanyName.toLowerCase());
-    if (useCompanySearch && companyNames && !matchedCompany) {
+    const selectedCompany = editCompanies.find((company) => company.id === editCompanyId);
+    if (useCompanySearch && !selectedCompany) {
       showToastError('Please select a valid company from the list.');
       return;
     }
@@ -197,7 +221,7 @@ export function StockManagement({
         editProductName,
         Number(editBuyRate),
         stockType === 'MEDICINE' ? editUnit || 'gm' : stockType === 'CHICK' ? editUnit || 'pcs' : undefined,
-        matchedCompany?.id ?? null,
+        editCompanyId,
         Number(editQuantity) || 0
       );
 
@@ -215,7 +239,8 @@ export function StockManagement({
                 quantity: Number(editQuantity) || 0,
                 buyRate: Number(editBuyRate),
                 unit: stockType === 'MEDICINE' ? editUnit || 'gm' : stockType === 'CHICK' ? editUnit || 'pcs' : item.unit,
-                companyName: editCompanyName
+                companyId: editCompanyId,
+                companyName: selectedCompany?.name ?? editCompanyName
               }
             : item
         )
@@ -224,10 +249,11 @@ export function StockManagement({
       success(result.message);
       setIsEditModalOpen(false);
       setEditingItemId(null);
+      router.refresh();
     } catch (error) {
       showToastError(error instanceof Error ? error.message : 'Failed to save stock changes.');
     }
-  }, [companyNames, editCompanyName, editBuyRate, editProductName, editQuantity, editUnit, editingItemId, showToastError, success, suppliers, title]);
+  }, [editBuyRate, editCompanies, editCompanyId, editCompanyName, editProductName, editQuantity, editUnit, editingItemId, router, showToastError, stockType, success, useCompanySearch]);
 
   const handleDeleteItem = useCallback(async () => {
     if (editingItemId === null) return;
@@ -394,7 +420,7 @@ export function StockManagement({
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-              <div className="font-medium">Total Stock Value</div>
+              <div className="font-medium">{dict.dashboard.totalStockValue}</div>
               <div className="text-primary">{totalStockValue.toLocaleString()} TK</div>
             </div>
             {showAddButton && (
@@ -409,26 +435,27 @@ export function StockManagement({
           </div>
         </div>
 
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen} title={`Add ${title} Stock`}>
+        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen} title={dict.stock.addStockTitle.replace('{title}', title)}>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm font-medium">Company</label>
+                <label className="mb-1 block text-sm font-medium">{dict.stock.company}</label>
                 {useCompanySearch && companyNames ? (
                   <SearchableCombobox
                     options={companyNames}
-                    value={partyName}
-                    onValueChange={(value) => {
-                      setPartyName(value);
-                      const matched = suppliers.find((s) => s.name.toLowerCase() === value.toLowerCase());
+                  value={partyName}
+                  onValueChange={(value) => {
+                      const matched = suppliers.find((supplier) => String(supplier.id) === value);
                       if (matched) {
+                        setPartyName(matched.name);
                         setPartyId(matched.id);
                       } else {
+                        setPartyName(value);
                         setPartyId(0);
                       }
                     }}
-                    placeholder="Search company..."
-                    emptyText="No company found"
+                    placeholder={dict.stock.searchCompany}
+                    emptyText={dict.stock.noCompanyFound}
                     createNewLabel={allowCreateCompany ? createNewLabel : undefined}
                     name="partyName"
                     required
@@ -447,7 +474,7 @@ export function StockManagement({
                         else setPartyId(0);
                       }}
                       className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                      placeholder="Input your Party / Company"
+                      placeholder={dict.stock.inputCompany}
                       autoComplete="off"
                       required
                     />
@@ -463,7 +490,7 @@ export function StockManagement({
                 <input type="hidden" name="newCompanyName" value={partyName} />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Purchase Date</label>
+                <label className="mb-1 block text-sm font-medium">{dict.stock.purchaseDate}</label>
                 <DateInput
                   name="transactionDate"
                   value={transactionDate}
@@ -476,11 +503,11 @@ export function StockManagement({
             <div className="rounded-2xl border bg-muted/10 p-4">
               <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-semibold">Stock items</p>
+                  <p className="text-sm font-semibold">{dict.stock.stockItems}</p>
                   {items.length > 0 ? (
-                    <p className="text-xs text-muted-foreground">Select from existing medicines below, or add new ones with quantity and pricing. ({items.length} existing)</p>
+                    <p className="text-xs text-muted-foreground">{dict.stock.stockItemsDescription} ({items.length} existing)</p>
                   ) : (
-                    <p className="text-xs text-muted-foreground">Add new medicines with quantity and pricing.</p>
+                    <p className="text-xs text-muted-foreground">{dict.stock.stockItemsEmpty}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
@@ -489,7 +516,7 @@ export function StockManagement({
                     onClick={addRow}
                     className="whitespace-nowrap rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm"
                   >
-                    Add product
+                    {dict.dashboard.addProduct}
                   </button>
                 </div>
               </div>
@@ -499,14 +526,14 @@ export function StockManagement({
                   <div key={row.rowId} className="border rounded-lg p-4 bg-white space-y-3">
                     <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? 'Stock Medicine' : stockType === 'CHICK' ? 'Hatchling / Chick' : 'Product'}</label>
+                      <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? dict.stock.productLabel : stockType === 'CHICK' ? dict.dashboard.hatchlingChick : dict.stock.product}</label>
                       <input
                         list={`products-list-${title}`}
                         name="productName"
                         value={row.productName}
                         onChange={(event) => handleRowChange(row.rowId, 'productName', event.target.value)}
                         className="w-full h-10 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground"
-                        placeholder="Type or search product"
+                        placeholder={dict.common.search}
                         required
                       />
                       <datalist id={`products-list-${title}`}>
@@ -522,7 +549,7 @@ export function StockManagement({
                     </div>
                     {stockType === 'MEDICINE' && (
                       <div className="w-24 ml-4">
-                        <label className="mb-1 block text-sm font-medium">Gm</label>
+                        <label className="mb-1 block text-sm font-medium">{dict.stock.gm}</label>
                         <input
                           type="number"
                           name="unit"
@@ -538,7 +565,7 @@ export function StockManagement({
                     </div>
                     <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_1fr_0.6fr] items-end">
                       <div>
-                        <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? 'Quantity' : stockType === 'CHICK' ? 'Quantity (Pcs)' : 'Quantity Of Sack'}</label>
+                        <label className="mb-1 block text-sm font-medium">{stockType === 'MEDICINE' ? dict.stock.quantity : stockType === 'CHICK' ? dict.stock.quantityPcs : dict.stock.quantity}</label>
                         <input
                           type="number"
                           name="quantity"
@@ -551,7 +578,7 @@ export function StockManagement({
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm font-medium">Buy Rate</label>
+                        <label className="mb-1 block text-sm font-medium">{dict.stock.buyRate}</label>
                         <input
                           type="number"
                           name="buyRate"
@@ -568,7 +595,7 @@ export function StockManagement({
                         onClick={() => removeRow(row.rowId)}
                         className="rounded-md border px-3 py-2 text-sm h-10 flex items-center justify-center hover:bg-muted/10"
                       >
-                        Remove
+                        {dict.stock.remove}
                       </button>
                     </div>
                   </div>
@@ -578,22 +605,22 @@ export function StockManagement({
 
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mb-4">
               <div>
-                <label className="mb-1 block text-sm font-medium">Payment Method</label>
+                <label className="mb-1 block text-sm font-medium">{dict.stock.paymentMethod}</label>
                 <select
                   name="paymentMethod"
                   value={paymentMethod}
                   onChange={(event) => setPaymentMethod(event.target.value)}
                   className="w-full form-select"
                 >
-                  <option value="CASH">Cash</option>
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
-                  <option value="CHEQUE">Cheque</option>
-                  <option value="MOBILE_MONEY">Mobile Money</option>
-                  <option value="OTHER">Other</option>
+                  <option value="CASH">{dict.stock.cash}</option>
+                  <option value="BANK_TRANSFER">{dict.stock.bankTransfer}</option>
+                  <option value="CHEQUE">{dict.stock.cheque}</option>
+                  <option value="MOBILE_MONEY">{dict.stock.mobileMoney}</option>
+                  <option value="OTHER">{dict.stock.other}</option>
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Payment Amount</label>
+                <label className="mb-1 block text-sm font-medium">{dict.stock.paymentAmount}</label>
                 <input
                   type="number"
                   name="paymentAmount"
@@ -608,7 +635,7 @@ export function StockManagement({
 
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-sm font-medium">Company Discount</label>
+                <label className="mb-1 block text-sm font-medium">{dict.stock.companyDiscount}</label>
                 <input
                   type="number"
                   name="discount"
@@ -621,11 +648,11 @@ export function StockManagement({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Total Amount</label>
+                <label className="mb-1 block text-sm font-medium">{dict.stock.totalAmount}</label>
                 <div className="rounded-md border bg-background px-3 py-2 text-sm">{discountedTotalAmount.toFixed(2)}</div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Due Amount</label>
+                <label className="mb-1 block text-sm font-medium">{dict.stock.dueAmount}</label>
                 <div className="rounded-md border bg-background px-3 py-2 text-sm">{dueAmount.toFixed(2)}</div>
               </div>
             </div>
@@ -639,7 +666,7 @@ export function StockManagement({
                 disabled={isSubmitting}
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {isSubmitting ? 'Saving...' : 'Save stock purchase'}
+                {isSubmitting ? dict.stock.saving : dict.stock.saveStockPurchase}
               </button>
               <button
                 type="button"
@@ -661,12 +688,12 @@ export function StockManagement({
               setEditingItemId(null);
             }
           }}
-          title={`Edit ${title}`}
+          title={dict.stock.editTitle.replace('{title}', title)}
         >
           <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium">Product Name</label>
+              <label className="mb-1 block text-sm font-medium">{dict.stock.productName}</label>
               <input
                 type="text"
                 value={editProductName}
@@ -677,17 +704,17 @@ export function StockManagement({
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Company</label>
-              {useCompanySearch && companyNames ? (
+              {useCompanySearch ? (
                 <SearchableCombobox
-                  options={companyNames}
-                  value={editCompanyName}
+                  options={editCompanyOptions}
+                  value={editCompanyId !== null ? String(editCompanyId) : editCompanyName}
                   onValueChange={(value) => {
-                    setEditCompanyName(value);
-                    const matched = suppliers.find((supplier) => supplier.name.toLowerCase() === value.toLowerCase());
+                    const matched = editCompanies.find((company) => String(company.id) === value);
                     setEditCompanyId(matched?.id ?? null);
+                    setEditCompanyName(matched?.name ?? value);
                   }}
-                  placeholder="Search company..."
-                  emptyText="No company found"
+                  placeholder={dict.stock.searchCompany}
+                  emptyText={isLoadingEditCompanies ? 'Loading companies...' : editCompanyLoadError ?? dict.stock.noCompanyFound}
                   name="editCompanyName"
                   required
                 />
@@ -697,7 +724,7 @@ export function StockManagement({
                   value={editCompanyName}
                   onChange={(event) => setEditCompanyName(event.target.value)}
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  placeholder="Company"
+                  placeholder={dict.stock.company}
                 />
               )}
             </div>
@@ -705,7 +732,7 @@ export function StockManagement({
           {stockType === 'MEDICINE' ? (
             <>
               <div>
-                <label className="mb-1 block text-sm font-medium">Gram</label>
+                <label className="mb-1 block text-sm font-medium">{dict.stock.gram}</label>
                 <input
                   type="number"
                   min="0"
@@ -716,7 +743,7 @@ export function StockManagement({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Quantity</label>
+                <label className="mb-1 block text-sm font-medium">{dict.stock.quantity}</label>
                 <input
                   type="number"
                   min="0"
@@ -729,7 +756,7 @@ export function StockManagement({
             </>
           ) : (
             <div>
-              <label className="mb-1 block text-sm font-medium">{stockType === 'CHICK' ? 'Quantity (Pcs)' : 'Quantity'}</label>
+              <label className="mb-1 block text-sm font-medium">{stockType === 'CHICK' ? dict.stock.quantityPcs : dict.stock.quantity}</label>
               <input
                 type="number"
                 min="0"
@@ -765,14 +792,14 @@ export function StockManagement({
                   onClick={handleSaveEdit}
                   className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
                 >
-                  Save Changes
+                  {dict.stock.saveChanges}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
                   className="rounded-md border px-4 py-2 text-sm"
                 >
-                  Cancel
+                  {dict.stock.cancel}
                 </button>
               </div>
             </div>
@@ -784,15 +811,15 @@ export function StockManagement({
             <table className="min-w-full divide-y divide-border text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Date</th>
-                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Company Name</th>
-                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{title} Name</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{dict.stock.date}</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{dict.stock.companyName}</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{title} {dict.stock.productLabel}</th>
                   <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{productVariantLabel}</th>
-                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Quantity</th>
-                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Paid</th>
-                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Due</th>
-                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Total Amount</th>
-                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">Action</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{dict.stock.quantity}</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{dict.stock.paid}</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{dict.stock.due}</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{dict.stock.totalAmount}</th>
+                  <th className="px-2 py-2 text-left font-medium sm:px-4 sm:py-3">{dict.stock.action}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border bg-background">
@@ -862,7 +889,7 @@ export function StockManagement({
                 {items.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
-                      No stock entries found.
+                      {dict.stock.noStockEntries}
                     </td>
                   </tr>
                 ) : null}
@@ -874,10 +901,10 @@ export function StockManagement({
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="Delete this stock item?"
-        description="This action cannot be undone. The item will be permanently removed from stock records."
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={dict.stock.deleteStockItem}
+        description={dict.stock.deleteStockItemDescription}
+        confirmText={dict.stock.delete}
+        cancelText={dict.common.cancel}
         onConfirm={handleConfirmDeleteItemRow}
         onCancel={() => {
           setConfirmOpen(false);

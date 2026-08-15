@@ -1,10 +1,13 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { ArrowLeft } from 'lucide-react';
 import { requireUser } from '@/lib/auth';
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { createOrUpdateProduct, getProductById } from '@/features/products/actions';
 import { getProductCategories } from '@/features/products/actions';
+import { getDictionary } from '@/i18n';
+import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
 
 const PRODUCT_TYPES = [
   { value: 'FEED', label: 'Feed' },
@@ -31,6 +34,9 @@ export default async function EditProductPage({
   params: Promise<{ id: string }>;
 }) {
   await requireUser();
+  const cookieStore = await cookies();
+  const locale = getLocaleFromValue(cookieStore.get(LOCALE_COOKIE)?.value ?? undefined);
+  const dict = getDictionary(locale);
   const { id } = await params;
   const productId = Number(id);
 
@@ -72,13 +78,13 @@ export default async function EditProductPage({
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border bg-card p-6 shadow-sm">
         <div>
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Products</p>
-          <h1 className="mt-2 text-3xl font-semibold">Edit product</h1>
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">{dict.common.products}</p>
+          <h1 className="mt-2 text-3xl font-semibold">{dict.pages.editProduct}</h1>
         </div>
         <Button asChild variant="outline">
           <Link href="/dashboard/products">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to list
+            {dict.common.backToDashboard}
           </Link>
         </Button>
       </div>
@@ -86,17 +92,17 @@ export default async function EditProductPage({
       <form action={updateProduct} className="mt-6 rounded-2xl border bg-card p-6 shadow-sm">
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Product Name</label>
+            <label className="mb-2 block text-sm font-medium">{dict.forms.productNameLabel}</label>
             <input name="name" required defaultValue={typedProduct.name} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Product Code</label>
+            <label className="mb-2 block text-sm font-medium">{dict.forms.productCodeLabel}</label>
             <input name="code" required defaultValue={typedProduct.code} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Product Type</label>
+            <label className="mb-2 block text-sm font-medium">{dict.forms.productTypeLabel}</label>
             <select name="productType" defaultValue={typedProduct.productType} className="w-full form-select">
               {PRODUCT_TYPES.map((type) => (
                 <option key={type.value} value={type.value}>{type.label}</option>
@@ -105,7 +111,7 @@ export default async function EditProductPage({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Unit</label>
+            <label className="mb-2 block text-sm font-medium">{dict.forms.unitLabel}</label>
             <select name="unit" defaultValue={typedProduct.unit} className="w-full form-select">
               {UNIT_OPTIONS.map((unit) => (
                 <option key={unit.value} value={unit.value}>{unit.label}</option>
@@ -114,9 +120,9 @@ export default async function EditProductPage({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Category</label>
+            <label className="mb-2 block text-sm font-medium">{dict.forms.categoryLabel}</label>
             <select name="categoryId" defaultValue={typedProduct.categoryId ?? ''} className="w-full form-select">
-              <option value="">Select category</option>
+              <option value="">{dict.forms.selectCategoryPlaceholder}</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
@@ -124,40 +130,40 @@ export default async function EditProductPage({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Default Purchase Price</label>
+            <label className="mb-2 block text-sm font-medium">{dict.forms.defaultPurchasePrice}</label>
             <input type="number" step="0.01" min="0" name="defaultPurchasePrice" defaultValue={Number(typedProduct.defaultPurchasePrice ?? 0)} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Default Selling Price</label>
+            <label className="mb-2 block text-sm font-medium">{dict.forms.defaultSellingPrice}</label>
             <input type="number" step="0.01" min="0" name="defaultSellingPrice" defaultValue={Number(typedProduct.defaultSellingPrice ?? 0)} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Barcode</label>
-            <input name="barcode" defaultValue={typedProduct.barcode ?? ''} className="w-full rounded-md border bg-background px-3 py-2" placeholder="Optional" />
+            <label className="mb-2 block text-sm font-medium">{dict.forms.barcode}</label>
+            <input name="barcode" defaultValue={typedProduct.barcode ?? ''} className="w-full rounded-md border bg-background px-3 py-2" placeholder={dict.forms.optional} />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Opening Stock</label>
+            <label className="mb-2 block text-sm font-medium">{dict.forms.openingStock}</label>
             <input type="number" step="0.01" min="0" name="openingStock" defaultValue={0} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Low Stock Threshold</label>
+            <label className="mb-2 block text-sm font-medium">{dict.forms.lowStockThreshold}</label>
             <input type="number" step="0.01" min="0" name="lowStockThreshold" defaultValue={Number(typedProduct.lowStockThreshold ?? 0)} className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
 
           <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-3">
             <input id="isActive" name="isActive" type="checkbox" defaultChecked={typedProduct.isActive} className="h-4 w-4" />
-            <label htmlFor="isActive" className="text-sm">Active product</label>
+            <label htmlFor="isActive" className="text-sm">{dict.common.activeProduct}</label>
           </div>
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button type="submit">Update Product</Button>
+          <Button type="submit">{dict.common.update}</Button>
           <Button asChild variant="outline" type="button">
-            <Link href="/dashboard/products">Cancel</Link>
+            <Link href="/dashboard/products">{dict.common.cancel}</Link>
           </Button>
         </div>
       </form>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { createOrUpdateParty } from '@/features/parties/actions';
 import { useModalSave } from '@/hooks/use-modal-save';
+import { useLocale } from '@/i18n/provider';
 import { SalesEntryPopup } from '@/components/dashboard/sales-entry-popup';
 import { ReceivePaymentButton } from './receive-payment-button';
 import { PaySupplierButton } from './pay-supplier-button';
@@ -34,6 +35,7 @@ type AddPartyDialogProps = {
 };
 
 export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogProps) {
+  const { dict } = useLocale();
   const router = useRouter();
   const { isSaving, saveError, save } = useModalSave();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -111,7 +113,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
     <>
       <div className="flex items-center gap-3 flex-wrap">
         <Button type="button" onClick={() => setIsAddOpen(true)} className="px-6 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all">
-          + Add Parties
+          + {dict.forms.addParties}
         </Button>
         <SalesEntryPopup partyOptions={partyOptions} productOptions={productOptions} buttonClassName="px-6 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all" />
         <SupplierPurchaseButton buttonClassName="px-6 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all" />
@@ -127,11 +129,11 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
             setAddError('');
           }
         }}
-        title="Add Party"
+        title={dict.common.addParty ?? 'Add Party'}
         footer={
           <div className="flex flex-wrap justify-end gap-3">
             <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)} disabled={isSaving} className="min-w-[110px] rounded-xl px-4 py-2.5 text-sm font-semibold">
-              Cancel
+              {dict.common.cancel}
             </Button>
             <Button
               type="submit"
@@ -139,7 +141,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
               disabled={isSaving}
               className={`min-w-[132px] rounded-xl px-4 py-2.5 text-sm font-semibold ${isSaving ? 'cursor-not-allowed opacity-75' : ''}`}
             >
-              {isSaving ? '⏳ Saving...' : '💾 Save Party'}
+              {isSaving ? `⏳ ${dict.common.processing}` : `💾 ${dict.common.saveParty}`}
             </Button>
           </div>
         }
@@ -161,12 +163,12 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
           <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
               <div className="h-2.5 w-2.5 rounded-full bg-slate-900" />
-              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-700">Basic information</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-700">{dict.forms.basicInformation}</h3>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Party Name</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{dict.common.partyName}</label>
                 <input
                   name="name"
                   autoComplete="off"
@@ -174,12 +176,12 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
                   onChange={(event) => handleAddChange('name', event.target.value)}
                   required
                   className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 shadow-sm transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100"
-                  placeholder="Party name"
+                  placeholder={dict.common.partyName}
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Mobile number</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{dict.forms.mobileNumberLabel}</label>
                 <input
                   type="tel"
                   name="phone"
@@ -191,7 +193,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
                   pattern="[0-9]{11}"
                   maxLength={11}
                   className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 shadow-sm transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100"
-                  placeholder="01712345678"
+                  placeholder={dict.forms.optionalPhoneHint}
                 />
               </div>
 
@@ -202,16 +204,16 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
           <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 shadow-sm sm:p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
               <div>
-                <p className="text-sm font-semibold text-slate-900">Opening balance</p>
-                <p className="text-xs text-slate-500">Creates an opening ledger entry when the amount is non-zero.</p>
+                <p className="text-sm font-semibold text-slate-900">{dict.forms.openingBalance}</p>
+                <p className="text-xs text-slate-500">{dict.forms.openingBalanceNote}</p>
               </div>
               <div className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-emerald-700">
-                Ledger
+                {dict.forms.ledger}
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Party type</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{dict.forms.partyType}</label>
                 <select
                   name="partyType"
                   autoComplete="off"
@@ -219,24 +221,24 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
                   onChange={(event) => handleAddChange('partyType', event.target.value)}
                   className="w-full form-select"
                 >
-                  <option value="CUSTOMER">Customer</option>
+                  <option value="CUSTOMER">{dict.common.customer}</option>
                   <option value="PARTY">Party Supplier (Eggs & Chicken)</option>
-                  <option value="BOTH">Customer + Party Supplier</option>
+                  <option value="BOTH">{dict.common.customer} + Party Supplier</option>
                 </select>
               </div>
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Opening Balance Amount</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{dict.forms.openingBalanceAmount}</label>
                 <input type="number" step="0.01" min="0" name="openingBalanceAmount" defaultValue={0} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 shadow-sm transition-all duration-200 hover:border-slate-300 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
               </div>
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Balance Type</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{dict.forms.balanceType}</label>
                   <select
                     name="openingBalanceType"
                     defaultValue="CUSTOMER_DUE"
                     className="w-full form-select"
                   >
-                  <option value="CUSTOMER_DUE">Customer Due</option>
-                  <option value="CUSTOMER_ADVANCE">Customer Advance</option>
+                  <option value="CUSTOMER_DUE">{dict.forms.customerDue}</option>
+                  <option value="CUSTOMER_ADVANCE">{dict.forms.customerAdvance}</option>
                 </select>
               </div>
             </div>
@@ -245,12 +247,12 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
           <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
               <div className="h-2.5 w-2.5 rounded-full bg-slate-900" />
-              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-700">Additional information</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-700">{dict.forms.additionalInformation}</h3>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Party Profile Image</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{dict.forms.partyProfileImage}</label>
                 <input
                   type="file"
                   name="image"
@@ -261,13 +263,13 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
                 {imageCompressionStatus && (
                   <p className="mt-1 text-xs text-slate-500">{imageCompressionStatus}</p>
                 )}
-                <p className="mt-1 text-xs text-slate-500">Upload an image to display on the party profile (will be compressed automatically)</p>
+                <p className="mt-1 text-xs text-slate-500">{dict.forms.uploadImageDescription}</p>
               </div>
 
               <input type="hidden" name="isActive" value="on" readOnly />
 
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Address</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{dict.common.address}</label>
                 <textarea
                   name="address"
                   autoComplete="off"
@@ -276,7 +278,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
                   required
                   rows={3}
                   className="min-h-[120px] w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-100"
-                  placeholder="Address"
+                  placeholder={dict.forms.addressPlaceholder}
                 />
               </div>
             </div>

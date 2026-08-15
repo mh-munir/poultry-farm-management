@@ -1,19 +1,24 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { Button } from '@/components/ui/button';
 import { resetAdminPassword } from './actions';
+import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
+import { getDictionary } from '@/i18n';
 
 export default async function ResetAdminPage({ searchParams }: { searchParams?: Promise<{ error?: string; success?: string }> }) {
   const params = await searchParams;
   const error = params?.error ?? '';
   const success = params?.success ?? '';
+  const locale = getLocaleFromValue((await cookies()).get(LOCALE_COOKIE)?.value ?? undefined);
+  const dict = getDictionary(locale);
 
   return (
     <main className="flex min-h-[70vh] items-center justify-center px-6 py-10">
       <div className="w-full max-w-lg rounded-xl border bg-card p-8 shadow-sm">
         <div className="mb-6">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Admin reset</p>
-          <h1 className="mt-2 text-3xl font-semibold">Reset administrator password</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Enter the shared reset token and a new password to recover admin access.</p>
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">{dict.common.adminReset}</p>
+          <h1 className="mt-2 text-3xl font-semibold">{dict.common.resetPassword}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{dict.auth.resetYourPasswordDescription}</p>
         </div>
 
         {(error || success) && (
@@ -24,31 +29,31 @@ export default async function ResetAdminPage({ searchParams }: { searchParams?: 
 
         <form action={resetAdminPassword} className="mt-6 grid gap-4">
           <div>
-            <label htmlFor="email" className="mb-2 block text-sm font-medium">Admin email</label>
+            <label htmlFor="email" className="mb-2 block text-sm font-medium">{dict.auth.adminEmail}</label>
             <input id="email" name="email" type="email" required className="w-full rounded-md border bg-background px-3 py-2" />
           </div>
 
           <div>
-            <label htmlFor="resetToken" className="mb-2 block text-sm font-medium">Reset token</label>
-            <input id="resetToken" name="resetToken" type="text" required className="w-full rounded-md border bg-background px-3 py-2" placeholder="Enter your admin reset token" />
+            <label htmlFor="resetToken" className="mb-2 block text-sm font-medium">{dict.auth.resetToken}</label>
+            <input id="resetToken" name="resetToken" type="text" required className="w-full rounded-md border bg-background px-3 py-2" placeholder={dict.auth.resetTokenPlaceholder} />
           </div>
 
           <div>
-            <label htmlFor="password" className="mb-2 block text-sm font-medium">New password</label>
-            <input id="password" name="password" type="password" required className="w-full rounded-md border bg-background px-3 py-2" placeholder="At least 8 characters" />
+            <label htmlFor="password" className="mb-2 block text-sm font-medium">{dict.common.newPassword}</label>
+            <input id="password" name="password" type="password" required className="w-full rounded-md border bg-background px-3 py-2" placeholder={dict.auth.atLeastEight} />
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium">Confirm password</label>
-            <input id="confirmPassword" name="confirmPassword" type="password" required className="w-full rounded-md border bg-background px-3 py-2" placeholder="Repeat new password" />
+            <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium">{dict.common.confirmPassword}</label>
+            <input id="confirmPassword" name="confirmPassword" type="password" required className="w-full rounded-md border bg-background px-3 py-2" placeholder={dict.auth.repeatNewPassword} />
           </div>
 
-          <Button type="submit">Reset password</Button>
+          <Button type="submit">{dict.common.resetPassword}</Button>
         </form>
 
         <div className="mt-6 text-sm text-muted-foreground">
-          <p>Need the token? Set `ADMIN_RESET_TOKEN` in your environment and share it securely.</p>
-          <Link href="/auth/sign-in" className="text-primary hover:underline">Back to sign in</Link>
+          <p>{dict.common.adminResetTokenHint}</p>
+          <Link href="/auth/sign-in" className="text-primary hover:underline">{dict.common.backToSignIn}</Link>
         </div>
       </div>
     </main>

@@ -1,8 +1,8 @@
 'use client';
 
+import { useLocale } from '@/i18n/provider';
 import { Button } from './button';
 import { Dialog } from './dialog';
-import { X } from 'lucide-react';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -21,12 +21,16 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmText,
+  cancelText,
   onConfirm,
   onCancel,
   isLoading = false
 }: ConfirmDialogProps) {
+  const { dict } = useLocale();
+  const resolvedConfirmText = confirmText ?? dict.common.confirm;
+  const resolvedCancelText = cancelText ?? dict.common.cancel;
+
   const handleClose = () => {
     onOpenChange(false);
     onCancel?.();
@@ -39,10 +43,10 @@ export function ConfirmDialog({
 
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={handleClose} disabled={isLoading}>
-            {cancelText}
+            {resolvedCancelText}
           </Button>
           <Button type="button" variant="destructive" onClick={onConfirm} disabled={isLoading}>
-            {isLoading ? 'Processing...' : confirmText}
+            {isLoading ? dict.common.processing : resolvedConfirmText}
           </Button>
         </div>
       </div>

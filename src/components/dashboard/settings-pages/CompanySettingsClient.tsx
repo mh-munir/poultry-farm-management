@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { getSetting, saveSetting } from '@/lib/settings'
 import { useToast } from '@/hooks/use-toast'
+import { useLocale } from '@/i18n/provider'
 
 export default function CompanySettingsClient() {
   const [name, setName] = useState('')
@@ -39,6 +40,7 @@ export default function CompanySettingsClient() {
   }, [])
 
   const { success, error: showToastError } = useToast()
+  const { dict } = useLocale()
 
   async function save() {
     const payload = { name, address, phone, website }
@@ -46,10 +48,10 @@ export default function CompanySettingsClient() {
 
     const ok = await saveSetting('company_profile', payload).catch(() => false)
     if (ok) {
-      success('Saved company profile to server')
+      success(dict.settings.savedCompanyProfile ?? 'Saved company profile to server')
     } else {
       localStorage.setItem('company_profile', JSON.stringify(payload))
-      success('Saved company profile to localStorage')
+      success(dict.settings.savedCompanyProfileLocal ?? 'Saved company profile to localStorage')
     }
 
     setSaving(false)
@@ -58,31 +60,31 @@ export default function CompanySettingsClient() {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="rounded-xl border bg-card p-6 mb-6">
-        <h2 className="text-2xl font-semibold">Company Profile</h2>
-        <p className="text-sm text-muted-foreground">Manage your farm name and contact details used across the app and invoices.</p>
+        <h2 className="text-2xl font-semibold">{dict.settings.companyProfile}</h2>
+        <p className="text-sm text-muted-foreground">{dict.settings.companyProfileDescription}</p>
       </div>
 
       <div className="rounded-xl border bg-card p-6">
         <div className="mb-3">
-          <label className="block text-sm">Company Name</label>
+          <label className="block text-sm">{dict.common.companyName}</label>
           <input className="mt-1 w-full rounded border px-3 py-2" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="mb-3">
-          <label className="block text-sm">Address</label>
+          <label className="block text-sm">{dict.settings.address}</label>
           <textarea className="mt-1 w-full rounded border px-3 py-2" value={address} onChange={(e) => setAddress(e.target.value)} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm">Phone</label>
+            <label className="block text-sm">{dict.settings.phone}</label>
             <input className="mt-1 w-full rounded border px-3 py-2" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
           <div>
-            <label className="block text-sm">Website</label>
+            <label className="block text-sm">{dict.settings.website ?? 'Website'}</label>
             <input className="mt-1 w-full rounded border px-3 py-2" value={website} onChange={(e) => setWebsite(e.target.value)} />
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <button disabled={saving} onClick={save} className="w-full sm:w-auto rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+          <button disabled={saving} onClick={save} className="w-full sm:w-auto rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? dict.common.processing : dict.common.save}</button>
         </div>
       </div>
     </div>

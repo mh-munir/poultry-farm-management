@@ -28,7 +28,11 @@ export function AnalyticsFilterBar({ filters, onChange }: Props) {
             <button
               key={preset.value}
               type="button"
-              onClick={() => onChange({ ...filters, preset: preset.value })}
+              onClick={() => onChange(
+                preset.value === 'custom'
+                  ? { start: '', end: '', preset: 'custom' }
+                  : { ...filters, preset: preset.value }
+              )}
               className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                 filters.preset === preset.value
                   ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"

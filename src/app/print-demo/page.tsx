@@ -1,15 +1,19 @@
 import React from 'react';
+import { cookies } from 'next/headers';
 import { PrintDemoTrigger } from '@/components/print-demo-trigger';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
+import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
+import { getDictionary } from '@/i18n';
+import { formatLocalizedCurrency } from '@/lib/localized-formatters';
 
-function formatCurrency(value: number | null | undefined) {
-  return `Tk ${new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(Number(value ?? 0))}`;
+function formatCurrency(value: number | null | undefined, locale: 'en' | 'bn' = 'en') {
+  return formatLocalizedCurrency(value, locale);
 }
 
-export default function PrintDemoPage() {
+export default async function PrintDemoPage() {
+  const cookieStore = await cookies();
+  const locale = getLocaleFromValue(cookieStore.get(LOCALE_COOKIE)?.value ?? undefined);
+  const dict = getDictionary(locale);
   const items = Array.from({ length: 5 }).map((_, i) => ({
     id: i + 1,
     productName: `Product ${i + 1}`,
@@ -44,7 +48,7 @@ export default function PrintDemoPage() {
             </div>
 
             <div className="text-right">
-              <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">INVOICE</div>
+              <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">{locale === 'bn' ? 'ইনভয়েস' : 'INVOICE'}</div>
             </div>
           </div>
         </header>
@@ -54,15 +58,15 @@ export default function PrintDemoPage() {
         <main className="p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
             <div>
-              <div className="text-xs text-slate-500">Invoice to:</div>
+              <div className="text-xs text-slate-500">{locale === 'bn' ? 'কে ইনভয়েস:' : 'Invoice to:'}</div>
               <div className="font-medium text-slate-900 text-lg">Demo Customer</div>
               <div className="mt-1 text-sm text-slate-600">Demo Address, City</div>
             </div>
 
             <div className="text-right">
-              <div className="text-xs text-slate-500">Invoice #</div>
+              <div className="text-xs text-slate-500">{locale === 'bn' ? 'ইনভয়েস #' : 'Invoice #'}</div>
               <div className="font-medium text-slate-900">INV-000123</div>
-              <div className="mt-2 text-xs text-slate-500">Date</div>
+              <div className="mt-2 text-xs text-slate-500">{locale === 'bn' ? 'তারিখ' : 'Date'}</div>
               <div className="font-medium text-slate-900">01 Aug 2026</div>
             </div>
           </div>
@@ -72,11 +76,11 @@ export default function PrintDemoPage() {
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-900 text-white">
                   <tr>
-                    <th className="px-4 py-3 text-left">SL.</th>
-                    <th className="px-4 py-3 text-left">Item Description</th>
-                    <th className="px-4 py-3 text-right">Price</th>
-                    <th className="px-4 py-3 text-center">Qty</th>
-                    <th className="px-4 py-3 text-right">Total</th>
+                    <th className="px-4 py-3 text-left">{locale === 'bn' ? 'ক্রমিক.' : 'SL.'}</th>
+                    <th className="px-4 py-3 text-left">{locale === 'bn' ? 'আইটেমের বিবরণ' : 'Item Description'}</th>
+                    <th className="px-4 py-3 text-right">{locale === 'bn' ? 'দাম' : 'Price'}</th>
+                    <th className="px-4 py-3 text-center">{locale === 'bn' ? 'পরিমাণ' : 'Qty'}</th>
+                    <th className="px-4 py-3 text-right">{locale === 'bn' ? 'মোট' : 'Total'}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
@@ -84,9 +88,9 @@ export default function PrintDemoPage() {
                     <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                       <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
                       <td className="px-4 py-3 text-slate-700">{it.productName}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(it.unitPrice)}</td>
+                      <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(it.unitPrice, locale)}</td>
                       <td className="px-4 py-3 text-center text-slate-700">{it.quantity} {it.unit}</td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-900">{formatCurrency(it.lineTotal)}</td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-900">{formatCurrency(it.lineTotal, locale)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -96,16 +100,16 @@ export default function PrintDemoPage() {
 
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_320px] gap-4">
             <div>
-              <div className="text-sm text-slate-600">Thank you for your business</div>
+              <div className="text-sm text-slate-600">{locale === 'bn' ? 'আপনার ব্যবসার জন্য ধন্যবাদ' : 'Thank you for your business'}</div>
             </div>
             <div className="flex justify-end">
               <div className="w-full max-w-xs">
-                <div className="flex justify-between text-sm text-slate-600"><div>Sub Total:</div><div>{formatCurrency(subtotal)}</div></div>
-                <div className="flex justify-between text-sm text-slate-600 mt-1"><div>Tax:</div><div>{formatCurrency(0)}</div></div>
+                <div className="flex justify-between text-sm text-slate-600"><div>{locale === 'bn' ? 'উপ মোট:' : 'Sub Total:'}</div><div>{formatCurrency(subtotal, locale)}</div></div>
+                <div className="flex justify-between text-sm text-slate-600 mt-1"><div>{locale === 'bn' ? 'কর:' : 'Tax:'}</div><div>{formatCurrency(0, locale)}</div></div>
                 <div className="mt-3">
                   <div className="flex items-center justify-between bg-yellow-400 px-4 py-3">
-                    <div className="text-sm font-semibold text-slate-900">Total:</div>
-                    <div className="text-xl font-extrabold text-slate-900">{formatCurrency(subtotal)}</div>
+                    <div className="text-sm font-semibold text-slate-900">{locale === 'bn' ? 'মোট:' : 'Total:'}</div>
+                    <div className="text-xl font-extrabold text-slate-900">{formatCurrency(subtotal, locale)}</div>
                   </div>
                 </div>
               </div>

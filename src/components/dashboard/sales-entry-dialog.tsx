@@ -16,6 +16,7 @@ type SalesEntryDialogProps = {
 export function SalesEntryDialog({ partyId, partyName, customers, products }: SalesEntryDialogProps) {
   const [open, setOpen] = useState(false);
   const formId = `sales-entry-dialog-form-${partyId}`;
+  const salesEntryLabel = '📊 Sales Entry';
 
   return (
     <>
@@ -25,7 +26,7 @@ export function SalesEntryDialog({ partyId, partyName, customers, products }: Sa
         onClick={() => setOpen(true)}
         className="w-full sm:w-auto px-4 py-2 text-sm font-medium bg-violet-600 hover:bg-violet-700 text-white"
       >
-        📊 Sales Entry
+        {salesEntryLabel}
       </Button>
 
       <Dialog
@@ -35,7 +36,7 @@ export function SalesEntryDialog({ partyId, partyName, customers, products }: Sa
             setOpen(false);
           }
         }}
-        title={`Sales Entry - ${partyName}`}
+        title={`${salesEntryLabel.replace('📊 ', '')} - ${partyName}`}
         footer={
           <div className="flex flex-wrap gap-3 justify-end">
             <Button variant="outline" type="button" onClick={() => setOpen(false)}>

@@ -1,9 +1,11 @@
+import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { prisma } from '@/server/db';
 import { getReportSummary } from '@/features/reports/actions';
 import { BarChart3 } from 'lucide-react';
+import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
+import { getDictionary } from '@/i18n';
 
 const reportConfig = [
   {
@@ -67,6 +69,9 @@ function formatCurrency(value: number) {
 
 export default async function ReportsPage() {
   const session = await requireUser();
+  const cookieStore = await cookies();
+  const locale = getLocaleFromValue(cookieStore.get(LOCALE_COOKIE)?.value ?? undefined);
+  const dict = getDictionary(locale);
   const userName = session.user.name ?? session.user.email ?? 'there';
 
   const summary = await getReportSummary();
@@ -87,14 +92,14 @@ export default async function ReportsPage() {
       <div className="rounded-xl border bg-card p-4 shadow-sm sm:p-6 lg:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Reports</p>
-            <h1 className="mt-2 text-3xl font-semibold">Reports Centre</h1>
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">{dict.nav.reports}</p>
+            <h1 className="mt-2 text-3xl font-semibold">{dict.reports.reportsCenter}</h1>
             <p className="mt-3 max-w-2xl text-muted-foreground">
-              Welcome back, {userName}. Review operational and financial reports with export and print options built in.
+              {dict.common.welcomeBackUser.replace('{{name}}', userName)} {dict.reports.exportAndPrintDescription}
             </p>
           </div>
           <div className="rounded-full border bg-background px-4 py-2 text-sm text-muted-foreground">
-            Finance & operations
+            {dict.reports.financeOperations}
           </div>
         </div>
       </div>
@@ -116,12 +121,12 @@ export default async function ReportsPage() {
                 {reportStats[report.title as keyof typeof reportStats]}
               </div>
               <div className="flex flex-wrap gap-2">
-                <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">Operational</span>
-                <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">Ready</span>
+                <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">{dict.common.operational}</span>
+                <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">{dict.common.ready}</span>
               </div>
             </div>
             <Button asChild variant="outline" size="sm">
-              <Link href={report.href}>Open report</Link>
+              <Link href={report.href}>{dict.common.openReport}</Link>
             </Button>
           </div>
         ))}
@@ -130,9 +135,9 @@ export default async function ReportsPage() {
       <div className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold">Export & Print</h2>
+            <h2 className="text-xl font-semibold">{dict.common.exportAndPrint}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Prepare reports for sharing, filing, or printing in a single click.
+              {dict.common.exportAndPrintDescription}
             </p>
           </div>
           <div className="rounded-full border bg-background p-2 text-primary">
@@ -140,10 +145,10 @@ export default async function ReportsPage() {
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-3">
-          <Button variant="outline" className="w-full sm:w-auto">Export PDF</Button>
-          <Button variant="outline" className="w-full sm:w-auto">Export Excel</Button>
+          <Button variant="outline" className="w-full sm:w-auto">{dict.reports.exportPdf}</Button>
+          <Button variant="outline" className="w-full sm:w-auto">{dict.reports.exportExcel}</Button>
           <Link href="/dashboard/reports/party-statement" className="w-full sm:w-auto inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
-            Print Reports
+            {dict.reports.printReports}
           </Link>
         </div>
       </div>

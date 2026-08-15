@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
+import { getDictionary } from '@/i18n';
+import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
 
 export const dynamic = 'force-dynamic';
 import { CompaniesOverview } from '@/components/dashboard/companies-overview';
@@ -38,7 +40,7 @@ type CompanyRow = {
 };
 
 type CompanyOption = {
-  id?: number;
+  id: number;
   name: string;
 };
 
@@ -62,14 +64,14 @@ type StockItemRecord = {
       party?: { name?: string | null } | null;
     } | null;
   }>;
-  company?: { name?: string | null } | null;
+  company?: { id?: number; name?: string | null } | null;
 };
 
-function formatCompanyType(type: string) {
-  if (type === 'FEED') return 'Feed Company';
-  if (type === 'MEDICINE') return 'Medicine Company';
-  if (type === 'CHICK') return 'Hatchling / Chick Company';
-  if (type === 'FEED_CHICK') return 'Feeds + Hatchling / Chick';
+function formatCompanyType(type: string, dict: ReturnType<typeof getDictionary>) {
+  if (type === 'FEED') return dict.dashboard.feedCompany;
+  if (type === 'MEDICINE') return dict.dashboard.medicineCompany;
+  if (type === 'CHICK') return dict.dashboard.hatchlingChickCompany;
+  if (type === 'FEED_CHICK') return dict.dashboard.feedChickCompany;
   return type.replace('_', ' ');
 }
 
@@ -88,6 +90,8 @@ export default async function CompaniesPage({
   await requireUser();
 
   const cookiesStore = await cookies();
+  const locale = getLocaleFromValue(cookiesStore.get(LOCALE_COOKIE)?.value ?? undefined);
+  const dict = getDictionary(locale);
   const companySuccessCookie = cookiesStore.get('companySuccess');
   const companySuccess = companySuccessCookie?.value ?? '';
 
@@ -120,17 +124,17 @@ export default async function CompaniesPage({
   ]);
 
   const feedCompanyOptions: ComboboxOption[] = feedCompanies.map((company: CompanyOption) => ({
-    value: company.name,
+    value: String(company.id),
     label: company.name
   }));
 
   const medicineCompanyOptions: ComboboxOption[] = medicineCompanies.map((company: CompanyOption) => ({
-    value: company.name,
+    value: String(company.id),
     label: company.name
   }));
 
   const chickCompanyOptions: ComboboxOption[] = chickCompanies.map((company: CompanyOption) => ({
-    value: company.name,
+    value: String(company.id),
     label: company.name
   }));
 
@@ -146,6 +150,7 @@ export default async function CompaniesPage({
       salesRate: Number(item.defaultSellingPrice ?? 0),
       lowStockThreshold: Number(item.lowStockThreshold ?? 0),
       productType: item.productType ?? undefined,
+      companyId: item.company?.id ?? null,
       lastTransactionDate: lastTransaction?.transactionDate,
       companyName: item.company?.name ?? lastTransaction?.company?.name ?? lastTransaction?.party?.name,
       paidAmount: Number(lastTransaction?.paidAmount ?? 0),
@@ -165,6 +170,7 @@ export default async function CompaniesPage({
       salesRate: Number(item.defaultSellingPrice ?? 0),
       lowStockThreshold: Number(item.lowStockThreshold ?? 0),
       productType: item.productType ?? undefined,
+      companyId: item.company?.id ?? null,
       lastTransactionDate: lastTransaction?.transactionDate,
       companyName: item.company?.name ?? lastTransaction?.company?.name ?? lastTransaction?.party?.name,
       paidAmount: Number(lastTransaction?.paidAmount ?? 0),
@@ -184,6 +190,7 @@ export default async function CompaniesPage({
       salesRate: Number(item.defaultSellingPrice ?? 0),
       lowStockThreshold: Number(item.lowStockThreshold ?? 0),
       productType: item.productType ?? undefined,
+      companyId: item.company?.id ?? null,
       lastTransactionDate: lastTransaction?.transactionDate,
       companyName: item.company?.name ?? lastTransaction?.company?.name ?? lastTransaction?.party?.name,
       paidAmount: Number(lastTransaction?.paidAmount ?? 0),
@@ -194,15 +201,15 @@ export default async function CompaniesPage({
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="mb-6">
-        <h1 className="mt-2 text-3xl font-semibold">Manage companies</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Feed and medicine suppliers used in purchases and stock management.</p>
+        <h1 className="mt-2 text-3xl font-semibold">{dict.dashboard.manageCompanies}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{dict.dashboard.feedAndMedicineSuppliers}</p>
       </div>
 
       <CompanyToast success={companySuccess} error={companyError} />
 
       {/* Companies Section */}
       <div className="mb-8">
-        <CompaniesOverview stats={companyStats} />
+        <CompaniesOverview stats={companyStats} dict={dict} />
 
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-6 justify-between">
           <div className="flex flex-wrap items-center gap-3">
@@ -233,26 +240,26 @@ export default async function CompaniesPage({
 
         <div className="overflow-visible rounded-2xl boreder-0 sm:border bg-card shadow-sm">
           <div className="border-1 sm:border-b px-4 py-4 bg-muted/20">
-            <h2 className="text-lg font-semibold">Feeds and Medicine Companies</h2>
+            <h2 className="text-lg font-semibold">{dict.dashboard.feedCompanies}</h2>
           </div>
           <DataTable minWidth="920px">
             <thead className="bg-muted/40 text-left">
               <tr>
-                <th className="px-4 py-3 font-medium">Company Name</th>
-                <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium text-right">Total Purchase</th>
-                <th className="px-4 py-3 font-medium text-right">Total Paid</th>
-                <th className="px-4 py-3 font-medium text-right">Total Due</th>
-                <th className="px-4 py-3 font-medium text-right">Balance</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Action</th>
+                <th className="px-4 py-3 font-medium">{dict.common.companyName}</th>
+                <th className="px-4 py-3 font-medium">{dict.common.type}</th>
+                <th className="px-4 py-3 font-medium text-right">{dict.common.totalPurchase}</th>
+                <th className="px-4 py-3 font-medium text-right">{dict.common.totalPaid}</th>
+                <th className="px-4 py-3 font-medium text-right">{dict.common.totalDue}</th>
+                <th className="px-4 py-3 font-medium text-right">{dict.common.balance}</th>
+                <th className="px-4 py-3 font-medium">{dict.common.status}</th>
+                <th className="px-4 py-3 text-right font-medium">{dict.common.actions}</th>
               </tr>
             </thead>
             <tbody>
               {companyData.companies.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
-                    No companies found. Create your first company to get started.
+                    {dict.common.noData}
                   </td>
                 </tr>
               ) : (
@@ -275,7 +282,7 @@ export default async function CompaniesPage({
                         company.companyType === 'CHICK' ? 'bg-emerald-100 text-emerald-800' :
                         'bg-violet-100 text-violet-800'
                       }`}>
-                        {formatCompanyType(company.companyType)}
+                        {formatCompanyType(company.companyType, dict)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">{company.totalPurchase.toLocaleString()} TK</td>
@@ -288,23 +295,23 @@ export default async function CompaniesPage({
                     <td className="px-4 py-3 text-right">
                       {Number(company.currentBalance ?? 0) > 0 ? (
                         <span className="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">
-                          🔴 Payable
+                          🔴 {dict.common.payable}
                           <span className="ml-2 font-semibold">৳{Math.abs(Number(company.currentBalance ?? 0)).toLocaleString()}</span>
                         </span>
                       ) : Number(company.currentBalance ?? 0) < 0 ? (
                         <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                          🟢 Advance
+                          🟢 {dict.common.advance}
                           <span className="ml-2 font-semibold">৳{Math.abs(Number(company.currentBalance ?? 0)).toLocaleString()}</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                          ⚪ Clear
+                          ⚪ {dict.common.clear}
                         </span>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${company.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                        {company.isActive ? 'Active' : 'Inactive'}
+                        {company.isActive ? dict.common.active : dict.common.inactive}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -331,7 +338,7 @@ export default async function CompaniesPage({
 
           <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
-              Showing {companyData.companies.length} of {companyData.total} companies
+              {dict.common.searchPlaceholder} {companyData.companies.length} / {companyData.total}
             </p>
             <Pagination
               currentPage={companyPage}

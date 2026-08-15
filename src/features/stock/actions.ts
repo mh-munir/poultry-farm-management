@@ -93,6 +93,12 @@ export async function updateStockItem(
     quantityOnHand
   };
 
+  const allowedCompanyTypes: Record<string, readonly string[]> = {
+    FEED: ['FEED', 'FEED_CHICK'],
+    MEDICINE: ['MEDICINE'],
+    CHICK: ['FEED', 'CHICK', 'FEED_CHICK']
+  } as const;
+
   console.log('[updateStockItem] payload', payload);
 
   try {
@@ -106,9 +112,25 @@ export async function updateStockItem(
         throw new Error('Product not found.');
       }
 
+      const normalizedCompanyId = companyId !== undefined ? companyId ?? null : product.companyId ?? null;
+      if (normalizedCompanyId !== null) {
+        const company = await tx.company.findUnique({
+          where: { id: normalizedCompanyId },
+          select: { id: true, companyType: true, isActive: true }
+        });
+
+        if (!company || !company.isActive) {
+          throw new Error('Selected company is not available.');
+        }
+
+        const allowedTypes: readonly string[] = allowedCompanyTypes[product.productType] ?? [];
+        if (allowedTypes.length > 0 && !allowedTypes.includes(company.companyType)) {
+          throw new Error('Selected company is not valid for this product type.');
+        }
+      }
+
       const previousCompanyId = product.companyId ?? null;
       const previousQuantityOnHand = Number(product.stockBalance?.quantityOnHand ?? 0);
-      const normalizedCompanyId = companyId !== undefined ? companyId ?? null : previousCompanyId;
       const normalizedUnit = unit !== undefined ? unit.trim() : product.unit;
       const nextPurchasePrice = new Prisma.Decimal(buyRate);
       const productChanged =

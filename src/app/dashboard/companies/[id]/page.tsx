@@ -1,9 +1,13 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { ArrowLeft, CalendarDays, CheckCircle2, CircleDollarSign, Factory, FileText, Mail, MapPin, Phone, Printer, ReceiptText, UserRound, Wallet } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 import { formatDateBD as formatDate } from '@/lib/dates';
+import { formatLocalizedCurrency, formatLocalizedNumber, formatLocalizedDate } from '@/lib/localized-formatters';
+import { getDictionary } from '@/i18n';
+import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
 
 export const dynamic = 'force-dynamic';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
@@ -85,6 +89,17 @@ function formatCurrency(value: number | string | { toString(): string } | null |
 
 // using centralized Bangladesh-aware formatter (formatDate alias is imported)
 
+function getFormatters(locale: 'en' | 'bn') {
+  return {
+    formatCurrency: (value: number | string | { toString(): string } | null | undefined) =>
+      formatLocalizedCurrency(value, locale),
+    formatNumber: (value: number | string | null | undefined) =>
+      formatLocalizedNumber(value, locale),
+    formatDate: (value: Date | string | null | undefined) =>
+      formatLocalizedDate(value, locale),
+  };
+}
+
 function SummaryMiniCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-border bg-muted/30 p-4">
@@ -125,6 +140,10 @@ function KpiCard({
 
 export default async function CompanyProfilePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ success?: string; error?: string; historyPage?: string; purchaseTypeFilter?: string }> }) {
   await requireUser();
+  const cookieStore = await cookies();
+  const locale = getLocaleFromValue(cookieStore.get(LOCALE_COOKIE)?.value ?? undefined);
+  const dict = getDictionary(locale);
+  const { formatCurrency, formatNumber, formatDate } = getFormatters(locale);
   const { id } = await params;
   const companyId = Number(id);
   const sp = await searchParams;
@@ -342,6 +361,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
     salesRate: Number(item.defaultSellingPrice ?? 0),
     lowStockThreshold: Number(item.lowStockThreshold ?? 0),
     productType: item.productType,
+    companyId: item.company?.id ?? null,
     lastTransactionDate: item.transactionItems[0]?.transaction?.transactionDate,
     companyName: item.company?.name ?? item.transactionItems[0]?.transaction?.company?.name ?? item.transactionItems[0]?.transaction?.party?.name,
     paidAmount: Number(item.transactionItems[0]?.transaction?.paidAmount ?? 0),
@@ -357,6 +377,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
     salesRate: Number(item.defaultSellingPrice ?? 0),
     lowStockThreshold: Number(item.lowStockThreshold ?? 0),
     productType: item.productType,
+    companyId: item.company?.id ?? null,
     lastTransactionDate: item.transactionItems[0]?.transaction?.transactionDate,
     companyName: item.company?.name ?? item.transactionItems[0]?.transaction?.company?.name ?? item.transactionItems[0]?.transaction?.party?.name,
     paidAmount: Number(item.transactionItems[0]?.transaction?.paidAmount ?? 0),
@@ -372,6 +393,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
     salesRate: Number(item.defaultSellingPrice ?? 0),
     lowStockThreshold: Number(item.lowStockThreshold ?? 0),
     productType: item.productType,
+    companyId: item.company?.id ?? null,
     lastTransactionDate: item.transactionItems[0]?.transaction?.transactionDate,
     companyName: item.company?.name ?? item.transactionItems[0]?.transaction?.company?.name ?? item.transactionItems[0]?.transaction?.party?.name,
     paidAmount: Number(item.transactionItems[0]?.transaction?.paidAmount ?? 0),
@@ -505,10 +527,10 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
       <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
           {[
-            { label: 'Total Purchases', value: formatCurrency(totalPurchases), icon: ReceiptText, accent: 'bg-sky-100 text-sky-700' },
-            { label: 'Total Payments', value: formatCurrency(summary.totalPayments), icon: CircleDollarSign, accent: 'bg-emerald-100 text-emerald-700' },
-            { label: 'Current Due', value: formatCurrency(summary.totalDue), icon: Wallet, accent: 'bg-rose-100 text-rose-700' },
-            { label: 'Transactions', value: String(summary.totalTransactions), icon: FileText, accent: 'bg-violet-100 text-violet-700' }
+            { label: dict.common.totalPurchase, value: formatCurrency(totalPurchases), icon: ReceiptText, accent: 'bg-sky-100 text-sky-700' },
+            { label: dict.common.totalPaid, value: formatCurrency(summary.totalPayments), icon: CircleDollarSign, accent: 'bg-emerald-100 text-emerald-700' },
+            { label: dict.common.currentDue, value: formatCurrency(summary.totalDue), icon: Wallet, accent: 'bg-rose-100 text-rose-700' },
+            { label: dict.common.transactions, value: String(summary.totalTransactions), icon: FileText, accent: 'bg-violet-100 text-violet-700' }
           ].map(({ label, value, icon: Icon, accent }) => (
             <div key={label} className="flex min-w-0 items-center gap-3 px-5 py-4">
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accent}`}><Icon className="h-5 w-5" /></div>
@@ -523,43 +545,43 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
 
       <section className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_0.9fr]">
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-6 shadow-sm sm:p-7">
-          <p className="text-sm font-semibold text-muted-foreground">Amount Payable (Total)</p>
+          <p className="text-sm font-semibold text-muted-foreground">{dict.common.totalPayable ?? 'Amount Payable (Total)'}</p>
           <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-emerald-600 sm:text-4xl">{formatCurrency(amountPayable)}</p>
-          <p className="mt-3 text-sm text-muted-foreground">Opening balance + purchases - payments</p>
+          <p className="mt-3 text-sm text-muted-foreground">{dict.messages.openingBalancePlusPurchases}</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-6 sm:p-7">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><Factory className="h-5 w-5" /></div>
-            <p className="text-sm font-semibold text-muted-foreground">Opening Balance</p>
+            <p className="text-sm font-semibold text-muted-foreground">{dict.settings.openingBalance}</p>
           </div>
           <p className="mt-4 text-3xl font-bold tracking-tight tabular-nums text-foreground">{formatCurrency(openingBalance)}</p>
-          <p className="mt-3 text-sm text-muted-foreground">Outstanding balance before this period</p>
+          <p className="mt-3 text-sm text-muted-foreground">{dict.messages.outstandingBalance ?? 'Outstanding balance before this period'}</p>
         </div>
       </section>
 
       <section className="mt-4 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><CalendarDays className="h-5 w-5" /></div>
-          <div><p className="text-xs font-medium text-muted-foreground">Company Since</p><p className="mt-1 text-lg font-bold text-foreground">{formatDate(company.createdAt)}</p><p className="mt-1 text-xs text-muted-foreground">Account opened on this date</p></div>
+          <div><p className="text-xs font-medium text-muted-foreground">{dict.common.partySince}</p><p className="mt-1 text-lg font-bold text-foreground">{formatDate(company.createdAt)}</p><p className="mt-1 text-xs text-muted-foreground">{dict.messages.accountOpenedOnDate ?? 'Account opened on this date'}</p></div>
         </div>
       </section>
 
       <section className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-background text-primary shadow-sm"><CircleDollarSign className="h-5 w-5" /></div>
-          <div className="mr-auto"><h2 className="text-lg font-semibold text-foreground">Financial Summary</h2><p className="mt-1 text-sm text-muted-foreground">Overview of this period</p></div>
+          <div className="mr-auto"><h2 className="text-lg font-semibold text-foreground">{dict.common.financialSummary ?? 'Financial Summary'}</h2><p className="mt-1 text-sm text-muted-foreground">{dict.messages.overviewOfThisPeriod ?? 'Overview of this period'}</p></div>
           <span className={`rounded-full px-3 py-1 text-xs font-semibold ${summary.totalDue > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>{summary.totalDue > 0 ? 'Due' : 'Cleared'}</span>
         </div>
         <div className="mt-6 grid gap-3 text-sm sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] sm:items-center">
-          <div><p className="text-muted-foreground">Opening Balance</p><p className="mt-1 text-lg font-bold tabular-nums text-foreground">{formatCurrency(openingBalance)}</p></div>
+          <div><p className="text-muted-foreground">{dict.settings.openingBalance}</p><p className="mt-1 text-lg font-bold tabular-nums text-foreground">{formatCurrency(openingBalance)}</p></div>
           <span className="hidden text-2xl text-muted-foreground sm:block">+</span>
-          <div><p className="text-muted-foreground">Total Purchases</p><p className="mt-1 text-lg font-bold tabular-nums text-foreground">{formatCurrency(totalPurchases)}</p></div>
+          <div><p className="text-muted-foreground">{dict.common.totalPurchase}</p><p className="mt-1 text-lg font-bold tabular-nums text-foreground">{formatCurrency(totalPurchases)}</p></div>
           <span className="hidden text-2xl text-muted-foreground sm:block">−</span>
-          <div><p className="text-muted-foreground">Total Payments</p><p className="mt-1 text-lg font-bold tabular-nums text-foreground">{formatCurrency(summary.totalPayments)}</p></div>
+          <div><p className="text-muted-foreground">{dict.common.totalPaid}</p><p className="mt-1 text-lg font-bold tabular-nums text-foreground">{formatCurrency(summary.totalPayments)}</p></div>
           <span className="hidden text-2xl text-muted-foreground sm:block">=</span>
-          <div className="border-t border-border pt-3 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0"><p className="font-semibold text-primary">Amount Payable</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{formatCurrency(amountPayable)}</p></div>
+          <div className="border-t border-border pt-3 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0"><p className="font-semibold text-primary">{dict.common.totalPayable ?? 'Amount Payable'}</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{formatCurrency(amountPayable)}</p></div>
         </div>
-        <p className="mt-5 rounded-xl bg-background/80 px-4 py-3 text-sm text-muted-foreground">Current Due ({formatCurrency(summary.totalDue)}) is from this period only. Total Payable ({formatCurrency(amountPayable)}) includes the Opening Balance.</p>
+        <p className="mt-5 rounded-xl bg-background/80 px-4 py-3 text-sm text-muted-foreground">{dict.messages.currentDueInfo?.replace('{amount}', formatCurrency(summary.totalDue)).replace('{amount}', formatCurrency(amountPayable)) ?? `Current Due (${formatCurrency(summary.totalDue)}) is from this period only. Total Payable (${formatCurrency(amountPayable)}) includes the Opening Balance.`}</p>
       </section>
 
       <div className="hidden mt-6 gap-4 lg:grid-cols-2">
@@ -640,7 +662,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
               initialItems={initialFeedItems}
               availableProducts={initialFeedItems}
               suppliers={feedCompanies}
-              companyNames={feedCompanies.map((supplier) => ({ value: supplier.name, label: supplier.name }))}
+              companyNames={feedCompanies.map((supplier) => ({ value: String(supplier.id), label: supplier.name }))}
               useCompanySearch
               allowCreateCompany={false}
               addButtonLabel="Add Product"
@@ -657,7 +679,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
               initialItems={initialMedicineItems}
               availableProducts={initialMedicineItems}
               suppliers={medicineCompanies}
-              companyNames={medicineCompanies.map((supplier) => ({ value: supplier.name, label: supplier.name }))}
+              companyNames={medicineCompanies.map((supplier) => ({ value: String(supplier.id), label: supplier.name }))}
               useCompanySearch
               allowCreateCompany={false}
               addButtonLabel="Add Product"
@@ -674,7 +696,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
               initialItems={initialChickItems}
               availableProducts={initialChickItems}
               suppliers={chickCompanies}
-              companyNames={chickCompanies.map((supplier) => ({ value: supplier.name, label: supplier.name }))}
+              companyNames={chickCompanies.map((supplier) => ({ value: String(supplier.id), label: supplier.name }))}
               useCompanySearch
               allowCreateCompany={false}
               addButtonLabel="Add Product"

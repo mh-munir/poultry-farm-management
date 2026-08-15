@@ -1,9 +1,11 @@
 "use client"
 import React from "react"
 import { useToast } from '@/hooks/use-toast'
+import { useLocale } from '@/i18n/provider'
 import { PrintButton } from "../print-button"
 import { Button } from '@/components/ui/button'
 import { ResponsiveTable } from '@/components/ui/responsive-table'
+import { formatLocalizedCurrency } from '@/lib/localized-formatters'
 import type { Branding } from '@/lib/branding'
 
 async function loadScript(url: string) {
@@ -79,6 +81,29 @@ export default function Invoice(props: InvoiceProps) {
   const total = subTotal + tax
   const [loadingPdf, setLoadingPdf] = React.useState(false)
   const { toast: showToast, success: showSuccess, error: showError, info: showInfo } = useToast()
+  const { locale, dict } = useLocale()
+
+  // Default bilingual labels
+  const invoiceLabel = locale === 'bn' ? 'ইনভয়েস' : 'INVOICE'
+  const invoiceToLabel = locale === 'bn' ? 'কে ইনভয়েস:' : 'Invoice to:'
+  const invoiceNumberLabel = locale === 'bn' ? 'ইনভয়েস #' : 'Invoice #'
+  const dateLabel = locale === 'bn' ? 'তারিখ' : 'Date'
+  const slLabel = locale === 'bn' ? 'ক্রমিক.' : 'SL.'
+  const descriptionLabel = locale === 'bn' ? 'আইটেমের বিবরণ' : 'Item Description'
+  const priceLabel = locale === 'bn' ? 'দাম' : 'Price'
+  const qtyLabel = locale === 'bn' ? 'পরিমাণ' : 'Qty'
+  const totalLabel = locale === 'bn' ? 'মোট' : 'Total'
+  const thankYouLabel = locale === 'bn' ? 'আপনার ব্যবসার জন্য ধন্যবাদ' : 'Thank you for your business'
+  const subTotalLabel = locale === 'bn' ? 'উপ মোট:' : 'Sub Total:'
+  const taxLabel = locale === 'bn' ? 'কর:' : 'Tax:'
+  const termsLabel = locale === 'bn' ? 'শর্তাবলী' : 'Terms & Conditions'
+  const paymentInfoLabel = locale === 'bn' ? 'পেমেন্ট তথ্য' : 'Payment Info'
+  const authorizedSignLabel = locale === 'bn' ? 'অনুমোদিত স্বাক্ষর' : 'Authorized Sign'
+  const paymentDueLabel = locale === 'bn' ? '১৫ দিনে পেমেন্ট দিতে হবে। দেরি হলে ফি ধার্য হতে পারে।' : 'Payment due within 15 days. Late payments may be subject to fees.'
+  const accountLabel = locale === 'bn' ? 'অ্যাকাউন্ট #: ১२३४ ५६७८ ९०१२' : 'Account #: 1234 5678 9012'
+  const bankLabel = locale === 'bn' ? 'ব্যাংক: উদাহরণ ব্যাংক' : 'Bank: Example Bank'
+  const pdfButtonLabel = locale === 'bn' ? 'পিডিএফ ডাউনলোড করুন' : 'Download PDF'
+  const preparingPdfLabel = locale === 'bn' ? 'পিডিএফ প্রস্তুত করা হচ্ছে...' : 'Preparing PDF...'
   return (
     <div className="invoice-print-area max-w-3xl mx-auto bg-white print:bg-white">
       <div className="shadow-sm border rounded-md overflow-visible">
@@ -104,7 +129,7 @@ export default function Invoice(props: InvoiceProps) {
             </div>
 
             <div className="text-left sm:text-right">
-              <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">INVOICE</div>
+              <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">{invoiceLabel}</div>
             </div>
           </div>
         </header>
@@ -114,15 +139,15 @@ export default function Invoice(props: InvoiceProps) {
         <main className="p-4 sm:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
             <div>
-              <div className="text-xs text-slate-500">Invoice to:</div>
+              <div className="text-xs text-slate-500">{invoiceToLabel}</div>
               <div className="font-medium text-slate-900 text-lg">{billedTo}</div>
               {address && <div className="mt-1 text-sm text-slate-600">{address}</div>}
             </div>
 
             <div className="text-right">
-              <div className="text-xs text-slate-500">Invoice #</div>
+              <div className="text-xs text-slate-500">{invoiceNumberLabel}</div>
               <div className="font-medium text-slate-900">{invoiceNumber}</div>
-              <div className="mt-2 text-xs text-slate-500">Date</div>
+              <div className="mt-2 text-xs text-slate-500">{dateLabel}</div>
               <div className="font-medium text-slate-900">{date}</div>
             </div>
           </div>
@@ -132,11 +157,11 @@ export default function Invoice(props: InvoiceProps) {
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-900 text-white">
                   <tr>
-                    <th className="px-4 py-3 text-left">SL.</th>
-                    <th className="px-4 py-3 text-left">Item Description</th>
-                    <th className="px-4 py-3 text-right">Price</th>
-                    <th className="px-4 py-3 text-center">Qty</th>
-                    <th className="px-4 py-3 text-right">Total</th>
+                    <th className="px-4 py-3 text-left">{slLabel}</th>
+                    <th className="px-4 py-3 text-left">{descriptionLabel}</th>
+                    <th className="px-4 py-3 text-right">{priceLabel}</th>
+                    <th className="px-4 py-3 text-center">{qtyLabel}</th>
+                    <th className="px-4 py-3 text-right">{totalLabel}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
@@ -144,9 +169,9 @@ export default function Invoice(props: InvoiceProps) {
                     <tr key={it.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                             <td className="px-4 py-3 text-slate-700">{idx + 1}</td>
                             <td className="px-4 py-3 text-slate-700">{it.description}</td>
-                            <td className="px-4 py-3 text-right text-slate-700">Tk {it.price.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-right text-slate-700">{formatLocalizedCurrency(it.price, locale)}</td>
                             <td className="px-4 py-3 text-center text-slate-700">{it.qty}</td>
-                            <td className="px-4 py-3 text-right font-medium text-slate-900">Tk {(it.price * it.qty).toFixed(2)}</td>
+                            <td className="px-4 py-3 text-right font-medium text-slate-900">{formatLocalizedCurrency(it.price * it.qty, locale)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -156,16 +181,16 @@ export default function Invoice(props: InvoiceProps) {
 
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_320px] gap-4">
             <div>
-              <div className="text-sm text-slate-600">Thank you for your business</div>
+              <div className="text-sm text-slate-600">{thankYouLabel}</div>
             </div>
             <div className="flex justify-end">
               <div className="w-full max-w-xs">
-                <div className="flex justify-between text-sm text-slate-600"><div>Sub Total:</div><div>Tk {subTotal.toFixed(2)}</div></div>
-                <div className="flex justify-between text-sm text-slate-600 mt-1"><div>Tax:</div><div>Tk {tax.toFixed(2)}</div></div>
+                <div className="flex justify-between text-sm text-slate-600"><div>{subTotalLabel}</div><div>{formatLocalizedCurrency(subTotal, locale)}</div></div>
+                <div className="flex justify-between text-sm text-slate-600 mt-1"><div>{taxLabel}</div><div>{formatLocalizedCurrency(tax, locale)}</div></div>
                 <div className="mt-3">
                   <div className="flex items-center justify-between bg-yellow-400 px-4 py-3">
-                    <div className="text-sm font-semibold text-slate-900">Total:</div>
-                    <div className="text-xl font-extrabold text-slate-900">Tk {total.toFixed(2)}</div>
+                    <div className="text-sm font-semibold text-slate-900">{totalLabel}:</div>
+                    <div className="text-xl font-extrabold text-slate-900">{formatLocalizedCurrency(total, locale)}</div>
                   </div>
                 </div>
               </div>
@@ -174,13 +199,13 @@ export default function Invoice(props: InvoiceProps) {
 
           <div className="mt-8 grid grid-cols-1 gap-6 text-sm text-slate-600 sm:grid-cols-2">
             <div>
-              <div className="font-semibold text-slate-800 mb-2">Terms & Conditions</div>
-              <div>Payment due within 15 days. Late payments may be subject to fees.</div>
+              <div className="font-semibold text-slate-800 mb-2">{termsLabel}</div>
+              <div>{paymentDueLabel}</div>
             </div>
             <div>
-              <div className="font-semibold text-slate-800 mb-2">Payment Info</div>
-              <div>Account #: 1234 5678 9012</div>
-              <div>Bank: Example Bank</div>
+              <div className="font-semibold text-slate-800 mb-2">{paymentInfoLabel}</div>
+              <div>{accountLabel}</div>
+              <div>{bankLabel}</div>
             </div>
           </div>
         </main>
@@ -188,7 +213,7 @@ export default function Invoice(props: InvoiceProps) {
         <footer className="p-4 sm:p-6 bg-white border-t text-sm text-slate-500 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>Phone: {company?.phone ?? '—'} | Address: {company?.address ?? '—'} | {company?.website ?? ''}</div>
           <div className="text-left sm:text-right">
-            <div className="font-semibold text-slate-800">Authorized Sign</div>
+            <div className="font-semibold text-slate-800">{authorizedSignLabel}</div>
             <div className="mt-4 h-8 w-40 sm:w-48 border-b border-slate-300" />
           </div>
         </footer>
@@ -199,20 +224,20 @@ export default function Invoice(props: InvoiceProps) {
         <Button variant="outline" onClick={async () => {
           const el = document.querySelector('.invoice-print-area') as HTMLElement | null;
           if (!el) return;
-          const id = showInfo('Preparing PDF...')
+          const id = showInfo(preparingPdfLabel)
           try {
             setLoadingPdf(true)
             await exportPdf(el, `invoice-${invoiceNumber}.pdf`)
-            showSuccess('PDF saved')
+            showSuccess(locale === 'bn' ? 'পিডিএফ সংরক্ষিত হয়েছে' : 'PDF saved')
           } catch (err: any) {
              
             console.error('PDF export failed', err)
-            showError(err?.message ?? 'Failed to export PDF')
+            showError(err?.message ?? (locale === 'bn' ? 'পিডিএফ রপ্তানি ব্যর্থ হয়েছে' : 'Failed to export PDF'))
           } finally {
             setLoadingPdf(false)
           }
         }} disabled={loadingPdf}>
-          {loadingPdf ? 'Preparing PDF...' : 'Download PDF'}
+          {loadingPdf ? preparingPdfLabel : pdfButtonLabel}
         </Button>
       </div>
     </div>

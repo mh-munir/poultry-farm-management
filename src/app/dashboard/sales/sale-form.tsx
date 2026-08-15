@@ -5,6 +5,7 @@ import { DollarSign, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createSaleTransaction } from '@/features/sales/actions';
 import { getCustomerCurrentDue } from '@/features/parties/actions';
+import { useLocale } from '@/i18n/provider';
 
 export type CustomerOption = {
   id: number;
@@ -48,6 +49,7 @@ function createRow(): SaleItemRow {
 }
 
 export function SaleForm({ customers, products, selectedPartyId, formId, hideSubmitButton = false }: SaleFormProps) {
+  const { dict } = useLocale();
   const [rows, setRows] = useState<SaleItemRow[]>(() => [createRow()]);
   const [discount, setDiscount] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -95,7 +97,7 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
   return (
     <form id={formId} action={createSaleTransaction} autoComplete="off" className="space-y-4">
       <div>
-        <label className="mb-2 block text-sm font-medium">Customer</label>
+        <label className="mb-2 block text-sm font-medium">{dict.common.customer}</label>
         <select name="partyId" required defaultValue={selectedPartyId ?? ''} className="w-full form-select">
           {customers.map((customer) => (
             <option key={customer.id} value={customer.id}>{customer.name}</option>
@@ -105,9 +107,9 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
 
       <div className="rounded-2xl border bg-muted/20 p-4">
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm font-semibold">Items</div>
+          <div className="text-sm font-semibold">{dict.forms.items}</div>
           <Button type="button" variant="outline" size="sm" onClick={() => setRows((currentRows) => [...currentRows, createRow()])}>
-            <Plus className="mr-2 h-4 w-4" />Add
+            <Plus className="mr-2 h-4 w-4" />{dict.forms.add}
           </Button>
         </div>
 
@@ -121,7 +123,7 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
                 onChange={(event) => updateRow(row.rowId, 'productId', event.target.value)}
                 className="form-select"
               >
-                <option value="">Select product</option>
+                <option value="">{dict.forms.selectProductPlaceholder}</option>
                  {products.map((product) => (
                    <option key={product.id} value={product.id}>
                      {product.name}{product.code ? ` (${product.code})` : ''} — {product.unit || '-'} — Stock {product.stockQuantity ?? 0} — Buy {product.defaultPurchasePrice != null ? `৳${Number(product.defaultPurchasePrice).toFixed(2)}` : ''} — Sell ৳{Number(product.defaultSellingPrice ?? 0).toFixed(2)}
@@ -135,7 +137,7 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
                 name="quantity"
                 value={row.quantity}
                 onChange={(event) => updateRow(row.rowId, 'quantity', event.target.value)}
-                placeholder="Qty"
+                placeholder={dict.forms.qtyPlaceholder}
                 className="rounded-md border bg-background px-3 py-2"
               />
               <input
@@ -145,14 +147,14 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
                 name="unitPrice"
                 value={row.unitPrice}
                 onChange={(event) => updateRow(row.rowId, 'unitPrice', event.target.value)}
-                placeholder="Price"
+                placeholder={dict.forms.pricePlaceholder}
                 className="rounded-md border bg-background px-3 py-2"
               />
               <input
                 name="description"
                 value={row.description}
                 onChange={(event) => updateRow(row.rowId, 'description', event.target.value)}
-                placeholder="Description"
+                placeholder={dict.forms.descriptionPlaceholder}
                 className="rounded-md border bg-background px-3 py-2"
               />
               <Button
@@ -172,15 +174,15 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
 
       <div className="grid gap-4 md:grid-cols-3">
         <div>
-          <label className="mb-2 block text-sm font-medium">Total Amount</label>
+          <label className="mb-2 block text-sm font-medium">{dict.stock.totalAmount}</label>
           <input value={totalAmount.toFixed(2)} readOnly className="w-full rounded-md border bg-muted px-3 py-2" />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium">Media</label>
+          <label className="mb-2 block text-sm font-medium">{dict.stock.media}</label>
           <input name="mediaName" className="w-full rounded-md border bg-background px-3 py-2" required />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium">Paid Amount</label>
+          <label className="mb-2 block text-sm font-medium">{dict.forms.paidAmount}</label>
           <input
             type="number"
             step="0.01"
@@ -192,14 +194,14 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
           />
         </div>
 <div>
-           <label className="mb-2 block text-sm font-medium">Final Due</label>
+           <label className="mb-2 block text-sm font-medium">{dict.forms.finalDue}</label>
            <input value={finalDue.toFixed(2)} readOnly className="w-full rounded-md border bg-muted px-3 py-2" />
          </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-2 block text-sm font-medium">Discount</label>
+          <label className="mb-2 block text-sm font-medium">{dict.forms.discount}</label>
           <input
             type="number"
             step="0.01"
@@ -211,28 +213,28 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium">Payment method</label>
+          <label className="mb-2 block text-sm font-medium">{dict.stock.paymentMethod}</label>
           <select name="paymentMethod" className="w-full form-select">
-            <option value="CASH">Cash</option>
-            <option value="BANK_TRANSFER">Bank transfer</option>
-            <option value="CHEQUE">Cheque</option>
-            <option value="MOBILE_MONEY">Mobile money</option>
-            <option value="OTHER">Other</option>
+            <option value="CASH">{dict.paymentMethods.cash}</option>
+            <option value="BANK_TRANSFER">{dict.paymentMethods.bankTransfer}</option>
+            <option value="CHEQUE">{dict.paymentMethods.cheque}</option>
+            <option value="MOBILE_MONEY">{dict.paymentMethods.mobileMoney}</option>
+            <option value="OTHER">{dict.common.other}</option>
           </select>
         </div>
       </div>
 
       <div>
-        <label className="mb-2 block text-sm font-medium">Reference number</label>
+        <label className="mb-2 block text-sm font-medium">{dict.common.referenceNumber}</label>
         <input name="referenceNumber" className="w-full rounded-md border bg-background px-3 py-2" />
       </div>
       <div>
-        <label className="mb-2 block text-sm font-medium">Notes</label>
-        <textarea name="notes" rows={3} className="w-full rounded-md border bg-background px-3 py-2" placeholder="Invoice notes or remarks" />
+        <label className="mb-2 block text-sm font-medium">{dict.common.notes}</label>
+        <textarea name="notes" rows={3} className="w-full rounded-md border bg-background px-3 py-2" placeholder={dict.forms.invoiceNotesOrRemarks} />
       </div>
 
       {!hideSubmitButton && (
-        <Button type="submit" className="w-full"><DollarSign className="mr-2 h-4 w-4" />Save Sale</Button>
+        <Button type="submit" className="w-full"><DollarSign className="mr-2 h-4 w-4" />{dict.forms.saveSale}</Button>
       )}
     </form>
   );

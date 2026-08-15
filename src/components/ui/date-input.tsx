@@ -26,8 +26,6 @@ export function DateInput({ value, className, ...props }: Props) {
         onChange={(event) => {
           props.onChange?.(event);
         }}
-        onFocus={() => inputRef.current?.showPicker?.()}
-        onClick={() => inputRef.current?.showPicker?.()}
         className={`relative h-10 w-full bg-transparent pl-3 pr-2 text-sm font-semibold text-transparent caret-slate-900 outline-none ${className ?? ""}`}
         {...props}
       />

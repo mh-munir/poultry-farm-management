@@ -8,6 +8,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { createSaleTransactionWithToast } from '@/features/sales/actions';
 import { getCustomerCurrentDue } from '@/features/parties/actions';
 import { useToast } from '@/hooks/use-toast';
+import { useLocale } from '@/i18n/provider';
 import { getProductTypeLabel } from '@/lib/product-types';
 
 export type PartyOption = {
@@ -63,6 +64,7 @@ export function SalesEntryPopup({
 }: SalesEntryPopupProps) {
   const router = useRouter();
   const { success, error: showToastError } = useToast();
+  const { dict } = useLocale();
   const [open, setOpen] = useState(false);
   const [isSalesLoading, setIsSalesLoading] = useState(false);
   const [salesError, setSalesError] = useState('');
@@ -255,7 +257,7 @@ export function SalesEntryPopup({
         onClick={() => setOpen(true)}
         className={`w-full sm:w-auto ${buttonClassName ?? ''}`}
       >
-        {buttonChildren ?? '📊 Sales Entry'}
+        {buttonChildren ?? `📊 ${dict.common.salesEntry}`}
       </Button>
 
       <Dialog
@@ -267,11 +269,11 @@ export function SalesEntryPopup({
             setPreviousDue(0);
           }
         }}
-        title="Sales Entry"
+        title={dict.common.salesEntry}
         footer={
           <div className="flex flex-wrap gap-3 justify-end">
             <Button variant="outline" type="button" onClick={() => setOpen(false)} disabled={isSalesLoading}>
-              Cancel
+              {dict.common.cancel}
             </Button>
             <Button
               type="submit"
@@ -279,7 +281,7 @@ export function SalesEntryPopup({
               disabled={isSalesLoading}
               className={isSalesLoading ? 'opacity-75 cursor-not-allowed' : ''}
             >
-              {isSalesLoading ? '⏳ Saving...' : '💾 Save Entry'}
+              {isSalesLoading ? `⏳ ${dict.common.processing}` : `💾 ${dict.common.save}`}
             </Button>
           </div>
         }
@@ -298,7 +300,7 @@ export function SalesEntryPopup({
           )}
 
           <div className="sm:col-span-2 relative">
-            <label className="mb-2 block text-sm font-medium">Party Name</label>
+            <label className="mb-2 block text-sm font-medium">{dict.common.partyName}</label>
             <input
               name="name"
               autoComplete="off"
@@ -309,7 +311,7 @@ export function SalesEntryPopup({
               onBlur={handlePartyNameBlur}
               required
               className="w-full rounded-md border bg-background px-3 py-2"
-              placeholder="Click or type party name"
+              placeholder={dict.forms.clickOrTypePartyName}
             />
             <input type="hidden" name="partyId" value={salesPartyId ?? ''} />
             {showPartySuggestions && (
@@ -338,18 +340,18 @@ export function SalesEntryPopup({
           </div>
           <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium">Media name</label>
+              <label className="mb-2 block text-sm font-medium">{dict.forms.mediaName}</label>
               <input
                 name="mediaName"
                 autoComplete="off"
                 value={salesFormValues.mediaName}
                 onChange={(event) => handleSalesChange('mediaName', event.target.value)}
                 className="w-full rounded-md border bg-background px-3 py-2"
-                placeholder="Media name"
+                placeholder={dict.forms.mediaNamePlaceholder}
               />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium">Select Product</label>
+              <label className="mb-2 block text-sm font-medium">{dict.forms.selectProductPlaceholder}</label>
               <select
                 name="salesProduct"
                 autoComplete="off"
@@ -357,19 +359,19 @@ export function SalesEntryPopup({
                 onChange={(event) => handleSalesProductTypeChange(event.target.value as 'feeds' | 'medicin' | 'chick' | 'both')}
                 className="w-full form-select"
               >
-                <option value="feeds">Feeds</option>
-                <option value="medicin">Medicin</option>
-                <option value="chick">Hatchling / Chick</option>
-                <option value="both">Both</option>
+                <option value="feeds">{dict.productTypes.feeds}</option>
+                <option value="medicin">{dict.productTypes.medicine}</option>
+                <option value="chick">{dict.productTypes.chick}</option>
+                <option value="both">{dict.productTypes.both}</option>
               </select>
             </div>
           </div>
 
           <div className="sm:col-span-2 space-y-3 rounded-xl border bg-muted/10 p-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <label className="text-sm font-medium">Sale Items</label>
+              <label className="text-sm font-medium">{dict.forms.items}</label>
               <Button type="button" variant="outline" size="sm" onClick={addSalesProductRow}>
-                Add Item
+                {dict.forms.add}
               </Button>
             </div>
 
@@ -380,7 +382,7 @@ export function SalesEntryPopup({
               return (
                 <div key={row.rowId} className="flex flex-col gap-3 rounded-lg border bg-white p-3 xl:flex-row xl:items-top">
                   <div className="w-full xl:w-[230px] xl:flex-none">
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Product</label>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{dict.common.product}</label>
                     <select
                       name="productId"
                       required={index === 0}
@@ -388,7 +390,7 @@ export function SalesEntryPopup({
                       onChange={(event) => handleProductRowChange(row.rowId, 'productId', event.target.value)}
                       className="w-full form-select truncate"
                     >
-                      <option value="">Select stock product</option>
+                      <option value="">{dict.forms.selectProductPlaceholder}</option>
                        {visibleProductOptions.map((product) => (
                          <option key={product.id} value={product.id}>
                            {product.name} — {product.unit}
@@ -401,7 +403,7 @@ export function SalesEntryPopup({
                   </div>
 
                   <div className="w-full xl:w-[110px]">
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Quantity</label>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{dict.common.quantity}</label>
                     <input
                       name="quantity"
                       autoComplete="off"
@@ -411,12 +413,12 @@ export function SalesEntryPopup({
                       value={row.quantity}
                       onChange={(event) => handleProductRowChange(row.rowId, 'quantity', event.target.value)}
                       className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                      placeholder="Qty"
+                      placeholder={dict.forms.qtyPlaceholder}
                     />
                   </div>
 
                   <div className="w-full xl:w-[110px]">
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Buy Rate</label>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{dict.stock.buyRate}</label>
                     <div className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
                       <p className="font-semibold text-slate-900">
                         {selectedProduct?.defaultPurchasePrice != null ? `${Number(selectedProduct.defaultPurchasePrice).toLocaleString('en-BD', { maximumFractionDigits: 2 })}` : '—'}
@@ -425,7 +427,7 @@ export function SalesEntryPopup({
                   </div>
 
                   <div className="w-full xl:w-[110px]">
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Sale Price</label>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{dict.common.salePrice}</label>
                     <input
                       name="unitPrice"
                       autoComplete="off"
@@ -435,7 +437,7 @@ export function SalesEntryPopup({
                       value={row.unitPrice}
                       onChange={(event) => handleProductRowChange(row.rowId, 'unitPrice', event.target.value)}
                       className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                      placeholder="Price"
+                      placeholder={dict.forms.pricePlaceholder}
                     />
                   </div>
 
@@ -466,7 +468,7 @@ export function SalesEntryPopup({
 
           <div className="sm:col-span-2 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-slate-50 rounded-[20px] p-4 text-sm">
             <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-              <label className="block text-xs font-medium text-slate-500">Discount</label>
+              <label className="block text-xs font-medium text-slate-500">{dict.forms.discount}</label>
               <input
                 name="discount"
                 autoComplete="off"
@@ -479,11 +481,11 @@ export function SalesEntryPopup({
               />
             </div>
             <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-              <label className="block text-xs font-medium text-slate-500">Total Amount</label>
+              <label className="block text-xs font-medium text-slate-500">{dict.forms.totalAmount}</label>
               <input value={salesNetTotal.toFixed(2)} readOnly className="mt-2 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-950" />
             </div>
             <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-              <label className="block text-xs font-medium text-slate-500">Paid Amount</label>
+              <label className="block text-xs font-medium text-slate-500">{dict.forms.paidAmount}</label>
               <input
                 name="paymentAmount"
                 autoComplete="off"
@@ -496,7 +498,7 @@ export function SalesEntryPopup({
               />
             </div>
             <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-<label className="block text-xs font-medium text-slate-500">Final Due</label>
+<label className="block text-xs font-medium text-slate-500">{dict.forms.finalDue}</label>
                <input value={salesFinalDue.toFixed(2)} readOnly className="mt-2 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-950" />
             </div>
           </div>

@@ -1,0 +1,164 @@
+◇ injected env (0) from .env.local // tip: ⌁ auth for agents [www.vestauth.com]
+BEFORE {
+  "itemId": 265,
+  "transactionId": 210,
+  "partyId": 36,
+  "companyId": null,
+  "quantity": "185",
+  "totalKg": "231.3",
+  "unitPrice": "160",
+  "lineTotal": "37000",
+  "subtotal": "37008",
+  "discount": "8",
+  "total": "37000",
+  "paidAmount": "0",
+  "dueAmount": "37000"
+}
+PAYMENT_ALLOCATION_STATUS NO ALLOCATION
+LEDGER_BEFORE [
+  {
+    "id": 241,
+    "entryType": "PURCHASE",
+    "amount": "37000",
+    "runningBalance": "37000",
+    "description": "Supplier purchase - Chicken"
+  },
+  {
+    "id": 299,
+    "entryType": "PURCHASE_REVERSAL",
+    "amount": "-37000",
+    "runningBalance": "1097300",
+    "description": "Reversal of purchase item edit 210"
+  },
+  {
+    "id": 300,
+    "entryType": "PURCHASE",
+    "amount": "37239.3",
+    "runningBalance": "1134539.3",
+    "description": "Purchase recalculation after item edit 210"
+  },
+  {
+    "id": 301,
+    "entryType": "PURCHASE_REVERSAL",
+    "amount": "-37000",
+    "runningBalance": "1097539.3",
+    "description": "Reversal of purchase item edit 210"
+  },
+  {
+    "id": 302,
+    "entryType": "PURCHASE",
+    "amount": "37239.3",
+    "runningBalance": "1134778.6",
+    "description": "Purchase recalculation after item edit 210"
+  },
+  {
+    "id": 303,
+    "entryType": "PURCHASE_REVERSAL",
+    "amount": "-37000",
+    "runningBalance": "1097778.6",
+    "description": "Reversal of purchase item edit 210"
+  },
+  {
+    "id": 304,
+    "entryType": "PURCHASE",
+    "amount": "37239.3",
+    "runningBalance": "1135017.9",
+    "description": "Purchase recalculation after item edit 210"
+  }
+]
+EXPECTED_RECALC {
+  "newUnitPrice": "161",
+  "newLineTotal": "37239.3",
+  "subtotalDelta": "239.3",
+  "nextSubtotal": "37247.3",
+  "nextTotal": "37239.3"
+}
+AFTER {
+  "item": {
+    "unitPrice": "161",
+    "lineTotal": "37239.3",
+    "chickenQuantity": "231.3"
+  },
+  "transaction": {
+    "subtotal": "37247.3",
+    "discount": "8",
+    "totalAmount": "37239.3",
+    "dueAmount": "37239.3",
+    "paidAmount": "0",
+    "status": "PENDING"
+  },
+  "ledger": [
+    {
+      "id": 241,
+      "entryType": "PURCHASE",
+      "amount": "37000",
+      "runningBalance": "37000"
+    },
+    {
+      "id": 299,
+      "entryType": "PURCHASE_REVERSAL",
+      "amount": "-37000",
+      "runningBalance": "1097300"
+    },
+    {
+      "id": 300,
+      "entryType": "PURCHASE",
+      "amount": "37239.3",
+      "runningBalance": "1134539.3"
+    },
+    {
+      "id": 301,
+      "entryType": "PURCHASE_REVERSAL",
+      "amount": "-37000",
+      "runningBalance": "1097539.3"
+    },
+    {
+      "id": 302,
+      "entryType": "PURCHASE",
+      "amount": "37239.3",
+      "runningBalance": "1134778.6"
+    },
+    {
+      "id": 303,
+      "entryType": "PURCHASE_REVERSAL",
+      "amount": "-37000",
+      "runningBalance": "1097778.6"
+    },
+    {
+      "id": 304,
+      "entryType": "PURCHASE",
+      "amount": "37239.3",
+      "runningBalance": "1135017.9"
+    },
+    {
+      "id": 305,
+      "entryType": "PURCHASE_REVERSAL",
+      "amount": "-37000",
+      "runningBalance": "1098017.9"
+    },
+    {
+      "id": 306,
+      "entryType": "PURCHASE",
+      "amount": "37239.3",
+      "runningBalance": "1135257.2"
+    }
+  ]
+}
+PARTY_SUMMARY_AFTER {
+  "originalOpeningAmount": "0",
+  "openingBalanceType": "CUSTOMER_DUE",
+  "originalOpeningAdvance": "0",
+  "usedOpeningAdvance": "0",
+  "remainingOpeningAdvance": "0",
+  "remainingOpeningDue": "0",
+  "customerSales": "0",
+  "customerPayments": "0",
+  "customerOpeningOffset": "0",
+  "customerDue": "0",
+  "supplierPurchases": "1134539.3",
+  "supplierPayments": "0",
+  "supplierOpeningOffset": "0",
+  "supplierAdvance": "0",
+  "supplierPayable": "1134539.3"
+}
+Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? 

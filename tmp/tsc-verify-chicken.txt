@@ -1,0 +1,2 @@
+src/features/parties/accounting.ts(2,24): error TS2307: Cannot find module '@/server/db' or its corresponding type declarations.
+src/server/db/index.ts(3,21): error TS2307: Cannot find module '@/lib/env' or its corresponding type declarations.

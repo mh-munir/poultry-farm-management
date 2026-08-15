@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { useLocale } from '@/i18n/provider';
 
 interface ServiceUnavailableCardProps {
   title?: string;
@@ -7,10 +8,14 @@ interface ServiceUnavailableCardProps {
 }
 
 export function ServiceUnavailableCard({
-  title = 'Service temporarily unavailable',
-  description = 'We are unable to reach the database right now. Please try again in a moment.',
+  title,
+  description,
   className = ''
 }: ServiceUnavailableCardProps) {
+  const { dict } = useLocale();
+  const resolvedTitle = title ?? dict.common.serviceUnavailableTitle;
+  const resolvedDescription = description ?? dict.common.serviceUnavailableDescription;
+
   return (
     <div className={`rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow-sm ${className}`.trim()}>
       <div className="flex items-start gap-3">
@@ -18,8 +23,8 @@ export function ServiceUnavailableCard({
           <AlertTriangle className="h-4 w-4" />
         </div>
         <div>
-          <p className="font-semibold">{title}</p>
-          <p className="mt-1 leading-6">{description}</p>
+          <p className="font-semibold">{resolvedTitle}</p>
+          <p className="mt-1 leading-6">{resolvedDescription}</p>
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ import { Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useLocale } from '@/i18n/provider';
 import { DateInput } from '@/components/ui/date-input';
 import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 
@@ -32,6 +33,7 @@ export default function PaymentFormDialog({
   recordPaymentForParty,
   buttonClassName
 }: Props) {
+  const { dict } = useLocale();
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentDate, setPaymentDate] = useState(todayDateStr());
@@ -68,14 +70,14 @@ export default function PaymentFormDialog({
           <input type="hidden" name="partyId" value={String(partyId)} />
           <input type="hidden" name="status" value="COMPLETED" />
            <div className="md:col-span-2 rounded-xl border border-border bg-slate-50 p-4">
-            <p className="text-form-label text-muted-foreground">Party</p>
+            <p className="text-form-label text-muted-foreground">{dict.common.partyName}</p>
             <p className="mt-2 text-[15px] font-semibold text-foreground">{partyName}</p>
             <p className="mt-3 text-form-label text-muted-foreground">{dueLabel}</p>
             <p className="mt-1 text-base font-semibold">৳ {dueAmount.toFixed(2)}</p>
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-form-label">Payment amount</label>
+            <label className="mb-2 block text-form-label">{dict.stock.paymentAmount}</label>
             <input
               type="number"
               min="0.01"
@@ -83,12 +85,12 @@ export default function PaymentFormDialog({
               name="amount"
               required
               className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-foreground placeholder:text-muted-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              placeholder="Enter amount"
+              placeholder={dict.forms.enterAmount}
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-form-label">Payment date</label>
+            <label className="mb-2 block text-form-label">{dict.common.paymentDate}</label>
             <DateInput
               name="paymentDate"
               value={paymentDate}
@@ -102,10 +104,10 @@ export default function PaymentFormDialog({
 
           <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {dict.common.cancel}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving payment...' : 'Save payment'}
+              {isSubmitting ? dict.common.processing : dict.common.savePayment}
             </Button>
           </div>
         </form>

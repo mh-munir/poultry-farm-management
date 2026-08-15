@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useLocale } from '@/i18n/provider';
 import { Button } from './button';
 
 export function Dialog({
@@ -19,6 +20,7 @@ export function Dialog({
   footer?: React.ReactNode;
 }) {
   const [mounted, setMounted] = React.useState(false);
+  const { dict } = useLocale();
 
   React.useEffect(() => {
     setMounted(true);
@@ -50,7 +52,7 @@ export function Dialog({
           <button
             onClick={() => onOpenChange(false)}
             className="rounded-[12px] p-2 text-muted-foreground transition-colors hover:bg-muted/50"
-            aria-label="Close"
+            aria-label={dict.common.closeDialog}
           >
             <X size={18} />
           </button>

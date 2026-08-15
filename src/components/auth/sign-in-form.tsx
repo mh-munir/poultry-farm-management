@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useLocale } from '@/i18n/provider';
 import { Eye, EyeOff, Lock, Mail, AlertCircle, LoaderCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +14,7 @@ export function SignInForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const router = useRouter();
+  const { dict } = useLocale();
   const { success, error: showError } = useToast();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -33,13 +35,13 @@ export function SignInForm() {
     setIsSubmitting(false);
 
     if (result?.error) {
-      const errorMessage = 'Invalid email or password.';
+      const errorMessage = dict.common.invalidCredentials;
       setMessage(errorMessage);
       showError(errorMessage);
       return;
     }
 
-    success('Sign in successful');
+    success(dict.common.signInSuccess);
 
     router.push('/dashboard');
   }
@@ -49,7 +51,7 @@ export function SignInForm() {
       <div className="space-y-5">
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-semibold text-foreground">
-            Email
+            {dict.common.email}
           </label>
           <div className="relative">
             <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -64,14 +66,14 @@ export function SignInForm() {
                 'focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                 'placeholder:text-muted-foreground/70'
               )}
-              placeholder="you@example.com"
+              placeholder={dict.auth.youExample}
             />
           </div>
         </div>
 
         <div className="space-y-2">
           <label htmlFor="password" className="text-sm font-semibold text-foreground">
-            Password
+            {dict.common.password}
           </label>
           <div className="relative">
             <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -86,7 +88,7 @@ export function SignInForm() {
                 'focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                 'placeholder:text-muted-foreground/70'
               )}
-              placeholder="Enter your password"
+              placeholder={dict.auth.enterPassword}
             />
             <button
               type="button"
@@ -95,8 +97,8 @@ export function SignInForm() {
                 'absolute inset-y-0 right-3 flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-all duration-200',
                 'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30'
               )}
-              aria-label={passwordVisible ? 'Hide password' : 'Show password'}
-              title={passwordVisible ? 'Hide password' : 'Show password'}
+              aria-label={passwordVisible ? dict.common.hidePassword : dict.common.showPassword}
+              title={passwordVisible ? dict.common.hidePassword : dict.common.showPassword}
             >
               {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -115,10 +117,10 @@ export function SignInForm() {
         {isSubmitting ? (
           <>
             <LoaderCircle className="h-4 w-4 animate-spin" />
-            Signing in…
+            {dict.auth.signInTitle}
           </>
         ) : (
-          'Sign in'
+          dict.auth.signInTitle
         )}
       </Button>
     </form>

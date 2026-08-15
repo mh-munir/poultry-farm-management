@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { recordSupplierProductPurchase } from '@/features/purchases/actions';
 import { useToast } from '@/hooks/use-toast';
+import { useLocale } from '@/i18n/provider';
 
 type PartyProductsDialogProps = {
   partyId: number;
@@ -23,6 +24,7 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
   const [chickenPrice, setChickenPrice] = useState('');
   const [error, setError] = useState('');
   const { success } = useToast();
+  const { dict } = useLocale();
 
   const showEgg = productType === 'Both' || productType === 'Egg';
   const showChicken = productType === 'Both' || productType === 'Chicken';
@@ -58,7 +60,7 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
     try {
       if (productType === 'Both') {
         if (!eggQuantity && !chickenQuantity) {
-          setError('Please enter at least one quantity (Egg or Chicken).');
+          setError(dict.forms.partyProductsMinQuantity ?? 'Please enter at least one quantity (Egg or Chicken).');
           setLoading(false);
           return;
         }
@@ -74,7 +76,7 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
         }
       } else if (productType === 'Egg') {
         if (!eggQuantity) {
-          setError('Please enter egg quantity.');
+          setError(dict.forms.partyProductsEggQuantity ?? 'Please enter egg quantity.');
           setLoading(false);
           return;
         }
@@ -85,7 +87,7 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
         }
       } else if (productType === 'Chicken') {
         if (!chickenQuantity) {
-          setError('Please enter chicken quantity.');
+          setError(dict.forms.partyProductsChickenQuantity ?? 'Please enter chicken quantity.');
           setLoading(false);
           return;
         }
@@ -134,7 +136,7 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
       resetForm();
       setOpen(false);
     } catch (err) {
-      setError('Failed to record party products.');
+      setError(dict.forms.partyProductsFailed ?? 'Failed to record party products.');
     } finally {
       setLoading(false);
     }
@@ -148,7 +150,7 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
         onClick={() => setOpen(true)}
         className="px-4 py-2 text-sm font-medium bg-sky-600 hover:bg-sky-700 text-white"
       >
-        🏪 Party Products
+        🏪 {dict.forms.partyProductsTitle ?? 'Party Products'}
       </Button>
 
       <Dialog
@@ -159,14 +161,14 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
             resetForm();
           }
         }}
-        title="Party Products"
+        title={dict.forms.partyProductsTitle ?? 'Party Products'}
         footer={
           <div className="flex flex-wrap gap-3 justify-end">
             <Button variant="outline" type="button" onClick={() => { setOpen(false); resetForm(); }} disabled={loading}>
-              Cancel
+              {dict.common.cancel}
             </Button>
             <Button type="submit" form="supplier-products-form" disabled={loading} className={loading ? 'opacity-75 cursor-not-allowed' : ''}>
-              {loading ? '⏳ Saving...' : '💾 Save Products'}
+              {loading ? `⏳ ${dict.common.processing}` : `💾 ${dict.common.save}`}
             </Button>
           </div>
         }
@@ -185,7 +187,7 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
           )}
 
           <div className="sm:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Party Name</label>
+            <label className="mb-2 block text-sm font-medium">{dict.common.partyName}</label>
             <input
               readOnly
               value={partyName}
@@ -195,22 +197,22 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
           </div>
 
           <div className="sm:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Product Type</label>
+            <label className="mb-2 block text-sm font-medium">{dict.forms.productTypeLabel}</label>
             <select
               value={productType}
               onChange={(event) => setProductType(event.target.value as ProductType)}
               className="w-full form-select"
             >
-              <option value="Both">Both (Egg & Chicken)</option>
-              <option value="Egg">Egg/Dim (pieces)</option>
-              <option value="Chicken">Chicken/Murgi (kg)</option>
+              <option value="Both">{dict.forms.bothProductType}</option>
+              <option value="Egg">{dict.forms.eggProductType}</option>
+              <option value="Chicken">{dict.forms.chickenProductType}</option>
             </select>
           </div>
 
           {showEgg && (
             <>
               <div className="sm:col-span-2">
-                <label className="mb-2 block text-sm font-medium">Egg/Dim Quantity (pieces)</label>
+                <label className="mb-2 block text-sm font-medium">{dict.forms.eggQuantityLabel}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -218,12 +220,12 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
                   value={eggQuantity}
                   onChange={(event) => setEggQuantity(event.target.value)}
                   className="w-full rounded-md border bg-background px-3 py-2"
-                  placeholder="Enter egg quantity in pieces"
+                  placeholder={dict.forms.eggQuantityPlaceholder}
                 />
               </div>
 
               <div className="sm:col-span-2">
-                <label className="mb-2 block text-sm font-medium">Egg/Dim Price Per Piece (৳)</label>
+                <label className="mb-2 block text-sm font-medium">{dict.forms.eggPriceLabel}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -231,7 +233,7 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
                   value={eggPrice}
                   onChange={(event) => setEggPrice(event.target.value)}
                   className="w-full rounded-md border bg-background px-3 py-2"
-                  placeholder="Enter price per piece"
+                  placeholder={dict.forms.eggPricePlaceholder}
                 />
               </div>
             </>
@@ -240,7 +242,7 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
           {showChicken && (
             <>
               <div className="sm:col-span-2">
-                <label className="mb-2 block text-sm font-medium">Chicken/Murgi Quantity (kg)</label>
+                <label className="mb-2 block text-sm font-medium">{dict.forms.chickenQuantityLabel}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -248,12 +250,12 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
                   value={chickenQuantity}
                   onChange={(event) => setChickenQuantity(event.target.value)}
                   className="w-full rounded-md border bg-background px-3 py-2"
-                  placeholder="Enter chicken quantity in kg"
+                  placeholder={dict.forms.chickenQuantityPlaceholder}
                 />
               </div>
 
               <div className="sm:col-span-2">
-                <label className="mb-2 block text-sm font-medium">Chicken/Murgi Price Per Kg (৳)</label>
+                <label className="mb-2 block text-sm font-medium">{dict.forms.chickenPriceLabel}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -261,7 +263,7 @@ export function PartyProductsDialog({ partyId, partyName }: PartyProductsDialogP
                   value={chickenPrice}
                   onChange={(event) => setChickenPrice(event.target.value)}
                   className="w-full rounded-md border bg-background px-3 py-2"
-                  placeholder="Enter price per kg"
+                  placeholder={dict.forms.chickenPricePlaceholder}
                 />
               </div>
             </>

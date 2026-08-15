@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
+import { getDictionary } from '@/i18n';
+import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
 
 type SerializableDecimal = number | string | { toString(): string } | null;
 import { Button } from '@/components/ui/button';
@@ -55,14 +57,14 @@ function formatCurrency(value: number | string | SerializableDecimal | null | un
   return `৳ ${number.toFixed(2)}`;
 }
 
-function formatPartyType(type: string) {
-  if (type === 'CUSTOMER') return 'Customer';
-  if (type === 'PARTY') return 'Supplier';
-  if (type === 'BOTH') return 'Both';
+function formatPartyType(type: string, dict: ReturnType<typeof getDictionary>) {
+  if (type === 'CUSTOMER') return dict.common.customer;
+  if (type === 'PARTY') return dict.common.supplier;
+  if (type === 'BOTH') return dict.common.both;
   return type.replace('_', ' ');
 }
 
-function formatLastTransactionDate(date: Date | null | undefined) {
+function formatLastTransactionDate(date: Date | null | undefined, dict: ReturnType<typeof getDictionary>) {
   if (!date) return null;
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -71,10 +73,10 @@ function formatLastTransactionDate(date: Date | null | undefined) {
   const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
   if (dateDay.getTime() === today.getTime()) {
-    return `Today • ${formatDateTimeBD(date)}`;
+    return `${dict.common.today} • ${formatDateTimeBD(date)}`;
   }
   if (dateDay.getTime() === yesterday.getTime()) {
-    return 'Yesterday';
+    return dict.common.yesterday;
   }
   return formatDateBD(date);
 }
@@ -95,6 +97,8 @@ export default async function PartiesPage({
   await requireUser();
 
   const cookiesStore = await cookies();
+  const locale = getLocaleFromValue(cookiesStore.get(LOCALE_COOKIE)?.value ?? undefined);
+  const dict = getDictionary(locale);
   const partySuccessCookie = cookiesStore.get('partySuccess');
   const success = partySuccessCookie?.value ?? '';
 
@@ -143,7 +147,7 @@ export default async function PartiesPage({
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
       <div className="mb-6">
-        <h1 className="mt-2 text-3xl font-semibold">Manage customers and parties</h1>
+        <h1 className="mt-2 text-3xl font-semibold">{dict.common.manageParties}</h1>
       </div>
 
       <PartiesOverview stats={stats} period={overviewPeriod} />
@@ -163,27 +167,27 @@ export default async function PartiesPage({
       {/* Parties Table */}
       <div className="overflow-visible rounded-2xl border-0 sm:border bg-card shadow-sm">
         <div className="border-1 sm:border-b px-4 py-4 bg-muted/20">
-          <h2 className="text-lg font-semibold">Parties</h2>
+          <h2 className="text-lg font-semibold">{dict.nav.parties}</h2>
         </div>
         <ResponsiveTable stickyLastColumn minWidth="980px">
           <table className="min-w-full text-sm">
              <thead className="bg-muted/40 text-left">
                <tr>
-                 <th className="px-4 py-3 font-medium">Party Name</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium">Purchase</th>
-                 <th className="px-4 py-3 font-medium">Sales</th>
-                 <th className="px-4 py-3 font-medium">Paid</th>
-                 <th className="px-4 py-3 font-medium">Due</th>
-                 <th className="px-4 py-3 font-medium">Balance</th>
-                 <th className="px-4 py-3 text-right font-medium">Action</th>
+                 <th className="px-4 py-3 font-medium">{dict.common.partyName}</th>
+                  <th className="px-4 py-3 font-medium">{dict.common.partyType}</th>
+                  <th className="px-4 py-3 font-medium">{dict.common.purchases}</th>
+                 <th className="px-4 py-3 font-medium">{dict.common.sales}</th>
+                 <th className="px-4 py-3 font-medium">{dict.common.paid}</th>
+                 <th className="px-4 py-3 font-medium">{dict.common.due}</th>
+                 <th className="px-4 py-3 font-medium">{dict.common.balance}</th>
+                 <th className="px-4 py-3 text-right font-medium">{dict.common.actions}</th>
                </tr>
              </thead>
              <tbody>
                {parties.length === 0 ? (
                  <tr>
                     <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
-                     No parties found. Create your first party to get started.
+                     {dict.common.noPartiesFound}
                    </td>
                  </tr>
                ) : (
@@ -199,7 +203,7 @@ export default async function PartiesPage({
                          </Link>
                          {party.lastTransactionDate && (
                            <span className="text-xs text-muted-foreground">
-                             Last Deal: {formatLastTransactionDate(party.lastTransactionDate)}
+                             {dict.common.lastDeal}: {formatLastTransactionDate(party.lastTransactionDate, dict)}
                            </span>
                          )}
                        </div>
@@ -210,7 +214,7 @@ export default async function PartiesPage({
                          party.partyType === 'PARTY' ? 'bg-amber-100 text-amber-800' :
                          'bg-purple-100 text-purple-800'
                        }`}>
-                         {formatPartyType(party.partyType)}
+                         {formatPartyType(party.partyType, dict)}
                        </span>
                      </td>
                       <td className="px-4 py-3 text-sm font-medium text-slate-800">{formatCurrency(party.supplierInvoiced ?? 0)}</td>
@@ -220,7 +224,7 @@ export default async function PartiesPage({
                      <td className="px-4 py-3">
                        {party.partyType === 'CUSTOMER' || party.partyType === 'BOTH' ? (
                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${Number(party.openingBalance ?? 0) > 0 ? 'bg-rose-100 text-rose-700' : Number(party.openingBalance ?? 0) < 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                           {Number(party.openingBalance ?? 0) > 0 ? '🔴 Due' : Number(party.openingBalance ?? 0) < 0 ? '🟢 Advance' : '⚪ Clear'}
+                           {Number(party.openingBalance ?? 0) > 0 ? '🔴 ' + dict.common.due : Number(party.openingBalance ?? 0) < 0 ? '🟢 ' + dict.common.advance : '⚪ ' + dict.common.clear}
                            <span className="ml-2 font-semibold">{formatCurrency(Math.abs(Number(party.openingBalance ?? 0)))}</span>
                          </span>
                        ) : (
@@ -234,7 +238,7 @@ export default async function PartiesPage({
                            target="_blank"
                            className="rounded-full bg-muted px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-muted/80"
                          >
-                           🖨 Print
+                           🖨 {dict.common.printLabel}
                          </Link>
                          <PartyRowActions
                            party={{

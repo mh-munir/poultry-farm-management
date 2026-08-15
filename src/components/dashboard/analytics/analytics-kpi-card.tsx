@@ -10,7 +10,7 @@ export function AnalyticsKpiCard({ metric }: Props) {
   const isMargin = metric.title.toLowerCase().includes("margin");
 
   return (
-    <div className="group h-full rounded-[24px] border border-border bg-card p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <div className="group h-full rounded-lg border border-border bg-card p-6 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">{metric.title}</p>
@@ -24,9 +24,8 @@ export function AnalyticsKpiCard({ metric }: Props) {
               {metric.loading ? (
                 <div className="h-10 w-28 animate-pulse rounded-xl bg-muted/20" />
               ) : (
-                <p className={`text-3xl font-semibold tracking-tight ${isMargin ? "text-foreground" : "text-foreground"}`}>{metric.value}</p>
+                <p className={`text-2xl font-semibold tracking-tight ${isMargin ? "text-foreground" : "text-foreground"}`}>{metric.value}</p>
               )}
-              <p className="mt-2 text-sm text-muted-foreground">{metric.subtitle}</p>
             </div>
           </div>
         </div>
@@ -40,10 +39,10 @@ export function AnalyticsKpiCard({ metric }: Props) {
         ) : (
           <div className="mt-4 h-16 w-28 rounded-[20px] bg-muted/10 p-2">
             <div className="flex h-full items-end gap-1">
-              <span className="block h-2 w-1/4 rounded-full bg-muted/20" />
-              <span className="block h-3.5 w-1/4 rounded-full bg-muted/30" />
-              <span className="block h-5 w-1/4 rounded-full bg-muted/40" />
-              <span className="block h-3 w-1/4 rounded-full bg-muted/30" />
+              <span className="block h-3.5 w-1/5 rounded-full bg-amber-600/30" />
+              <span className="block h-5 w-1/5 rounded-full bg-amber-600/40" />
+              <span className="block h-7 w-1/5 rounded-full bg-amber-600/50" />
+              <span className="block h-10 w-1/5 rounded-full bg-amber-600/60" />
             </div>
           </div>
         )}

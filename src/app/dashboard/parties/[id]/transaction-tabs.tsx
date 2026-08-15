@@ -8,7 +8,7 @@ import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { PartyPaymentsSection } from './party-payments-section';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 import { DateInput } from '@/components/ui/date-input';
-import { formatDateBD as formatDate, toDateInputValueBD as toDateInputValue, todayDateInputValueBD as todayDateStr } from '@/lib/dates';
+import { formatDateBD as formatDate, toDateInputValueBD as toDateInputValue } from '@/lib/dates';
 
 type PaymentRow = {
   id: number;
@@ -133,8 +133,8 @@ export function TransactionTabs({
   deletePaymentForParty
 }: TransactionTabsProps) {
   const [activeTab, setActiveTab] = useState<HistoryTab>('all');
-  const [dateFrom, setDateFrom] = useState(todayDateStr());
-  const [dateTo, setDateTo] = useState(todayDateStr());
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [showPaymentTools, setShowPaymentTools] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -166,9 +166,11 @@ export function TransactionTabs({
   const filteredRows = useMemo(() => historyRows.filter((row) => {
     if (activeTab !== 'all' && row.category !== activeTab) return false;
 
-    const rowTime = new Date(toDateInputValue(row.date)).getTime();
-    if (dateFrom && rowTime < new Date(dateFrom).getTime()) return false;
-    if (dateTo && rowTime > new Date(dateTo).getTime()) return false;
+    const rowDate = new Date(toDateInputValue(row.date));
+    const fromDate = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
+    const toDate = dateTo ? new Date(`${dateTo}T23:59:59.999`) : null;
+    if (fromDate && rowDate.getTime() < fromDate.getTime()) return false;
+    if (toDate && rowDate.getTime() > toDate.getTime()) return false;
     return true;
   }), [activeTab, dateFrom, dateTo, historyRows]);
 
@@ -204,6 +206,9 @@ export function TransactionTabs({
               />
             </div>
           </div>
+          <Button type="button" variant="outline" className="h-[42px]" onClick={() => { setDateFrom(''); setDateTo(''); }}>
+            Clear
+          </Button>
           <Button asChild variant="outline" className="h-[42px]">
             <a href={csvHref} download={`party-${partyId}-transactions.csv`}>
               <Download className="h-4 w-4" />
