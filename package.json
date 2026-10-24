@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "next build",
+    "vercel-build": "prisma migrate deploy && next build",
     "postinstall": "prisma generate",
     "clean:next": "node scripts/clear-next-cache.mjs",
     "start": "next start",
