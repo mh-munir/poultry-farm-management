@@ -49,9 +49,6 @@ export const authConfig: AuthOptions = {
               where: { email },
               select: { id: true, name: true, email: true, password: true, role: true, image: true }
             }),
-            'Auth User Lookup by Email',
-            'User',
-            'findUnique',
             30000,
             null
           );
@@ -94,7 +91,7 @@ export const authConfig: AuthOptions = {
     })
   ],
   callbacks: {
-    async signIn({ user, account, profile, email, credentials }) {
+    async signIn() {
       return true;
     },
     async jwt({ token, user }: { token: JWT; user?: User }) {
@@ -132,9 +129,6 @@ export const authConfig: AuthOptions = {
                 where: { id: token.sub },
                 select: { name: true, role: true, image: true }
               }),
-              'Auth User Refresh by Token',
-              'User',
-              'findUnique',
               20000,
               null
             );

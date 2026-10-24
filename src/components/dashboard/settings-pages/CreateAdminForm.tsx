@@ -26,7 +26,6 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [otpSent, setOtpSent] = useState(false);
   const otpSentAt = useRef<number>(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -60,7 +59,6 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
     if ((result as any)?.error) {
       showError((result as any).error);
     } else {
-      setOtpSent(true);
       otpSentAt.current = Date.now();
       setStep('otp');
       showSuccess(dict.settings.otpSentSuccess);
@@ -138,7 +136,6 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
 
   function handleResendOtp() {
     setOtpDigits(['', '', '', '', '', '']);
-    setOtpSent(false);
     setStep('details');
   }
 
@@ -150,7 +147,6 @@ export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps
     setPassword('');
     setConfirmPassword('');
     setOtpDigits(['', '', '', '', '', '']);
-    setOtpSent(false);
     setResendCooldown(0);
     otpSentAt.current = 0;
   }

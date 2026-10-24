@@ -7,7 +7,7 @@ import { createOtp, verifyOtp, clearOtp } from '@/lib/otp';
 import { sendOtp } from '@/lib/notifications';
 import { validatePasswordResetPayload } from '@/lib/password-reset';
 
-function buildRoute(searchParams: URLSearchParams, path: string): `/auth/forgot-password?${string}` {
+function buildRoute(searchParams: URLSearchParams): `/auth/forgot-password?${string}` {
   return `/auth/forgot-password?${searchParams.toString()}`;
 }
 
@@ -21,14 +21,14 @@ export async function sendPasswordResetOtp(formData: FormData) {
   if (!email.trim()) {
     const params = new URLSearchParams();
     params.set('error', 'Please enter your email address.');
-    redirect(buildRoute(params, '/auth/forgot-password'));
+    redirect(buildRoute(params));
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
     const params = new URLSearchParams();
     params.set('error', 'No account was found for that email address.');
-    redirect(buildRoute(params, '/auth/forgot-password'));
+    redirect(buildRoute(params));
   }
 
   try {
@@ -40,14 +40,14 @@ export async function sendPasswordResetOtp(formData: FormData) {
   } catch (error) {
     const params = new URLSearchParams();
     params.set('error', error instanceof Error ? error.message : 'Unable to send OTP.');
-    redirect(buildRoute(params, '/auth/forgot-password'));
+    redirect(buildRoute(params));
   }
 
   const params = new URLSearchParams();
   params.set('email', email);
   params.set('step', 'verify');
   params.set('success', 'A verification code has been sent to your email.');
-  redirect(buildRoute(params, '/auth/forgot-password'));
+  redirect(buildRoute(params));
 }
 
 export async function resetPasswordWithOtp(formData: FormData) {
@@ -64,14 +64,14 @@ export async function resetPasswordWithOtp(formData: FormData) {
     params.set('email', payload.email);
     params.set('step', 'verify');
     params.set('error', validation.error);
-    redirect(buildRoute(params, '/auth/forgot-password'));
+    redirect(buildRoute(params));
   }
 
   const user = await prisma.user.findUnique({ where: { email: payload.email } });
   if (!user) {
     const params = new URLSearchParams();
     params.set('error', 'No account was found for that email address.');
-    redirect(buildRoute(params, '/auth/forgot-password'));
+    redirect(buildRoute(params));
   }
 
   if (!(await verifyOtp(payload.email, payload.otpCode))) {
@@ -79,7 +79,7 @@ export async function resetPasswordWithOtp(formData: FormData) {
     params.set('email', payload.email);
     params.set('step', 'verify');
     params.set('error', 'Invalid or expired OTP. Please request a new one.');
-    redirect(buildRoute(params, '/auth/forgot-password'));
+    redirect(buildRoute(params));
   }
 
   const hashedPassword = await bcrypt.hash(payload.password, 10);

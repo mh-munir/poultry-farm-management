@@ -46,7 +46,7 @@ export default async function SalesPage({
   const cookieStore = await cookies();
   const locale = getLocaleFromValue(cookieStore.get(LOCALE_COOKIE)?.value ?? undefined);
   const dict = getDictionary(locale);
-  const { formatCurrency, formatNumber } = getFormatters(locale);
+  const { formatCurrency } = getFormatters(locale);
 
   const params = await searchParams;
   const page = Number(params?.page ?? '1');

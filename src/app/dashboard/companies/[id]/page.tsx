@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
-import { ArrowLeft, CalendarDays, CheckCircle2, CircleDollarSign, Factory, FileText, Mail, MapPin, Phone, Printer, ReceiptText, UserRound, Wallet } from 'lucide-react';
+import { ArrowLeft, CalendarDays, CheckCircle2, CircleDollarSign, Factory, FileText, MapPin, Phone, Printer, ReceiptText, Wallet } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
-import { formatDateBD as formatDate } from '@/lib/dates';
-import { formatLocalizedCurrency, formatLocalizedNumber, formatLocalizedDate } from '@/lib/localized-formatters';
+import { formatLocalizedCurrency, formatLocalizedDate } from '@/lib/localized-formatters';
 import { getDictionary } from '@/i18n';
 import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
 
@@ -14,7 +13,7 @@ import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
 import { prisma } from '@/server/db';
-import { getCompanyAccountSummary, getCompanyProfile } from '@/features/companies/actions';
+import { getCompanyAccountSummary } from '@/features/companies/actions';
 import { serializeCompany } from '@/features/companies/serializer';
 import { CompanyRowActions } from '@/app/dashboard/parties/company-row-actions';
 import { CompanyProfileActions } from './company-profile-actions';
@@ -25,26 +24,6 @@ import { AddStockModal } from '@/components/dashboard/stock/add-stock-modal';
 import { StockManagement } from '@/components/dashboard/stock/stock-management';
 import { getStockItemsByType } from '@/features/stock/actions';
 import { getCompaniesByType } from '@/features/companies/actions';
-
-type CompanyProfileRecord = {
-  id: number;
-  name: string;
-  contactPerson: string | null;
-  phone: string;
-  email: string | null;
-  address: string | null;
-  companyType: string;
-  isActive: boolean;
-  openingBalance: string;
-  openingBalanceDescription: string | null;
-  createdAt: string;
-  updatedAt: string;
-  createdById: string | null;
-  _count: {
-    transactions: number;
-    products: number;
-  };
-};
 
 type CompanyTransactionRecord = {
   id: number;
@@ -79,34 +58,15 @@ type CompanyPaymentRecord = {
   notes: string | null;
 };
 
-function formatCurrency(value: number | string | { toString(): string } | null | undefined) {
-  const number = Number(value?.toString() ?? 0);
-  return `৳ ${new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(number)}`;
-}
-
 // using centralized Bangladesh-aware formatter (formatDate alias is imported)
 
 function getFormatters(locale: 'en' | 'bn') {
   return {
     formatCurrency: (value: number | string | { toString(): string } | null | undefined) =>
       formatLocalizedCurrency(value, locale),
-    formatNumber: (value: number | string | null | undefined) =>
-      formatLocalizedNumber(value, locale),
     formatDate: (value: Date | string | null | undefined) =>
       formatLocalizedDate(value, locale),
   };
-}
-
-function SummaryMiniCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-muted/30 p-4">
-      <p className="text-form-label text-muted-foreground">{label}</p>
-      <p className="mt-2 text-lg font-bold text-foreground tabular-nums">{value}</p>
-    </div>
-  );
 }
 
 function KpiCard({
@@ -143,7 +103,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
   const cookieStore = await cookies();
   const locale = getLocaleFromValue(cookieStore.get(LOCALE_COOKIE)?.value ?? undefined);
   const dict = getDictionary(locale);
-  const { formatCurrency, formatNumber, formatDate } = getFormatters(locale);
+  const { formatCurrency, formatDate } = getFormatters(locale);
   const getPaymentMethodLabel = (method: string) => {
     switch (method.toUpperCase().replace(/[\s-]+/g, '_')) {
       case 'CASH':
@@ -317,7 +277,6 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
   const totalHistoryRows = filteredHistoryRows.length;
   const totalHistoryPages = Math.max(1, Math.ceil(totalHistoryRows / DEFAULT_PAGE_SIZE));
   const normalizedHistoryPage = Math.min(Math.max(historyPage, 1), totalHistoryPages);
-  const paginatedHistoryRows = filteredHistoryRows.slice((normalizedHistoryPage - 1) * DEFAULT_PAGE_SIZE, normalizedHistoryPage * DEFAULT_PAGE_SIZE);
 
   const buildHistoryHref = (pageNumber: number) => {
     const params = new URLSearchParams({
@@ -333,25 +292,6 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
     const query = params.toString();
     return query ? `/dashboard/companies/${companyId}?${query}` : `/dashboard/companies/${companyId}`;
   };
-
-  const productRows = transactions.flatMap((transaction) =>
-    transaction.transactionItems.map((item) => ({
-      id: `${transaction.id}-${item.id}`,
-      invoiceNumber: transaction.invoiceNumber,
-      transactionDate: transaction.transactionDate,
-      transactionType: transaction.transactionType,
-      productName: item.product?.name ?? 'Unknown product',
-      productType: item.product?.productType ?? '—',
-      quantity: Number(item.quantity ?? 0),
-      unit: item.product?.unit ?? '—',
-      unitPrice: Number(item.unitPrice ?? 0),
-      lineTotal: Number(item.lineTotal ?? 0),
-      details: item.description ?? null
-    }))
-  );
-
-  const feedRows = productRows.filter((row) => row.transactionType === 'PURCHASE');
-  const medicineRows = productRows.filter((row) => row.transactionType === 'PURCHASE');
 
   const companyTypeBadgeClass = company.companyType === 'FEED'
     ? 'bg-amber-100 text-amber-800'
@@ -459,43 +399,53 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
         </Button>
       </div>
 
-      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-emerald-500/10 text-3xl font-bold text-emerald-600">
+      <section className="relative overflow-hidden rounded-[24px] border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/50 p-4 before:absolute before:inset-y-0 before:left-0 before:w-1.5 before:bg-gradient-to-b before:from-emerald-500 before:via-teal-500 before:to-sky-500 sm:p-6 lg:p-7">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-sky-100/40 blur-3xl" />
+        <div className="relative flex flex-col gap-7">
+          <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start">
+            <div className="flex min-w-0 flex-1 flex-col gap-5 sm:flex-row sm:items-center">
+            <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-emerald-100 text-3xl font-bold text-emerald-600 shadow-[0_8px_24px_-16px_rgba(16,185,129,0.8)]">
               {company.name.charAt(0).toUpperCase()}
+              <span className={`absolute bottom-0.5 right-0.5 h-5 w-5 rounded-full border-4 border-white ${company.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} aria-label={company.isActive ? dict.common.active : dict.common.inactive} />
             </div>
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-bold leading-tight text-foreground sm:text-3xl">{company.name}</h1>
-                 <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${companyTypeBadgeClass}`}>
+              <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                <h1 className="min-w-0 break-words text-3xl font-bold leading-tight tracking-tight text-slate-950 sm:text-4xl">{company.name}</h1>
+                 <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold shadow-sm ${companyTypeBadgeClass}`}>
                   {company.companyType === 'FEED' ? dict.dashboard.feedCompany : company.companyType === 'MEDICINE' ? dict.dashboard.medicineCompany : company.companyType === 'CHICK' ? dict.dashboard.hatchlingChickCompany : dict.dashboard.feedChickCompany}
                 </span>
               </div>
-              <div className="mt-3 grid gap-x-6 gap-y-2 text-sm text-muted-foreground sm:grid-cols-2">
-                <div className="flex min-w-0 items-center gap-2">
-                  <Phone className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="truncate font-medium text-foreground">{company.phone || '-'}</span>
+              <div className="mt-5 grid min-w-0 gap-3 text-sm text-slate-500 sm:grid-cols-2 sm:gap-x-6">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                    <Phone className="h-4 w-4" />
+                  </span>
+                  <span className="truncate font-medium text-slate-800">{company.phone || '-'}</span>
                 </div>
-                <div className="flex min-w-0 items-center gap-2">
-                  <MapPin className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="truncate">{company.address || '-'}</span>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-50 text-teal-600">
+                    <MapPin className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 truncate">{company.address || '-'}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 xl:items-end">
-            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-              <span className={`inline-flex h-9 items-center gap-2 rounded-full px-3 text-badge font-semibold ${summary.totalDue > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+            <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 lg:justify-end">
+              <span className={`inline-flex h-9 items-center gap-2 rounded-full px-3 text-sm font-semibold shadow-sm ${summary.totalDue > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
                 <CheckCircle2 className="h-4 w-4" />
                 {summary.totalDue > 0 ? dict.common.due : dict.common.cleared}
               </span>
-              <span className={`inline-flex h-9 items-center rounded-full px-3 text-badge font-semibold ${company.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+              <span className={`inline-flex h-9 items-center rounded-full px-3 text-sm font-semibold shadow-sm ${company.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                 {company.isActive ? dict.common.active : dict.common.inactive}
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+          </div>
+
+          <div className="flex flex-col gap-4 border-t border-slate-200/80 pt-6 xl:flex-row xl:items-center xl:justify-start">
+            <div className="flex flex-wrap items-center justify-start gap-3">
+              <CompanyProfilePayButton companyId={company.id} />
               <CompanyRowActions
                 company={{
                   id: company.id,
@@ -509,10 +459,10 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                   openingBalance: company.openingBalance,
                   openingBalanceDescription: company.openingBalanceDescription
                 }}
+                separateActions
                 editButtonLabel={dict.common.editProfile}
-                editButtonClassName="h-[42px] bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                editButtonClassName="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 shadow-sm hover:bg-slate-50 sm:w-auto"
               />
-              <CompanyProfilePayButton companyId={company.id} />
               {company.companyType !== 'MEDICINE' && (
                 <AddStockModal
                   feedCompanies={feedCompanies}
@@ -533,6 +483,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                   {...(company.companyType === 'FEED' ? { preselectedCompanyType: 'FEED' } : {})}
                   {...(company.companyType === 'MEDICINE' ? { preselectedCompanyType: 'MEDICINE' } : {})}
                   {...(company.companyType === 'CHICK' ? { preselectedCompanyType: 'CHICK' } : {})}
+                  buttonClassName="w-full bg-orange-500 text-white shadow-[0_10px_20px_-14px_rgba(249,115,22,0.9)] hover:bg-orange-600 sm:w-auto"
                 />
               )}
             </div>

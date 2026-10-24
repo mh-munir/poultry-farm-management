@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import imageCompression from 'browser-image-compression';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -36,7 +35,6 @@ type AddPartyDialogProps = {
 
 export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogProps) {
   const { dict } = useLocale();
-  const router = useRouter();
   const { isSaving, saveError, save } = useModalSave();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addError, setAddError] = useState('');

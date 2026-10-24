@@ -522,7 +522,7 @@ export function StockManagement({
               </div>
 
               <div className="space-y-3">
-                {rows.map((row, index) => (
+                {rows.map((row) => (
                   <div key={row.rowId} className="border rounded-lg p-4 bg-white space-y-3">
                     <div className="flex items-start justify-between">
                     <div className="flex-1">

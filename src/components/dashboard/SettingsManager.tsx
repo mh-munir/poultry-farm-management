@@ -14,7 +14,7 @@ export default function SettingsManager() {
     { key: 'restore', title: dict.settings.restore, description: dict.settings.restoreDescription },
     { key: 'users', title: dict.settings.users, description: dict.settings.usersDescription }
   ]
-  const [sections, setSections] = useState<Section[]>(DEFAULT_SECTIONS)
+  const [sections] = useState<Section[]>(DEFAULT_SECTIONS)
   const [enabled, setEnabled] = useState<Record<string, boolean>>({})
 
   useEffect(() => {

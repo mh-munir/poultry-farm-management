@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, type ReactNode } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Download, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
@@ -35,7 +35,6 @@ type TransactionTabsProps = {
   payments: PaymentRow[];
   ledgerEntries: LedgerRow[];
   partyId: number;
-  printHref: string;
   recordPaymentForParty: (formData: FormData) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
   updatePaymentForParty: (formData: FormData) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
   deletePaymentForParty: (formData: FormData) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
@@ -127,7 +126,6 @@ export function TransactionTabs({
   payments,
   ledgerEntries,
   partyId,
-  printHref,
   recordPaymentForParty,
   updatePaymentForParty,
   deletePaymentForParty

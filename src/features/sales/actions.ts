@@ -250,8 +250,6 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
             }
 
             const currentAverageCost = new Prisma.Decimal(balance.averageCost ?? 0);
-            const matchedItem = items.find((item) => item.productId === productId);
-
             await tx.stockMovement.create({
               data: {
                 productId,

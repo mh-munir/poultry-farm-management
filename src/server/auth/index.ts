@@ -1,4 +1,3 @@
-import { cache } from 'react';
 import NextAuth from 'next-auth';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '@/server/auth/config';
@@ -18,10 +17,10 @@ export async function getUserSession() {
   return auth();
 }
 
-export async function signIn(..._args: unknown[]) {
+export async function signIn() {
   throw new Error('Server-side signIn is not supported. Use next-auth/react signIn on the client.');
 }
 
-export async function signOut(..._args: unknown[]) {
+export async function signOut() {
   throw new Error('Server-side signOut is not supported. Use next-auth/react signOut on the client.');
 }

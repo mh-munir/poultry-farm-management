@@ -60,8 +60,6 @@ test('resend API failure is handled', async () => {
   process.env.RESEND_API_KEY = 'test-api-key';
   process.env.RESEND_FROM_EMAIL = 'no-reply@example.com';
 
-  const provider = getEmailProvider('resend');
-
   const testProvider = createResendEmailProvider(() => ({
     emails: {
       send: async () => ({ data: null, error: { message: 'invalid recipient' } })

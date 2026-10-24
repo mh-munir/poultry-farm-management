@@ -4,7 +4,7 @@ import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { prisma } from '@/server/db';
 import PrintTrigger from './print-trigger';
 import { getBranding } from '@/lib/branding';
-import { Receipt, Landmark, BadgeCheck, Wallet, Package, CircleDollarSign, UserRound } from 'lucide-react';
+import { Receipt, BadgeCheck, Wallet, Package, CircleDollarSign, UserRound } from 'lucide-react';
 import { formatDateBD as formatDate, formatDateTimeBD as formatDateTime } from '@/lib/dates';
 
 function formatCurrency(value: number | string | { toString(): string } | null | undefined) {

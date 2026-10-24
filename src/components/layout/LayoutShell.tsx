@@ -107,10 +107,10 @@ function getPageTitle(pathname: string, dict: any): string[] {
   return [getSegmentLabel(parts[0]), getSegmentLabel(parts[1])];
 }
 
-export default function LayoutShell({ children, theme, branding }: { children: React.ReactNode; theme?: string; branding: any }) {
+export default function LayoutShell({ children, branding }: { children: React.ReactNode; branding: any }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname() || '';
-  const { theme: currentTheme, setTheme, resolvedTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { locale, setLocale, dict } = useLocale();
 

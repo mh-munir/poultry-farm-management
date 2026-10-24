@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Package2, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';

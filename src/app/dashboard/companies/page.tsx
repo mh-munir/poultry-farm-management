@@ -19,9 +19,6 @@ import { type ComboboxOption } from '@/components/ui/combobox';
 import { getCompanyPageData, getCompanyStats, getCompaniesByType } from '@/features/companies/actions';
 import { getStockItemsByType } from '@/features/stock/actions';
 
-const COMPANY_TYPES = ['ALL', 'FEED', 'MEDICINE', 'CHICK', 'FEED_CHICK'] as const;
-const COMPANY_STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
-
 type CompanyRow = {
   id: number;
   name: string;

@@ -10,7 +10,7 @@ type CompanyToastProps = {
 
 export function CompanyToast({ success, error }: CompanyToastProps) {
   const [open, setOpen] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const dismissed = false;
   const message = success || error || '';
   const variant = success ? 'success' : error ? 'error' : 'info';
 
@@ -18,7 +18,7 @@ export function CompanyToast({ success, error }: CompanyToastProps) {
     if (message && !dismissed) {
       setOpen(true);
     }
-  }, [message, dismissed]);
+  }, [message]);
 
   useEffect(() => {
     if (!open) return;

@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import Link from 'next/link';
 import { Printer } from 'lucide-react';
-import { prisma } from '@/server/db';
 import { getDailyReportData } from '@/features/reports/actions';
 import { formatDateBD as formatDate } from '@/lib/dates';
 
@@ -14,13 +13,6 @@ function formatCurrency(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(value)}`;
-}
-
-function formatTime(date: Date) {
-  return new Date(date).toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
 }
 
 export default async function DailyReportPage({

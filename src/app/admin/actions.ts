@@ -126,7 +126,7 @@ export async function updateAdminCredentials(formData: FormData): Promise<Update
 
       const { data: urlData } = supabaseAdmin.storage.from('party-images').getPublicUrl(filePath);
       updatePayload.image = urlData.publicUrl;
-    } catch (err) {
+    } catch {
       return { error: 'Unable to upload admin image.' };
     }
   } else if (existingImageUrl) {
@@ -140,7 +140,7 @@ export async function updateAdminCredentials(formData: FormData): Promise<Update
       where: { id: session.user.id ?? '' },
       data: updatePayload
     });
-  } catch (error) {
+  } catch {
     return { error: 'Unable to update admin credentials.' };
   }
 

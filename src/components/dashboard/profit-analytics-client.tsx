@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowDownRight, ArrowUpRight, BarChart3, CircleDollarSign, Package2, Percent, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Package2, Percent, TrendingDown, TrendingUp } from 'lucide-react';
 import type { TopProductRow } from '@/features/dashboard/actions';
 import { getProductTypeLabel } from '@/lib/product-types';
 import { AnalyticsEmptyState } from './analytics/analytics-empty-state';
@@ -277,38 +277,6 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
     fetchRange(si, ei);
   }
 
-  function handlePresetChange(value: PresetValue) {
-    setSelectedPreset(value);
-    if (value === 'custom') {
-      return;
-    }
-    if (value === 'today') {
-      setPreset('today');
-      return;
-    }
-    if (value === 'yesterday') {
-      setPreset('yesterday');
-      return;
-    }
-    if (value === 'month') {
-      setPreset('month');
-      return;
-    }
-    if (value === 'lastMonth') {
-      setPreset('lastMonth');
-      return;
-    }
-    if (value === 'year') {
-      setPreset('year');
-      return;
-    }
-    if (value === '30') {
-      setPreset(30);
-      return;
-    }
-    setPreset(Number(value));
-  }
-
   function handleFilterChange(next: AnalyticsFilterState) {
     setSelectedPreset(next.preset);
     setStart(next.start);
@@ -364,22 +332,6 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
     setPreset(Number(next.preset));
   }
 
-  function handleStartChange(value: string) {
-    const date = new Date(value);
-    const nextStart = new Date(date);
-    nextStart.setHours(0, 0, 0, 0);
-    setStart(toISODate(nextStart));
-    setSelectedPreset('custom');
-  }
-
-  function handleEndChange(value: string) {
-    const date = new Date(value);
-    const nextEnd = new Date(date);
-    nextEnd.setHours(23, 59, 59, 999);
-    setEnd(toISODate(nextEnd));
-    setSelectedPreset('custom');
-  }
-
   const summary = data?.summary ?? { totalSales: 0, totalCost: 0, grossProfit: 0, profitMargin: 0 };
   const profit = summary.grossProfit;
   const cost = summary.totalCost;
@@ -392,8 +344,6 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
   const profitSeries = buildTrendSeries(profit, maxMetric);
   const topProduct = products[0];
   const bestSellingProduct = [...products].sort((a, b) => b.quantitySold - a.quantitySold)[0];
-  const losingProducts = products.filter((product) => product.grossProfit < 0).slice(0, 3);
-  const profitDelta = sales > 0 ? ((profit / sales) * 100) : 0;
   const profitColor = profit >= 0 ? '#10b981' : '#ef4444';
   const revenueBreakdownTotal = Math.max(cost + Math.abs(profit), 1);
   const costPct = Math.max(0, Math.min(100, (cost / revenueBreakdownTotal) * 100));

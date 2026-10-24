@@ -49,7 +49,7 @@ test('SUPER_ADMIN can run createAdminAccount but role override is ignored', asyn
   prisma.$transaction = async (cb: any) => {
     const tx = {
       adminCreationOtp: {
-        findFirst: async (q: any) => ({ id: 'otp-1', contact: 'creator@example.com', verifiedAt: new Date(), expiresAt: new Date(Date.now() + 10000) }),
+        findFirst: async () => ({ id: 'otp-1', contact: 'creator@example.com', verifiedAt: new Date(), expiresAt: new Date(Date.now() + 10000) }),
         delete: async () => {}
       },
       user: {

@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import Link from 'next/link';
 import { getYearlyReportData } from '@/features/reports/actions';
-import { getProductTypeLabel } from '@/lib/product-types';
 
 function formatCurrency(value: number) {
   return `৳ ${new Intl.NumberFormat('en-BD', {

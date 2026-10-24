@@ -12,22 +12,15 @@ export function AddCompanyDialog() {
   const { isSaving, saveError, save } = useModalSave();
   const { dict } = useLocale();
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [addError, setAddError] = useState('');
 
   const handleAddSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setAddError('');
-
     const formData = new FormData(event.currentTarget);
 
-    const result = await save(() => createCompany(formData), {
+    await save(() => createCompany(formData), {
       refreshOnSuccess: true,
       onClose: () => setIsAddOpen(false)
     });
-
-    if (!result.success) {
-      setAddError(result.message);
-    }
   };
 
   return (

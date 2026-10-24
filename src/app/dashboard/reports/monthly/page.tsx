@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import Link from 'next/link';
 import { getMonthlyReportData } from '@/features/reports/actions';
-import { getProductTypeLabel } from '@/lib/product-types';
 import { formatDateBD as formatDate } from '@/lib/dates';
 
 function formatCurrency(value: number) {

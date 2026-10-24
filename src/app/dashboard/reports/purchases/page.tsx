@@ -26,7 +26,6 @@ export default async function PurchasesReportPage({
 
   const dateFrom = params?.from ? new Date(params.from + 'T00:00:00') : undefined;
   const dateTo = params?.to ? new Date(params.to + 'T00:00:00') : undefined;
-  const partyId = params?.party ? Number(params.party) : undefined;
   const partyFilter: { partyId?: number; companyId?: number } = {};
   if (params?.party) {
     if (params.party.startsWith('party-')) {

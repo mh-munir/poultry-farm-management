@@ -14,7 +14,7 @@ import { stdin as input, stdout as output } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import bcrypt from 'bcryptjs'
-import { Prisma, PrismaClient } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 
 import { prisma } from '../src/server/db/index'

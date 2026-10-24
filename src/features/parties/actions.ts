@@ -1,6 +1,5 @@
 'use server';
 
-import { notFound } from 'next/navigation';
 import { unstable_cache } from 'next/cache';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -41,29 +40,6 @@ const partySchema = z.object({
 
 const BUCKET_NAME = 'party-images';
 const PARTY_IMAGE_CONTENT_TYPE = 'image/webp';
-const SUPPORTED_PARTY_IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
-const PARTY_IMAGE_ERROR_MESSAGE = 'Please upload a valid JPG, JPEG, PNG, or WebP image.';
-
-function getImageContentType(fileName: string, fileType: string) {
-  if (fileType) {
-    return fileType;
-  }
-
-  const extension = fileName.split('.').pop()?.toLowerCase();
-
-  switch (extension) {
-    case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg';
-    case 'png':
-      return 'image/png';
-    case 'webp':
-      return 'image/webp';
-    default:
-      return 'application/octet-stream';
-  }
-}
-
 async function uploadPartyImage(
   partyId: number,
   imageFile: File
@@ -849,7 +825,7 @@ export async function recordPaymentForParty(formData: FormData) {
   const { partyId, amount, paymentDate, paymentMethod, referenceNumber, status, notes } = parsed.data;
 
   try {
-    const payment = await prisma.payment.create({
+    await prisma.payment.create({
       data: {
         partyId,
         paymentDate,

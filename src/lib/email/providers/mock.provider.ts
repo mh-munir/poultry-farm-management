@@ -1,9 +1,9 @@
-import type { EmailProvider, EmailProviderName } from '../types';
+import type { EmailProvider } from '../types';
 import { ResendEmailProvider } from './resend.provider';
 
 export const MockEmailProvider: EmailProvider = {
   name: 'mock',
-  async sendOtpEmail(_contact, _otpCode) {
+  async sendOtpEmail() {
     if (process.env.NODE_ENV === 'production') {
       return { status: 'QUEUED' };
     }
@@ -24,7 +24,7 @@ export function getEmailProvider(providerName: string): EmailProvider {
   if (process.env.NODE_ENV === 'production') {
     return {
       name: normalizedProviderName ?? 'unknown',
-      async sendOtpEmail(_contact, _otpCode) {
+      async sendOtpEmail() {
         return { status: 'FAILED', errorMessage: `Unsupported email provider in production: ${providerName}` };
       }
     };

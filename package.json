@@ -44,8 +44,6 @@
     "react": "19.0.0",
     "react-datepicker": "^9.1.0",
     "react-dom": "19.0.0",
-    "react-hook-form": "^7.2.0",
-    "react-hot-toast": "2.6.0",
     "resend": "^6.19.0",
     "tailwind-merge": "^2.4.0",
     "zod": "^3.23.0"

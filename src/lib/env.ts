@@ -47,10 +47,6 @@ function getEnv() {
     return parsed.data;
   }
 
-  const issues = parsed.error.issues
-    .map((issue) => `${issue.path.join('.') || 'env'}: ${issue.message}`)
-    .join(', ');
-
   return {
     NODE_ENV: process.env.NODE_ENV ?? 'development',
     DATABASE_URL: process.env.DATABASE_URL ?? '',

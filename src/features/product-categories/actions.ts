@@ -55,7 +55,7 @@ export async function createOrUpdateCategory(formData: FormData) {
     } else {
       await prisma.productCategory.create({ data: payload });
     }
-  } catch (error) {
+  } catch {
     const url = new URL('/dashboard/product-categories', 'http://localhost');
     url.searchParams.set('error', 'Category save failed. Please verify the data and try again.');
     redirect(url.toString() as never);
@@ -80,7 +80,7 @@ export async function deleteCategory(formData: FormData) {
 
   try {
     await prisma.productCategory.delete({ where: { id: categoryId } });
-  } catch (error) {
+  } catch {
     const url = new URL('/dashboard/product-categories', 'http://localhost');
     url.searchParams.set('error', 'Category deletion failed.');
     redirect(url.toString() as never);
@@ -141,7 +141,7 @@ export async function getCategoryPageData({
       totalPages,
       page: Math.min(page, totalPages)
     };
-  } catch (error) {
+  } catch {
     return {
       categories: [],
       total: 0,
@@ -159,7 +159,7 @@ export async function getCategoryStats() {
     ]);
 
     return { total, active };
-  } catch (error) {
+  } catch {
     return { total: 0, active: 0 };
   }
 }

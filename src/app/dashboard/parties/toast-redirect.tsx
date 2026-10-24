@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import type { Route } from 'next';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { PartyToast } from './party-toast';
@@ -11,8 +11,8 @@ type Props = {
 };
 
 export default function ToastRedirect({ initialSuccess, initialError }: Props) {
-  const [message, setMessage] = useState<string | undefined>(initialSuccess ?? initialError);
-  const [variantSuccess, setVariantSuccess] = useState<boolean>(!!initialSuccess);
+  const message = initialSuccess ?? initialError;
+  const variantSuccess = !!initialSuccess;
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();

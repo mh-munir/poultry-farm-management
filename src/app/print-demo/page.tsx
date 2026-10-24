@@ -3,7 +3,6 @@ import { cookies } from 'next/headers';
 import { PrintDemoTrigger } from '@/components/print-demo-trigger';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
-import { getDictionary } from '@/i18n';
 import { formatLocalizedCurrency } from '@/lib/localized-formatters';
 
 function formatCurrency(value: number | null | undefined, locale: 'en' | 'bn' = 'en') {
@@ -13,7 +12,6 @@ function formatCurrency(value: number | null | undefined, locale: 'en' | 'bn' = 
 export default async function PrintDemoPage() {
   const cookieStore = await cookies();
   const locale = getLocaleFromValue(cookieStore.get(LOCALE_COOKIE)?.value ?? undefined);
-  const dict = getDictionary(locale);
   const items = Array.from({ length: 5 }).map((_, i) => ({
     id: i + 1,
     productName: `Product ${i + 1}`,

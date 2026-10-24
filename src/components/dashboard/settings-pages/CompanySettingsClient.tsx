@@ -39,7 +39,7 @@ export default function CompanySettingsClient() {
     load()
   }, [])
 
-  const { success, error: showToastError } = useToast()
+  const { success } = useToast()
   const { dict } = useLocale()
 
   async function save() {

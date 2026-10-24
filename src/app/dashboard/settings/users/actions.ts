@@ -9,7 +9,6 @@ import { sendOtp } from '@/lib/notifications';
 import { createHash, randomInt } from 'node:crypto';
 
 const TRANSFER_OTP_TTL_MS = 5 * 60 * 1000;
-const TRANSFER_RESEND_MS = 60 * 1000;
 const TRANSFER_MAX_ATTEMPTS = 5;
 
 function transferOtp() { return String(randomInt(100000, 1000000)); }

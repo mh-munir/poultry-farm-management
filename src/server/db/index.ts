@@ -82,9 +82,6 @@ async function retryQuery<T>(queryFn: () => Promise<T>, maxRetries = 2): Promise
 
 export async function dbQuery<T>(
   query: Promise<T>,
-  name: string,
-  model: string,
-  operation: string,
   timeoutMs = 30000,
   fallback?: T
 ): Promise<T> {
@@ -94,8 +91,6 @@ export async function dbQuery<T>(
       reject(new Error(`Database request timed out after ${timeoutMs / 1000} seconds.`));
     }, timeoutMs);
   });
-
-  const start = Date.now();
 
   try {
     const result = (await retryQuery(() => Promise.race([query, timeout]))) as T;

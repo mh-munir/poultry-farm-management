@@ -48,7 +48,7 @@ export async function createOtp(contact: string, superAdminId: string, deliveryM
   const expiresAt = new Date(now + OTP_TTL_MS);
   const resendCooldown = new Date(now);
 
-  const record = await prisma.adminCreationOtp.create({
+  await prisma.adminCreationOtp.create({
     data: {
       superAdminId,
       contact,

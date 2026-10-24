@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, LifeBuoy, Lock, Settings, User, LogOut } from 'lucide-react';
+import { Bell, Settings, User, LogOut } from 'lucide-react';
 import { useLocale } from '@/i18n/provider';
 
 export function UserNav() {

@@ -4,7 +4,6 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useLocale } from '@/i18n/provider';
-import { Button } from './button';
 
 export function Dialog({
   open,

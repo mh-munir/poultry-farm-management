@@ -10,7 +10,7 @@ import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 import { DateInput } from '@/components/ui/date-input';
 import { Dialog } from '@/components/ui/dialog';
-import { formatDateBD as formatDate, toDateInputValueBD as toDateInputValue } from '@/lib/dates';
+import { toDateInputValueBD as toDateInputValue } from '@/lib/dates';
 import { useLocale } from '@/i18n/provider';
 import { updatePurchaseItem } from '@/features/purchases/actions';
 import { formatLocalizedCurrency, formatLocalizedDate, formatLocalizedNumber } from '@/lib/localized-formatters';
@@ -200,10 +200,9 @@ function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg
 type SalesPurchaseSectionProps = {
   saleRows: ProductRow[];
   buyRows: ProductRow[];
-  partyId: number;
 };
 
-export function SalesPurchaseSection({ saleRows, buyRows, partyId }: SalesPurchaseSectionProps) {
+export function SalesPurchaseSection({ saleRows, buyRows }: SalesPurchaseSectionProps) {
   const router = useRouter();
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');

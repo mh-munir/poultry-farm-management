@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Eye, MoreHorizontal, Pencil, Printer, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Printer, Trash2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -29,13 +28,14 @@ export type CompanyRowEditPayload = {
 type CompanyRowActionsProps = {
   company: CompanyRowEditPayload;
   editOnly?: boolean;
+  separateActions?: boolean;
   printHref?: string;
   editButtonLabel?: string;
   editButtonClassName?: string;
   printButtonClassName?: string;
 };
 
-export function CompanyRowActions({ company, editOnly = false, printHref, editButtonLabel = 'Edit Company', editButtonClassName, printButtonClassName }: CompanyRowActionsProps) {
+export function CompanyRowActions({ company, editOnly = false, separateActions = false, printHref, editButtonLabel = 'Edit Company', editButtonClassName, printButtonClassName }: CompanyRowActionsProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { dict } = useLocale();
@@ -75,7 +75,7 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
     }
   };
 
-  const handleDeleteCompany = async (companyId: number) => {
+  const handleDeleteCompany = async () => {
     setConfirmOpen(true);
   };
 
@@ -125,6 +125,33 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
             </Button>
           ) : null}
         </div>
+      ) : separateActions ? (
+        <div className="inline-flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={dict.common.editProfile}
+            title={dict.common.editProfile}
+            onClick={() => setEditOpen(true)}
+            className="h-14 w-full rounded-xl border-slate-200 bg-white px-4 text-sm text-slate-800 shadow-sm hover:bg-slate-50 sm:w-auto"
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            <span>{dict.common.edit}</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={dict.common.delete}
+            title={dict.common.delete}
+            onClick={handleDeleteCompany}
+            className="h-14 w-full rounded-xl border-rose-200 bg-white px-4 text-sm text-rose-600 shadow-sm hover:bg-rose-50 sm:w-auto"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            <span>{dict.common.delete}</span>
+          </Button>
+        </div>
       ) : (
         <DropdownMenu.Root open={actionOpen} onOpenChange={setActionOpen}>
           <DropdownMenu.Trigger asChild>
@@ -159,7 +186,7 @@ export function CompanyRowActions({ company, editOnly = false, printHref, editBu
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="mx-2 h-px bg-slate-200" />
               <DropdownMenu.Item
-                onSelect={() => handleDeleteCompany(company.id)}
+                onSelect={handleDeleteCompany}
                 className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-red-600 outline-none data-[highlighted]:bg-red-50"
               >
                 <Trash2 className="h-4 w-4" />

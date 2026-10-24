@@ -1,4 +1,3 @@
-import { cache } from 'react';
 import { auth } from '@/server/auth';
 import { redirect } from 'next/navigation';
 

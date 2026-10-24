@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import { useLocale } from '@/i18n/provider';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2 } from 'lucide-react';
@@ -9,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchableCombobox, type ComboboxOption } from '@/components/ui/combobox';
 import { createCompanyStockPurchaseTransaction } from '@/features/purchases/actions';
-import { getCompanyCurrentDue } from '@/features/companies/actions';
 import { useModalSave } from '@/hooks/use-modal-save';
 import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 import { STOCK_TYPE_OPTIONS, STOCK_PAYMENT_METHOD_OPTIONS } from '@/config/stock';
@@ -27,6 +25,7 @@ interface AddStockModalProps {
   preselectedCompanyId?: number;
   preselectedCompanyType?: 'FEED' | 'MEDICINE' | 'CHICK';
   preselectedCompanyName?: string;
+  buttonClassName?: string;
 }
 
 interface StockRow {
@@ -51,6 +50,7 @@ export function AddStockModal({
   preselectedCompanyId,
   preselectedCompanyType,
   preselectedCompanyName,
+  buttonClassName,
 }: AddStockModalProps) {
   const { dict } = useLocale();
   const [isOpen, setIsOpen] = useState(false);
@@ -58,7 +58,6 @@ export function AddStockModal({
   const { isSaving, saveError, save } = useModalSave();
   const [companyName, setCompanyName] = useState(preselectedCompanyName ?? '');
   const [companyId, setCompanyId] = useState(preselectedCompanyId ?? 0);
-  const [previousDue, setPreviousDue] = useState(0);
   const transactionDate = todayDateStr();
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -66,8 +65,7 @@ export function AddStockModal({
   const [rows, setRows] = useState<StockRow[]>([
     { rowId: Date.now(), productId: '', productName: '', quantity: '', buyRate: '', unit: stockType === 'FEED' ? 'bag' : stockType === 'MEDICINE' ? 'gm' : 'pcs' },
   ]);
-  const router = useRouter();
-  const { success, error: showToastError } = useToast();
+  const { error: showToastError } = useToast();
 
   const availableCompanies = useMemo(() => {
     const companies = stockType === 'FEED'
@@ -223,6 +221,7 @@ export function AddStockModal({
         type="button"
         variant="outline"
         onClick={() => setIsOpen(true)}
+        className={`h-14 min-w-[190px] rounded-xl px-4 text-sm ${buttonClassName ?? ''}`}
       >
         <Plus className="h-4 w-4 mr-2" />
         {dict.stock.addStockButton}

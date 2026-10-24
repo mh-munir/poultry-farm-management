@@ -108,8 +108,6 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
     return roundScaledBigInt(product, SCALE * 2, CENTS_SCALE);
   }, [chickenTotalKg, chickenUnitPrice]);
 
-  const chickenWeightTotal = useMemo(() => parseDecimalToScaledBigInt(chickenTotalKg, 2), [chickenTotalKg]);
-
   const subtotalCents = useMemo(() => {
     if (productCategory === 'EGG') return eggTotalCents;
     if (productCategory === 'CHICKEN') return chickenTotalCents;
@@ -286,7 +284,6 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
       const line = lines[index];
       const formData = new FormData();
       const lineDiscountString = centsToDecimalString(lineDiscounts[index]);
-      const lineTotalString = centsToDecimalString(line.lineTotalCents);
 
       formData.set('partyId', String(selectedPartyId ?? ''));
       formData.set('purchaseDate', purchaseDate);

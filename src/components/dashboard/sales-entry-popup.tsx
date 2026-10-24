@@ -9,7 +9,6 @@ import { createSaleTransactionWithToast } from '@/features/sales/actions';
 import { getCustomerCurrentDue } from '@/features/parties/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useLocale } from '@/i18n/provider';
-import { getProductTypeLabel } from '@/lib/product-types';
 
 export type PartyOption = {
   id: number;
@@ -194,27 +193,6 @@ export function SalesEntryPopup({
     return partyOptions.filter((party) => party.name.toLowerCase().includes(searchTerm));
   }, [partyOptions, salesFormValues.name]);
 
-  const handleSalesNameBlur = () => {
-    if (!salesFormValues.name) {
-      setSalesNameError('');
-      return;
-    }
-
-    const matchedParty = partyOptions.find((option) => option.name === salesFormValues.name);
-
-    if (!matchedParty) {
-      setSalesNameError('Please select a valid party name from the list.');
-      setSalesFormValues((current) => ({ ...current, name: '' }));
-      setSalesPartyId(null);
-      setPreviousDue(0);
-    } else {
-      setSalesNameError('');
-      setSalesPartyId(matchedParty.id);
-      getCustomerCurrentDue(matchedParty.id).then((due) => {
-        setPreviousDue(due);
-      });
-    }
-  };
 
   async function handleSalesSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

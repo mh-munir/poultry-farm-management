@@ -5,7 +5,6 @@ import { getDictionary } from '@/i18n';
 import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
 
 type SerializableDecimal = number | string | { toString(): string } | null;
-import { Button } from '@/components/ui/button';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { Pagination } from '@/components/ui/pagination';
 import { PartiesOverview } from '@/components/dashboard/parties-overview';
@@ -17,9 +16,6 @@ import { getPartyNames, getPartyPageData, getPartyStats } from '@/features/parti
 import type { ProductOption } from '@/app/dashboard/parties/add-party-dialog';
 import { getProductsForSales } from '@/features/sales/actions';
 import { formatDateBD, formatDateTimeBD } from '@/lib/dates';
-
-const PARTY_TYPES = ['ALL', 'CUSTOMER', 'PARTY', 'BOTH'] as const;
-const PARTY_STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'] as const;
 
 type PartySummary = {
   id: number;

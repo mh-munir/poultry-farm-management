@@ -81,7 +81,8 @@ export async function createOrUpdateProduct(formData: FormData) {
     if (data.id) {
       // Opening stock is created only with a new product. Re-creating this
       // one-to-one record on edit can fail or duplicate stock semantics.
-      const { stockBalance: _openingStock, ...updatePayload } = payload;
+      const updatePayload = { ...payload };
+      delete updatePayload.stockBalance;
       await prisma.product.update({
         where: { id: data.id },
         data: updatePayload
@@ -89,7 +90,7 @@ export async function createOrUpdateProduct(formData: FormData) {
     } else {
       await prisma.product.create({ data: payload });
     }
-  } catch (error) {
+  } catch {
     const url = new URL('/dashboard/products', 'http://localhost');
     url.searchParams.set('error', 'Product save failed. Please verify the data and try again.');
     redirect(url.toString() as never);
@@ -211,7 +212,7 @@ export async function getProductPageData({
       totalPages: Math.max(1, Math.ceil(total / take)),
       page: Math.min(page, Math.max(1, Math.ceil(total / take)))
     };
-  } catch (error) {
+  } catch {
     return {
       products: [],
       total: 0,
@@ -246,7 +247,7 @@ export async function getProductStats() {
     ]);
 
     return { total, active, lowStock };
-  } catch (error) {
+  } catch {
     return { total: 0, active: 0, lowStock: 0 };
   }
 }

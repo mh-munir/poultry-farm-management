@@ -10,7 +10,7 @@ type PartyToastProps = {
 
 export function PartyToast({ success, error }: PartyToastProps) {
   const [open, setOpen] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const dismissed = false;
   const message = success || error || '';
   const variant = success ? 'success' : error ? 'error' : 'info';
 
@@ -18,7 +18,7 @@ export function PartyToast({ success, error }: PartyToastProps) {
     if (message && !dismissed) {
       setOpen(true);
     }
-  }, [message, dismissed]);
+  }, [message]);
 
   useEffect(() => {
     if (!open) return;

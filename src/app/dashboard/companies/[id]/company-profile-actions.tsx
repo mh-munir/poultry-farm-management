@@ -8,7 +8,7 @@ import { useLocale } from '@/i18n/provider';
 function buildReceiptMarkup(title: string, exportData: string, labels: { companyProfile: string; profile: string; profileDetails: string; generatedFromApp: string }) {
   const escapeHtml = (value: string) => value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character] ?? character));
   const rows = exportData.split('\n').filter(Boolean).map((row) => row.split(',').map(escapeHtml));
-  const content = rows.map((row, index) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join('')}</tr>`).join('');
+  const content = rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join('')}</tr>`).join('');
 
   return `
     <html>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import imageCompression from 'browser-image-compression';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { MoreHorizontal, Pencil, Trash2, Printer } from 'lucide-react';
@@ -108,7 +107,7 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
     }
   };
 
-  const handleDeleteParty = async (partyId: number) => {
+  const handleDeleteParty = async () => {
     setConfirmOpen(true);
   };
 
@@ -191,7 +190,7 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="mx-2 h-px bg-slate-200" />
               <DropdownMenu.Item
-                onSelect={() => handleDeleteParty(party.id)}
+                onSelect={handleDeleteParty}
                 className="flex w-full items-center gap-2 rounded-none px-4 py-3 text-left text-sm font-medium text-red-600 outline-none data-[highlighted]:bg-red-50"
               >
                 <Trash2 className="h-4 w-4" />

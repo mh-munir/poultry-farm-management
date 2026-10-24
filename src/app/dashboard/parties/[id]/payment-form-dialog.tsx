@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,8 @@ type Props = {
   toastSuccessMessage: string;
   recordPaymentForParty: (formData: FormData) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
   buttonClassName?: string;
+  buttonLeading?: ReactNode;
+  buttonTrailing?: ReactNode;
 };
 
 export default function PaymentFormDialog({
@@ -31,7 +33,9 @@ export default function PaymentFormDialog({
   dueAmount,
   toastSuccessMessage,
   recordPaymentForParty,
-  buttonClassName
+  buttonClassName,
+  buttonLeading,
+  buttonTrailing
 }: Props) {
   const { dict } = useLocale();
   const [open, setOpen] = useState(false);
@@ -43,8 +47,9 @@ export default function PaymentFormDialog({
   return (
     <>
       <Button type="button" onClick={() => setOpen(true)} className={buttonClassName}>
-        <Wallet className="mr-2 h-4 w-4" />
+        {buttonLeading ?? <Wallet className="mr-2 h-4 w-4" />}
         {buttonLabel}
+        {buttonTrailing}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen} title={title}>
