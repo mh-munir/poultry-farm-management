@@ -115,13 +115,13 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
 
         <div className="max-h-[min(36vh,28rem)] space-y-3 overflow-y-auto pr-1">
           {rows.map((row) => (
-            <div key={row.rowId} className="grid gap-3 md:grid-cols-[1.2fr_0.55fr_0.65fr_1fr_auto]">
+            <div key={row.rowId} className="grid min-w-0 gap-3 2xl:grid-cols-[1.2fr_0.55fr_0.65fr_1fr_auto]">
               <select
                 name="productId"
                 required={rows.length === 1}
                 value={row.productId}
                 onChange={(event) => updateRow(row.rowId, 'productId', event.target.value)}
-                className="form-select"
+                className="form-select min-w-0 w-full"
               >
                 <option value="">{dict.forms.selectProductPlaceholder}</option>
                  {products.map((product) => (
@@ -138,7 +138,7 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
                 value={row.quantity}
                 onChange={(event) => updateRow(row.rowId, 'quantity', event.target.value)}
                 placeholder={dict.forms.qtyPlaceholder}
-                className="rounded-md border bg-background px-3 py-2"
+                className="w-full min-w-0 rounded-md border bg-background px-3 py-2"
               />
               <input
                 type="number"
@@ -148,14 +148,14 @@ export function SaleForm({ customers, products, selectedPartyId, formId, hideSub
                 value={row.unitPrice}
                 onChange={(event) => updateRow(row.rowId, 'unitPrice', event.target.value)}
                 placeholder={dict.forms.pricePlaceholder}
-                className="rounded-md border bg-background px-3 py-2"
+                className="w-full min-w-0 rounded-md border bg-background px-3 py-2"
               />
               <input
                 name="description"
                 value={row.description}
                 onChange={(event) => updateRow(row.rowId, 'description', event.target.value)}
                 placeholder={dict.forms.descriptionPlaceholder}
-                className="rounded-md border bg-background px-3 py-2"
+                className="w-full min-w-0 rounded-md border bg-background px-3 py-2"
               />
               <Button
                 type="button"

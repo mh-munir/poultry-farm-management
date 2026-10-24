@@ -124,9 +124,9 @@ async function saveSaleTransaction(data: z.infer<typeof saleSchema>) {
   } | null = null;
 
   for (let attempt = 0; attempt < 5; attempt++) {
-    const invoiceNumber = getInvoiceNumber('INV');
     try {
       savedSale = await prisma.$transaction(async (tx) => {
+        const invoiceNumber = await getInvoiceNumber(tx);
         const party = await tx.party.findUnique({ where: { id: data.partyId } });
         if (!party) {
           throw new Error('Customer not found.');

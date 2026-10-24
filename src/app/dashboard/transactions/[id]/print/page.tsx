@@ -67,6 +67,9 @@ export default async function TransactionPrintPage({ params }: { params: Promise
   const firstPayment = transaction.payments[0]?.payment;
   const counterparty = transaction.company ?? transaction.party;
   const displaySettings = parseInvoiceDisplaySettings(invoiceSettingsRecord?.value);
+  const fallbackCopy = locale === 'bn'
+    ? { company: 'কোম্পানি', customer: 'গ্রাহক', supplier: 'সরবরাহকারী', unknown: 'অজানা', item: 'লেনদেনের পণ্য' }
+    : { company: 'Company', customer: 'Customer', supplier: 'Supplier', unknown: 'Unknown', item: 'Transaction item' };
 
   return (
     <>
@@ -76,14 +79,14 @@ export default async function TransactionPrintPage({ params }: { params: Promise
       invoiceNumber={transaction.invoiceNumber}
       transactionDate={transaction.transactionDate}
       party={{
-        label: transaction.company ? 'Company' : transaction.transactionType === 'SALE' ? 'Customer' : 'Supplier',
-        name: counterparty?.name ?? 'Unknown',
+        label: transaction.company ? fallbackCopy.company : transaction.transactionType === 'SALE' ? fallbackCopy.customer : fallbackCopy.supplier,
+        name: counterparty?.name ?? fallbackCopy.unknown,
         phone: counterparty?.phone,
         address: counterparty?.address
       }}
       items={transaction.transactionItems.map((item) => ({
         id: item.id,
-        productName: item.product?.name ?? item.description ?? 'Transaction item',
+        productName: item.product?.name ?? item.description ?? fallbackCopy.item,
         quantity: numberValue(item.quantity),
         unit: item.product?.unit ?? '-',
         unitPrice: numberValue(item.unitPrice),

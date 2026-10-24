@@ -21,10 +21,10 @@ function getPageTitle(pathname: string, dict: any): string[] {
     '/dashboard/products': [dict.common.products],
     '/dashboard/products/new': [dict.common.products, dict.common.new],
     '/dashboard/settings': [dict.nav.settings],
-    '/dashboard/settings/logo': [dict.nav.settings, 'Logo'],
+    '/dashboard/settings/logo': [dict.nav.settings, dict.settings.logo],
     '/dashboard/settings/users': [dict.nav.settings, dict.common.users ?? 'Users'],
     '/dashboard/settings/company': [dict.nav.settings, dict.common.companies],
-    '/dashboard/settings/invoice': [dict.nav.settings, dict.common.invoice ?? 'Invoice'],
+    '/dashboard/settings/invoice': [dict.nav.settings, dict.settings.invoiceTitle],
     '/dashboard/settings/backup': [dict.nav.settings, dict.settings.backup],
     '/dashboard/settings/restore': [dict.nav.settings, dict.settings.restore],
     '/dashboard/reports': [dict.nav.reports],
@@ -38,13 +38,33 @@ function getPageTitle(pathname: string, dict: any): string[] {
     '/dashboard/reports/party-statement': [dict.nav.reports, dict.reports.partyStatement]
   };
 
+  const getSegmentLabel = (segment: string): string => {
+    const normalized = segment.toLowerCase();
+    const segmentMap: Record<string, string> = {
+      home: dict.nav.dashboard ?? dict.common.dashboard ?? 'Dashboard',
+      dashboard: dict.nav.dashboard ?? dict.common.dashboard ?? 'Dashboard',
+      settings: dict.nav.settings ?? dict.common.settings ?? 'Settings',
+      reports: dict.nav.reports ?? dict.common.reports ?? 'Reports',
+      parties: dict.nav.parties ?? dict.common.parties ?? 'Parties',
+      companies: dict.nav.companies ?? dict.common.companies ?? 'Companies',
+      products: dict.common.products ?? 'Products',
+      sales: dict.common.sales ?? 'Sales',
+      purchases: dict.common.purchases ?? 'Purchases',
+      expenses: dict.nav.expenses ?? dict.common.expenses ?? 'Expenses',
+      stock: dict.common.stock ?? 'Stock',
+      users: dict.common.users ?? 'Users',
+      profile: dict.common.profile ?? 'Profile',
+      categories: dict.common.categories ?? 'Categories',
+      new: dict.common.new ?? 'New'
+    };
+
+    return segmentMap[normalized] ?? segment.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
   if (pageTitles[pathname]) return pageTitles[pathname];
 
   const parts = pathname.split('/').filter(Boolean);
-  if (!parts.length) return ['Home'];
-
-  const cleanSegment = (segment: string) =>
-    segment.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  if (!parts.length) return [dict.nav.dashboard ?? dict.common.dashboard ?? 'Dashboard'];
 
   if (parts[0] === 'dashboard' && parts[1] === 'parties' && parts[2] && parts[2] !== 'new' && parts[2] !== 'edit' && parts[2] !== 'print') {
     return [dict.nav.parties, dict.common.profile];
@@ -74,17 +94,17 @@ function getPageTitle(pathname: string, dict: any): string[] {
     return [dict.common.products, dict.common.edit];
   }
   if (parts[0] === 'dashboard' && parts[1] === 'product-categories' && parts[2] === 'new') {
-    return ['Product Categories', dict.common.new];
+    return [dict.common.categories ?? 'Categories', dict.common.new];
   }
   if (parts[0] === 'dashboard' && parts[1] === 'product-categories' && parts[2]) {
-    return ['Product Categories', dict.common.edit];
+    return [dict.common.categories ?? 'Categories', dict.common.edit];
   }
 
   if (parts.length === 1) {
-    return [cleanSegment(parts[0])];
+    return [getSegmentLabel(parts[0])];
   }
 
-  return [cleanSegment(parts[0]), cleanSegment(parts[1])];
+  return [getSegmentLabel(parts[0]), getSegmentLabel(parts[1])];
 }
 
 export default function LayoutShell({ children, theme, branding }: { children: React.ReactNode; theme?: string; branding: any }) {

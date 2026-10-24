@@ -279,7 +279,6 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
             {imageCompressionStatus ? <p className="mt-1 text-xs text-muted-foreground">{imageCompressionStatus}</p> : null}
             {party.imageUrl ? (
               <div className="mt-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={party.imageUrl} alt={party.name} className="h-20 w-20 rounded-lg border object-cover" />
               </div>
             ) : null}

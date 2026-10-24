@@ -8,7 +8,19 @@
  */
 
 import { Prisma } from '@prisma/client';
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
+function expect<T>(received: T) {
+  return {
+    toBe(expected: T) {
+      assert.strictEqual(received, expected);
+    },
+    toBeDefined() {
+      assert.notStrictEqual(received, undefined);
+    }
+  };
+}
 
 // Mock verification tests - these demonstrate the expected behavior
 

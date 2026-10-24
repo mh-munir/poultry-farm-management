@@ -108,21 +108,28 @@ export default async function ProductsPage({
       </div>
 
       <div className="mt-6 flex flex-col gap-4 rounded-2xl border bg-card p-6 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-semibold">{dict.common.products}</h2>
-          <div className="flex flex-wrap items-center gap-3">
-            <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold">{dict.common.products}</h2>
+            <Button asChild size="sm" className="w-full sm:w-auto">
+              <Link href="/dashboard/products/new">
+                <Plus className="mr-2 h-4 w-4" />
+                {dict.stock.addProduct}
+              </Link>
+            </Button>
+          </div>
+          <form method="get" className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
               <input
                 type="text"
                 name="search"
                 defaultValue={search}
                 placeholder={dict.common.searchPlaceholder}
-                className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-[42px] min-w-0 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
               />
               <select
                 name="categoryId"
                 defaultValue={categoryId}
-                className="form-select"
+                className="form-select min-w-0 w-full"
               >
                 <option value="ALL">{dict.common.allCategories}</option>
                 {categories.map((category) => (
@@ -132,21 +139,14 @@ export default async function ProductsPage({
               <select
                 name="productType"
                 defaultValue={productType}
-                className="form-select"
+                className="form-select min-w-0 w-full"
               >
                 {PRODUCT_TYPES.map((type) => (
                   <option key={type} value={type}>{type === 'ALL' ? dict.common.allTypes : getProductTypeLabel(type)}</option>
                 ))}
               </select>
-              <Button type="submit" size="sm" variant="outline">{dict.common.filter}</Button>
-            </form>
-            <Button asChild size="sm">
-              <Link href="/dashboard/products/new">
-                <Plus className="mr-2 h-4 w-4" />
-                {dict.stock.addProduct}
-              </Link>
-            </Button>
-          </div>
+              <Button type="submit" size="sm" variant="outline" className="w-full sm:w-auto">{dict.common.filter}</Button>
+          </form>
         </div>
 
         <div className="overflow-visible rounded-xl border">

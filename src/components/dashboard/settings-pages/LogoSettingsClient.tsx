@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import AdminImageUploader from '@/components/admin-image-uploader'
 import { getSetting, saveSetting } from '@/lib/settings'
 import { useToast } from '@/hooks/use-toast'
+import { useLocale } from '@/i18n/provider'
 
 type BrandingValue = {
   logo?: string | null;
@@ -25,6 +26,7 @@ export default function LogoSettingsClient({ initialBranding }: LogoSettingsClie
   const [name, setName] = useState(initialBranding?.name ?? '')
   const [saving, setSaving] = useState(false)
   const { success: showToastSuccess, error: showToastError } = useToast()
+  const { dict } = useLocale()
 
   useEffect(() => {
     async function load() {
@@ -120,13 +122,13 @@ export default function LogoSettingsClient({ initialBranding }: LogoSettingsClie
     const ok = await saveSetting('branding', payload).catch(() => false)
 
     if (ok) {
-      showToastSuccess('Branding settings saved successfully.')
+      showToastSuccess(dict.settings.brandingSaved)
       if (payload.favicon) {
         updateBrowserFavicon(payload.favicon)
       }
       router.refresh()
     } else {
-      showToastError('Failed to save settings.')
+      showToastError(dict.settings.brandingSaveFailed)
       localStorage.setItem('branding', JSON.stringify(payload))
     }
 
@@ -136,35 +138,35 @@ export default function LogoSettingsClient({ initialBranding }: LogoSettingsClie
   return (
     <div className="mx-auto max-w-3xl">
       <div className="rounded-xl border bg-card p-6 mb-6">
-        <h2 className="text-2xl font-semibold">Logo & Branding</h2>
-        <p className="text-sm text-muted-foreground">Upload a logo or set a display name used in invoices and the app header.</p>
+        <h2 className="text-2xl font-semibold">{dict.settings.logoTitle}</h2>
+        <p className="text-sm text-muted-foreground">{dict.settings.logoPageDescription}</p>
       </div>
 
       <div className="rounded-xl border bg-card p-6">
         <div className="mb-4">
-          <label className="block text-sm">Display Name</label>
+          <label className="block text-sm">{dict.settings.displayName}</label>
           <input className="mt-1 w-full rounded border px-3 py-2" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm mb-2">Logo (preview)</label>
+          <label className="block text-sm mb-2">{dict.settings.logoPreview}</label>
           <AdminImageUploader existingImageUrl={logoUrl ?? undefined} onFileSelected={(f) => setPendingLogoFile(f)} />
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm mb-2">Favicon</label>
+          <label className="block text-sm mb-2">{dict.settings.favicon}</label>
           {faviconPreview ? (
-            <img src={faviconPreview} alt="Favicon preview" className="h-12 w-12 object-contain border rounded mb-2" />
+            <img src={faviconPreview} alt={dict.settings.faviconPreview} className="h-12 w-12 object-contain border rounded mb-2" />
           ) : (
-            <div className="h-12 w-12 rounded border bg-muted text-muted-foreground flex items-center justify-center mb-2 text-xs">No favicon</div>
+            <div className="h-12 w-12 rounded border bg-muted text-muted-foreground flex items-center justify-center mb-2 text-xs">{dict.settings.noFavicon}</div>
           )}
           <AdminImageUploader existingImageUrl={faviconPreview ?? undefined} onFileSelected={(f) => handleFaviconFileSelected(f)} />
-          <p className="mt-1 text-xs text-muted-foreground">Accepted: PNG, JPEG, WebP, SVG, ICO</p>
+          <p className="mt-1 text-xs text-muted-foreground">{dict.settings.acceptedImageTypes}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button disabled={saving} onClick={save} className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
-          <div className="text-sm text-muted-foreground">The branding settings are stored on the server and used by invoices and the app.</div>
+          <button disabled={saving} onClick={save} className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? dict.settings.savingSettings : dict.common.save}</button>
+          <div className="text-sm text-muted-foreground">{dict.settings.brandingServerNote}</div>
         </div>
       </div>
     </div>

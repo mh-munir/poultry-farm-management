@@ -223,11 +223,11 @@ export default async function CompaniesPage({
               medicineProducts={initialMedicineItems}
               chickProducts={initialChickItems}
               paymentMethodOptions={[
-                { value: 'CASH', label: 'Cash' },
-                { value: 'BANK_TRANSFER', label: 'Bank transfer' },
-                { value: 'CHEQUE', label: 'Cheque' },
-                { value: 'MOBILE_MONEY', label: 'Mobile money' },
-                { value: 'OTHER', label: 'Other' }
+                { value: 'CASH', label: dict.paymentMethods.cash },
+                { value: 'BANK_TRANSFER', label: dict.paymentMethods.bankTransfer },
+                { value: 'CHEQUE', label: dict.paymentMethods.cheque },
+                { value: 'MOBILE_MONEY', label: dict.paymentMethods.mobileMoney },
+                { value: 'OTHER', label: dict.paymentMethods.other }
               ]}
             />
           </div>
@@ -353,16 +353,16 @@ export default async function CompaniesPage({
       {/* Feeds Section */}
       <div className="mb-8">
           <StockManagement
-          title="Feed"
-          description="Manage feed stock with quantity and pricing."
+          title={dict.productTypes.feeds}
+          description={dict.messages.companyFeedStockDescription}
           initialItems={initialFeedItems}
           availableProducts={initialFeedItems}
           suppliers={feedCompanies}
           companyNames={feedCompanyOptions}
           useCompanySearch
           allowCreateCompany
-          createNewLabel="Create new company: "
-          addButtonLabel="Add Feed Stock"
+          createNewLabel={`${dict.stock.createNewCompany}: `}
+          addButtonLabel={dict.stock.addStockButton}
           asSection
           showAddButton={false}
         />
@@ -371,14 +371,14 @@ export default async function CompaniesPage({
       {/* Medicines Section */}
       <div className="mb-8">
           <StockManagement
-          title="Medicine"
-          description="Track medicine inventory, quantity, and pricing in one place."
+          title={dict.productTypes.medicine}
+          description={dict.messages.companyMedicineStockDescription}
           initialItems={initialMedicineItems}
           availableProducts={initialMedicineItems}
           suppliers={medicineCompanies}
           companyNames={medicineCompanyOptions}
           useCompanySearch
-          addButtonLabel="Add Medicine Stock"
+          addButtonLabel={dict.stock.addStockButton}
           asSection
           showAddButton={false}
         />
@@ -387,14 +387,14 @@ export default async function CompaniesPage({
       {/* Hatchling / Chick Section */}
       <div className="mb-8">
           <StockManagement
-          title="Hatchling / Chick"
-          description="Manage hatchling/chick stock with quantity and pricing."
+          title={dict.productTypes.chick}
+          description={dict.messages.companyChickStockDescription}
           initialItems={initialChickItems}
           availableProducts={initialChickItems}
           suppliers={chickCompanies}
           companyNames={chickCompanyOptions}
           useCompanySearch
-          addButtonLabel="Add Hatchling / Chick Stock"
+          addButtonLabel={dict.stock.addStockButton}
           asSection
           showAddButton={false}
           stockType="CHICK"

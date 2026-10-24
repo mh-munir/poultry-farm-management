@@ -94,7 +94,7 @@ export function PayCompanyModal({ open, onOpenChange, preselectedCompanyId }: Pa
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title={`${dict.common.pay} ${dict.common.companies}`}>
+    <Dialog open={open} onOpenChange={onOpenChange} title={dict.common.payCompany}>
       <form onSubmit={handleSubmit} className="mt-2 grid gap-4 md:grid-cols-2">
         <input type="hidden" name="companyId" value={String(selectedCompanyId ?? '')} />
         <input type="hidden" name="status" value="COMPLETED" />

@@ -7,6 +7,10 @@ import { revalidateTags, CACHE_TAGS } from '@/lib/cache'
 
 const createSchema = z.object({ amount: z.coerce.number(), description: z.string().optional(), date: z.string().optional() })
 
+function canManageExpenses(role: string | null | undefined) {
+  return role === 'ADMIN' || role === 'SUPER_ADMIN'
+}
+
 export async function GET(request: Request) {
   try {
     const session = await auth()
@@ -33,6 +37,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  if (!canManageExpenses(session.user.role)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   const body = await request.json().catch(() => null)
   const parsed = createSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'invalid_payload' }, { status: 400 })
@@ -62,6 +67,7 @@ export async function DELETE(request: Request) {
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    if (!canManageExpenses(session.user.role)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   } catch { return NextResponse.json({ error: 'unauthorized' }, { status: 401 }) }
   const url = new URL(request.url);
   const id = url.searchParams.get('id')

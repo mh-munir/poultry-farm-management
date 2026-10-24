@@ -112,7 +112,7 @@ function buildSparkBars(value: number, maxValue: number) {
 
 export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = '', initialData, initialLoadError }: { initialStart?: string; initialEnd?: string; initialData: ApiResponse; initialLoadError?: boolean }) {
   const { dict } = useLocale();
-  const { formatCurrency, formatPercentage } = useLocalizedFormat();
+  const { formatCurrency, formatNumber, formatPercentage, toBanglaDigits, locale } = useLocalizedFormat();
   
   // Wrapper for formatting without decimals (compact)
   const formatCompactCurrency = (v: number) => formatCurrency(Math.round(v));
@@ -195,18 +195,22 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
   }
 
   function handleExportExcel() {
+    const formatExportDate = (value: string) => {
+      const formatted = formatDateInput(value);
+      return locale === 'bn' ? toBanglaDigits(formatted) : formatted;
+    };
     const rows: Array<Array<string | number>> = [
-      ['Profit Analytics Export'],
-      ['Date Range', `${formatDateInput(start)} - ${formatDateInput(end)}`],
+      [dict.analytics.exportTitle],
+      [dict.analytics.dateRange, `${formatExportDate(start)} - ${formatExportDate(end)}`],
       [],
-      ['Metric', 'Value'],
-      ['Total Sales', formatCurrency(sales)],
-      ['Total Cost', formatCurrency(cost)],
-      ['Gross Profit', formatCurrency(profit)],
-      ['Profit Margin', formatPercent(summary.profitMargin)],
+      [dict.analytics.metric, dict.analytics.value],
+      [dict.analytics.totalSales, formatCurrency(sales)],
+      [dict.analytics.totalCost, formatCurrency(cost)],
+      [dict.analytics.grossProfit, formatCurrency(profit)],
+      [dict.analytics.margin, formatPercent(summary.profitMargin)],
       [],
-      ['Top Products'],
-      ['Product', 'Qty Sold', 'Avg Buy Rate', 'Avg Sale Price', 'Total Sales', 'Total Cost', 'Gross Profit', 'Margin %']
+      [dict.analytics.bestProducts],
+      [dict.analytics.product, dict.analytics.qtySold, dict.analytics.avgBuyRate, dict.analytics.avgSalePrice, dict.analytics.totalSalesTable, dict.analytics.totalCostTable, dict.analytics.grossProfit, dict.analytics.marginPercent]
     ];
 
     products.forEach((product) => {
@@ -214,7 +218,7 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
       const avgSale = product.quantitySold > 0 ? product.totalSales / product.quantitySold : 0;
       rows.push([
         product.productName,
-        product.quantitySold,
+        formatNumber(product.quantitySold),
         formatCurrency(avgBuy),
         formatCurrency(avgSale),
         formatCurrency(product.totalSales),
@@ -380,8 +384,6 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
   const profit = summary.grossProfit;
   const cost = summary.totalCost;
   const sales = summary.totalSales;
-  const total = Math.max(0, profit) + Math.max(0, cost);
-  const profitPct = total > 0 ? (Math.max(profit, 0) / total) * 100 : 0;
   const products = data?.topProducts ?? [];
   const emptyState = !loading && products.length === 0 && sales === 0 && cost === 0 && profit === 0;
   const maxMetric = Math.max(sales, cost, Math.abs(profit), 1);
@@ -393,9 +395,9 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
   const losingProducts = products.filter((product) => product.grossProfit < 0).slice(0, 3);
   const profitDelta = sales > 0 ? ((profit / sales) * 100) : 0;
   const profitColor = profit >= 0 ? '#10b981' : '#ef4444';
-  const salesPct = Math.max(0, Math.min(100, (sales / Math.max(sales + cost + Math.max(Math.abs(profit), 1), 1)) * 100));
-  const costPct = Math.max(0, Math.min(100, ((sales + cost) / Math.max(sales + cost + Math.max(Math.abs(profit), 1), 1)) * 100));
-  const profitGradient = `conic-gradient(#2563eb 0 ${salesPct}%, #f59e0b ${salesPct}% ${costPct}%, ${profitColor} ${costPct}% 100%)`;
+  const revenueBreakdownTotal = Math.max(cost + Math.abs(profit), 1);
+  const costPct = Math.max(0, Math.min(100, (cost / revenueBreakdownTotal) * 100));
+  const profitGradient = `conic-gradient(#f59e0b 0 ${costPct}%, ${profitColor} ${costPct}% 100%)`;
 
   const totals = useMemo(() => {
     const totalQty = products.reduce((sum, item) => sum + item.quantitySold, 0);
@@ -474,7 +476,7 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
           <AnalyticsKpiCard key={metric.title} metric={metric} />
         ))}
@@ -482,68 +484,68 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
 
       {fetchError ? (
         <div className="rounded-[28px] border border-rose-200 bg-rose-50/70 p-6 text-foreground shadow-sm">
-          <p className="text-lg font-semibold text-rose-700">Unable to load analytics</p>
-          <p className="mt-2 text-sm text-muted-foreground">The dashboard is still available, but analytics data could not be loaded at this time. Please try again later.</p>
+          <p className="text-lg font-semibold text-rose-700">{dict.analytics.unableToLoad}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{dict.analytics.fallbackText}</p>
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.25fr_1fr_0.9fr]">
-        <AnalyticsSection title="Revenue Overview" subtitle="Revenue, Cost & Profit Overview">
+      <div className="grid items-start gap-6 2xl:grid-cols-[1.25fr_1fr_0.9fr]">
+        <AnalyticsSection title={dict.analytics.revenueOverview} subtitle={dict.analytics.revenueOverviewSubtitle}>
           {emptyState ? (
-            <AnalyticsEmptyState title="No profit data available" description="Try a broader range to surface the revenue mix for this period." />
+            <AnalyticsEmptyState title={dict.analytics.noProfitData} description={dict.analytics.noProfitDataDescription} />
           ) : (
-            <div className="mt-7 grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
+            <div className="mt-7 grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_220px] 2xl:items-center">
               <div className="flex justify-center">
-                <div className="relative h-56 w-56 rounded-full bg-muted/10 shadow-inner">
+                <div data-testid="revenue-breakdown-chart" className="relative h-44 w-44 shrink-0 rounded-full bg-muted/10 shadow-inner sm:h-56 sm:w-56">
                   <div className="absolute inset-0 rounded-full" style={{ background: profitGradient }} />
-                  <div className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-card text-center">
-                    <p className="text-sm font-semibold text-muted-foreground">Gross Profit</p>
-                    <p className={`mt-3 text-2xl font-semibold ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCompactCurrency(profit)}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">Margin {formatPercent(summary.profitMargin)}</p>
+                  <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-card px-2 text-center sm:inset-8 sm:px-3">
+                    <p className="text-xs font-semibold text-muted-foreground sm:text-sm">{dict.analytics.grossProfit}</p>
+                    <p className={`mt-1 break-all text-base font-semibold ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'} sm:mt-3 sm:text-2xl`}>{formatCompactCurrency(profit)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground sm:mt-2 sm:text-sm">{dict.analytics.margin} {formatPercent(summary.profitMargin)}</p>
                   </div>
                 </div>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-[20px] border border-border bg-muted/10 px-4 py-3">
-                  <div className="flex items-center gap-3">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex flex-col items-start gap-1 rounded-[20px] border border-border bg-muted/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
                     <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-                    <span className="text-sm text-muted-foreground">Total Sales</span>
+                    <span className="text-sm text-muted-foreground">{dict.analytics.totalSales}</span>
                   </div>
-                  <div className="text-sm font-semibold text-foreground">{formatCurrency(sales)}</div>
+                  <div className="break-all text-sm font-semibold text-foreground sm:text-right">{formatCurrency(sales)}</div>
                 </div>
-                <div className="flex items-center justify-between rounded-[20px] border border-border bg-muted/10 px-4 py-3">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col items-start gap-1 rounded-[20px] border border-border bg-muted/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
                     <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-                    <span className="text-sm text-muted-foreground">Total Cost</span>
+                    <span className="text-sm text-muted-foreground">{dict.analytics.totalCost}</span>
                   </div>
-                  <div className="text-sm font-semibold text-foreground">{formatCurrency(cost)}</div>
+                  <div className="break-all text-sm font-semibold text-foreground sm:text-right">{formatCurrency(cost)}</div>
                 </div>
-                <div className="flex items-center justify-between rounded-[20px] border border-border bg-muted/10 px-4 py-3">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col items-start gap-1 rounded-[20px] border border-border bg-muted/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
                     <span className={`h-2.5 w-2.5 rounded-full ${profit >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                    <span className="text-sm text-muted-foreground">Gross Profit</span>
+                    <span className="text-sm text-muted-foreground">{dict.analytics.grossProfit}</span>
                   </div>
-                  <div className={`text-sm font-semibold ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(profit)}</div>
+                  <div className={`break-all text-sm font-semibold sm:text-right ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(profit)}</div>
                 </div>
               </div>
             </div>
           )}
         </AnalyticsSection>
 
-        <AnalyticsSection title="Profit Trend" subtitle="Last 30 Days">
+        <AnalyticsSection title={dict.analytics.profitTrend} subtitle={dict.analytics.last30Days}>
           {emptyState ? (
-            <AnalyticsEmptyState title="No trend data available" description="A wider date range will reveal the performance curve." />
+            <AnalyticsEmptyState title={dict.analytics.noTrendData} description={dict.analytics.noTrendDataDescription} />
           ) : (
             <div className="mt-7 rounded-[24px] border border-border bg-card p-4 shadow-sm">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Profit Trend</p>
-                  <p className="mt-2 text-sm text-muted-foreground">Sales, costs, and profit trajectory</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">{dict.analytics.profitTrend}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{dict.analytics.salesCostProfitTrajectory}</p>
                 </div>
-                <button className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-muted/10 px-3 text-sm font-semibold text-foreground shadow-sm transition hover:border-border hover:bg-muted/20">Last 30 Days</button>
+                <button className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-muted/10 px-3 text-sm font-semibold text-foreground shadow-sm transition hover:border-border hover:bg-muted/20">{dict.analytics.last30Days}</button>
               </div>
               <div className="mt-6 overflow-hidden rounded-[20px] bg-muted/10 p-4">
-                <svg viewBox="0 0 320 160" className="h-72 w-full" role="img" aria-label="Profit trend chart">
+                <svg viewBox="0 0 320 160" className="h-72 w-full" role="img" aria-label={dict.analytics.profitTrend}>
                   <line x1="20" y1="130" x2="300" y2="130" stroke="#e2e8f0" strokeWidth="1" />
                   <line x1="20" y1="20" x2="20" y2="130" stroke="#e2e8f0" strokeWidth="1" />
                   {[0, 1, 2, 3].map((value) => (
@@ -554,24 +556,24 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
                   <polyline fill="none" stroke={profit >= 0 ? '#10b981' : '#ef4444'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={profitSeries.map((value, index) => `${30 + index * 67},${value}`).join(' ')} />
                 </svg>
                 <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600">
-                  <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> Sales</div>
-                  <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Cost</div>
-                  <div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${profit >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} /> Profit</div>
+                  <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> {dict.analytics.totalSales}</div>
+                  <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> {dict.analytics.totalCost}</div>
+                  <div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${profit >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} /> {dict.analytics.grossProfit}</div>
                 </div>
               </div>
             </div>
           )}
         </AnalyticsSection>
 
-        <AnalyticsSection title="Top Profitable Products" subtitle="Best-performing items this period">
+        <AnalyticsSection title={dict.analytics.bestProducts} subtitle={dict.analytics.bestProductsSubtitle}>
           <div className="mt-7 flex justify-between gap-3">
-            <p className="text-sm text-muted-foreground">Rankings by output and margin.</p>
+            <p className="text-sm text-muted-foreground">{dict.analytics.rankingsByOutput}</p>
             <Link href="/dashboard/reports/stock" className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-muted/10 px-4 text-sm font-semibold text-foreground shadow-sm transition hover:border-border hover:bg-muted/20">
-              View All
+              {dict.analytics.viewAll}
             </Link>
           </div>
           {emptyState ? (
-            <AnalyticsEmptyState title="No product data available" description="The selected range has no product-level profit activity yet." />
+            <AnalyticsEmptyState title={dict.analytics.noProductData} description={dict.analytics.noProductDataDescription} />
           ) : (
             <div className="mt-6 space-y-3">
               {products.map((product, index) => {
@@ -585,7 +587,7 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-foreground">{product.productName}</p>
-                          <p className="text-xs text-muted-foreground">{product.quantitySold} units sold</p>
+                          <p className="text-xs text-muted-foreground">{dict.analytics.unitsSold.replace("{count}", formatNumber(product.quantitySold))}</p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -605,68 +607,68 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
       </div>
 
       <div className="grid gap-6">
-        <AnalyticsSection title="Business Insights" subtitle="Instant signals from your current period">
+        <AnalyticsSection title={dict.analytics.businessInsights} subtitle={dict.analytics.businessInsightsSubtitle}>
           <div className="grid gap-4 lg:grid-cols-4">
             <div className="rounded-[24px] border border-emerald-100 bg-emerald-500/10 p-5 shadow-sm">
               <div className="flex items-center gap-3 text-sm font-semibold text-emerald-700">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-card text-emerald-700 shadow-sm">
                   <TrendingUp size={20} />
                 </div>
-                Revenue performance
+                {dict.analytics.revenuePerformance}
               </div>
               <p className="mt-4 text-2xl font-semibold text-foreground">—</p>
-              <p className="mt-2 text-sm text-muted-foreground">Historical comparison unavailable</p>
+              <p className="mt-2 text-sm text-muted-foreground">{dict.analytics.historicalComparisonUnavailable}</p>
             </div>
             <div className={`rounded-[24px] border p-5 shadow-sm ${profit >= 0 ? 'border-emerald-100 bg-emerald-500/10' : 'border-rose-100 bg-rose-500/10'}`}>
               <div className={`flex items-center gap-3 text-sm font-semibold ${profit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-card shadow-sm">
                   {profit >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
                 </div>
-                Gross profit health
+                {dict.analytics.profitHealth}
               </div>
               <p className="mt-4 text-2xl font-semibold text-foreground">—</p>
-              <p className="mt-2 text-sm text-muted-foreground">Historical comparison unavailable</p>
+              <p className="mt-2 text-sm text-muted-foreground">{dict.analytics.historicalComparisonUnavailable}</p>
             </div>
             <div className="rounded-[24px] border border-blue-100 bg-blue-500/10 p-5 shadow-sm">
               <div className="flex items-center gap-3 text-sm font-semibold text-blue-700">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-card shadow-sm">
                   <Package2 size={20} />
                 </div>
-                Best selling product
+                {dict.analytics.bestSellingProduct}
               </div>
-              <p className="mt-4 text-2xl font-semibold text-foreground">{bestSellingProduct?.productName ?? 'N/A'}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{bestSellingProduct ? `${bestSellingProduct.quantitySold} units sold` : 'No product data'}</p>
+              <p className="mt-4 text-2xl font-semibold text-foreground">{bestSellingProduct?.productName ?? dict.analytics.noProductDataShort}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{bestSellingProduct ? dict.analytics.unitsSold.replace("{count}", formatNumber(bestSellingProduct.quantitySold)) : dict.analytics.noProductDataShort}</p>
             </div>
             <div className="rounded-[24px] border border-violet-100 bg-violet-500/10 p-5 shadow-sm">
               <div className="flex items-center gap-3 text-sm font-semibold text-violet-700">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-card shadow-sm">
                   <CircleDollarSign size={20} />
                 </div>
-                Most profitable product
+                {dict.analytics.mostProfitableProduct}
               </div>
-              <p className="mt-4 text-2xl font-semibold text-foreground">{topProduct?.productName ?? 'N/A'}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{topProduct ? formatCurrency(topProduct.grossProfit) : 'No profit products'}</p>
+              <p className="mt-4 text-2xl font-semibold text-foreground">{topProduct?.productName ?? dict.analytics.noProductDataShort}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{topProduct ? formatCurrency(topProduct.grossProfit) : dict.analytics.noProfitProducts}</p>
             </div>
           </div>
         </AnalyticsSection>
       </div>
 
-      <AnalyticsSection title="Product Profit Analysis" subtitle="High-resolution breakdown by product">
+      <AnalyticsSection title={dict.analytics.productProfitAnalysis} subtitle={dict.analytics.productProfitAnalysisSubtitle}>
         <div className="overflow-x-auto rounded-[24px] border border-border bg-card shadow-sm">
           <table className="min-w-full text-left">
             <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur">
               <tr className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 <th className="px-5 py-4">#</th>
-                <th className="px-5 py-4">Product</th>
-                <th className="px-5 py-4">Category</th>
-                <th className="px-5 py-4">Qty Sold</th>
-                <th className="px-5 py-4">Buy Rate (Avg)</th>
-                <th className="px-5 py-4">Sale Price (Avg)</th>
-                <th className="px-5 py-4">Total Sales</th>
-                <th className="px-5 py-4">Total Cost</th>
-                <th className="px-5 py-4">Gross Profit</th>
-                <th className="px-5 py-4">Margin %</th>
-                <th className="px-5 py-4">Profit Trend</th>
+                <th className="px-5 py-4">{dict.analytics.product}</th>
+                <th className="px-5 py-4">{dict.analytics.category}</th>
+                <th className="px-5 py-4">{dict.analytics.qtySold}</th>
+                <th className="px-5 py-4">{dict.analytics.avgBuyRate}</th>
+                <th className="px-5 py-4">{dict.analytics.avgSalePrice}</th>
+                <th className="px-5 py-4">{dict.analytics.totalSalesTable}</th>
+                <th className="px-5 py-4">{dict.analytics.totalCostTable}</th>
+                <th className="px-5 py-4">{dict.analytics.grossProfit}</th>
+                <th className="px-5 py-4">{dict.analytics.marginPercent}</th>
+                <th className="px-5 py-4">{dict.analytics.profitTrendTable}</th>
               </tr>
             </thead>
             <tbody className="text-sm text-foreground">
@@ -680,7 +682,7 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
                 ))
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-5 py-12 text-center text-sm text-muted-foreground">No profit data available for the selected period.</td>
+                  <td colSpan={11} className="px-5 py-12 text-center text-sm text-muted-foreground">{dict.analytics.noProfitDataTable}</td>
                 </tr>
               ) : (
                 products.map((product, index) => {
@@ -691,7 +693,8 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
                     <tr key={product.productId} className="border-t border-border transition hover:bg-muted/20">
                       <td className="px-5 py-4 font-medium text-foreground">{index + 1}</td>
                       <td className="px-5 py-4 font-semibold text-foreground">{product.productName}</td>
-                      <td className="px-5 py-4 text-muted-foreground">{getProductTypeLabel(product.productType)}</td>
+                      <td className="px-5 py-4 text-muted-foreground">{getProductTypeLabel(product.productType, locale)}</td>
+                      <td className="px-5 py-4">{formatNumber(product.quantitySold)}</td>
                       <td className="px-5 py-4">{formatCurrency(avgBuy)}</td>
                       <td className="px-5 py-4">{formatCurrency(avgSale)}</td>
                       <td className="px-5 py-4">{formatCurrency(product.totalSales)}</td>
@@ -713,10 +716,10 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
             {products.length > 0 ? (
               <tfoot>
                 <tr className="border-t border-border bg-muted/10">
-                  <td className="px-5 py-4 text-sm font-semibold text-foreground">Total / Average</td>
+                  <td className="px-5 py-4 text-sm font-semibold text-foreground">{dict.analytics.totalAverage}</td>
                   <td className="px-5 py-4" />
                   <td className="px-5 py-4" />
-                  <td className="px-5 py-4 font-semibold text-foreground">{totals.totalQty}</td>
+                  <td className="px-5 py-4 font-semibold text-foreground">{formatNumber(totals.totalQty)}</td>
                   <td className="px-5 py-4 text-muted-foreground">{totals.avgBuy ? formatCurrency(totals.avgBuy) : '—'}</td>
                   <td className="px-5 py-4 text-muted-foreground">{totals.avgSales ? formatCurrency(totals.avgSales) : '—'}</td>
                   <td className="px-5 py-4 font-semibold text-foreground">{formatCurrency(totals.totalSales)}</td>

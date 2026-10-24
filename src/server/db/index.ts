@@ -6,16 +6,43 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+function getRuntimeDatabaseUrl(databaseUrl: string) {
+  try {
+    const url = new URL(databaseUrl);
+    const isSupabasePooler = url.hostname.endsWith('.pooler.supabase.com');
+
+    // Next.js server runtimes should use Supabase's transaction pooler. The
+    // session pooler on 5432 can exhaust connections and intermittently make
+    // Prisma report P1001/"Can't reach database server".
+    if (isSupabasePooler && (url.port === '5432' || url.port === '')) {
+      url.port = '6543';
+      url.searchParams.set('pgbouncer', 'true');
+    }
+
+    return url.toString();
+  } catch {
+    return databaseUrl;
+  }
+}
+
+function createPrismaClient() {
+  const client = new PrismaClient({
     datasources: {
       db: {
-        url: env.DATABASE_URL
+        url: getRuntimeDatabaseUrl(env.DATABASE_URL)
       }
     },
     log: process.env.NODE_ENV === 'development' ? ['error'] : []
   });
+
+  // Pooler connection failures are transient. Apply the same bounded retry
+  // policy to every Prisma operation, including direct calls from server
+  // actions that do not go through dbQuery().
+  client.$use((params, next) => retryQuery(() => next(params)));
+  return client;
+}
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 // Cache the Prisma client for all environments to maximize reuse in serverless
 if (!globalForPrisma.prisma) {

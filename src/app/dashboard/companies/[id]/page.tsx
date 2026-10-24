@@ -144,6 +144,22 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
   const locale = getLocaleFromValue(cookieStore.get(LOCALE_COOKIE)?.value ?? undefined);
   const dict = getDictionary(locale);
   const { formatCurrency, formatNumber, formatDate } = getFormatters(locale);
+  const getPaymentMethodLabel = (method: string) => {
+    switch (method.toUpperCase().replace(/[\s-]+/g, '_')) {
+      case 'CASH':
+        return dict.paymentMethods.cash;
+      case 'BANK':
+      case 'BANK_TRANSFER':
+        return dict.paymentMethods.bankTransfer;
+      case 'CHEQUE':
+        return dict.paymentMethods.cheque;
+      case 'MOBILE':
+      case 'MOBILE_MONEY':
+        return dict.paymentMethods.mobileMoney;
+      default:
+        return dict.paymentMethods.other;
+    }
+  };
   const { id } = await params;
   const companyId = Number(id);
   const sp = await searchParams;
@@ -250,7 +266,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
     }
   }
 
-  let runningBalance = 0;
+  let runningBalance = Number(company.openingBalance ?? 0);
   const historyRows: any[] = [];
   for (const record of mergedAsc) {
     if (record.kind === 'transaction') {
@@ -278,7 +294,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
         date: record.date,
         invoiceNumber: record.data.referenceNumber ?? '',
         type: 'PAYMENT_PAID',
-        productName: `Payment via ${record.data.paymentMethod}`,
+        paymentMethod: record.data.paymentMethod,
         quantity: null,
         unit: null,
         unitPrice: null,
@@ -401,26 +417,26 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
   }));
 
   const exportCsv = [
-    ['Company Profile', company.name],
-    ['Contact Person', company.contactPerson ?? ''],
-    ['Phone', company.phone],
-    ['Address', company.address ?? ''],
-    ['Company Type', company.companyType],
+    [dict.settings.companyProfile, company.name],
+    [dict.settings.contactPerson, company.contactPerson ?? ''],
+    [dict.settings.phone, company.phone],
+    [dict.common.address, company.address ?? ''],
+    [dict.settings.companyType, company.companyType],
     [],
-    ['Financial Summary'],
-    ['Total Feed Purchases', formatCurrency(summary.totalFeedPurchases)],
-    ['Total Medicine Purchases', formatCurrency(summary.totalMedicinePurchases)],
-    ['Total Payments', formatCurrency(summary.totalPayments)],
-    ['Current Due', formatCurrency(summary.totalDue)],
-    ['Total Transactions', summary.totalTransactions],
+    [dict.common.financialSummary],
+    [`${dict.common.totalPurchase} · ${dict.dashboard.feedCompany}`, formatCurrency(summary.totalFeedPurchases)],
+    [`${dict.common.totalPurchase} · ${dict.dashboard.medicineCompany}`, formatCurrency(summary.totalMedicinePurchases)],
+    [dict.common.totalPaid, formatCurrency(summary.totalPayments)],
+    [dict.common.currentDue, formatCurrency(summary.totalDue)],
+    [dict.common.totalTransactions, summary.totalTransactions],
     [],
-    ['Transaction History'],
-    ['Date', 'Invoice', 'Type', 'Product', 'Quantity', 'Unit Price', 'Line Total', 'Running Balance'],
+    [dict.pages.transactionHistory],
+    [dict.common.date, dict.tableHeaders.invoice, dict.tableHeaders.type, dict.tableHeaders.product, dict.common.quantity, dict.tableHeaders.unitPrice, dict.tableHeaders.lineTotal, dict.tableHeaders.runningBalance],
     ...historyRows.map((row) => [
       formatDate(row.date),
       row.invoiceNumber,
-      row.type,
-      row.productName,
+      row.isPayment ? dict.common.payment : dict.common.purchases,
+      row.isPayment ? `${dict.common.payment} ${dict.paymentMethods.via} ${getPaymentMethodLabel(row.paymentMethod)}` : row.productName,
       row.quantity ?? '',
       row.unitPrice !== null && row.unitPrice !== undefined ? formatCurrency(row.unitPrice) : '',
       formatCurrency(row.lineTotal),
@@ -438,7 +454,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
         <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
           <Link href="/dashboard/companies">
             <ArrowLeft className="h-4 w-4" />
-            Back
+            {dict.common.back}
           </Link>
         </Button>
       </div>
@@ -453,7 +469,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-bold leading-tight text-foreground sm:text-3xl">{company.name}</h1>
                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${companyTypeBadgeClass}`}>
-                  {company.companyType === 'FEED' ? 'Feed Company' : company.companyType === 'MEDICINE' ? 'Medicine Company' : company.companyType === 'CHICK' ? 'Hatchling / Chick Company' : 'Feeds + Hatchling / Chick'}
+                  {company.companyType === 'FEED' ? dict.dashboard.feedCompany : company.companyType === 'MEDICINE' ? dict.dashboard.medicineCompany : company.companyType === 'CHICK' ? dict.dashboard.hatchlingChickCompany : dict.dashboard.feedChickCompany}
                 </span>
               </div>
               <div className="mt-3 grid gap-x-6 gap-y-2 text-sm text-muted-foreground sm:grid-cols-2">
@@ -473,10 +489,10 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
             <div className="flex flex-wrap items-center gap-2 xl:justify-end">
               <span className={`inline-flex h-9 items-center gap-2 rounded-full px-3 text-badge font-semibold ${summary.totalDue > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
                 <CheckCircle2 className="h-4 w-4" />
-                {summary.totalDue > 0 ? 'Due' : 'Cleared'}
+                {summary.totalDue > 0 ? dict.common.due : dict.common.cleared}
               </span>
               <span className={`inline-flex h-9 items-center rounded-full px-3 text-badge font-semibold ${company.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                {company.isActive ? 'Active' : 'Inactive'}
+                {company.isActive ? dict.common.active : dict.common.inactive}
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-2 xl:justify-end">
@@ -493,7 +509,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                   openingBalance: company.openingBalance,
                   openingBalanceDescription: company.openingBalanceDescription
                 }}
-                editButtonLabel="Edit Profile"
+                editButtonLabel={dict.common.editProfile}
                 editButtonClassName="h-[42px] bg-secondary text-secondary-foreground hover:bg-secondary/80"
               />
               <CompanyProfilePayButton companyId={company.id} />
@@ -506,11 +522,11 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                   medicineProducts={initialMedicineItems}
                   chickProducts={initialChickItems}
                   paymentMethodOptions={[
-                    { value: 'CASH', label: 'Cash' },
-                    { value: 'BANK_TRANSFER', label: 'Bank transfer' },
-                    { value: 'CHEQUE', label: 'Cheque' },
-                    { value: 'MOBILE_MONEY', label: 'Mobile money' },
-                    { value: 'OTHER', label: 'Other' }
+                    { value: 'CASH', label: dict.paymentMethods.cash },
+                    { value: 'BANK_TRANSFER', label: dict.paymentMethods.bankTransfer },
+                    { value: 'CHEQUE', label: dict.paymentMethods.cheque },
+                    { value: 'MOBILE_MONEY', label: dict.paymentMethods.mobileMoney },
+                    { value: 'OTHER', label: dict.paymentMethods.other }
                   ]}
                   preselectedCompanyId={company.id}
                   preselectedCompanyName={company.name}
@@ -545,7 +561,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
 
       <section className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_0.9fr]">
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-6 shadow-sm sm:p-7">
-          <p className="text-sm font-semibold text-muted-foreground">{dict.common.totalPayable ?? 'Amount Payable (Total)'}</p>
+          <p className="text-sm font-semibold text-muted-foreground">{dict.common.totalPayable}</p>
           <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-emerald-600 sm:text-4xl">{formatCurrency(amountPayable)}</p>
           <p className="mt-3 text-sm text-muted-foreground">{dict.messages.openingBalancePlusPurchases}</p>
         </div>
@@ -570,7 +586,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-background text-primary shadow-sm"><CircleDollarSign className="h-5 w-5" /></div>
           <div className="mr-auto"><h2 className="text-lg font-semibold text-foreground">{dict.common.financialSummary ?? 'Financial Summary'}</h2><p className="mt-1 text-sm text-muted-foreground">{dict.messages.overviewOfThisPeriod ?? 'Overview of this period'}</p></div>
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${summary.totalDue > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>{summary.totalDue > 0 ? 'Due' : 'Cleared'}</span>
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${summary.totalDue > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>{summary.totalDue > 0 ? dict.common.due : dict.common.cleared}</span>
         </div>
         <div className="mt-6 grid gap-3 text-sm sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] sm:items-center">
           <div><p className="text-muted-foreground">{dict.settings.openingBalance}</p><p className="mt-1 text-lg font-bold tabular-nums text-foreground">{formatCurrency(openingBalance)}</p></div>
@@ -581,28 +597,28 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
           <span className="hidden text-2xl text-muted-foreground sm:block">=</span>
           <div className="border-t border-border pt-3 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0"><p className="font-semibold text-primary">{dict.common.totalPayable ?? 'Amount Payable'}</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{formatCurrency(amountPayable)}</p></div>
         </div>
-        <p className="mt-5 rounded-xl bg-background/80 px-4 py-3 text-sm text-muted-foreground">{dict.messages.currentDueInfo?.replace('{amount}', formatCurrency(summary.totalDue)).replace('{amount}', formatCurrency(amountPayable)) ?? `Current Due (${formatCurrency(summary.totalDue)}) is from this period only. Total Payable (${formatCurrency(amountPayable)}) includes the Opening Balance.`}</p>
+        <p className="mt-5 rounded-xl bg-background/80 px-4 py-3 text-sm text-muted-foreground">{dict.messages.currentDueInfo.replace('{amount}', formatCurrency(summary.totalDue)).replace('{amount}', formatCurrency(amountPayable))}</p>
       </section>
 
       <div className="hidden mt-6 gap-4 lg:grid-cols-2">
         <KpiCard
-          title="Current Balance"
-          value={Number(summary.currentBalance ?? 0) > 0 ? `🔴 Payable • ${formatCurrency(Number(summary.currentBalance ?? 0))}` : Number(summary.currentBalance ?? 0) < 0 ? `🟢 Advance • ${formatCurrency(Number(summary.currentBalance ?? 0))}` : '⚪ Clear'}
-          description="Opening balance plus purchases and payments"
+          title={dict.common.currentBalanceLabel}
+          value={Number(summary.currentBalance ?? 0) > 0 ? `🔴 ${dict.common.payable} • ${formatCurrency(Number(summary.currentBalance ?? 0))}` : Number(summary.currentBalance ?? 0) < 0 ? `🟢 ${dict.common.advance} • ${formatCurrency(Number(summary.currentBalance ?? 0))}` : `⚪ ${dict.common.clear}`}
+          description={dict.messages.openingBalancePlusPurchases}
           icon={Wallet}
           accent="bg-violet-100 text-violet-700"
         />
         <KpiCard
-          title="Current Due"
+          title={dict.common.currentDue}
           value={formatCurrency(summary.totalDue)}
-          description="Outstanding balance for this company"
+          description={dict.messages.outstandingBalance}
           icon={Wallet}
           accent="bg-amber-100 text-amber-700"
         />
         <KpiCard
-          title="Company Since"
+          title={dict.common.companySince}
           value={formatDate(company.createdAt)}
-          description="Account opened on this date"
+          description={dict.messages.accountOpenedOnDate}
           icon={Factory}
           accent="bg-sky-100 text-sky-700"
         />
@@ -611,43 +627,43 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
       <section className="hidden my-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Financial Overview</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Quick summary of the company account</p>
+            <h2 className="text-lg font-semibold">{dict.common.financialSummary}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{dict.dashboard.quickSummary}</p>
           </div>
           <span className={`rounded-full px-3 py-1 text-sm font-medium ${summary.totalDue > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
-            {summary.totalDue > 0 ? 'Due' : 'Cleared'}
+            {summary.totalDue > 0 ? dict.common.due : dict.common.cleared}
           </span>
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(company.companyType === 'FEED' || company.companyType === 'FEED_CHICK' || company.companyType === 'BOTH') && (
             <div className="rounded-xl border bg-background p-4">
-              <p className="text-sm text-muted-foreground">Total Feed Purchases</p>
+              <p className="text-sm text-muted-foreground">{dict.common.totalPurchase} · {dict.dashboard.feedCompany}</p>
               <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalFeedPurchases)}</p>
             </div>
           )}
           {(company.companyType === 'MEDICINE' || company.companyType === 'BOTH') && (
             <div className="rounded-xl border bg-background p-4">
-              <p className="text-sm text-muted-foreground">Total Medicine Purchases</p>
+              <p className="text-sm text-muted-foreground">{dict.common.totalPurchase} · {dict.dashboard.medicineCompany}</p>
               <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalMedicinePurchases)}</p>
             </div>
           )}
           {(company.companyType === 'CHICK' || company.companyType === 'FEED_CHICK' || company.companyType === 'BOTH') && (
             <div className="rounded-xl border bg-background p-4">
-              <p className="text-sm text-muted-foreground">Total Hatchling / Chick Purchases</p>
+              <p className="text-sm text-muted-foreground">{dict.common.totalPurchase} · {dict.dashboard.hatchlingChick}</p>
               <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalChickPurchases)}</p>
             </div>
           )}
           <div className="rounded-xl border bg-background p-4">
-            <p className="text-sm text-muted-foreground">Total Payments</p>
+            <p className="text-sm text-muted-foreground">{dict.common.totalPaid}</p>
             <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalPayments)}</p>
           </div>
           <div className="rounded-xl border bg-background p-4">
-            <p className="text-sm text-muted-foreground">Current Due</p>
+            <p className="text-sm text-muted-foreground">{dict.common.currentDue}</p>
             <p className="mt-2 text-2xl font-semibold">{formatCurrency(summary.totalDue)}</p>
           </div>
           <div className="rounded-xl border bg-background p-4">
-            <p className="text-sm text-muted-foreground">Total Transactions</p>
+            <p className="text-sm text-muted-foreground">{dict.common.totalTransactions}</p>
             <p className="mt-2 text-2xl font-semibold">{summary.totalTransactions}</p>
           </div>
         </div>
@@ -657,15 +673,15 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
         <div className="mt-6">
           {showFeedProducts && (
             <StockManagement
-              title="Feed"
-              description="Manage company feed products, stock quantity, pricing, and status."
+              title={dict.productTypes.feeds}
+              description={dict.messages.companyFeedStockDescription}
               initialItems={initialFeedItems}
               availableProducts={initialFeedItems}
               suppliers={feedCompanies}
               companyNames={feedCompanies.map((supplier) => ({ value: String(supplier.id), label: supplier.name }))}
               useCompanySearch
               allowCreateCompany={false}
-              addButtonLabel="Add Product"
+              addButtonLabel={dict.common.addNewProduct}
               asSection
               showAddButton
               defaultCompanyName={company.name}
@@ -674,15 +690,15 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
           )}
           {showMedicineProducts && (
             <StockManagement
-              title="Medicine"
-              description="Manage company medicine products, stock quantity, pricing, and status."
+              title={dict.productTypes.medicine}
+              description={dict.messages.companyMedicineStockDescription}
               initialItems={initialMedicineItems}
               availableProducts={initialMedicineItems}
               suppliers={medicineCompanies}
               companyNames={medicineCompanies.map((supplier) => ({ value: String(supplier.id), label: supplier.name }))}
               useCompanySearch
               allowCreateCompany={false}
-              addButtonLabel="Add Product"
+              addButtonLabel={dict.common.addNewProduct}
               asSection
               showAddButton
               defaultCompanyName={company.name}
@@ -691,15 +707,15 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
           )}
           {showChickProducts && (
             <StockManagement
-              title="Hatchling / Chick"
-              description="Manage hatchling/chick products, stock quantity, pricing, and status."
+              title={dict.productTypes.chick}
+              description={dict.messages.companyChickStockDescription}
               initialItems={initialChickItems}
               availableProducts={initialChickItems}
               suppliers={chickCompanies}
               companyNames={chickCompanies.map((supplier) => ({ value: String(supplier.id), label: supplier.name }))}
               useCompanySearch
               allowCreateCompany={false}
-              addButtonLabel="Add Product"
+              addButtonLabel={dict.common.addNewProduct}
               asSection
               showAddButton
               defaultCompanyName={company.name}
@@ -713,8 +729,8 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
       <section className="my-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold">Transaction history</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Purchase and payment history for this company.</p>
+            <h2 className="text-xl font-semibold">{dict.pages.transactionHistory}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{dict.messages.companyHistoryDescription}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <CompanyProfileFilter
@@ -730,7 +746,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
 
         {filteredHistoryRows.length === 0 ? (
           <div className="mt-6 rounded-xl border bg-card p-10 text-center text-muted-foreground">
-            No transactions or payments found for this company.
+            {dict.errors.noTransactionsFound}
           </div>
         ) : (
           <>
@@ -739,15 +755,15 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
               <table className="min-w-full text-sm">
                 <thead className="bg-muted/40 text-left">
                   <tr>
-                    <th className="px-4 py-3 font-medium">Date</th>
-                    <th className="px-4 py-3 font-medium">Invoice</th>
-                    <th className="px-4 py-3 font-medium">Type</th>
-                    <th className="px-4 py-3 font-medium">Product / Description</th>
-                    <th className="px-4 py-3 font-medium">Quantity</th>
-                    <th className="px-4 py-3 font-medium">Unit Price</th>
-                    <th className="px-4 py-3 font-medium">Amount</th>
-                    <th className="px-4 py-3 font-medium">Action</th>
-                    <th className="px-4 py-3 font-medium text-right">Running Balance</th>
+                    <th className="px-4 py-3 font-medium">{dict.common.date}</th>
+                    <th className="px-4 py-3 font-medium">{dict.tableHeaders.invoice}</th>
+                    <th className="px-4 py-3 font-medium">{dict.tableHeaders.type}</th>
+                    <th className="px-4 py-3 font-medium">{dict.tableHeaders.product} / {dict.tableHeaders.description}</th>
+                    <th className="px-4 py-3 font-medium">{dict.common.quantity}</th>
+                    <th className="px-4 py-3 font-medium">{dict.tableHeaders.unitPrice}</th>
+                    <th className="px-4 py-3 font-medium">{dict.common.amount}</th>
+                    <th className="px-4 py-3 font-medium">{dict.common.actions}</th>
+                    <th className="px-4 py-3 font-medium text-right">{dict.tableHeaders.runningBalance}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -761,10 +777,10 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                           row.type === 'PAYMENT_PAID' ? 'bg-emerald-100 text-emerald-800' :
                           'bg-sky-100 text-sky-800'
                         }`}>
-                          {row.type}
+                          {row.isPayment ? dict.common.payment : dict.common.purchases}
                         </span>
                       </td>
-                      <td className="px-4 py-3">{row.productName}</td>
+                      <td className="px-4 py-3">{row.isPayment ? `${dict.common.payment} ${dict.paymentMethods.via} ${getPaymentMethodLabel(row.paymentMethod)}` : row.productName}</td>
                       <td className="px-4 py-3">{row.quantity ?? '-'} {row.unit ?? ''}</td>
                       <td className="px-4 py-3">{row.unitPrice !== null && row.unitPrice !== undefined ? formatCurrency(row.unitPrice) : '-'}</td>
                       <td className={`px-4 py-3 font-medium ${row.isPayment ? 'text-emerald-700' : ''}`}>{formatCurrency(row.lineTotal)}</td>
@@ -777,7 +793,7 @@ export default async function CompanyProfilePage({ params, searchParams }: { par
                             className="inline-flex items-center rounded-md border border-border px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-muted"
                           >
                             <Printer className="mr-1 h-3.5 w-3.5" />
-                            Print
+                            {dict.common.print}
                           </a>
                         ) : (
                           <span className="text-sm text-muted-foreground">—</span>

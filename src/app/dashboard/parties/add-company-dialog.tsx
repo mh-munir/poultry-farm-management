@@ -34,10 +34,10 @@ export function AddCompanyDialog() {
     <>
       <Button onClick={() => setIsAddOpen(true)} className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">
         <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-        {dict.common.companyName ? `Add ${dict.common.companyName}` : 'Add Company'}
+        {dict.common.addCompany}
       </Button>
 
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen} title={dict.common.companyName ? `Add ${dict.common.companyName}` : 'Add Company'}>
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen} title={dict.common.addCompany}>
         <form onSubmit={handleAddSubmit} autoComplete="off" className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium">{dict.forms.companyNameLabel ?? 'Company name'}</label>

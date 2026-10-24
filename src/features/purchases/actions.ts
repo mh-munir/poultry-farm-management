@@ -232,9 +232,9 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
     let purchaseResult: PurchaseTransactionResult | null = null;
 
     for (let attempt = 0; attempt < 5; attempt++) {
-      const invoiceNumber = getInvoiceNumber('PUR');
       try {
         purchaseResult = await prisma.$transaction(async (tx) => {
+          const invoiceNumber = await getInvoiceNumber(tx);
           const resolvedItems: Array<typeof items[number] & { productId: number }> = [];
 
           for (const item of items) {
@@ -733,15 +733,13 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
       const oldGrossLineTotal = calculateLineTotal(productType, oldUnitPrice, oldQuantity, item.chickenQuantity?.toNumber());
       const grossNewLineTotal = calculateLineTotal(productType, newUnitPrice, newQuantity, totalKg > 0 ? totalKg : undefined);
       const normalizedDiscount = new Prisma.Decimal(Math.min(discount, Number(grossNewLineTotal.toString())));
-      const newLineTotal = grossNewLineTotal.minus(normalizedDiscount);
-
-      if (newLineTotal.lt(0)) {
-        throw new Error('Updated line total cannot be negative.');
-      }
+      // Store item totals gross. The transaction discount is stored once on
+      // the parent transaction and is allocated by reporting queries.
+      const newLineTotal = grossNewLineTotal;
 
       const previousLineDiscount = oldGrossLineTotal.minus(oldLineTotal);
-      const nextLineDiscount = grossNewLineTotal.minus(newLineTotal);
-      const transactionDiscountDelta = nextLineDiscount.minus(previousLineDiscount);
+      const nextLineDiscount = new Prisma.Decimal(0);
+      const transactionDiscountDelta = normalizedDiscount.minus(previousLineDiscount);
       const previousTransactionSubtotal = new Prisma.Decimal(item.transaction.subtotal.toString());
       const previousTransactionDiscount = new Prisma.Decimal(item.transaction.discount.toString());
       const previousTransactionTotal = new Prisma.Decimal(item.transaction.totalAmount.toString());
@@ -824,26 +822,52 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
       });
 
       const stockDelta = newQuantity.minus(oldQuantity);
-      const currentStock = await tx.stockBalance.findUnique({ where: { productId: resolvedProductId } });
-      const nextStockQuantity = new Prisma.Decimal(currentStock?.quantityOnHand?.toString() ?? '0').plus(stockDelta);
+      if (resolvedProductId === item.productId) {
+        const currentStock = await tx.stockBalance.findUnique({ where: { productId: resolvedProductId } });
+        const nextStockQuantity = new Prisma.Decimal(currentStock?.quantityOnHand?.toString() ?? '0').plus(stockDelta);
 
-      if (nextStockQuantity.lt(0)) {
-        throw new Error('Stock cannot go below zero for this item.');
-      }
-
-      await tx.stockBalance.upsert({
-        where: { productId: resolvedProductId },
-        update: {
-          quantityOnHand: nextStockQuantity,
-          lastUpdatedAt: new Date()
-        },
-        create: {
-          productId: resolvedProductId,
-          quantityOnHand: nextStockQuantity,
-          reservedQuantity: new Prisma.Decimal(0),
-          averageCost: newUnitPrice
+        if (nextStockQuantity.lt(0)) {
+          throw new Error('Stock cannot go below zero for this item.');
         }
-      });
+
+        await tx.stockBalance.upsert({
+          where: { productId: resolvedProductId },
+          update: { quantityOnHand: nextStockQuantity, lastUpdatedAt: new Date() },
+          create: {
+            productId: resolvedProductId,
+            quantityOnHand: nextStockQuantity,
+            reservedQuantity: new Prisma.Decimal(0),
+            averageCost: newUnitPrice
+          }
+        });
+      } else {
+        // Changing the product must remove the old quantity from the old
+        // product and add the new quantity to the replacement product.
+        const oldStock = await tx.stockBalance.findUnique({ where: { productId: item.productId } });
+        const nextOldQuantity = new Prisma.Decimal(oldStock?.quantityOnHand?.toString() ?? '0').minus(oldQuantity);
+        if (nextOldQuantity.lt(0)) {
+          throw new Error('Stock cannot go below zero for the previous product.');
+        }
+        if (oldStock) {
+          await tx.stockBalance.update({
+            where: { productId: item.productId },
+            data: { quantityOnHand: nextOldQuantity, lastUpdatedAt: new Date() }
+          });
+        }
+
+        const newStock = await tx.stockBalance.findUnique({ where: { productId: resolvedProductId } });
+        const nextNewQuantity = new Prisma.Decimal(newStock?.quantityOnHand?.toString() ?? '0').plus(newQuantity);
+        await tx.stockBalance.upsert({
+          where: { productId: resolvedProductId },
+          update: { quantityOnHand: nextNewQuantity, lastUpdatedAt: new Date() },
+          create: {
+            productId: resolvedProductId,
+            quantityOnHand: nextNewQuantity,
+            reservedQuantity: new Prisma.Decimal(0),
+            averageCost: newUnitPrice
+          }
+        });
+      }
 
       if (oldMovement) {
         await tx.stockMovement.update({
@@ -1060,7 +1084,6 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
 
     let lastError: Error | null = null;
     for (let attempt = 0; attempt < 5; attempt++) {
-      const invoiceNumber = getInvoiceNumber('PUR');
       try {
         await prisma.$transaction(async (tx) => {
        const eggProduct = eggQuantity > 0 ? await tx.product.findFirst({
@@ -1110,7 +1133,7 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
          }
        }
 
-        const invoiceNumber = getInvoiceNumber('PUR');
+        const invoiceNumber = await getInvoiceNumber(tx);
         const dueAmount = totalPrice;
 
        const purchase = await tx.transaction.create({

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { getSetting, saveSetting } from '@/lib/settings'
 import { useToast } from '@/hooks/use-toast'
+import { useLocale } from '@/i18n/provider'
 
 type InvoiceSettings = {
   prefix?: string
@@ -11,12 +12,13 @@ type InvoiceSettings = {
 }
 
 export default function InvoiceSettingsClient() {
+  const { dict } = useLocale()
   const [prefix, setPrefix] = useState('INV')
   const [footer, setFooter] = useState('')
   const [hideFeedUnitPrice, setHideFeedUnitPrice] = useState(false)
   const [hideFeedLineTotal, setHideFeedLineTotal] = useState(false)
   const [saving, setSaving] = useState(false)
-  const { success, error: showToastError } = useToast()
+  const { success } = useToast()
 
   useEffect(() => {
     async function load() {
@@ -51,10 +53,10 @@ export default function InvoiceSettingsClient() {
     const value: InvoiceSettings = { prefix, footer, hideFeedUnitPrice, hideFeedLineTotal }
     const ok = await saveSetting('invoice_settings', value).catch(() => false)
     if (ok) {
-      success('Saved invoice settings to server')
+      success(dict.settings.invoiceSavedServer)
     } else {
       localStorage.setItem('invoice_settings', JSON.stringify(value))
-      success('Saved invoice settings to localStorage')
+      success(dict.settings.invoiceSavedLocal)
     }
     setSaving(false)
   }
@@ -62,22 +64,22 @@ export default function InvoiceSettingsClient() {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
       <div className="rounded-xl border bg-card p-4 sm:p-6 mb-4 sm:mb-6">
-        <h2 className="text-xl sm:text-2xl font-semibold">Invoice Settings</h2>
-        <p className="text-xs sm:text-sm text-muted-foreground">Configure invoice numbering prefix and footer notes.</p>
+        <h2 className="text-xl sm:text-2xl font-semibold">{dict.settings.invoiceTitle}</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground">{dict.settings.invoiceDescription}</p>
       </div>
 
       <div className="rounded-xl border bg-card p-4 sm:p-6">
         <div className="mb-3 sm:mb-4">
-          <label className="block text-sm">Invoice Prefix</label>
+          <label className="block text-sm">{dict.settings.invoicePrefix}</label>
           <input className="mt-1 w-full sm:w-48 rounded border px-3 py-2" value={prefix} onChange={(e) => setPrefix(e.target.value)} />
         </div>
         <div className="mb-3 sm:mb-4">
-          <label className="block text-sm">Footer Note</label>
+          <label className="block text-sm">{dict.settings.footerNote}</label>
           <textarea className="mt-1 w-full rounded border px-3 py-2" value={footer} onChange={(e) => setFooter(e.target.value)} />
         </div>
 
         <div className="mb-4 rounded-lg border bg-slate-50 p-4">
-          <h3 className="mb-3 text-sm font-semibold">Feed product display</h3>
+          <h3 className="mb-3 text-sm font-semibold">{dict.settings.feedProductDisplay}</h3>
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -85,7 +87,7 @@ export default function InvoiceSettingsClient() {
                 checked={hideFeedUnitPrice}
                 onChange={(e) => setHideFeedUnitPrice(e.target.checked)}
               />
-              Hide Feed Unit Price
+              {dict.settings.hideFeedUnitPrice}
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -93,13 +95,13 @@ export default function InvoiceSettingsClient() {
                 checked={hideFeedLineTotal}
                 onChange={(e) => setHideFeedLineTotal(e.target.checked)}
               />
-              Hide Feed Line Total
+              {dict.settings.hideFeedLineTotal}
             </label>
           </div>
         </div>
 
         <div>
-          <button disabled={saving} onClick={save} className="w-full sm:w-auto rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+          <button disabled={saving} onClick={save} className="w-full sm:w-auto rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{saving ? dict.settings.savingInvoice : dict.common.save}</button>
         </div>
       </div>
     </div>

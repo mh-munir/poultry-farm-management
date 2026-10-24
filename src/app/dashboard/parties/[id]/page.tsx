@@ -175,11 +175,11 @@ function KpiCard({
   accent: string;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-form-label font-semibold text-muted-foreground">{title}</p>
-          <p className="mt-3 text-2xl font-bold leading-none text-foreground tabular-nums">{value}</p>
+          <p className="mt-3 break-words text-2xl font-bold leading-tight text-foreground tabular-nums">{value}</p>
           <p className="mt-2 text-card-subtitle">{description}</p>
         </div>
         <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${accent}`}>
@@ -394,20 +394,19 @@ export default async function PartyProfilePage({
         </Button>
       </div>
 
-      <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+      <section className="rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-6">
         <div className="grid gap-6 xl:grid-cols-[1.8fr_1fr] xl:items-center">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
+          <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-center">
             <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-border bg-primary/10 text-3xl font-bold text-primary shadow-sm">
               {party.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={party.imageUrl} alt={party.name} className="h-full w-full object-cover" />
               ) : (
                 getInitials(party.name)
               )}
             </div>
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-3xl font-semibold leading-tight text-foreground sm:text-4xl">{party.name}</h2>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <h2 className="min-w-0 break-words text-3xl font-semibold leading-tight text-foreground sm:text-4xl">{party.name}</h2>
                 <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${partyTypeBadgeClass}`}>
                   {formatPartyType(party.partyType, dict)}
                 </span>
@@ -435,7 +434,7 @@ export default async function PartyProfilePage({
                 {party.isActive ? dict.common.active : dict.common.inactive}
               </span>
             </div>
-            <div className="flex flex-col md:flex-row items-center justify-end gap-2">
+            <div className="flex min-w-0 flex-col flex-wrap items-stretch justify-end gap-2 md:flex-row md:items-center">
               <PartyRowActions
                 editOnly
                 party={{
@@ -455,7 +454,7 @@ export default async function PartyProfilePage({
                 }}
                 editButtonClassName="h-[42px] bg-secondary text-secondary-foreground hover:bg-secondary/80"
               />
-              <div className="flex flex-col md:flex-row items-center gap-2 overflow-x-auto">
+              <div className="flex min-w-0 flex-col flex-wrap items-stretch gap-2 md:flex-row md:items-center md:justify-end">
                 {isCustomer ? (
                   <SalesEntryPopup
                     partyOptions={customersForSales}

@@ -4,51 +4,57 @@ import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
 import { Prisma } from '@prisma/client';
 
-const BANGLADESH_OFFSET = 6 * 60;
+const BANGLADESH_OFFSET_MS = 6 * 60 * 60 * 1000;
 
-function toBangladeshTime(date: Date) {
-  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
-  return new Date(utc + BANGLADESH_OFFSET * 60000);
+function toBangladeshCalendarDate(date: Date) {
+  return new Date(date.getTime() + BANGLADESH_OFFSET_MS);
 }
 
 function getStartOfDay(date: Date) {
-  const bd = toBangladeshTime(date);
-  bd.setHours(0, 0, 0, 0);
-  return bd;
+  const bd = toBangladeshCalendarDate(date);
+  return new Date(Date.UTC(
+    bd.getUTCFullYear(),
+    bd.getUTCMonth(),
+    bd.getUTCDate()
+  ) - BANGLADESH_OFFSET_MS);
 }
 
 function getEndOfDay(date: Date) {
   const start = getStartOfDay(date);
   const end = new Date(start);
-  end.setDate(end.getDate() + 1);
+  end.setUTCDate(end.getUTCDate() + 1);
   return end;
 }
 
 function getStartOfMonth(date: Date) {
-  const bd = toBangladeshTime(date);
-  bd.setDate(1);
-  bd.setHours(0, 0, 0, 0);
-  return bd;
+  const bd = toBangladeshCalendarDate(date);
+  return new Date(Date.UTC(
+    bd.getUTCFullYear(),
+    bd.getUTCMonth(),
+    1
+  ) - BANGLADESH_OFFSET_MS);
 }
 
 function getEndOfMonth(date: Date) {
   const start = getStartOfMonth(date);
   const end = new Date(start);
-  end.setMonth(end.getMonth() + 1);
+  end.setUTCMonth(end.getUTCMonth() + 1);
   return end;
 }
 
 function getStartOfYear(date: Date) {
-  const bd = toBangladeshTime(date);
-  bd.setMonth(0, 1);
-  bd.setHours(0, 0, 0, 0);
-  return bd;
+  const bd = toBangladeshCalendarDate(date);
+  return new Date(Date.UTC(
+    bd.getUTCFullYear(),
+    0,
+    1
+  ) - BANGLADESH_OFFSET_MS);
 }
 
 function getEndOfYear(date: Date) {
   const start = getStartOfYear(date);
   const end = new Date(start);
-  end.setFullYear(end.getFullYear() + 1);
+  end.setUTCFullYear(end.getUTCFullYear() + 1);
   return end;
 }
 
@@ -66,14 +72,13 @@ export async function getDailyReportData(date: Date) {
     costTransactions,
     productTypeTotals
   ] = await Promise.all([
-    prisma.transactionItem.aggregate({
-      _sum: { lineTotal: true },
+    prisma.transaction.aggregate({
+      _sum: { totalAmount: true, paidAmount: true, dueAmount: true },
       _count: { _all: true },
       where: {
-        transaction: {
-          transactionType: 'SALE',
-          transactionDate: { gte: start, lt: end }
-        }
+        transactionType: 'SALE',
+        status: { not: 'CANCELLED' },
+        transactionDate: { gte: start, lt: end }
       }
     }),
     prisma.transaction.aggregate({
@@ -81,6 +86,7 @@ export async function getDailyReportData(date: Date) {
       _count: { _all: true },
       where: {
         transactionType: 'PURCHASE',
+        status: { not: 'CANCELLED' },
         transactionDate: { gte: start, lt: end }
       }
     }),
@@ -94,6 +100,7 @@ export async function getDailyReportData(date: Date) {
     prisma.transaction.findMany({
       where: {
         transactionType: 'SALE',
+        status: { not: 'CANCELLED' },
         transactionDate: { gte: start, lt: end }
       },
       include: {
@@ -109,6 +116,7 @@ export async function getDailyReportData(date: Date) {
     prisma.transaction.findMany({
       where: {
         transactionType: 'PURCHASE',
+        status: { not: 'CANCELLED' },
         transactionDate: { gte: start, lt: end }
       },
       include: {
@@ -128,11 +136,18 @@ export async function getDailyReportData(date: Date) {
       orderBy: { expenseDate: 'desc' }
     }),
     prisma.$queryRaw<Array<{ transactionType: string; productType: string; total: any }>>`
-      SELECT tr."transactionType", p."productType", SUM(ti."lineTotal") AS "total"
+      SELECT tr."transactionType", p."productType",
+        SUM(CASE
+          WHEN tr."transactionType" = 'SALE'
+            OR p."productType" IN ('FEED', 'MEDICINE', 'CHICK')
+          THEN ti."lineTotal" * CASE WHEN tr."subtotal" > 0 THEN tr."totalAmount" / tr."subtotal" ELSE 0 END
+          ELSE ti."lineTotal"
+        END) AS "total"
       FROM "TransactionItem" ti
       JOIN "Transaction" tr ON tr.id = ti."transactionId"
       JOIN "Product" p ON p.id = ti."productId"
       WHERE tr."transactionType" IN ('SALE', 'PURCHASE')
+        AND tr."status" <> 'CANCELLED'
         AND tr."transactionDate" >= ${start}
         AND tr."transactionDate" < ${end}
       GROUP BY tr."transactionType", p."productType"
@@ -157,7 +172,7 @@ export async function getDailyReportData(date: Date) {
   const medicinePurchases = purchaseTypeMap.get('MEDICINE') ?? 0;
   const chickPurchases = purchaseTypeMap.get('CHICK') ?? 0;
 
-  const totalSales = Number(salesAgg._sum.lineTotal ?? 0);
+  const totalSales = Number(salesAgg._sum.totalAmount ?? 0);
   const totalPurchase = Number(purchaseAgg._sum.totalAmount ?? 0);
   const totalCost = Number(costAgg._sum.amount ?? 0);
   const netProfit = totalSales - totalPurchase - totalCost;
@@ -168,8 +183,8 @@ export async function getDailyReportData(date: Date) {
       total: totalSales,
       transactions: salesTransactions,
       count: salesAgg._count._all,
-      paid: Number(purchaseAgg._sum.paidAmount ?? 0),
-      due: Number(purchaseAgg._sum.dueAmount ?? 0),
+      paid: Number(salesAgg._sum.paidAmount ?? 0),
+      due: Number(salesAgg._sum.dueAmount ?? 0),
       feedTotal: feedSales,
       medicineTotal: medicineSales,
       chickTotal: chickSales
@@ -204,14 +219,13 @@ export async function getMonthlyReportData(year: number, month: number) {
   const end = getEndOfMonth(date);
 
   const [salesAgg, purchaseAgg, costAgg, salesTransactions, purchaseTransactions] = await Promise.all([
-    prisma.transactionItem.aggregate({
-      _sum: { lineTotal: true },
+    prisma.transaction.aggregate({
+      _sum: { totalAmount: true },
       _count: { _all: true },
       where: {
-        transaction: {
-          transactionType: 'SALE',
-          transactionDate: { gte: start, lt: end }
-        }
+        transactionType: 'SALE',
+        status: { not: 'CANCELLED' },
+        transactionDate: { gte: start, lt: end }
       }
     }),
     prisma.transaction.aggregate({
@@ -219,6 +233,7 @@ export async function getMonthlyReportData(year: number, month: number) {
       _count: { _all: true },
       where: {
         transactionType: 'PURCHASE',
+        status: { not: 'CANCELLED' },
         transactionDate: { gte: start, lt: end }
       }
     }),
@@ -247,11 +262,18 @@ export async function getMonthlyReportData(year: number, month: number) {
   ]);
 
   const productTypeTotals = await prisma.$queryRaw<Array<{ transactionType: string; productType: string; total: any }>>`
-    SELECT tr."transactionType", p."productType", SUM(ti."lineTotal") AS "total"
+    SELECT tr."transactionType", p."productType",
+      SUM(CASE
+        WHEN tr."transactionType" = 'SALE'
+          OR p."productType" IN ('FEED', 'MEDICINE', 'CHICK')
+        THEN ti."lineTotal" * CASE WHEN tr."subtotal" > 0 THEN tr."totalAmount" / tr."subtotal" ELSE 0 END
+        ELSE ti."lineTotal"
+      END) AS "total"
     FROM "TransactionItem" ti
     JOIN "Transaction" tr ON tr.id = ti."transactionId"
     JOIN "Product" p ON p.id = ti."productId"
     WHERE tr."transactionType" IN ('SALE', 'PURCHASE')
+      AND tr."status" <> 'CANCELLED'
       AND tr."transactionDate" >= ${start}
       AND tr."transactionDate" < ${end}
     GROUP BY tr."transactionType", p."productType"
@@ -275,33 +297,38 @@ export async function getMonthlyReportData(year: number, month: number) {
   const medicinePurchases = purchaseTypeMap.get('MEDICINE') ?? 0;
   const chickPurchases = purchaseTypeMap.get('CHICK') ?? 0;
 
-  const totalSales = Number(salesAgg._sum.lineTotal ?? 0);
+  const totalSales = Number(salesAgg._sum.totalAmount ?? 0);
   const totalPurchase = Number(purchaseAgg._sum.totalAmount ?? 0);
   const totalCost = Number(costAgg._sum.amount ?? 0);
 
-  const dailyBreakdownRows = await prisma.$queryRaw<Array<{ day: Date; sales: any; purchases: any; costs: any }>>`
+  const dailyBreakdownRows = await prisma.$queryRaw<Array<{ day: string; sales: any; purchases: any; costs: any }>>`
     WITH days AS (
-      SELECT generate_series(${start}, ${end} - interval '1 day', '1 day'::interval) AS "day"
+      SELECT generate_series(
+        (CAST(${start} AS timestamptz) AT TIME ZONE 'Asia/Dhaka')::date,
+        ((CAST(${end} AS timestamptz) - interval '1 day') AT TIME ZONE 'Asia/Dhaka')::date,
+        '1 day'::interval
+      )::date AS "day"
     ),
     sales AS (
-      SELECT date_trunc('day', tr."transactionDate") AS "day", SUM(ti."lineTotal") AS "sales"
-      FROM "TransactionItem" ti
-      JOIN "Transaction" tr ON tr.id = ti."transactionId"
+      SELECT (tr."transactionDate" AT TIME ZONE 'Asia/Dhaka')::date AS "day", SUM(tr."totalAmount") AS "sales"
+      FROM "Transaction" tr
       WHERE tr."transactionType" = 'SALE'
+        AND tr."status" <> 'CANCELLED'
         AND tr."transactionDate" >= ${start}
         AND tr."transactionDate" < ${end}
       GROUP BY 1
     ),
     purchases AS (
-      SELECT date_trunc('day', "transactionDate") AS "day", SUM("totalAmount") AS "purchases"
+      SELECT ("transactionDate" AT TIME ZONE 'Asia/Dhaka')::date AS "day", SUM("totalAmount") AS "purchases"
       FROM "Transaction"
       WHERE "transactionType" = 'PURCHASE'
+        AND "status" <> 'CANCELLED'
         AND "transactionDate" >= ${start}
         AND "transactionDate" < ${end}
       GROUP BY 1
     ),
     costs AS (
-      SELECT date_trunc('day', "expenseDate") AS "day", SUM("amount") AS "costs"
+      SELECT ("expenseDate" AT TIME ZONE 'Asia/Dhaka')::date AS "day", SUM("amount") AS "costs"
       FROM "Expense"
       WHERE "expenseDate" >= ${start}
         AND "expenseDate" < ${end}
@@ -318,8 +345,8 @@ export async function getMonthlyReportData(year: number, month: number) {
     ORDER BY days."day"
   `;
 
-  const dailyBreakdownMap = new Map((dailyBreakdownRows as Array<{ day: Date; sales: any; purchases: any; costs: any }>).map((d) => {
-    const dateKey = d.day.toISOString().slice(0, 10);
+  const dailyBreakdownMap = new Map(dailyBreakdownRows.map((d) => {
+    const dateKey = String(d.day).slice(0, 10);
     const salesVal = Number(d.sales ?? 0);
     const purchasesVal = Number(d.purchases ?? 0);
     const costsVal = Number(d.costs ?? 0);
@@ -374,19 +401,19 @@ export async function getYearlyReportData(year: number) {
   const end = getEndOfYear(new Date(year, 0, 1));
 
   const [salesAgg, purchaseAgg, costAgg] = await Promise.all([
-    prisma.transactionItem.aggregate({
-      _sum: { lineTotal: true },
+    prisma.transaction.aggregate({
+      _sum: { totalAmount: true },
       where: {
-        transaction: {
-          transactionType: 'SALE',
-          transactionDate: { gte: start, lt: end }
-        }
+        transactionType: 'SALE',
+        status: { not: 'CANCELLED' },
+        transactionDate: { gte: start, lt: end }
       }
     }),
     prisma.transaction.aggregate({
       _sum: { totalAmount: true, paidAmount: true, dueAmount: true },
       where: {
         transactionType: 'PURCHASE',
+        status: { not: 'CANCELLED' },
         transactionDate: { gte: start, lt: end }
       }
     }),
@@ -404,27 +431,32 @@ export async function getYearlyReportData(year: number) {
   // `month` comes back as a string from $queryRaw; request string and convert below.
   const monthlyRowsRaw = await prisma.$queryRaw<Array<{ month: string; sales: any; purchases: any; costs: any }>>`
     WITH months AS (
-      SELECT generate_series(${start}, ${end} - interval '1 month', '1 month'::interval) AS "month"
+      SELECT generate_series(
+        date_trunc('month', (CAST(${start} AS timestamptz) AT TIME ZONE 'Asia/Dhaka'))::date,
+        date_trunc('month', ((CAST(${end} AS timestamptz) - interval '1 month') AT TIME ZONE 'Asia/Dhaka'))::date,
+        '1 month'::interval
+      )::date AS "month"
     ),
     sales AS (
-      SELECT date_trunc('month', tr."transactionDate") AS "month", SUM(ti."lineTotal") AS "sales"
-      FROM "TransactionItem" ti
-      JOIN "Transaction" tr ON tr.id = ti."transactionId"
+      SELECT date_trunc('month', tr."transactionDate" AT TIME ZONE 'Asia/Dhaka')::date AS "month", SUM(tr."totalAmount") AS "sales"
+      FROM "Transaction" tr
       WHERE tr."transactionType" = 'SALE'
+        AND tr."status" <> 'CANCELLED'
         AND tr."transactionDate" >= ${start}
         AND tr."transactionDate" < ${end}
       GROUP BY 1
     ),
     purchases AS (
-      SELECT date_trunc('month', "transactionDate") AS "month", SUM("totalAmount") AS "purchases"
+      SELECT date_trunc('month', "transactionDate" AT TIME ZONE 'Asia/Dhaka')::date AS "month", SUM("totalAmount") AS "purchases"
       FROM "Transaction"
       WHERE "transactionType" = 'PURCHASE'
+        AND "status" <> 'CANCELLED'
         AND "transactionDate" >= ${start}
         AND "transactionDate" < ${end}
       GROUP BY 1
     ),
     costs AS (
-      SELECT date_trunc('month', "expenseDate") AS "month", SUM("amount") AS "costs"
+      SELECT date_trunc('month', "expenseDate" AT TIME ZONE 'Asia/Dhaka')::date AS "month", SUM("amount") AS "costs"
       FROM "Expense"
       WHERE "expenseDate" >= ${start}
         AND "expenseDate" < ${end}
@@ -443,7 +475,7 @@ export async function getYearlyReportData(year: number) {
 
   const monthlyRows = (monthlyRowsRaw as Array<{ month: string; sales: any; purchases: any; costs: any }>).map((m) => ({
     ...m,
-    month: new Date(m.month)
+    month: new Date(`${m.month}T00:00:00Z`)
   }));
 
   const monthlyMap = new Map((monthlyRows as Array<{ month: Date; sales: any; purchases: any; costs: any }>).map((m) => {
@@ -458,16 +490,23 @@ export async function getYearlyReportData(year: number) {
     monthlyBreakdown.push(monthlyMap.get(month) ?? { month: monthNames[month], sales: 0, purchases: 0, costs: 0, profit: 0 });
   }
 
-  const totalSales = Number(salesAgg._sum.lineTotal ?? 0);
+  const totalSales = Number(salesAgg._sum.totalAmount ?? 0);
   const totalPurchase = Number(purchaseAgg._sum.totalAmount ?? 0);
   const totalCost = Number(costAgg._sum.amount ?? 0);
 
   const productTypeTotals = await prisma.$queryRaw<Array<{ transactionType: string; productType: string; total: any }>>`
-    SELECT tr."transactionType", p."productType", SUM(ti."lineTotal") AS "total"
+    SELECT tr."transactionType", p."productType",
+      SUM(CASE
+        WHEN tr."transactionType" = 'SALE'
+          OR p."productType" IN ('FEED', 'MEDICINE', 'CHICK')
+        THEN ti."lineTotal" * CASE WHEN tr."subtotal" > 0 THEN tr."totalAmount" / tr."subtotal" ELSE 0 END
+        ELSE ti."lineTotal"
+      END) AS "total"
     FROM "TransactionItem" ti
     JOIN "Transaction" tr ON tr.id = ti."transactionId"
     JOIN "Product" p ON p.id = ti."productId"
     WHERE tr."transactionType" IN ('SALE', 'PURCHASE')
+      AND tr."status" <> 'CANCELLED'
       AND tr."transactionDate" >= ${start}
       AND tr."transactionDate" < ${end}
     GROUP BY tr."transactionType", p."productType"
@@ -524,7 +563,7 @@ export async function getSalesReportData(filters: {
   productType?: string;
 }) {
   await requireUser();
-  const where: any = { transactionType: 'SALE' };
+  const where: any = { transactionType: 'SALE', status: { not: 'CANCELLED' } };
 
   if (filters.dateFrom || filters.dateTo) {
     where.transactionDate = {};
@@ -610,7 +649,7 @@ export async function getPurchasesReportData(filters: {
   productType?: string;
 }) {
   await requireUser();
-  const where: any = { transactionType: 'PURCHASE' };
+  const where: any = { transactionType: 'PURCHASE', status: { not: 'CANCELLED' } };
 
   if (filters.dateFrom || filters.dateTo) {
     where.transactionDate = {};
@@ -696,7 +735,7 @@ export async function getPartyStatementData(partyId: number) {
   await requireUser();
   const party = await prisma.party.findUnique({
     where: { id: partyId },
-    select: { id: true, name: true, partyType: true }
+    select: { id: true, name: true, partyType: true, openingBalance: true, openingBalanceType: true }
   });
 
   if (!party) {
@@ -705,7 +744,7 @@ export async function getPartyStatementData(partyId: number) {
 
   const [transactions, payments] = await Promise.all([
     prisma.transaction.findMany({
-      where: { partyId },
+      where: { partyId, status: { not: 'CANCELLED' } },
       select: {
         id: true,
         transactionType: true,
@@ -723,13 +762,14 @@ export async function getPartyStatementData(partyId: number) {
       orderBy: { transactionDate: 'asc' }
     }),
     prisma.payment.findMany({
-      where: { partyId },
+      where: { partyId, status: { not: 'CANCELLED' } },
       select: {
         id: true,
         paymentDate: true,
         amount: true,
         paymentMethod: true,
-        referenceNumber: true
+        referenceNumber: true,
+        paymentDirection: true
       },
       orderBy: { paymentDate: 'asc' }
     })
@@ -739,16 +779,15 @@ export async function getPartyStatementData(partyId: number) {
 
   for (const transaction of transactions) {
     const amount = Number(transaction.totalAmount);
-    const paid = Number(transaction.paidAmount);
-    const due = Number(transaction.dueAmount);
-
     entries.push({
       id: `txn-${transaction.id}`,
       date: transaction.transactionDate,
       type: transaction.transactionType,
       description: `Invoice ${transaction.invoiceNumber}`,
       debit: amount,
-      credit: paid,
+      // Payments are rendered as separate entries below. Including paid here
+      // would count allocated payments twice in the running balance.
+      credit: 0,
       balance: 0,
       details: transaction.transactionItems.map((item) => item.product.name).join(', ')
     });
@@ -764,6 +803,20 @@ export async function getPartyStatementData(partyId: number) {
       credit: Number(payment.amount),
       balance: 0,
       details: payment.referenceNumber || ''
+    });
+  }
+
+  const openingAmount = Math.abs(Number(party.openingBalance ?? 0));
+  if (openingAmount > 0) {
+    entries.push({
+      id: `opening-${party.id}`,
+      date: new Date(0),
+      type: 'OPENING_BALANCE',
+      description: 'Opening balance',
+      debit: party.openingBalanceType === 'CUSTOMER_ADVANCE' ? 0 : openingAmount,
+      credit: party.openingBalanceType === 'CUSTOMER_ADVANCE' ? openingAmount : 0,
+      balance: 0,
+      details: ''
     });
   }
 
@@ -809,7 +862,7 @@ export async function getStockReportData(filters: { productType?: string }) {
       unit: true,
       lowStockThreshold: true,
       defaultPurchasePrice: true,
-      stockBalance: { select: { quantityOnHand: true } }
+      stockBalance: { select: { quantityOnHand: true, averageCost: true } }
     },
     orderBy: { name: 'asc' }
   });
@@ -854,7 +907,7 @@ export async function getStockReportData(filters: { productType?: string }) {
 
   const totalValue = items.reduce((sum, item) => {
     const product = products.find((p) => p.id === item.id);
-    const price = Number(product?.defaultPurchasePrice ?? 0);
+    const price = Number(product?.stockBalance?.averageCost ?? product?.defaultPurchasePrice ?? 0);
     return sum + item.quantityOnHand * price;
   }, 0);
 
@@ -871,19 +924,19 @@ export async function getProfitLossReportData(dateFrom?: Date, dateTo?: Date) {
   const end = dateTo ? getEndOfDay(dateTo) : getEndOfYear(new Date());
 
   const [salesAgg, purchaseAgg, costAgg] = await Promise.all([
-    prisma.transactionItem.aggregate({
-      _sum: { lineTotal: true },
+    prisma.transaction.aggregate({
+      _sum: { totalAmount: true },
       where: {
-        transaction: {
-          transactionType: 'SALE',
-          transactionDate: { gte: start, lt: end }
-        }
+        transactionType: 'SALE',
+        status: { not: 'CANCELLED' },
+        transactionDate: { gte: start, lt: end }
       }
     }),
     prisma.transaction.aggregate({
       _sum: { totalAmount: true },
       where: {
         transactionType: 'PURCHASE',
+        status: { not: 'CANCELLED' },
         transactionDate: { gte: start, lt: end }
       }
     }),
@@ -895,7 +948,7 @@ export async function getProfitLossReportData(dateFrom?: Date, dateTo?: Date) {
     })
   ]);
 
-  const totalSales = Number(salesAgg._sum.lineTotal ?? 0);
+  const totalSales = Number(salesAgg._sum.totalAmount ?? 0);
   const totalPurchases = Number(purchaseAgg._sum.totalAmount ?? 0);
   const totalCosts = Number(costAgg._sum.amount ?? 0);
   const grossProfit = totalSales - totalPurchases;
@@ -943,9 +996,8 @@ export async function getReportSummary() {
     SELECT
       COALESCE(
         (
-          SELECT SUM(ti."lineTotal")
-          FROM "TransactionItem" ti
-          JOIN "Transaction" tr ON tr.id = ti."transactionId"
+          SELECT SUM(tr."totalAmount")
+          FROM "Transaction" tr
           WHERE tr."transactionType" = 'SALE'
             AND tr."transactionDate" >= ${start}
             AND tr."transactionDate" < ${end}
@@ -954,9 +1006,8 @@ export async function getReportSummary() {
       ) AS "daily_sales",
       COALESCE(
         (
-          SELECT SUM(ti."lineTotal")
-          FROM "TransactionItem" ti
-          JOIN "Transaction" tr ON tr.id = ti."transactionId"
+          SELECT SUM(tr."totalAmount")
+          FROM "Transaction" tr
           WHERE tr."transactionType" = 'SALE'
             AND tr."transactionDate" >= ${monthStart}
             AND tr."transactionDate" < ${monthEnd}
@@ -965,9 +1016,8 @@ export async function getReportSummary() {
       ) AS "monthly_sales",
       COALESCE(
         (
-          SELECT SUM(ti."lineTotal")
-          FROM "TransactionItem" ti
-          JOIN "Transaction" tr ON tr.id = ti."transactionId"
+          SELECT SUM(tr."totalAmount")
+          FROM "Transaction" tr
           WHERE tr."transactionType" = 'SALE'
             AND tr."transactionDate" >= ${yearStart}
             AND tr."transactionDate" < ${yearEnd}
@@ -984,8 +1034,9 @@ export async function getReportSummary() {
       ) AS "total_purchases",
       COALESCE(
         (
-          SELECT SUM(sb."quantityOnHand")
+          SELECT SUM(sb."quantityOnHand" * COALESCE(sb."averageCost", p."defaultPurchasePrice", 0))
           FROM "StockBalance" sb
+          JOIN "Product" p ON p.id = sb."productId"
         ),
         0
       ) AS "total_stock_quantity",

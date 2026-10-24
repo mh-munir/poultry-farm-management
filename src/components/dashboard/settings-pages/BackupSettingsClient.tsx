@@ -2,10 +2,12 @@
 import React, { useState } from 'react'
 import { getAllSettings } from '@/lib/settings'
 import { useToast } from '@/hooks/use-toast'
+import { useLocale } from '@/i18n/provider'
 
 export default function BackupSettingsClient() {
   const [downloading, setDownloading] = useState(false)
   const { error: showToastError, success } = useToast()
+  const { dict } = useLocale()
 
   async function downloadBackup() {
     setDownloading(true)
@@ -18,9 +20,10 @@ export default function BackupSettingsClient() {
       a.download = `poultry-backup-${new Date().toISOString().slice(0,10)}.json`
       a.click()
       URL.revokeObjectURL(url)
-      success('Backup downloaded successfully.')
+      success(dict.settings.backupDownloaded)
     } catch (error) {
-      showToastError('Unable to generate backup from server settings.')
+      console.error('Backup generation failed', error)
+      showToastError(dict.settings.backupFailed)
     }
     setDownloading(false)
   }
@@ -28,12 +31,12 @@ export default function BackupSettingsClient() {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
       <div className="rounded-xl border bg-card p-4 sm:p-6 mb-4 sm:mb-6">
-        <h2 className="text-xl sm:text-2xl font-semibold">Backup</h2>
-        <p className="text-xs sm:text-sm text-muted-foreground">Download a JSON backup of your server-backed settings.</p>
+        <h2 className="text-xl sm:text-2xl font-semibold">{dict.settings.backup}</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground">{dict.settings.backupPageDescription}</p>
       </div>
 
       <div className="rounded-xl border bg-card p-4 sm:p-6">
-        <button disabled={downloading} onClick={downloadBackup} className="w-full sm:w-auto rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{downloading ? 'Preparing backup...' : 'Download Backup'}</button>
+        <button disabled={downloading} onClick={downloadBackup} className="w-full sm:w-auto rounded bg-primary px-4 py-2 text-white disabled:opacity-50">{downloading ? dict.settings.preparingBackup : dict.settings.downloadBackup}</button>
       </div>
     </div>
   )

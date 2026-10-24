@@ -155,6 +155,7 @@ type PartySummaryPayment = {
   amount: { toString(): string };
   paymentDate: Date;
   allocations: Array<{ id: number }>;
+  paymentDirection: string | null;
 };
 
 function toDecimal(value: Prisma.Decimal | number | string | { toString(): string } | null | undefined) {
@@ -164,21 +165,12 @@ function toDecimal(value: Prisma.Decimal | number | string | { toString(): strin
   return new Prisma.Decimal(value?.toString() ?? '0');
 }
 
-function getStandalonePaymentTotal(payments: PartySummaryPayment[]): Prisma.Decimal {
-  return payments.reduce((total, payment) => {
-    if (payment.allocations.length > 0) {
-      return total;
-    }
-
-    return total.plus(toDecimal(payment.amount));
-  }, new Prisma.Decimal(0));
-}
-
 function summarizePartyAccount(
   partyType: string,
   transactions: PartySummaryTransaction[],
   payments: PartySummaryPayment[] = [],
-  openingBalance = 0
+  openingBalance = 0,
+  openingBalanceType: string | null = 'CUSTOMER_DUE'
 ) {
   let customerInvoiced = new Prisma.Decimal(0);
   let customerPaid = new Prisma.Decimal(0);
@@ -186,7 +178,7 @@ function summarizePartyAccount(
   let partySupplierInvoiced = new Prisma.Decimal(0);
   let partySupplierPaid = new Prisma.Decimal(0);
   let partySupplierDue = new Prisma.Decimal(0);
-  let standalonePayment = getStandalonePaymentTotal(payments);
+  const standalonePayments = payments.filter((payment) => payment.allocations.length === 0);
 
   for (const transaction of transactions) {
     const totalAmount = toDecimal(transaction.totalAmount);
@@ -206,17 +198,29 @@ function summarizePartyAccount(
     }
 
     if (transaction.transactionType === 'PAYMENT') {
-      standalonePayment = standalonePayment.plus(totalAmount);
+      customerPaid = customerPaid.plus(totalAmount);
     }
   }
 
-  if (partyType === 'PARTY') {
-    partySupplierPaid = partySupplierPaid.plus(standalonePayment);
-    partySupplierDue = Prisma.Decimal.max(new Prisma.Decimal(0), partySupplierDue.minus(standalonePayment));
+  const openingAmount = new Prisma.Decimal(Math.abs(openingBalance));
+  if (openingBalanceType === 'CUSTOMER_ADVANCE') {
+    customerDue = Prisma.Decimal.max(new Prisma.Decimal(0), customerDue.minus(openingAmount));
   } else {
-    customerPaid = customerPaid.plus(standalonePayment);
-    customerDue = customerDue.plus(new Prisma.Decimal(openingBalance));
-    customerDue = Prisma.Decimal.max(new Prisma.Decimal(0), customerDue.minus(standalonePayment));
+    customerDue = customerDue.plus(openingAmount);
+  }
+
+  for (const payment of standalonePayments) {
+    const amount = toDecimal(payment.amount);
+    const isSupplierPayment = payment.paymentDirection === 'SUPPLIER_PAYMENT'
+      || (payment.paymentDirection == null && partyType === 'PARTY');
+
+    if (isSupplierPayment && partyType !== 'CUSTOMER') {
+      partySupplierPaid = partySupplierPaid.plus(amount);
+      partySupplierDue = Prisma.Decimal.max(new Prisma.Decimal(0), partySupplierDue.minus(amount));
+    } else if (partyType !== 'PARTY') {
+      customerPaid = customerPaid.plus(amount);
+      customerDue = Prisma.Decimal.max(new Prisma.Decimal(0), customerDue.minus(amount));
+    }
   }
 
   const offsetApplied = Prisma.Decimal.min(customerDue, partySupplierDue);
@@ -586,6 +590,7 @@ export async function getPartyPageData({
         taxNumber: true,
         creditLimit: true,
         openingBalance: true,
+        openingBalanceType: true,
         imageUrl: true,
         mediaName: true,
         farmName: true,
@@ -605,7 +610,7 @@ export async function getPartyPageData({
   const [transactionSummary, standalonePayments, lastActivity] = partyIds.length === 0
     ? [[], [], []] as [
         Array<{ partyId: number; transactionType: string; totalAmount: any; paidAmount: any; dueAmount: any }>,
-        Array<{ partyId: number; totalPaid: any }>,
+        Array<{ partyId: number; paymentDirection: string | null; totalPaid: any }>,
         Array<{ partyId: number; lastActivityAt: Date | null }>
       ]
     : await Promise.all([
@@ -616,16 +621,18 @@ export async function getPartyPageData({
             SUM("dueAmount") AS "dueAmount"
           FROM "Transaction"
           WHERE "partyId" IN (${Prisma.join(partyIds)})
+            AND "status" <> 'CANCELLED'
           GROUP BY "partyId", "transactionType"
         `,
-        prisma.$queryRaw<Array<{ partyId: number; totalPaid: any }>>`
-          SELECT p."partyId", COALESCE(SUM(p."amount"), 0) AS "totalPaid"
+        prisma.$queryRaw<Array<{ partyId: number; paymentDirection: string | null; totalPaid: any }>>`
+          SELECT p."partyId", p."paymentDirection", COALESCE(SUM(p."amount"), 0) AS "totalPaid"
           FROM "Payment" p
           WHERE p."partyId" IN (${Prisma.join(partyIds)})
+            AND p."status" <> 'CANCELLED'
             AND NOT EXISTS (
               SELECT 1 FROM "PaymentAllocation" pa WHERE pa."paymentId" = p."id"
             )
-          GROUP BY p."partyId"
+          GROUP BY p."partyId", p."paymentDirection"
         `,
         prisma.$queryRaw<Array<{ partyId: number; lastActivityAt: Date | null }>>`
           SELECT "partyId", MAX("activityAt") AS "lastActivityAt"
@@ -657,11 +664,14 @@ export async function getPartyPageData({
 
   const paymentMap = new Map<number, PartySummaryPayment[]>();
   for (const row of standalonePayments) {
-    paymentMap.set(row.partyId, [{
+    const rows = paymentMap.get(row.partyId) ?? [];
+    rows.push({
       amount: row.totalPaid ?? 0,
       paymentDate: new Date(),
-      allocations: []
-    }]);
+      allocations: [],
+      paymentDirection: row.paymentDirection
+    });
+    paymentMap.set(row.partyId, rows);
   }
 
   const lastActivityMap = new Map(lastActivity.map((row) => [row.partyId, row.lastActivityAt]));
@@ -675,7 +685,13 @@ export async function getPartyPageData({
     return {
       ...party,
       lastTransactionDate,
-      ...summarizePartyAccount(party.partyType, transactions, payments, Number(party.openingBalance ?? 0))
+      ...summarizePartyAccount(
+        party.partyType,
+        transactions,
+        payments,
+        Number(party.openingBalance ?? 0),
+        party.openingBalanceType
+      )
     };
   }).sort((a, b) => {
     if (a.lastTransactionDate && b.lastTransactionDate) {
@@ -729,8 +745,8 @@ export async function getPartyStats(args: { search?: string; partyType?: string;
 
   const total = rows.reduce((sum, row) => sum + row._count._all, 0);
   const activeParties = rows.reduce((sum, row) => sum + (row.isActive ? row._count._all : 0), 0);
-  const customers = rows.reduce((sum, row) => sum + (row.partyType === 'CUSTOMER' ? row._count._all : 0), 0);
-  const suppliers = rows.reduce((sum, row) => sum + (row.partyType === 'PARTY' ? row._count._all : 0), 0);
+  const customers = rows.reduce((sum, row) => sum + (row.partyType === 'CUSTOMER' || row.partyType === 'BOTH' ? row._count._all : 0), 0);
+  const suppliers = rows.reduce((sum, row) => sum + (row.partyType === 'PARTY' || row.partyType === 'BOTH' ? row._count._all : 0), 0);
 
   return { total, active: activeParties, customers, parties: suppliers, companies: 0, suppliers: suppliers };
 }
@@ -1345,9 +1361,9 @@ export async function createSupplierPurchase(formData: FormData) {
   try {
     let lastError: Error | null = null;
     for (let attempt = 0; attempt < 5; attempt++) {
-      const invoiceNumber = getInvoiceNumber('SP');
       try {
         await prisma.$transaction(async (tx) => {
+      const invoiceNumber = await getInvoiceNumber(tx);
       let productId: number | undefined;
 
       const normalizedUnit = unit.trim();
@@ -1384,7 +1400,9 @@ export async function createSupplierPurchase(formData: FormData) {
         productId: productId,
         quantity: new Prisma.Decimal(quantity),
         unitPrice: new Prisma.Decimal(unitPrice),
-        lineTotal: new Prisma.Decimal(totalAmount),
+        // Keep line totals gross; the invoice discount is stored once on the
+        // transaction and must not be applied a second time by reports.
+        lineTotal: grossAmount,
         taxAmount: new Prisma.Decimal(0),
         description: `${productCategory} - ${productName} (${quantity} ${unit})`,
         ...((productCategory === 'CHICKEN') && chickenQuantity > 0 ? {

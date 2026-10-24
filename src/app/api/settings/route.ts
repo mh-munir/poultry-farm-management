@@ -8,6 +8,10 @@ import { revalidateSettingsData } from '@/lib/cache'
 
 const payloadSchema = z.object({ key: z.string().min(1), value: z.any() })
 
+function canManageSettings(role: string | null | undefined) {
+  return role === 'ADMIN' || role === 'SUPER_ADMIN'
+}
+
 function isMissingSettingsTableError(err: any) {
   return (
     err?.code === 'P2021' ||
@@ -48,6 +52,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!canManageSettings(session.user.role)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const body = await request.json().catch(() => null);
   const parsed = payloadSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
@@ -82,6 +87,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!canManageSettings(session.user.role)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const url = new URL(request.url);
   const key = url.searchParams.get('key');
   if (!key) return NextResponse.json({ error: 'missing_key' }, { status: 400 });

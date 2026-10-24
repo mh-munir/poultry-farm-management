@@ -3,16 +3,7 @@
 import { CalendarDays } from "lucide-react";
 import type { AnalyticsFilterState, AnalyticsPresetValue } from "./analytics-types";
 import { DateInput } from "@/components/ui/date-input";
-
-const presets: Array<{ value: AnalyticsPresetValue; label: string }> = [
-  { value: "today", label: "Today" },
-  { value: "yesterday", label: "Yesterday" },
-  { value: "7", label: "Last 7 Days" },
-  { value: "30", label: "Last 30 Days" },
-  { value: "month", label: "This Month" },
-  { value: "lastMonth", label: "Last Month" },
-  { value: "custom", label: "Custom Range" },
-];
+import { useLocale } from "@/i18n/provider";
 
 type Props = {
   filters: AnalyticsFilterState;
@@ -20,6 +11,17 @@ type Props = {
 };
 
 export function AnalyticsFilterBar({ filters, onChange }: Props) {
+  const { dict } = useLocale();
+  const presets: Array<{ value: AnalyticsPresetValue; label: string }> = [
+    { value: "today", label: dict.common.today },
+    { value: "yesterday", label: dict.common.yesterday },
+    { value: "7", label: dict.analytics.last7Days },
+    { value: "30", label: dict.analytics.last30Days },
+    { value: "month", label: dict.analytics.thisMonth },
+    { value: "lastMonth", label: dict.analytics.lastMonth },
+    { value: "custom", label: dict.analytics.customRange },
+  ];
+
   return (
     <div className="rounded-[24px] border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

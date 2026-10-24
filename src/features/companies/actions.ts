@@ -578,27 +578,37 @@ export async function getCompanyAccountSummary(companyId: number) {
 
   const [purchaseAgg, paymentAgg, purchaseByType, lastTransaction, txnCount] = await Promise.all([
     prisma.transaction.aggregate({
-      where: { companyId, transactionType: 'PURCHASE' },
+      where: { companyId, transactionType: 'PURCHASE', status: { not: 'CANCELLED' } },
       _sum: { totalAmount: true }
     }),
     prisma.payment.aggregate({
-      where: { companyId },
+      where: { companyId, status: { not: 'CANCELLED' } },
       _sum: { amount: true }
     }),
     prisma.$queryRaw<Array<{ productType: string; total: string }>>`
-      SELECT p."productType" AS "productType", SUM(ti."lineTotal") AS "total"
+      SELECT p."productType" AS "productType",
+        SUM(
+          ti."lineTotal" * CASE
+            WHEN p."productType" IN ('FEED', 'MEDICINE', 'CHICK')
+              AND t."subtotal" > 0
+            THEN t."totalAmount" / t."subtotal"
+            ELSE 1
+          END
+        ) AS "total"
       FROM "TransactionItem" ti
       JOIN "Product" p ON p.id = ti."productId"
       JOIN "Transaction" t ON t.id = ti."transactionId"
-      WHERE t."companyId" = ${companyId} AND t."transactionType" = 'PURCHASE'
+      WHERE t."companyId" = ${companyId}
+        AND t."transactionType" = 'PURCHASE'
+        AND t."status" <> 'CANCELLED'
       GROUP BY p."productType"
     `,
     prisma.transaction.findFirst({
-      where: { companyId },
+      where: { companyId, status: { not: 'CANCELLED' } },
       orderBy: { transactionDate: 'desc' },
       select: { transactionDate: true }
     }),
-    prisma.transaction.count({ where: { companyId } })
+    prisma.transaction.count({ where: { companyId, status: { not: 'CANCELLED' } } })
   ]);
 
   const totalsByType = purchaseByType.reduce(
@@ -678,11 +688,11 @@ export async function getCompanyCurrentDue(companyId: number) {
   await requireUser();
   const [purchaseAgg, paymentAgg, company] = await Promise.all([
     prisma.transaction.aggregate({
-      where: { companyId, transactionType: 'PURCHASE' },
+      where: { companyId, transactionType: 'PURCHASE', status: { not: 'CANCELLED' } },
       _sum: { totalAmount: true }
     }),
     prisma.payment.aggregate({
-      where: { companyId },
+      where: { companyId, status: { not: 'CANCELLED' } },
       _sum: { amount: true }
     }),
     prisma.company.findUnique({

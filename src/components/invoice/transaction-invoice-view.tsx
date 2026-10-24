@@ -56,6 +56,21 @@ const english = {
   total: 'Total:', notes: 'Notes', authorizedSign: 'Authorized Sign', hidden: 'Hidden'
 };
 
+const banglaFallback = {
+  invoice: 'ইনভয়েস', invoiceTo: 'ইনভয়েস প্রাপক:', invoiceNumber: 'ইনভয়েস নং', date: 'তারিখ', media: 'মিডিয়া', reference: 'রেফারেন্স', address: 'ঠিকানা', phone: 'মোবাইল:', notSet: 'সেট করা হয়নি',
+  itemDescription: 'পণ্যের নাম', price: 'একক মূল্য', qty: 'পরিমাণ', totalLabel: 'মোট মূল্য', totalKg: 'মোট কেজি',
+  thankYou: 'আপনার ব্যবসার জন্য ধন্যবাদ', subTotal: 'উপমোট:', discount: 'ছাড়:', paid: 'পরিশোধ:', due: 'বকেয়া:',
+  total: 'মোট:', notes: 'নোট', authorizedSign: 'অনুমোদিত স্বাক্ষর', hidden: 'লুকানো'
+};
+
+const paymentMethodLabels: Record<string, string> = {
+  CASH: 'নগদ',
+  BANK_TRANSFER: 'ব্যাংক ট্রান্সফার',
+  CHEQUE: 'চেক',
+  MOBILE_MONEY: 'মোবাইল ব্যাংকিং',
+  OTHER: 'অন্যান্য'
+};
+
 function isFeedProduct(productType?: string | null) {
   return productType?.trim().toUpperCase() === 'FEED';
 }
@@ -66,7 +81,10 @@ export function TransactionInvoiceView({
 }: TransactionInvoiceViewProps) {
   const { locale: liveLocale, dict: liveDict } = useLocale();
   const currentLocale = liveLocale ?? locale;
-  const copy = { ...english, ...dict, ...liveDict.invoice };
+  const copy = { ...english, ...(currentLocale === 'bn' ? banglaFallback : {}), ...dict, ...liveDict.invoice };
+  const localizedPaymentMethod = paymentMethod && currentLocale === 'bn'
+    ? paymentMethodLabels[paymentMethod] ?? paymentMethod
+    : paymentMethod;
   const formatDecimal = (value: number) => currentLocale === 'bn' ? convertToBanglaDigits(value.toFixed(2)) : value.toFixed(2);
   const brandName = company.name?.trim() || 'Your Brand Name';
   const companyAddress = company.address?.trim() || copy.notSet;
@@ -139,7 +157,7 @@ export function TransactionInvoiceView({
               {hasDiscount ? <div className="flex justify-between"><dt>{copy.discount}</dt><dd>-{formatLocalizedCurrency(discount, currentLocale)}</dd></div> : null}
               {hasPayment ? <><div className="flex justify-between"><dt>{copy.paid}</dt><dd>{formatLocalizedCurrency(paidAmount, currentLocale)}</dd></div><div className="flex justify-between"><dt>{copy.due}</dt><dd>{formatLocalizedCurrency(dueAmount, currentLocale)}</dd></div></> : null}
               <div className="mt-3 flex justify-between bg-amber-400 px-3 py-2.5 text-sm font-bold"><dt>{copy.total}</dt><dd>{formatLocalizedCurrency(totalAmount, currentLocale)}</dd></div>
-              {paymentMethod ? <p className="pt-1 text-right text-[10px] text-slate-500">{paymentMethod}</p> : null}
+              {localizedPaymentMethod ? <p className="pt-1 text-right text-[10px] text-slate-500">{localizedPaymentMethod}</p> : null}
             </dl>
           </section>
         </div>

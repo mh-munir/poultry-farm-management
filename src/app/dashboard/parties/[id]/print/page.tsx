@@ -115,7 +115,6 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden rounded border bg-white">
                   {branding.logo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={branding.logo} alt={branding.name ?? 'Brand logo'} className="h-full w-full object-contain" />
                   ) : (
                     <div className="w-12 h-12 bg-slate-100 flex items-center justify-center rounded text-slate-500 font-semibold">LOGO</div>

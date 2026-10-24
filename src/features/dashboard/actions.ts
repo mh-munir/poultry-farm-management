@@ -5,87 +5,98 @@ import { CACHE_TAGS } from '@/lib/cache';
 
 type DashboardDataArgs = { start: Date; end: Date; sixMonthsAgo: Date };
 
+const NET_LINE_TOTAL_SQL = Prisma.sql`CASE
+  WHEN tr."status" <> 'CANCELLED' THEN
+    ti."lineTotal" * CASE
+      WHEN (tr."transactionType" = 'SALE' OR p."productType" IN ('FEED', 'MEDICINE', 'CHICK'))
+        AND tr."subtotal" > 0
+      THEN tr."totalAmount" / tr."subtotal"
+      ELSE 1
+    END
+  ELSE 0
+END`;
+
 export const getDashboardDataCached = unstable_cache(
   async ({ start, end, sixMonthsAgo }: DashboardDataArgs) => {
     // Consolidated summary aggregates (single row)
     const [summaryRow] = await prisma.$queryRaw<Array<any>>`
       SELECT
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'FEED' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId" WHERE tr."transactionType" IN ('SALE','PURCHASE')
         ), 0) AS "daily_feed_sale",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'MEDICINE' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId" WHERE tr."transactionType" IN ('SALE','PURCHASE')
         ), 0) AS "daily_medicine_sale",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'FEED' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId" WHERE tr."transactionType" IN ('SALE','PURCHASE')
         ), 0) AS "daily_feed_purchase",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'MEDICINE' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId" WHERE tr."transactionType" IN ('SALE','PURCHASE')
         ), 0) AS "daily_medicine_purchase",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'CHICKEN' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'CHICKEN' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId" WHERE tr."transactionType" IN ('SALE','PURCHASE')
         ), 0) AS "daily_chicken_purchase",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'EGG' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'EGG' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId" WHERE tr."transactionType" IN ('SALE','PURCHASE')
         ), 0) AS "daily_egg_purchase",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'CHICK' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'CHICK' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId" WHERE tr."transactionType" IN ('SALE','PURCHASE')
         ), 0) AS "daily_chick_sale",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'CHICK' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} AND p."productType" = 'CHICK' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId" WHERE tr."transactionType" IN ('SALE','PURCHASE')
         ), 0) AS "daily_chick_purchase",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'FEED' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
         ), 0) AS "total_feed_sale",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} THEN ti."quantity" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."status" <> 'CANCELLED' AND tr."transactionType" = 'SALE' AND tr."transactionDate" >= ${start} AND tr."transactionDate" < ${end} THEN ti."quantity" ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId"
         ), 0) AS "daily_products_sold",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'MEDICINE' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
         ), 0) AS "total_medicine_sale",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'FEED' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'FEED' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
         ), 0) AS "total_feed_purchase",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'MEDICINE' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'MEDICINE' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
         ), 0) AS "total_medicine_purchase",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'CHICKEN' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'CHICKEN' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
         ), 0) AS "total_chicken_purchase",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'EGG' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'EGG' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
         ), 0) AS "total_egg_purchase",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'CHICK' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'SALE' AND p."productType" = 'CHICK' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
         ), 0) AS "total_chick_sale",
         COALESCE((
-          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'CHICK' THEN ti."lineTotal" ELSE 0 END)
+          SELECT SUM(CASE WHEN tr."transactionType" = 'PURCHASE' AND p."productType" = 'CHICK' THEN ${NET_LINE_TOTAL_SQL} ELSE 0 END)
           FROM "TransactionItem" ti JOIN "Transaction" tr ON tr.id = ti."transactionId" JOIN "Product" p ON p.id = ti."productId"
         ), 0) AS "total_chick_purchase",
         COALESCE((
-          SELECT SUM(CASE WHEN t."transactionType" = 'SALE' AND t."dueAmount" > 0 THEN t."dueAmount" ELSE 0 END) FROM "Transaction" t WHERE t."transactionType" IN ('SALE','PURCHASE')
+          SELECT SUM(CASE WHEN t."status" <> 'CANCELLED' AND t."transactionType" = 'SALE' AND t."dueAmount" > 0 THEN t."dueAmount" ELSE 0 END) FROM "Transaction" t WHERE t."transactionType" IN ('SALE','PURCHASE')
         ), 0) AS "total_customer_due",
         COALESCE((
-          SELECT SUM(CASE WHEN t."transactionType" = 'PURCHASE' AND t."dueAmount" > 0 AND EXISTS(SELECT 1 FROM "TransactionItem" ti JOIN "Product" p ON p.id = ti."productId" WHERE ti."transactionId" = t.id AND p."productType" IN ('FEED','MEDICINE','CHICK')) THEN t."dueAmount" ELSE 0 END) FROM "Transaction" t
+          SELECT SUM(CASE WHEN t."status" <> 'CANCELLED' AND t."transactionType" = 'PURCHASE' AND t."dueAmount" > 0 AND EXISTS(SELECT 1 FROM "TransactionItem" ti JOIN "Product" p ON p.id = ti."productId" WHERE ti."transactionId" = t.id AND p."productType" IN ('FEED','MEDICINE','CHICK')) THEN t."dueAmount" ELSE 0 END) FROM "Transaction" t
         ), 0) AS "total_feed_medicine_chick_due",
         COALESCE((
-          SELECT SUM(CASE WHEN t."transactionType" = 'PURCHASE' AND t."dueAmount" > 0 AND EXISTS(SELECT 1 FROM "TransactionItem" ti JOIN "Product" p ON p.id = ti."productId" WHERE ti."transactionId" = t.id AND p."productType" IN ('EGG','CHICKEN')) THEN t."dueAmount" ELSE 0 END) FROM "Transaction" t
+          SELECT SUM(CASE WHEN t."status" <> 'CANCELLED' AND t."transactionType" = 'PURCHASE' AND t."dueAmount" > 0 AND EXISTS(SELECT 1 FROM "TransactionItem" ti JOIN "Product" p ON p.id = ti."productId" WHERE ti."transactionId" = t.id AND p."productType" IN ('EGG','CHICKEN')) THEN t."dueAmount" ELSE 0 END) FROM "Transaction" t
         ), 0) AS "total_egg_chicken_due",
         COALESCE((SELECT SUM(CASE WHEN "expenseDate" >= ${start} AND "expenseDate" < ${end} THEN amount ELSE 0 END) FROM "Expense"), 0) AS "daily_expense",
         COALESCE((SELECT SUM(amount) FROM "Expense"), 0) AS "total_expense",
@@ -119,10 +130,10 @@ export const getDashboardDataCached = unstable_cache(
         }
       }),
       prisma.$queryRaw<Array<{ month: string; total: Prisma.Decimal | null }>>`
-        SELECT date_trunc('month', tr."transactionDate") AS month, SUM(ti."lineTotal") AS total
-        FROM "TransactionItem" ti
-        JOIN "Transaction" tr ON tr.id = ti."transactionId"
+        SELECT date_trunc('month', tr."transactionDate") AS month, SUM(tr."totalAmount") AS total
+        FROM "Transaction" tr
         WHERE tr."transactionType" = 'SALE'
+          AND tr."status" <> 'CANCELLED'
           AND tr."transactionDate" >= ${sixMonthsAgo}
         GROUP BY month
         ORDER BY month
@@ -131,6 +142,7 @@ export const getDashboardDataCached = unstable_cache(
         SELECT date_trunc('month', "transactionDate") AS month, SUM("totalAmount") AS total
         FROM "Transaction"
         WHERE "transactionType" = 'PURCHASE'
+          AND "status" <> 'CANCELLED'
           AND "transactionDate" >= ${sixMonthsAgo}
         GROUP BY month
         ORDER BY month
@@ -202,9 +214,9 @@ export async function getProfitAnalytics({ start, end }: { start?: Date; end?: D
     // Summary aggregates: compute using transaction items joined with latest purchase unitCost per product before sale date
      const [summaryRow] = await prisma.$queryRaw<Array<{ total_sales: Prisma.Decimal | null; total_cost: Prisma.Decimal | null; gross_profit: Prisma.Decimal | null }>>`
      SELECT
-       COALESCE(SUM(ti."quantity" * ti."unitPrice"), 0) AS total_sales,
+       COALESCE(SUM(ti."lineTotal" * (1 - CASE WHEN tr."subtotal" > 0 THEN tr."discount" / tr."subtotal" ELSE 0 END)), 0) AS total_sales,
        COALESCE(SUM(ti."quantity" * COALESCE(sm_sale."unitCost", sm_purchase."unitCost", p."defaultPurchasePrice", 0)), 0) AS total_cost,
-       COALESCE(SUM((ti."unitPrice" - COALESCE(sm_sale."unitCost", sm_purchase."unitCost", p."defaultPurchasePrice", 0)) * ti."quantity"), 0) AS gross_profit
+       COALESCE(SUM((ti."lineTotal" * (1 - CASE WHEN tr."subtotal" > 0 THEN tr."discount" / tr."subtotal" ELSE 0 END)) - (ti."quantity" * COALESCE(sm_sale."unitCost", sm_purchase."unitCost", p."defaultPurchasePrice", 0))), 0) AS gross_profit
      FROM "TransactionItem" ti
      JOIN "Transaction" tr ON tr.id = ti."transactionId"
      JOIN "Product" p ON p.id = ti."productId"
@@ -223,7 +235,7 @@ export async function getProfitAnalytics({ start, end }: { start?: Date; end?: D
        ORDER BY sm."createdAt" DESC
        LIMIT 1
      ) sm_purchase ON true
-     WHERE tr."transactionType" = 'SALE'
+     WHERE tr."transactionType" = 'SALE' AND tr."status" <> 'CANCELLED'
        ${dateFilter}
    `;
 
@@ -247,9 +259,9 @@ export async function getProfitAnalytics({ start, end }: { start?: Date; end?: D
        p.name AS product_name,
        p."productType" AS product_type,
        COALESCE(SUM(ti."quantity"), 0) AS quantity_sold,
-       COALESCE(SUM(ti."quantity" * ti."unitPrice"), 0) AS total_sales,
+       COALESCE(SUM(ti."lineTotal" * (1 - CASE WHEN tr."subtotal" > 0 THEN tr."discount" / tr."subtotal" ELSE 0 END)), 0) AS total_sales,
        COALESCE(SUM(ti."quantity" * COALESCE(sm_sale."unitCost", sm_purchase."unitCost", p."defaultPurchasePrice", 0)), 0) AS total_cost,
-       COALESCE(SUM((ti."unitPrice" - COALESCE(sm_sale."unitCost", sm_purchase."unitCost", p."defaultPurchasePrice", 0)) * ti."quantity"), 0) AS gross_profit
+       COALESCE(SUM((ti."lineTotal" * (1 - CASE WHEN tr."subtotal" > 0 THEN tr."discount" / tr."subtotal" ELSE 0 END)) - (ti."quantity" * COALESCE(sm_sale."unitCost", sm_purchase."unitCost", p."defaultPurchasePrice", 0))), 0) AS gross_profit
      FROM "TransactionItem" ti
      JOIN "Transaction" tr ON tr.id = ti."transactionId"
      JOIN "Product" p ON p.id = ti."productId"
@@ -268,7 +280,7 @@ export async function getProfitAnalytics({ start, end }: { start?: Date; end?: D
        ORDER BY sm."createdAt" DESC
        LIMIT 1
      ) sm_purchase ON true
-     WHERE tr."transactionType" = 'SALE' ${dateFilter}
+     WHERE tr."transactionType" = 'SALE' AND tr."status" <> 'CANCELLED' ${dateFilter}
      GROUP BY p.id, p.name, p."productType"
      ORDER BY gross_profit DESC
      LIMIT 10

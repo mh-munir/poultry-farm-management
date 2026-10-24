@@ -29,7 +29,6 @@ export function Sidebar({ open, onClose, branding }: { open?: boolean; onClose?:
           <div className="flex flex-col items-center gap-3 pt-6">
             <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full">
               {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={logoUrl} alt="Logo" className="h-full w-full object-contain" />
               ) : (
                 <span className="text-xl font-semibold text-foreground">P</span>

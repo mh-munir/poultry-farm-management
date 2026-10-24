@@ -98,13 +98,13 @@ export default async function SalesPage({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_0.7fr]">
-        <div className="rounded-2xl border bg-card p-5 shadow-sm">
+      <div className="grid min-w-0 grid-cols-1 gap-4 2xl:grid-cols-[1.3fr_0.7fr]">
+        <div className="min-w-0 rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><ClipboardList className="h-5 w-5" />{dict.pages.newSale}</div>
           <SaleForm customers={customers} products={saleProducts} />
         </div>
 
-        <div className="rounded-2xl border bg-card p-5 shadow-sm">
+        <div className="min-w-0 rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><Plus className="h-5 w-5" />{dict.pages.recentSales}</div>
           <div className="space-y-3">
             {data.sales.length === 0 ? (
