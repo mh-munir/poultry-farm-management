@@ -6,11 +6,12 @@ import { useLocale } from '@/i18n/provider';
 
 type Props = {
   existingImageUrl?: string | null;
+  inputId?: string;
   onFileSelected?: (file: File | null) => void;
   onImageUploaded?: (url: string) => void;
 };
 
-export default function AdminImageUploader({ existingImageUrl, onFileSelected, onImageUploaded }: Props) {
+export default function AdminImageUploader({ existingImageUrl, inputId = 'imageFile', onFileSelected, onImageUploaded }: Props) {
   const { dict } = useLocale();
   const [preview, setPreview] = useState<string | null>(existingImageUrl ?? null);
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(existingImageUrl ?? null);
@@ -76,11 +77,11 @@ export default function AdminImageUploader({ existingImageUrl, onFileSelected, o
         )}
         <span className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-green-600 text-white shadow"><Camera className="h-4 w-4" /></span>
       </div>
-      <label htmlFor="imageFile" className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-green-200 bg-white px-4 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-50">
+      <label htmlFor={inputId} className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-green-200 bg-white px-4 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-50">
         <Upload className="h-4 w-4" />{uploading ? dict.settings.uploadingImage : dict.settings.changePhoto}
       </label>
       <p className="mt-2 text-xs text-slate-500">{dict.settings.imageSizeHint}</p>
-      <input ref={inputRef} id="imageFile" name="imageFile" type="file" accept="image/*" onChange={onFileChange} className="sr-only" disabled={uploading} />
+      <input ref={inputRef} id={inputId} name="imageFile" type="file" accept="image/*" onChange={onFileChange} className="sr-only" disabled={uploading} />
       <input type="hidden" name="existingImageUrl" value={currentImageUrl ?? ''} />
     </div>
   );

@@ -150,7 +150,15 @@ export default function LogoSettingsClient({ initialBranding }: LogoSettingsClie
 
         <div className="mb-4">
           <label className="block text-sm mb-2">{dict.settings.logoPreview}</label>
-          <AdminImageUploader existingImageUrl={logoUrl ?? undefined} onFileSelected={(f) => setPendingLogoFile(f)} />
+          <AdminImageUploader
+            inputId="logoImageFile"
+            existingImageUrl={logoUrl ?? undefined}
+            onFileSelected={(f) => setPendingLogoFile(f)}
+            onImageUploaded={(url) => {
+              setLogoUrl(url)
+              setPendingLogoFile(null)
+            }}
+          />
         </div>
 
         <div className="mb-4">
@@ -160,7 +168,16 @@ export default function LogoSettingsClient({ initialBranding }: LogoSettingsClie
           ) : (
             <div className="h-12 w-12 rounded border bg-muted text-muted-foreground flex items-center justify-center mb-2 text-xs">{dict.settings.noFavicon}</div>
           )}
-          <AdminImageUploader existingImageUrl={faviconPreview ?? undefined} onFileSelected={(f) => handleFaviconFileSelected(f)} />
+          <AdminImageUploader
+            inputId="faviconImageFile"
+            existingImageUrl={faviconPreview ?? undefined}
+            onFileSelected={(f) => handleFaviconFileSelected(f)}
+            onImageUploaded={(url) => {
+              setFaviconUrl(url)
+              setFaviconPreview(url)
+              setPendingFaviconFile(null)
+            }}
+          />
           <p className="mt-1 text-xs text-muted-foreground">{dict.settings.acceptedImageTypes}</p>
         </div>
 

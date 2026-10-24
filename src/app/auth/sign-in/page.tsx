@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { SignInForm } from '@/components/auth/sign-in-form';
 import { AlertCircle, CheckCircle2, Clock } from 'lucide-react';
@@ -40,17 +39,6 @@ export default async function SignInPage({ searchParams }: { searchParams?: Prom
 
           <SignInForm />
 
-          <div className="mt-8 flex flex-col gap-2 text-sm text-muted-foreground">
-            <Link href="/auth/forgot-password" className="text-primary transition hover:underline">
-              {dict.auth.forgotPasswordLink}
-            </Link>
-            <Link href="/auth/reset-admin" className="text-foreground/70 transition hover:text-foreground">
-              {dict.auth.needAdminResetToken}
-            </Link>
-            <Link href="/" className="text-foreground/70 transition hover:text-foreground">
-              {dict.auth.backHome}
-            </Link>
-          </div>
         </div>
       </div>
     </main>

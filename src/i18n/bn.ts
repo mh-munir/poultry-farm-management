@@ -557,7 +557,7 @@ export const bn = {
     acceptedImageTypes: 'গ্রহণযোগ্য ধরন: PNG, JPEG, WebP, SVG, ICO।',
     uploadingImage: 'আপলোড হচ্ছে...',
     changePhoto: 'ছবি বদলান',
-    imageSizeHint: 'JPG, PNG অথবা GIF। সর্বোচ্চ আকার: ২ এমবি।',
+    imageSizeHint: 'PNG, JPEG, WebP, SVG অথবা ICO। সর্বোচ্চ আকার: ৫ MB।',
     savingSettings: 'সংরক্ষণ হচ্ছে...',
     brandingSaved: 'ব্র্যান্ডিং সেটিংস সফলভাবে সংরক্ষিত হয়েছে।',
     brandingSaveFailed: 'সেটিংস সংরক্ষণ করা যায়নি।',

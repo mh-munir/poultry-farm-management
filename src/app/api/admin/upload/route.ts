@@ -27,7 +27,10 @@ export async function POST(request: Request) {
   if (imageFile.size > 5 * 1024 * 1024) {
     return NextResponse.json({ error: 'file_too_large' }, { status: 400 });
   }
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(imageFile.type)) {
+  const imageName = imageFile.name.toLowerCase();
+  const isIcoFile = imageName.endsWith('.ico');
+  const supportedImageType = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/x-icon', 'image/vnd.microsoft.icon', 'image/svg+xml'].includes(imageFile.type);
+  if (!supportedImageType && !isIcoFile) {
     return NextResponse.json({ error: 'unsupported_file_type' }, { status: 400 });
   }
 

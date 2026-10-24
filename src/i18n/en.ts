@@ -558,7 +558,7 @@ export const en = {
     acceptedImageTypes: 'Accepted formats: PNG, JPEG, WebP, SVG, ICO.',
     uploadingImage: 'Uploading...',
     changePhoto: 'Change photo',
-    imageSizeHint: 'JPG, PNG or GIF. Maximum size: 2 MB.',
+    imageSizeHint: 'PNG, JPEG, WebP, SVG or ICO. Maximum size: 5 MB.',
     savingSettings: 'Saving...',
     brandingSaved: 'Branding settings saved successfully.',
     brandingSaveFailed: 'Failed to save settings.',
