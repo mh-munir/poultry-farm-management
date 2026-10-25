@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { MoreHorizontal, Pencil, Printer } from 'lucide-react';
+import { MoreHorizontal, Pencil, Printer, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Pagination } from '@/components/ui/pagination';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
@@ -12,9 +13,10 @@ import { DateInput } from '@/components/ui/date-input';
 import { Dialog } from '@/components/ui/dialog';
 import { toDateInputValueBD as toDateInputValue } from '@/lib/dates';
 import { useLocale } from '@/i18n/provider';
-import { updatePurchaseItem } from '@/features/purchases/actions';
+import { deletePartyTransaction, updatePurchaseItem } from '@/features/purchases/actions';
 import { formatLocalizedCurrency, formatLocalizedDate, formatLocalizedNumber } from '@/lib/localized-formatters';
 import { localizeProductText } from '@/i18n/display';
+import { useToast } from '@/hooks/use-toast';
 
 type ProductRow = {
   id: string;
@@ -65,7 +67,7 @@ function openTransactionPrint(transactionId: number) {
   window.open(`/dashboard/transactions/${transactionId}/print`, '_blank');
 }
 
-function RowActionsMenu({ row, onEdit, onPrint }: { row: ProductRow; onEdit?: (row: ProductRow) => void; onPrint?: (row: ProductRow) => void; }) {
+function RowActionsMenu({ row, onEdit, onDelete, onPrint }: { row: ProductRow; onEdit?: (row: ProductRow) => void; onDelete?: (row: ProductRow) => void; onPrint?: (row: ProductRow) => void; }) {
   const [open, setOpen] = useState(false);
   const { dict } = useLocale();
 
@@ -92,7 +94,7 @@ function RowActionsMenu({ row, onEdit, onPrint }: { row: ProductRow; onEdit?: (r
           className="z-[200] w-40 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-lg shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:shadow-black/25"
         >
           <DropdownMenu.Item
-            className="flex w-full cursor-default items-center gap-2 rounded-lg px-3 py-2 text-left font-medium text-slate-700 outline-none transition hover:bg-slate-100 focus:bg-slate-100 data-[highlighted]:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus:bg-slate-800 dark:data-[highlighted]:bg-slate-800"
+            className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left font-medium text-slate-700 outline-none transition hover:bg-slate-100 focus:bg-slate-100 data-[highlighted]:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus:bg-slate-800 dark:data-[highlighted]:bg-slate-800"
             onSelect={() => {
               onEdit?.(row);
               setOpen(false);
@@ -102,7 +104,17 @@ function RowActionsMenu({ row, onEdit, onPrint }: { row: ProductRow; onEdit?: (r
             {dict.common.edit}
           </DropdownMenu.Item>
           <DropdownMenu.Item
-            className="flex w-full cursor-default items-center gap-2 rounded-lg px-3 py-2 text-left font-medium text-slate-700 outline-none transition hover:bg-slate-100 focus:bg-slate-100 data-[highlighted]:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus:bg-slate-800 dark:data-[highlighted]:bg-slate-800"
+            className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left font-medium text-destructive outline-none transition hover:bg-destructive/10 focus:bg-destructive/10 data-[highlighted]:bg-destructive/10"
+            onSelect={() => {
+              onDelete?.(row);
+              setOpen(false);
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+            {dict.common.delete}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left font-medium text-slate-700 outline-none transition hover:bg-slate-100 focus:bg-slate-100 data-[highlighted]:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus:bg-slate-800 dark:data-[highlighted]:bg-slate-800"
             onSelect={() => {
               onPrint?.(row);
               setOpen(false);
@@ -117,7 +129,7 @@ function RowActionsMenu({ row, onEdit, onPrint }: { row: ProductRow; onEdit?: (r
   );
 }
 
-function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg = false, summary, onEdit, onPrint }: { title: string; rows: ProductRow[]; totalItems?: number; headerActions?: ReactNode; showTotalKg?: boolean; summary?: { quantity: number; totalKg: number; lineTotal: number }; onEdit?: (row: ProductRow) => void; onPrint?: (row: ProductRow) => void; }) {
+function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg = false, summary, onEdit, onDelete, onPrint }: { title: string; rows: ProductRow[]; totalItems?: number; headerActions?: ReactNode; showTotalKg?: boolean; summary?: { quantity: number; totalKg: number; lineTotal: number }; onEdit?: (row: ProductRow) => void; onDelete?: (row: ProductRow) => void; onPrint?: (row: ProductRow) => void; }) {
   const itemCount = totalItems ?? rows.length;
   const colSpan = showTotalKg ? 8 : 7;
   const { dict, locale } = useLocale();
@@ -165,7 +177,7 @@ function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg
                 <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatLocalizedCurrency(row.lineTotal, locale)}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end">
-                    <RowActionsMenu row={row} onEdit={onEdit} onPrint={onPrint} />
+                    <RowActionsMenu row={row} onEdit={onEdit} onDelete={onDelete} onPrint={onPrint} />
                   </div>
                 </td>
               </tr>
@@ -198,11 +210,12 @@ function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg
 }
 
 type SalesPurchaseSectionProps = {
+  partyId: number;
   saleRows: ProductRow[];
   buyRows: ProductRow[];
 };
 
-export function SalesPurchaseSection({ saleRows, buyRows }: SalesPurchaseSectionProps) {
+export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurchaseSectionProps) {
   const router = useRouter();
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -211,7 +224,9 @@ export function SalesPurchaseSection({ saleRows, buyRows }: SalesPurchaseSection
   const [purchaseTypeFilter, setPurchaseTypeFilter] = useState<ProductTypeFilter>('ALL');
   const [purchasePage, setPurchasePage] = useState(1);
   const [editingRow, setEditingRow] = useState<ProductRow | null>(null);
+  const [deletingRow, setDeletingRow] = useState<ProductRow | null>(null);
   const [isSavingItem, setIsSavingItem] = useState(false);
+  const [isDeletingTransaction, setIsDeletingTransaction] = useState(false);
   const [itemError, setItemError] = useState('');
   const [itemForm, setItemForm] = useState({
     productId: 0,
@@ -223,6 +238,7 @@ export function SalesPurchaseSection({ saleRows, buyRows }: SalesPurchaseSection
     transactionDate: '',
   });
   const { dict } = useLocale();
+  const { success, error: showToastError } = useToast();
 
   useEffect(() => {
     setSalesPage(1);
@@ -356,8 +372,46 @@ export function SalesPurchaseSection({ saleRows, buyRows }: SalesPurchaseSection
     }
   };
 
+  const handleDeleteTransaction = async () => {
+    if (!deletingRow || (deletingRow.transactionType !== 'SALE' && deletingRow.transactionType !== 'PURCHASE')) {
+      return;
+    }
+
+    setIsDeletingTransaction(true);
+    try {
+      const result = await deletePartyTransaction(
+        deletingRow.transactionId,
+        partyId,
+        deletingRow.transactionType
+      );
+      if (!result.success) {
+        showToastError(result.message);
+        return;
+      }
+
+      success(result.message);
+      setDeletingRow(null);
+      router.refresh();
+    } catch (error) {
+      showToastError(error instanceof Error ? error.message : 'Failed to delete the transaction.');
+    } finally {
+      setIsDeletingTransaction(false);
+    }
+  };
+
   return (
     <>
+      <ConfirmDialog
+        open={Boolean(deletingRow)}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingTransaction) setDeletingRow(null);
+        }}
+        title={dict.common.deleteTransactionTitle}
+        description={dict.common.deleteTransactionDescription.replace('{invoice}', deletingRow?.invoiceNumber ?? '')}
+        confirmText={dict.common.delete}
+        onConfirm={handleDeleteTransaction}
+        isLoading={isDeletingTransaction}
+      />
       <div className="mb-6">
         <ProductItemsTable
           title={`${dict.common.sales} ${dict.common.product}`}
@@ -408,6 +462,7 @@ export function SalesPurchaseSection({ saleRows, buyRows }: SalesPurchaseSection
             </>
           )}
           showTotalKg={false}
+          onDelete={setDeletingRow}
           onPrint={(row) => openTransactionPrint(row.transactionId)}
         />
         {salePageCount > 1 && (
@@ -469,6 +524,7 @@ export function SalesPurchaseSection({ saleRows, buyRows }: SalesPurchaseSection
           showTotalKg={true}
           summary={purchaseSummary}
           onEdit={openEditDialog}
+          onDelete={setDeletingRow}
           onPrint={(row) => openTransactionPrint(row.transactionId)}
         />
         {purchasePageCount > 1 && (

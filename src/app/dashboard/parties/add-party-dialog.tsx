@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import imageCompression from 'browser-image-compression';
 import { ChartNoAxesColumnIncreasing, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -65,6 +64,7 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
     }
 
     try {
+      const { default: imageCompression } = await import('browser-image-compression');
       setImageCompressionStatus('Compressing image...');
       const options = {
         maxSizeMB: 1,

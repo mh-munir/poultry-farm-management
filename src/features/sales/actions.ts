@@ -475,8 +475,8 @@ export async function getCustomersForSales() {
   return getCustomersForSalesCached();
 }
 
-export async function getProductsForSales() {
-  return prisma.product.findMany({
+const getProductsForSalesCached = unstable_cache(
+  async () => prisma.product.findMany({
     where: { isActive: true, isArchived: false, productType: { in: ['FEED', 'MEDICINE', 'CHICK'] } },
     orderBy: { name: 'asc' },
     select: {
@@ -495,5 +495,11 @@ export async function getProductsForSales() {
         select: { unitCost: true }
       }
     }
-  });
+  }),
+  ['sales-product-options'],
+  { tags: [CACHE_TAGS.products, CACHE_TAGS.stock], revalidate: 60 }
+);
+
+export async function getProductsForSales() {
+  return getProductsForSalesCached();
 }

@@ -1,10 +1,9 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
-import { revalidateStockData } from '@/lib/cache';
+import { revalidateInventoryData, revalidateStockItemData } from '@/lib/cache';
 
 export async function getStockItemsByType(productType: 'FEED' | 'MEDICINE' | 'CHICK', companyId?: number) {
   return prisma.product.findMany({
@@ -98,8 +97,6 @@ export async function updateStockItem(
     MEDICINE: ['MEDICINE'],
     CHICK: ['FEED', 'CHICK', 'FEED_CHICK']
   } as const;
-
-  console.log('[updateStockItem] payload', payload);
 
   try {
     const transactionResult = await prisma.$transaction(async (tx) => {
@@ -253,17 +250,6 @@ export async function updateStockItem(
 
       const persisted = !productMismatch && quantityPersisted;
 
-      console.log('[updateStockItem] readback', {
-        itemId,
-        previous,
-        expected: payload,
-        actual,
-        persisted,
-        changed,
-        productChanged,
-        quantityChanged
-      });
-
       return {
         updatedProduct,
         previousCompanyId,
@@ -275,16 +261,10 @@ export async function updateStockItem(
       return { success: false as const, message: 'No product changes were applied.' };
     }
 
-    revalidateStockData();
-    revalidatePath('/dashboard/companies');
-
-    if (transactionResult.previousCompanyId !== null) {
-      revalidatePath(`/dashboard/companies/${transactionResult.previousCompanyId}`);
-    }
-
-    if (transactionResult.updatedProduct.companyId !== null) {
-      revalidatePath(`/dashboard/companies/${transactionResult.updatedProduct.companyId}`);
-    }
+    revalidateStockItemData({
+      companyIds: [transactionResult.previousCompanyId, transactionResult.updatedProduct.companyId]
+        .filter((id): id is number => id !== null)
+    });
 
     return {
       success: true as const,
@@ -303,31 +283,209 @@ export async function updateStockItem(
   }
 }
 
-export async function deleteStockItem(itemId: number) {
-  console.log('deleteStockItem called with itemId:', itemId);
+export async function deleteStockItem(itemId: number, deleteHistory = false) {
   await requireUser();
 
   try {
-      const [transactionItemCount, stockMovementCount] = await Promise.all([
-        prisma.transactionItem.count({ where: { productId: itemId } }),
-        prisma.stockMovement.count({ where: { productId: itemId } })
-      ]);
+    const result = await prisma.$transaction(async (tx) => {
+      const product = await tx.product.findUnique({
+        where: { id: itemId },
+        select: { id: true, productType: true, companyId: true, stockBalance: { select: { id: true } } }
+      });
 
-      if (transactionItemCount > 0 || stockMovementCount > 0) {
-        return { success: false, message: 'This product cannot be deleted because it has transaction history.' };
+      if (!product) {
+        throw new Error('Stock item not found.');
       }
 
-      const updateResult = await prisma.product.update({
-        where: { id: itemId },
-        data: { isArchived: true, deletedAt: new Date() }
-      });
-      console.log('prisma.product.update result:', updateResult);
+      if (deleteHistory && product.productType !== 'FEED' && product.productType !== 'MEDICINE') {
+        throw new Error('Deleting history is only supported for feed and medicine products.');
+      }
 
-      revalidateStockData();
+      const transactions = deleteHistory
+        ? await tx.transaction.findMany({
+            where: { transactionItems: { some: { productId: itemId } } },
+            select: {
+              id: true,
+              partyId: true,
+              companyId: true,
+              status: true,
+              stockMovements: {
+                select: { productId: true, movementType: true, quantity: true, unitCost: true }
+              }
+            }
+          })
+        : [];
+      const transactionIds = transactions.map((transaction) => transaction.id);
 
-      return { success: true, message: 'Stock item archived successfully.' };
-    } catch (error) {
-      console.error('Failed to archive stock item:', error);
-      return { success: false, message: error instanceof Error ? error.message : 'Failed to archive stock item.' };
-    }
+      const transactionItemCount = await tx.transactionItem.count({ where: { productId: itemId } });
+      const stockMovementCount = await tx.stockMovement.count({ where: { productId: itemId } });
+
+      if (!deleteHistory && (transactionItemCount > 0 || stockMovementCount > 0)) {
+        throw new Error('This product cannot be deleted because it has transaction history.');
+      }
+
+      if (!deleteHistory) {
+        await tx.product.update({
+          where: { id: itemId },
+          data: { isArchived: true, deletedAt: new Date() }
+        });
+        return { companyIds: [], partyIds: [], archived: true, stockAdjustmentWasLimited: false };
+      }
+
+      const transactionIdSet = new Set(transactionIds);
+      const allocations = transactionIds.length > 0
+        ? await tx.paymentAllocation.findMany({
+            where: { transactionId: { in: transactionIds } },
+            select: {
+              paymentId: true,
+              payment: { select: { allocations: { select: { transactionId: true } } } }
+            }
+          })
+        : [];
+
+      if (allocations.some((allocation) =>
+        allocation.payment.allocations.some((paymentAllocation) => !transactionIdSet.has(paymentAllocation.transactionId))
+      )) {
+        throw new Error('This product has invoices linked to a payment shared with other invoices. Update the payment allocation before deleting this product.');
+      }
+
+      const paymentIds = [...new Set(allocations.map((allocation) => allocation.paymentId))];
+      const stockChanges = new Map<number, { quantity: Prisma.Decimal; unitCost: Prisma.Decimal | null }>();
+      const purchasedProductIds = new Set<number>();
+      let stockAdjustmentWasLimited = false;
+
+      for (const transaction of transactions) {
+        if (transaction.status === 'CANCELLED') continue;
+        for (const movement of transaction.stockMovements) {
+          if (movement.productId === itemId) continue;
+          let change: Prisma.Decimal;
+          if (movement.movementType === 'SALE') {
+            change = new Prisma.Decimal(movement.quantity);
+          } else if (movement.movementType === 'PURCHASE') {
+            change = new Prisma.Decimal(movement.quantity).negated();
+            purchasedProductIds.add(movement.productId);
+          } else {
+            throw new Error('A related invoice has an unsupported stock movement. Resolve it before deleting this product.');
+          }
+
+          const previous = stockChanges.get(movement.productId);
+          stockChanges.set(movement.productId, {
+            quantity: (previous?.quantity ?? new Prisma.Decimal(0)).plus(change),
+            unitCost: movement.unitCost ?? previous?.unitCost ?? null
+          });
+        }
+      }
+
+      for (const [productId, change] of stockChanges) {
+        const balance = await tx.stockBalance.findUnique({ where: { productId } });
+        let nextQuantity = new Prisma.Decimal(balance?.quantityOnHand ?? 0).plus(change.quantity);
+        if (nextQuantity.lt(0)) {
+          nextQuantity = new Prisma.Decimal(0);
+          stockAdjustmentWasLimited = true;
+        }
+
+        if (balance) {
+          await tx.stockBalance.update({
+            where: { productId },
+            data: {
+              quantityOnHand: nextQuantity,
+              ...(nextQuantity.isZero() ? { averageCost: null } : {})
+            }
+          });
+        } else if (nextQuantity.gt(0)) {
+          await tx.stockBalance.create({
+            data: {
+              productId,
+              quantityOnHand: nextQuantity,
+              reservedQuantity: new Prisma.Decimal(0),
+              averageCost: change.unitCost
+            }
+          });
+        }
+      }
+
+      for (const productId of purchasedProductIds) {
+        const remainingPurchases = await tx.stockMovement.findMany({
+          where: {
+            productId,
+            movementType: 'PURCHASE',
+            transaction: {
+              status: { not: 'CANCELLED' },
+              id: { notIn: transactionIds }
+            }
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          select: { quantity: true, unitCost: true }
+        });
+        const purchasedQuantity = remainingPurchases.reduce(
+          (sum, movement) => sum.plus(movement.quantity),
+          new Prisma.Decimal(0)
+        );
+        const purchaseValue = remainingPurchases.reduce(
+          (sum, movement) => sum.plus(new Prisma.Decimal(movement.quantity).times(movement.unitCost ?? 0)),
+          new Prisma.Decimal(0)
+        );
+        const balance = await tx.stockBalance.findUnique({ where: { productId } });
+
+        await tx.product.update({
+          where: { id: productId },
+          data: { defaultPurchasePrice: remainingPurchases[0]?.unitCost ?? null }
+        });
+        if (balance && new Prisma.Decimal(balance.quantityOnHand).gt(0)) {
+          await tx.stockBalance.update({
+            where: { productId },
+            data: { averageCost: purchasedQuantity.gt(0) ? purchaseValue.div(purchasedQuantity) : null }
+          });
+        }
+      }
+
+      if (transactionIds.length > 0) {
+        await tx.smsNotification.deleteMany({ where: { transactionId: { in: transactionIds } } });
+        await tx.ledgerEntry.deleteMany({
+          where: {
+            OR: [
+              { transactionId: { in: transactionIds } },
+              ...(paymentIds.length > 0 ? [{ paymentId: { in: paymentIds } }] : [])
+            ]
+          }
+        });
+        await tx.dueAdjustment.deleteMany({ where: { transactionId: { in: transactionIds } } });
+        await tx.stockMovement.deleteMany({
+          where: { OR: [{ productId: itemId }, { transactionId: { in: transactionIds } }] }
+        });
+        await tx.paymentAllocation.deleteMany({ where: { transactionId: { in: transactionIds } } });
+        if (paymentIds.length > 0) {
+          await tx.payment.deleteMany({ where: { id: { in: paymentIds } } });
+        }
+        await tx.transactionItem.deleteMany({ where: { transactionId: { in: transactionIds } } });
+        await tx.transaction.deleteMany({ where: { id: { in: transactionIds } } });
+      } else {
+        await tx.stockMovement.deleteMany({ where: { productId: itemId } });
+      }
+
+      await tx.stockBalance.deleteMany({ where: { productId: itemId } });
+      await tx.product.delete({ where: { id: itemId } });
+
+      return {
+        companyIds: [...new Set([
+          product.companyId,
+          ...transactions.map((transaction) => transaction.companyId)
+        ].filter((id): id is number => id !== null))],
+        partyIds: [...new Set(transactions.map((transaction) => transaction.partyId).filter((id): id is number => id !== null))],
+        archived: false,
+        stockAdjustmentWasLimited
+      };
+    }, { maxWait: 10_000, timeout: 30_000 });
+
+    revalidateInventoryData({ companyIds: result.companyIds, partyIds: result.partyIds });
+
+    return {
+      success: true,
+      message: result.archived
+        ? 'Stock item archived successfully.'
+        : `Stock item and all related transaction history deleted successfully.${result.stockAdjustmentWasLimited ? ' Some affected stock had already been used, so the remaining balance was adjusted to zero instead of becoming negative.' : ''}`
+    };
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : 'Failed to delete stock item.' };
+  }
 }

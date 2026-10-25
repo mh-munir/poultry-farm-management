@@ -10,7 +10,7 @@ export function AnalyticsKpiCard({ metric }: Props) {
   const isMargin = metric.title.toLowerCase().includes("margin");
 
   return (
-    <div className={`group h-full rounded-lg border border-border bg-card p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-6 ${metric.cardClassName ?? ""}`}>
+    <div className={`h-full rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6 ${metric.cardClassName ?? ""}`}>
       <div className="flex items-start justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
           <p className={`font-semibold uppercase text-muted-foreground ${metric.titleClassName ?? "text-xs tracking-[0.12em] sm:text-sm sm:tracking-[0.18em]"}`}>{metric.title}</p>

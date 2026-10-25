@@ -1,5 +1,7 @@
 import { Prisma } from '@prisma/client';
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/server/db';
+import { CACHE_TAGS } from '@/lib/cache';
 
 const ZERO = new Prisma.Decimal(0);
 const VALID_TRANSACTION_STATUSES = ['PENDING', 'COMPLETED'];
@@ -16,7 +18,7 @@ type Obligation = {
 const decimal = (value: Prisma.Decimal | null | undefined) => new Prisma.Decimal(value?.toString() ?? '0');
 const nonNegative = (value: Prisma.Decimal) => Prisma.Decimal.max(ZERO, value);
 
-export async function getPartyFinancialSummary(partyId: number) {
+async function getPartyFinancialSummaryUncached(partyId: number) {
   const party = await prisma.party.findUnique({
     where: { id: partyId },
     select: { id: true, openingBalance: true, openingBalanceType: true }
@@ -99,4 +101,14 @@ export async function getPartyFinancialSummary(partyId: number) {
     supplierAdvance: supplierAdvance.toString(),
     supplierPayable: supplierPayable.toString()
   };
+}
+
+const getPartyFinancialSummaryCached = unstable_cache(
+  async (partyId: number) => getPartyFinancialSummaryUncached(partyId),
+  ['party-financial-summary'],
+  { tags: [CACHE_TAGS.parties, CACHE_TAGS.transactions], revalidate: 60 }
+);
+
+export async function getPartyFinancialSummary(partyId: number) {
+  return getPartyFinancialSummaryCached(partyId);
 }

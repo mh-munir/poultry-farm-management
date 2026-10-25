@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import imageCompression from 'browser-image-compression';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { MoreHorizontal, Pencil, Trash2, Printer } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -58,6 +57,7 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
     }
 
     try {
+      const { default: imageCompression } = await import('browser-image-compression');
       setImageCompressionStatus('Compressing image...');
       const compressedFile = await imageCompression(file, {
         maxSizeMB: 1,
@@ -301,7 +301,7 @@ export function PartyRowActions({ party, editOnly = false, printHref, editButton
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title={`${dict.common.delete} ${party.name}?`}
-        description="If this party has historical records, it will be deactivated instead of permanently deleted."
+        description={dict.common.deletePartyDescription.replace('{party}', party.name)}
         confirmText={dict.common.delete}
         cancelText={dict.common.cancel}
         onConfirm={handleConfirmDeleteParty}

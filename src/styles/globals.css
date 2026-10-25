@@ -170,15 +170,6 @@ input, select, textarea {
   --tw-ring-shadow: 0 0 #0000 !important;
 }
 
-:is(input, select, textarea, [role="combobox"], [contenteditable="true"])[class]:is(:focus, :focus-visible),
-.date-input-field:focus-within {
-  outline: none !important;
-  box-shadow: none !important;
-  border-color: hsl(var(--input)) !important;
-  --tw-ring-offset-shadow: 0 0 #0000 !important;
-  --tw-ring-shadow: 0 0 #0000 !important;
-}
-
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -204,6 +195,17 @@ input[type="number"]::-webkit-inner-spin-button {
 
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="menuitem"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
 }
 
 @media (max-width: 767px) {

@@ -481,19 +481,6 @@ export default function ProfitAnalyticsClient({
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <AnalyticsKpiCard
           metric={{
-            title: dict.analytics.companiesPayable,
-            value: balanceLoadError ? '—' : formatCurrency(initialBalances.companiesPayable),
-            valueClassName: 'text-base sm:text-xl text-rose-600',
-            titleClassName: 'text-[0.7rem] tracking-[0.1em] sm:text-[0.8125rem] sm:tracking-[0.14em]',
-            cardClassName: 'bg-gradient-to-br from-rose-50/80 via-card to-card dark:from-rose-950/20',
-            hideDecoration: true,
-            subtitle: balanceLoadError ? dict.analytics.balanceUnavailable : dict.analytics.allTimeBalance,
-            tone: 'negative',
-            icon: Building2,
-          }}
-        />
-        <AnalyticsKpiCard
-          metric={{
             title: dict.analytics.partiesReceivable,
             value: balanceLoadError ? '—' : formatCurrency(initialBalances.partiesReceivable),
             valueClassName: 'text-base sm:text-xl',
@@ -503,6 +490,19 @@ export default function ProfitAnalyticsClient({
             subtitle: balanceLoadError ? dict.analytics.balanceUnavailable : dict.analytics.allTimeBalance,
             tone: 'positive',
             icon: UsersRound,
+          }}
+        />
+        <AnalyticsKpiCard
+          metric={{
+            title: dict.analytics.companiesPayable,
+            value: balanceLoadError ? '—' : formatCurrency(initialBalances.companiesPayable),
+            valueClassName: 'text-base sm:text-xl text-rose-600',
+            titleClassName: 'text-[0.7rem] tracking-[0.1em] sm:text-[0.8125rem] sm:tracking-[0.14em]',
+            cardClassName: 'bg-gradient-to-br from-rose-50/80 via-card to-card dark:from-rose-950/20',
+            hideDecoration: true,
+            subtitle: balanceLoadError ? dict.analytics.balanceUnavailable : dict.analytics.allTimeBalance,
+            tone: 'negative',
+            icon: Building2,
           }}
         />
         <AnalyticsKpiCard

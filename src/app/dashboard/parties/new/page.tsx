@@ -33,7 +33,7 @@ export default async function NewPartyPage() {
         </Button>
       </div>
 
-      <form action={createParty} encType="multipart/form-data" autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
+      <form action={createParty} autoComplete="off" className="rounded-2xl border bg-card p-6 shadow-sm">
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium">{dict.forms.partyNameLabel}</label>

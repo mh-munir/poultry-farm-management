@@ -357,6 +357,7 @@ export default async function CompaniesPage({
           suppliers={feedCompanies}
           companyNames={feedCompanyOptions}
           useCompanySearch
+          allowDeleteHistory
           allowCreateCompany
           createNewLabel={`${dict.stock.createNewCompany}: `}
           addButtonLabel={dict.stock.addStockButton}
@@ -375,6 +376,7 @@ export default async function CompaniesPage({
           suppliers={medicineCompanies}
           companyNames={medicineCompanyOptions}
           useCompanySearch
+          allowDeleteHistory
           addButtonLabel={dict.stock.addStockButton}
           asSection
           showAddButton={false}

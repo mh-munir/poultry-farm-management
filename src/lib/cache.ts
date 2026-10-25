@@ -14,17 +14,21 @@ export const CACHE_TAGS = {
   dashboard: 'dashboard'
 } as const;
 
+function revalidatePaths(paths: string[]) {
+  for (const path of new Set(paths)) {
+    revalidatePath(path);
+  }
+}
+
 export function revalidateTags(tags: Array<(typeof CACHE_TAGS)[keyof typeof CACHE_TAGS]>) {
-  for (const tag of tags) {
+  for (const tag of new Set(tags)) {
     revalidateTag(tag);
   }
 }
 
 export function revalidateSalesData(partyId?: number) {
   revalidateTags([CACHE_TAGS.transactions, CACHE_TAGS.stock, CACHE_TAGS.reports, CACHE_TAGS.dashboard]);
-  revalidatePath('/dashboard/sales');
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/reports');
+  revalidatePaths(['/dashboard/sales', '/dashboard', '/dashboard/reports']);
   if (partyId) {
     revalidatePath(`/dashboard/parties/${partyId}`);
   }
@@ -40,25 +44,18 @@ export function revalidatePurchaseData(args: { partyId?: number | null; companyI
     CACHE_TAGS.companies,
     CACHE_TAGS.parties
   ]);
-  revalidatePath(args.path ?? '/dashboard/purchases');
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/reports');
+  revalidatePaths([args.path ?? '/dashboard/purchases', '/dashboard', '/dashboard/reports']);
   if (args.partyId) {
-    revalidatePath('/dashboard/parties');
-    revalidatePath(`/dashboard/parties/${args.partyId}`);
+    revalidatePaths(['/dashboard/parties', `/dashboard/parties/${args.partyId}`]);
   }
   if (args.companyId) {
-    revalidatePath('/dashboard/companies');
-    revalidatePath(`/dashboard/companies/${args.companyId}`);
+    revalidatePaths(['/dashboard/companies', `/dashboard/companies/${args.companyId}`]);
   }
 }
 
 export function revalidatePartyData(partyId?: number) {
   revalidateTags([CACHE_TAGS.parties, CACHE_TAGS.transactions, CACHE_TAGS.reports, CACHE_TAGS.dashboard]);
-  revalidatePath('/dashboard/parties');
-  revalidatePath('/dashboard/sales');
-  revalidatePath('/dashboard/purchases');
-  revalidatePath('/dashboard');
+  revalidatePaths(['/dashboard/parties', '/dashboard/sales', '/dashboard/purchases', '/dashboard']);
   if (partyId) {
     revalidatePath(`/dashboard/parties/${partyId}`);
   }
@@ -66,25 +63,75 @@ export function revalidatePartyData(partyId?: number) {
 
 export function revalidateCompanyData(companyId?: number) {
   revalidateTags([CACHE_TAGS.companies, CACHE_TAGS.products, CACHE_TAGS.reports, CACHE_TAGS.dashboard]);
-  revalidatePath('/dashboard/companies');
-  revalidatePath('/dashboard/purchases');
-  revalidatePath('/dashboard');
+  revalidatePaths(['/dashboard/companies', '/dashboard/purchases', '/dashboard']);
   if (companyId) {
     revalidatePath(`/dashboard/companies/${companyId}`);
   }
 }
 
-export function revalidateStockData() {
+export function revalidateStockItemData({ companyIds = [] }: { companyIds?: number[] } = {}) {
   revalidateTags([CACHE_TAGS.stock, CACHE_TAGS.products, CACHE_TAGS.reports, CACHE_TAGS.dashboard]);
-  revalidatePath('/dashboard/reports/stock');
-  revalidatePath('/dashboard');
+  revalidatePaths([
+    '/dashboard/reports/stock',
+    '/dashboard/companies',
+    '/dashboard',
+    ...companyIds.map((id) => `/dashboard/companies/${id}`)
+  ]);
+}
+
+/** Invalidate all views affected by deleting/editing one party transaction. */
+export function revalidateTransactionData({
+  partyId,
+  companyId
+}: { partyId?: number | null; companyId?: number | null } = {}) {
+  revalidateTags([
+    CACHE_TAGS.transactions,
+    CACHE_TAGS.stock,
+    CACHE_TAGS.products,
+    CACHE_TAGS.reports,
+    CACHE_TAGS.dashboard,
+    CACHE_TAGS.parties,
+    CACHE_TAGS.companies
+  ]);
+  revalidatePaths([
+    '/dashboard/sales',
+    '/dashboard/purchases',
+    '/dashboard/parties',
+    '/dashboard/companies',
+    '/dashboard/reports',
+    '/dashboard',
+    ...(partyId ? [`/dashboard/parties/${partyId}`] : []),
+    ...(companyId ? [`/dashboard/companies/${companyId}`] : [])
+  ]);
+}
+
+/** Invalidate inventory plus every account view touched by a stock deletion. */
+export function revalidateInventoryData({
+  companyIds = [],
+  partyIds = []
+}: { companyIds?: number[]; partyIds?: number[] } = {}) {
+  revalidateTags([
+    CACHE_TAGS.transactions,
+    CACHE_TAGS.stock,
+    CACHE_TAGS.products,
+    CACHE_TAGS.reports,
+    CACHE_TAGS.dashboard,
+    CACHE_TAGS.parties,
+    CACHE_TAGS.companies
+  ]);
+  revalidatePaths([
+    '/dashboard/reports/stock',
+    '/dashboard/purchases',
+    '/dashboard/parties',
+    '/dashboard/companies',
+    '/dashboard/reports',
+    '/dashboard',
+    ...partyIds.map((id) => `/dashboard/parties/${id}`),
+    ...companyIds.map((id) => `/dashboard/companies/${id}`)
+  ]);
 }
 
 export function revalidateSettingsData() {
   revalidateTags([CACHE_TAGS.settings, CACHE_TAGS.branding, CACHE_TAGS.companyProfile]);
-  revalidatePath('/');
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/settings');
-  revalidatePath('/dashboard/settings/logo');
-  revalidatePath('/dashboard/settings/company');
+  revalidatePaths(['/', '/dashboard', '/dashboard/settings', '/dashboard/settings/logo', '/dashboard/settings/company']);
 }

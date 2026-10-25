@@ -7,7 +7,7 @@ import { prisma } from '@/server/db';
 import { requireUser } from '@/lib/auth';
 import { rebuildLedgerRunningBalancesForAccount } from '@/features/purchases/actions';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
-import { CACHE_TAGS, revalidatePartyData, revalidatePurchaseData } from '@/lib/cache';
+import { CACHE_TAGS, revalidateInventoryData, revalidatePartyData, revalidatePurchaseData } from '@/lib/cache';
 import { getInvoiceNumber, isUniqueConstraintError } from '@/lib/invoice';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
@@ -250,17 +250,11 @@ async function syncOpeningBalanceLedger({
       partyId,
       entryType: 'OPENING_BALANCE'
     },
-    orderBy: [{ entryDate: 'desc' }, { id: 'desc' }]
+    orderBy: [{ entryDate: 'desc' }, { id: 'desc' }],
+    select: { id: true }
   });
 
   if (existingLedger) {
-    console.info('[updatePartyOpeningBalance] old-ledger', {
-      partyId,
-      ledgerEntryId: existingLedger.id,
-      amount: existingLedger.amount.toString(),
-      type: existingLedger.entryType
-    });
-
     const resolvedAmount = amount === 0 ? new Prisma.Decimal(0) : normalizedAmount;
     const resolvedDescription = amount === 0 ? `${normalizedDescription} (cleared)` : normalizedDescription;
 
@@ -278,12 +272,6 @@ async function syncOpeningBalanceLedger({
       }
     });
 
-    console.info('[updatePartyOpeningBalance] new-ledger', {
-      partyId,
-      ledgerEntryId: existingLedger.id,
-      amount: resolvedAmount.toString(),
-      type: 'OPENING_BALANCE'
-    });
     return;
   }
 
@@ -291,7 +279,7 @@ async function syncOpeningBalanceLedger({
     return;
   }
 
-  const newLedgerEntry = await tx.ledgerEntry.create({
+  await tx.ledgerEntry.create({
     data: {
       partyId,
       entryType: 'OPENING_BALANCE',
@@ -303,12 +291,6 @@ async function syncOpeningBalanceLedger({
     }
   });
 
-  console.info('[updatePartyOpeningBalance] new-ledger', {
-    partyId,
-    ledgerEntryId: newLedgerEntry.id,
-    amount: normalizedAmount.toString(),
-    type: 'OPENING_BALANCE'
-  });
 }
 
 export async function createOrUpdateParty(formData: FormData) {
@@ -331,21 +313,6 @@ export async function createOrUpdateParty(formData: FormData) {
 
   try {
     const party = await prisma.$transaction(async (tx) => {
-      const previousParty = id
-        ? await tx.party.findUnique({
-            where: { id },
-            select: { id: true, openingBalance: true, openingBalanceType: true }
-          })
-        : null;
-
-      console.info('[updatePartyOpeningBalance] before', {
-        partyId: id ?? null,
-        oldOpeningBalance: previousParty?.openingBalance?.toString() ?? 'N/A',
-        oldOpeningBalanceType: previousParty?.openingBalanceType ?? 'N/A',
-        newOpeningBalance: normalizedOpeningBalance,
-        newOpeningBalanceType: openingBalanceType
-      });
-
       const savedParty = await tx.party.upsert({
         where: { id: id ?? -1 },
         create: {
@@ -373,12 +340,6 @@ export async function createOrUpdateParty(formData: FormData) {
         amount: normalizedOpeningBalance,
         description: openingBalanceDescription,
         createdById: session.user.id
-      });
-
-      console.info('[updatePartyOpeningBalance] after', {
-        partyId: savedParty.id,
-        databaseOpeningBalance: savedParty.openingBalance.toString(),
-        databaseOpeningBalanceType: savedParty.openingBalanceType
       });
 
       return savedParty;
@@ -411,7 +372,7 @@ export async function createOrUpdateParty(formData: FormData) {
 }
 
 const deletePartySchema = z.object({
-  partyId: z.coerce.number()
+  partyId: z.coerce.number().int().positive()
 });
 
 export async function deleteParty(formData: FormData) {
@@ -425,79 +386,221 @@ export async function deleteParty(formData: FormData) {
   const { partyId } = parsed.data;
 
   try {
-    const party = await prisma.party.findUnique({
-      where: { id: partyId }
-    });
+    const deletedParty = await prisma.$transaction(async (tx) => {
+      const party = await tx.party.findUnique({
+        where: { id: partyId },
+        select: { id: true, name: true, imageUrl: true }
+      });
 
-    if (!party) {
-      return { success: false, message: 'Party not found.' };
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-      const [transactionCount, paymentCount, ledgerCount, dueAdjustmentCount, smsCount, smsTransactionCount] = await Promise.all([
-        tx.transaction.count({ where: { partyId } }),
-        tx.payment.count({ where: { partyId } }),
-        tx.ledgerEntry.count({ where: { partyId } }),
-        tx.dueAdjustment.count({ where: { partyId } }),
-        tx.smsNotification.count({ where: { partyId } }),
-        tx.smsNotification.count({ where: { transaction: { partyId } } })
-      ]);
-
-      const hasHistoricalData = transactionCount > 0 || paymentCount > 0 || ledgerCount > 0 || dueAdjustmentCount > 0 || smsCount > 0 || smsTransactionCount > 0;
-
-      if (hasHistoricalData) {
-        await tx.party.update({
-          where: { id: partyId },
-          data: { isActive: false }
-        });
-
-        return { deleted: false };
+      if (!party) {
+        throw new Error('Party not found.');
       }
 
-      if (party.imageUrl) {
-        await deleteOldImage(party.imageUrl);
+      const transactions = await tx.transaction.findMany({
+        where: { partyId },
+        select: {
+          id: true,
+          companyId: true,
+          stockMovements: {
+            select: { productId: true, movementType: true, quantity: true }
+          }
+        }
+      });
+      const transactionIds = transactions.map((transaction) => transaction.id);
+      const partyPayments = await tx.payment.findMany({
+        where: { partyId },
+        select: {
+          id: true,
+          companyId: true,
+          allocations: {
+            select: {
+              transactionId: true,
+              transaction: { select: { partyId: true } }
+            }
+          }
+        }
+      });
+      const transactionAllocations = transactionIds.length > 0
+        ? await tx.paymentAllocation.findMany({
+          where: { transactionId: { in: transactionIds } },
+          select: {
+            paymentId: true,
+            transactionId: true,
+            payment: { select: { partyId: true } }
+          }
+        })
+        : [];
+
+      if (
+        partyPayments.some((payment) =>
+          payment.allocations.some((allocation) => allocation.transaction.partyId !== partyId)
+        ) ||
+        transactionAllocations.some((allocation) => {
+          return allocation.payment.partyId !== partyId;
+        })
+      ) {
+        throw new Error('This party has a payment shared with another party. Update its payment allocation before deleting this party.');
+      }
+
+      const paymentIds = [...new Set([
+        ...partyPayments.map((payment) => payment.id),
+        ...transactionAllocations.map((allocation) => allocation.paymentId)
+      ])];
+      const ledgerEntries = await tx.ledgerEntry.findMany({
+        where: {
+          OR: [
+            { partyId },
+            ...(transactionIds.length > 0 ? [{ transactionId: { in: transactionIds } }] : []),
+            ...(paymentIds.length > 0 ? [{ paymentId: { in: paymentIds } }] : [])
+          ]
+        },
+        select: { companyId: true }
+      });
+      const companyIds = [...new Set([
+        ...transactions.map((transaction) => transaction.companyId),
+        ...partyPayments.map((payment) => payment.companyId),
+        ...ledgerEntries.map((entry) => entry.companyId)
+      ].filter((id): id is number => id !== null))];
+
+      const stockChanges = new Map<number, Prisma.Decimal>();
+      const purchasedProductIds = new Set<number>();
+      let stockAdjustmentWasLimited = false;
+      for (const transaction of transactions) {
+        for (const movement of transaction.stockMovements) {
+          const quantity = new Prisma.Decimal(movement.quantity);
+          if (movement.movementType === 'SALE') {
+            stockChanges.set(movement.productId, (stockChanges.get(movement.productId) ?? new Prisma.Decimal(0)).plus(quantity));
+          } else if (movement.movementType === 'PURCHASE') {
+            stockChanges.set(movement.productId, (stockChanges.get(movement.productId) ?? new Prisma.Decimal(0)).minus(quantity));
+            purchasedProductIds.add(movement.productId);
+          } else {
+            throw new Error('This party has an unsupported stock movement. Resolve it before deleting the party.');
+          }
+        }
+      }
+
+      for (const [productId, change] of stockChanges) {
+        const balance = await tx.stockBalance.findUnique({ where: { productId } });
+        let nextQuantity = new Prisma.Decimal(balance?.quantityOnHand ?? 0).plus(change);
+        if (nextQuantity.lt(0)) {
+          nextQuantity = new Prisma.Decimal(0);
+          stockAdjustmentWasLimited = true;
+        }
+
+        if (balance) {
+          await tx.stockBalance.update({
+            where: { productId },
+            data: {
+              quantityOnHand: nextQuantity,
+              ...(nextQuantity.isZero() ? { averageCost: null } : {})
+            }
+          });
+        } else if (nextQuantity.gt(0)) {
+          await tx.stockBalance.create({
+            data: {
+              productId,
+              quantityOnHand: nextQuantity,
+              reservedQuantity: new Prisma.Decimal(0),
+              averageCost: null
+            }
+          });
+        }
+      }
+
+      for (const productId of purchasedProductIds) {
+        const remainingPurchases = await tx.stockMovement.findMany({
+          where: {
+            productId,
+            movementType: 'PURCHASE',
+            ...(transactionIds.length > 0 ? { transactionId: { notIn: transactionIds } } : {}),
+            transaction: { status: { not: 'CANCELLED' } }
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          select: { quantity: true, unitCost: true }
+        });
+        const purchasedQuantity = remainingPurchases.reduce(
+          (sum, movement) => sum.plus(movement.quantity),
+          new Prisma.Decimal(0)
+        );
+        const purchaseValue = remainingPurchases.reduce(
+          (sum, movement) => sum.plus(new Prisma.Decimal(movement.quantity).times(movement.unitCost ?? 0)),
+          new Prisma.Decimal(0)
+        );
+        const balance = await tx.stockBalance.findUnique({ where: { productId } });
+
+        await tx.product.update({
+          where: { id: productId },
+          data: { defaultPurchasePrice: remainingPurchases[0]?.unitCost ?? null }
+        });
+        if (balance && new Prisma.Decimal(balance.quantityOnHand).gt(0)) {
+          await tx.stockBalance.update({
+            where: { productId },
+            data: { averageCost: purchasedQuantity.gt(0) ? purchaseValue.div(purchasedQuantity) : null }
+          });
+        }
       }
 
       await tx.smsNotification.deleteMany({
         where: {
           OR: [
             { partyId },
-            { transaction: { partyId } }
+            ...(transactionIds.length > 0 ? [{ transactionId: { in: transactionIds } }] : [])
           ]
         }
       });
-
+      await tx.ledgerEntry.deleteMany({
+        where: {
+          OR: [
+            { partyId },
+            ...(transactionIds.length > 0 ? [{ transactionId: { in: transactionIds } }] : []),
+            ...(paymentIds.length > 0 ? [{ paymentId: { in: paymentIds } }] : [])
+          ]
+        }
+      });
+      await tx.dueAdjustment.deleteMany({
+        where: {
+          OR: [
+            { partyId },
+            ...(transactionIds.length > 0 ? [{ transactionId: { in: transactionIds } }] : [])
+          ]
+        }
+      });
+      await tx.stockMovement.deleteMany({ where: { transactionId: { in: transactionIds } } });
+      await tx.transactionItem.deleteMany({ where: { transactionId: { in: transactionIds } } });
       await tx.paymentAllocation.deleteMany({
         where: {
           OR: [
-            { payment: { partyId } },
-            { transaction: { partyId } }
+            { paymentId: { in: paymentIds } },
+            { transactionId: { in: transactionIds } }
           ]
         }
       });
-      // Preserve ledger entries for audit trail - only delete if party has no historical data
-      // The party deletion only proceeds if hasHistoricalData is false, so ledger entries should be empty
-      // But if there are orphaned entries, keep them rather than destroying the audit trail
-      await tx.dueAdjustment.deleteMany({ where: { OR: [{ partyId }, { transaction: { partyId } }] } });
-      await tx.stockMovement.deleteMany({ where: { transaction: { partyId } } });
-      await tx.transactionItem.deleteMany({ where: { transaction: { partyId } } });
-      await tx.payment.deleteMany({ where: { partyId } });
-      await tx.transaction.deleteMany({ where: { partyId } });
+      if (paymentIds.length > 0) {
+        await tx.payment.deleteMany({ where: { id: { in: paymentIds } } });
+      }
+      await tx.transaction.deleteMany({ where: { id: { in: transactionIds } } });
       await tx.party.delete({ where: { id: partyId } });
 
-      return { deleted: true };
-    });
+      for (const companyId of companyIds) {
+        await rebuildLedgerRunningBalancesForAccount(tx, { companyId });
+      }
 
-    revalidatePartyData(partyId);
+      return { name: party.name, imageUrl: party.imageUrl, companyIds, stockAdjustmentWasLimited };
+    }, { maxWait: 10_000, timeout: 30_000 });
 
-    if (!result.deleted) {
-      return { success: true, message: `Party '${party.name}' was deactivated because historical records exist. Historical data has been preserved.` };
-    }
+    await deleteOldImage(deletedParty.imageUrl);
+    revalidateInventoryData({ companyIds: deletedParty.companyIds, partyIds: [partyId] });
 
-    return { success: true, message: `Party '${party.name}' and all related data have been deleted.` };
-  } catch (error: any) {
+    const stockNote = deletedParty.stockAdjustmentWasLimited
+      ? ' Some purchased stock had already been used, so the affected stock balance was set to zero instead of going negative.'
+      : '';
+    return {
+      success: true,
+      message: `Party '${deletedParty.name}' and all related data have been permanently deleted.${stockNote}`
+    };
+  } catch (error) {
     console.error('Error deleting party:', error);
-    return { success: false, message: 'Failed to delete party.' };
+    return { success: false, message: error instanceof Error ? error.message : 'Failed to delete party.' };
   }
 }
 
@@ -980,13 +1083,6 @@ export async function paySupplierPayment(formData: FormData) {
   }
 
   const currentPayable = await getSupplierCurrentPayable(partyId);
-
-  console.info('[supplier-payment-validation]', {
-    partyId,
-    partyType: party.partyType,
-    currentPayable,
-    requestedPaymentAmount: amount
-  });
 
   if (amount > currentPayable && formData.get('enforcePayableCap') === 'true') {
     return { success: false, message: `Payment amount cannot exceed current supplier payable of ৳${currentPayable.toFixed(2)}.` };

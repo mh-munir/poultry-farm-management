@@ -46,6 +46,7 @@ interface StockManagementProps {
   companyNames?: ComboboxOption[];
   useCompanySearch?: boolean;
   allowCreateCompany?: boolean;
+  allowDeleteHistory?: boolean;
   createNewLabel?: string;
   asSection?: boolean;
   showAddButton?: boolean;
@@ -73,6 +74,7 @@ export function StockManagement({
   companyNames,
   useCompanySearch,
   allowCreateCompany,
+  allowDeleteHistory = false,
   createNewLabel,
   asSection = false,
   showAddButton = true,
@@ -255,25 +257,13 @@ export function StockManagement({
     }
   }, [editBuyRate, editCompanies, editCompanyId, editCompanyName, editProductName, editQuantity, editUnit, editingItemId, router, showToastError, stockType, success, useCompanySearch]);
 
-  const handleDeleteItem = useCallback(async () => {
+  const handleDeleteItem = useCallback(() => {
     if (editingItemId === null) return;
 
-    try {
-      const result = await deleteStockItem(editingItemId);
-
-      if (result.success) {
-        setItems((prev) => prev.filter((item) => item.id !== editingItemId));
-        success(result.message);
-      } else {
-        showToastError(result.message);
-      }
-    } catch (err) {
-      showToastError(err instanceof Error ? err.message : 'An unknown error occurred.');
-    } finally {
-      setIsEditModalOpen(false);
-      setEditingItemId(null);
-    }
-  }, [editingItemId, success, showToastError]);
+    setRowToDelete(editingItemId);
+    setConfirmOpen(true);
+    setIsEditModalOpen(false);
+  }, [editingItemId]);
 
   const handleDeleteItemRow = useCallback((itemId: number | undefined) => {
     if (!itemId) return;
@@ -286,10 +276,11 @@ export function StockManagement({
     setIsDeleting(true);
 
     try {
-      const result = await deleteStockItem(rowToDelete);
+      const result = await deleteStockItem(rowToDelete, allowDeleteHistory);
       if (result.success) {
         setItems((prev) => prev.filter((item) => item.id !== rowToDelete));
         success(result.message);
+        router.refresh();
       } else {
         showToastError(result.message);
       }
@@ -300,7 +291,7 @@ export function StockManagement({
       setConfirmOpen(false);
       setRowToDelete(null);
     }
-  }, [rowToDelete, success, showToastError]);
+  }, [allowDeleteHistory, rowToDelete, router, success, showToastError]);
 
   const removeRow = useCallback((rowId: number) => {
     setRows((prev) => prev.filter((row) => row.rowId !== rowId));
@@ -902,7 +893,7 @@ export function StockManagement({
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title={dict.stock.deleteStockItem}
-        description={dict.stock.deleteStockItemDescription}
+        description={allowDeleteHistory ? dict.stock.deleteStockItemHistoryDescription : dict.stock.deleteStockItemDescription}
         confirmText={dict.stock.delete}
         cancelText={dict.common.cancel}
         onConfirm={handleConfirmDeleteItemRow}

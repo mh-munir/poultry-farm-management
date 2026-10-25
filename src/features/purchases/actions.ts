@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
-import { CACHE_TAGS, revalidatePurchaseData } from '@/lib/cache';
+import { CACHE_TAGS, revalidatePartyData, revalidatePurchaseData, revalidateTransactionData } from '@/lib/cache';
 import { getInvoiceNumber, isUniqueConstraintError } from '@/lib/invoice';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
@@ -641,6 +641,200 @@ export async function rebuildLedgerRunningBalancesForAccount(
   `);
 }
 
+export async function deletePartyTransaction(
+  transactionId: number,
+  partyId: number,
+  transactionType: 'SALE' | 'PURCHASE'
+): Promise<{ success: boolean; message: string }> {
+  await requireUser();
+
+  if (!Number.isInteger(transactionId) || transactionId <= 0 || !Number.isInteger(partyId) || partyId <= 0) {
+    return { success: false, message: 'Invalid transaction.' };
+  }
+
+  try {
+    const deletedTransaction = await prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.findUnique({
+        where: { id: transactionId },
+        select: {
+          id: true,
+          partyId: true,
+          transactionType: true,
+          companyId: true,
+          invoiceNumber: true,
+          stockMovements: {
+            select: { productId: true, movementType: true, quantity: true, unitCost: true }
+          },
+          payments: {
+            select: {
+              paymentId: true,
+              payment: {
+                select: {
+                  id: true,
+                  allocations: { select: { transactionId: true } }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!transaction) {
+        return { alreadyDeleted: true as const, partyId, companyId: null, invoiceNumber: null };
+      }
+
+      if (transaction.partyId !== partyId || transaction.transactionType !== transactionType) {
+        throw new Error('This transaction was not found for the selected party.');
+      }
+
+      const paymentIds = [...new Set(transaction.payments.map((allocation) => allocation.paymentId))];
+      for (const allocation of transaction.payments) {
+        if (allocation.payment.allocations.some((paymentAllocation) => paymentAllocation.transactionId !== transaction.id)) {
+          throw new Error('This invoice has a payment shared with another invoice. Update that payment allocation before deleting this invoice.');
+        }
+      }
+
+      const stockChanges = new Map<number, { quantity: Prisma.Decimal; unitCost: Prisma.Decimal | null }>();
+      for (const movement of transaction.stockMovements) {
+        const expectedMovementType = transactionType === 'SALE' ? 'SALE' : 'PURCHASE';
+        if (movement.movementType !== expectedMovementType) {
+          throw new Error('This transaction has an unsupported stock movement and cannot be deleted safely.');
+        }
+
+        const change = transactionType === 'SALE'
+          ? new Prisma.Decimal(movement.quantity)
+          : new Prisma.Decimal(movement.quantity).negated();
+        const existing = stockChanges.get(movement.productId);
+        stockChanges.set(movement.productId, {
+          quantity: (existing?.quantity ?? new Prisma.Decimal(0)).plus(change),
+          unitCost: movement.unitCost ?? existing?.unitCost ?? null
+        });
+      }
+
+      for (const [productId, change] of stockChanges) {
+        const balance = await tx.stockBalance.findUnique({ where: { productId } });
+        const currentQuantity = new Prisma.Decimal(balance?.quantityOnHand ?? 0);
+        const nextQuantity = currentQuantity.plus(change.quantity);
+        if (nextQuantity.lt(0)) {
+          throw new Error('This purchase cannot be deleted because some of its stock has already been used or sold.');
+        }
+
+        if (balance) {
+          await tx.stockBalance.update({
+            where: { productId },
+            data: {
+              quantityOnHand: nextQuantity,
+              ...(nextQuantity.isZero() ? { averageCost: null } : {})
+            }
+          });
+        } else if (nextQuantity.gt(0) && transactionType === 'SALE') {
+          await tx.stockBalance.create({
+            data: {
+              productId,
+              quantityOnHand: nextQuantity,
+              reservedQuantity: new Prisma.Decimal(0),
+              averageCost: change.unitCost
+            }
+          });
+        } else if (nextQuantity.gt(0)) {
+          throw new Error('Stock balance is missing; this purchase cannot be deleted safely.');
+        }
+
+        if (transactionType === 'PURCHASE') {
+          const remainingPurchases = await tx.stockMovement.findMany({
+            where: {
+              productId,
+              movementType: 'PURCHASE',
+              transactionId: { not: transaction.id },
+              transaction: { status: { not: 'CANCELLED' } }
+            },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            select: { quantity: true, unitCost: true }
+          });
+
+          const purchasedQuantity = remainingPurchases.reduce(
+            (sum, movement) => sum.plus(movement.quantity),
+            new Prisma.Decimal(0)
+          );
+          const purchaseValue = remainingPurchases.reduce(
+            (sum, movement) => sum.plus(new Prisma.Decimal(movement.quantity).times(movement.unitCost ?? 0)),
+            new Prisma.Decimal(0)
+          );
+          const latestPurchaseCost = remainingPurchases[0]?.unitCost ?? null;
+
+          await tx.product.update({
+            where: { id: productId },
+            data: { defaultPurchasePrice: latestPurchaseCost }
+          });
+
+          if (balance && nextQuantity.gt(0) && purchasedQuantity.gt(0)) {
+            await tx.stockBalance.update({
+              where: { productId },
+              data: { averageCost: purchaseValue.div(purchasedQuantity) }
+            });
+          }
+        }
+      }
+
+      await tx.ledgerEntry.deleteMany({
+        where: {
+          OR: [
+            { transactionId: transaction.id },
+            ...(paymentIds.length > 0 ? [{ paymentId: { in: paymentIds } }] : [])
+          ]
+        }
+      });
+      await tx.paymentAllocation.deleteMany({ where: { transactionId: transaction.id } });
+      if (paymentIds.length > 0) {
+        await tx.payment.deleteMany({ where: { id: { in: paymentIds } } });
+      }
+      await tx.dueAdjustment.deleteMany({ where: { transactionId: transaction.id } });
+      await tx.smsNotification.deleteMany({ where: { transactionId: transaction.id } });
+      await tx.stockMovement.deleteMany({ where: { transactionId: transaction.id } });
+      await tx.transaction.delete({ where: { id: transaction.id } });
+
+      await rebuildLedgerRunningBalancesForAccount(tx, {
+        partyId: transaction.partyId,
+        companyId: transaction.companyId
+      });
+
+      return {
+        alreadyDeleted: false as const,
+        partyId: transaction.partyId,
+        companyId: transaction.companyId,
+        invoiceNumber: transaction.invoiceNumber
+      };
+    }, { maxWait: 10_000, timeout: 30_000 });
+
+    if (deletedTransaction.alreadyDeleted) {
+      revalidatePartyData(partyId);
+      return { success: true, message: 'This invoice was already deleted. The party page has been refreshed.' };
+    }
+
+    revalidateTransactionData({
+      partyId: deletedTransaction.partyId,
+      companyId: deletedTransaction.companyId
+    });
+
+    return { success: true, message: `Invoice ${deletedTransaction.invoiceNumber} and its related records were deleted.` };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete the transaction.';
+    const expectedErrors = new Set([
+      'This transaction was not found for the selected party.',
+      'This transaction has an unsupported stock movement and cannot be deleted safely.',
+      'This purchase cannot be deleted because some of its stock has already been used or sold.',
+      'Stock balance is missing; this purchase cannot be deleted safely.'
+    ]);
+    if (!expectedErrors.has(message) && !message.startsWith('This invoice has a payment shared with another invoice.')) {
+      console.error('Failed to delete party transaction:', error);
+    }
+    return {
+      success: false,
+      message
+    };
+  }
+}
+
 export async function updatePurchaseItem(formData: FormData): Promise<{ success: boolean; message: string }> {
   await requireUser();
 
@@ -673,12 +867,7 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
   }
 
   try {
-    const transactionStartedAt = Date.now();
-    console.info('[updatePurchaseItem] entering-transaction', { itemId, transactionStartedAt });
-
     const transactionResult = await prisma.$transaction(async (tx) => {
-      console.info('[updatePurchaseItem] transaction-callback-start', { itemId });
-
       const currentItem = await tx.transactionItem.findUnique({
         where: { id: itemId },
         select: {
@@ -752,31 +941,6 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
       }
 
       const nextTransactionTotal = nextTransactionSubtotal.minus(nextTransactionDiscount);
-
-      console.info('[updatePurchaseItem] purchase-item-edit-debug', {
-        purchaseItemId: item.id,
-        transactionId: item.transactionId,
-        productType,
-        oldQuantity: oldQuantity.toString(),
-        newQuantity: newQuantity.toString(),
-        oldTotalKg: item.chickenQuantity?.toString() ?? '0',
-        newTotalKg: totalKg,
-        oldPrice: oldUnitPrice.toString(),
-        newPrice: newUnitPrice.toString(),
-        oldDiscount: previousLineDiscount.toString(),
-        newDiscount: nextLineDiscount.toString(),
-        oldLineTotal: oldLineTotal.toString(),
-        newLineTotal: newLineTotal.toString(),
-        previousTransactionSubtotal: previousTransactionSubtotal.toString(),
-        previousTransactionDiscount: previousTransactionDiscount.toString(),
-        previousTransactionTotal: previousTransactionTotal.toString(),
-        previousLineDiscount: previousLineDiscount.toString(),
-        discountDelta: transactionDiscountDelta.toString(),
-        nextTransactionSubtotal: nextTransactionSubtotal.toString(),
-        nextTransactionDiscount: nextTransactionDiscount.toString(),
-        nextTransactionTotal: nextTransactionTotal.toString(),
-        discountCapped: !previousTransactionDiscount.plus(transactionDiscountDelta).equals(nextTransactionDiscount)
-      });
 
       if (nextTransactionTotal.lt(0)) {
         throw new Error('Updated transaction total cannot be negative.');
@@ -892,7 +1056,6 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
         });
       }
 
-      console.info('[updatePurchaseItem] before-ledgerEntry-findFirst', { transactionId: item.transactionId });
       const purchaseLedger = await tx.ledgerEntry.findFirst({
         where: {
           transactionId: item.transactionId,
@@ -900,13 +1063,10 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
         },
         orderBy: { id: 'asc' }
       });
-      console.info('[updatePurchaseItem] after-ledgerEntry-findFirst', { transactionId: item.transactionId, found: !!purchaseLedger });
-
       // Create reversal and new entry instead of modifying in-place (preserves audit trail)
       if (purchaseLedger) {
         const reversalAmount = new Prisma.Decimal(purchaseLedger.amount.toString()).negated();
         
-        console.info('[updatePurchaseItem] before-ledgerEntry-create-reversal', { transactionId: item.transactionId });
         await tx.ledgerEntry.create({
           data: {
             partyId: purchaseLedger.partyId,
@@ -921,9 +1081,6 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
             referenceNumber: purchaseLedger.referenceNumber
           }
         });
-        console.info('[updatePurchaseItem] after-ledgerEntry-create-reversal', { transactionId: item.transactionId });
-
-        console.info('[updatePurchaseItem] before-ledgerEntry-create-new', { transactionId: item.transactionId });
         await tx.ledgerEntry.create({
           data: {
             partyId: purchaseLedger.partyId,
@@ -938,17 +1095,12 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
             referenceNumber: purchaseLedger.referenceNumber
           }
         });
-        console.info('[updatePurchaseItem] after-ledgerEntry-create-new', { transactionId: item.transactionId });
       }
 
       await rebuildLedgerRunningBalancesForAccount(tx, {
         partyId: item.transaction.partyId ?? null,
         companyId: item.transaction.companyId ?? null
       });
-      console.info('[updatePurchaseItem] after-rebuildLedgerRunningBalances', { transactionId: item.transactionId });
-
-      console.info('[updatePurchaseItem] transaction-callback-end', { itemId, transactionId: item.transactionId });
-
       return {
         success: true,
         message: 'Purchase item updated successfully.',
@@ -956,8 +1108,6 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
         companyId: item.transaction.companyId ?? null
       };
     });
-
-    console.info('[updatePurchaseItem] transaction-committed', { itemId, transactionDuration: Date.now() - transactionStartedAt });
 
     revalidatePurchaseData({
       partyId: transactionResult.partyId ?? undefined,

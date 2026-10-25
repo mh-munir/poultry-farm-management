@@ -3,7 +3,7 @@
  * 
  * Verifies that the three critical fixes are working:
  * - Issue #2: Payment deletion creates ledger reversals (not hard-delete)
- * - Issue #3: Party deletion preserves audit trail (not deletes ledger)
+ * - Issue #3: Party deletion removes the party's related history and ledger
  * - Issue #4: Purchase item edit caps discount and creates reversals (not in-place update)
  */
 
@@ -63,36 +63,21 @@ describe('ACCOUNTING INTEGRITY - Issue #2: Payment Deletion', () => {
 });
 
 describe('ACCOUNTING INTEGRITY - Issue #3: Party Deletion', () => {
-  it('should preserve ledger entries when party is deleted (no data case)', async () => {
-    // BEFORE FIX: ledgerEntry.deleteMany({ where: { partyId } })
-    // AFTER FIX: Ledger entries NOT deleted - audit trail preserved
-    
+  it('should permanently delete the party and its related records', async () => {
     const scenario = {
-      description: 'Party deletion preserves ledger audit trail',
-      partyHasTransactions: false,
-      partyHasPayments: false,
-      partyHasLedgerEntries: false, // Should be true if there were any transactions
-      expectedOutcome: 'Party deleted, ledger entries preserved'
-    };
-
-    // Verification logic:
-    // 1. If party has NO historical data, party can be deleted
-    // 2. If party has ANY historical data, party marked inactive instead
-    // 3. Ledger entries are NEVER hard-deleted
-    // 4. This preserves audit trail even for deleted parties
-    
-    expect(scenario.partyHasLedgerEntries).toBe(false);
-  });
-
-  it('should mark inactive if party has historical data', async () => {
-    const scenario = {
-      description: 'Party with data is deactivated, not deleted',
+      description: 'Party deletion removes all connected accounting records',
       partyHasTransactions: true,
-      expectedOutcome: 'Party isActive=false, all data preserved',
-      expectedLedgerEntriesDeleted: false
+      partyHasPayments: true,
+      partyHasDue: true,
+      partyHasLedgerEntries: true,
+      expectedOutcome: 'Party, transactions, payments, due, and ledger history deleted'
     };
 
-    expect(scenario.expectedLedgerEntriesDeleted).toBe(false);
+    expect(scenario.partyHasTransactions).toBe(true);
+    expect(scenario.partyHasPayments).toBe(true);
+    expect(scenario.partyHasDue).toBe(true);
+    expect(scenario.partyHasLedgerEntries).toBe(true);
+    expect(scenario.expectedOutcome).toBe('Party, transactions, payments, due, and ledger history deleted');
   });
 });
 

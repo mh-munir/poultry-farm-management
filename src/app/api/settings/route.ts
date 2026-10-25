@@ -1,4 +1,3 @@
-import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/server/db'
@@ -98,8 +97,6 @@ export async function DELETE(request: Request) {
       invalidateBrandingCache();
     }
     revalidateSettingsData();
-    revalidatePath('/dashboard/settings');
-    revalidatePath('/dashboard');
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     if (isMissingSettingsTableError(err)) {

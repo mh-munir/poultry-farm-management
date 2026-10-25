@@ -1,5 +1,4 @@
 import { cookies } from 'next/headers';
-import { Inter } from 'next/font/google';
 import '@/styles/globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AuthProvider } from '@/components/providers/auth-provider';
@@ -7,8 +6,6 @@ import { AppShell } from '@/components/layout/app-shell';
 import { auth } from '@/server/auth';
 import { getBranding } from '@/lib/branding';
 import { LOCALE_COOKIE, getLocaleFromValue } from '@/i18n/config';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const session = await auth();
@@ -25,7 +22,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <head>
         {branding?.favicon && <link rel="icon" href={branding.favicon} />}
       </head>
-      <body className={inter.className}>
+      <body>
         <ThemeProvider>
           <AuthProvider session={session}>
             <AppShell branding={branding}>{children}</AppShell>

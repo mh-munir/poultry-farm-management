@@ -597,6 +597,7 @@ export default async function PartyProfilePage({
       </section>
 
       <SalesPurchaseSection
+        partyId={party.id}
         saleRows={customerProductRows}
         buyRows={supplierProductRows}
       />
