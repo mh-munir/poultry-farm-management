@@ -227,7 +227,7 @@ export function AddStockModal({
         {dict.stock.addStockButton}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen} title={dict.stock.addStockTitle.replace('{title}', dict.common.stock ?? 'Stock')}>
+      <Dialog open={isOpen} onOpenChange={setIsOpen} title={dict.stock.addStockButton}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             {!preselectedCompanyType && (
