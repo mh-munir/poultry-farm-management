@@ -30,6 +30,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'missing_date_range', message: 'Provide start and end ISO date strings.' }, { status: 400 });
   }
 
+  if (start && end && end <= start) {
+    return NextResponse.json({ error: 'invalid_date_range', message: 'End date must be after start date.' }, { status: 400 });
+  }
+
   try {
     const data = await getProfitAnalytics({ ...(start && end ? { start, end } : {}) });
     return NextResponse.json(data);

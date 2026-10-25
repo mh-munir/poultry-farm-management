@@ -17,7 +17,7 @@ export function ReceivePaymentButton({ buttonClassName }: ReceivePaymentButtonPr
   return (
     <>
       <Button type="button" onClick={() => setOpen(true)} className={buttonClassName}>
-        <Wallet className="mr-2 h-4 w-4" />
+        <Wallet className="h-4 w-4" />
         {dict.common.receivePayment}
       </Button>
       <ReceivePaymentModal open={open} onOpenChange={setOpen} />

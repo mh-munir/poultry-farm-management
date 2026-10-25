@@ -16,6 +16,7 @@ import { getPartyNames, getPartyPageData, getPartyStats } from '@/features/parti
 import type { ProductOption } from '@/app/dashboard/parties/add-party-dialog';
 import { getProductsForSales } from '@/features/sales/actions';
 import { formatDateBD, formatDateTimeBD } from '@/lib/dates';
+import { UsersRound } from 'lucide-react';
 
 type PartySummary = {
   id: number;
@@ -142,27 +143,28 @@ export default async function PartiesPage({
 
   return (
     <main className="mx-auto min-h-[80vh] max-w-screen-3xl px-2 py-4">
-      <div className="mb-6">
-        <h1 className="mt-2 text-3xl font-semibold">{dict.common.manageParties}</h1>
-      </div>
-
       <PartiesOverview stats={stats} period={overviewPeriod} />
 
-      {/* Parties Header */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-2 sm:mb-6 justify-between">
+      <PartyToast success={success} error={error} />
+
+      <header className="mb-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950 xl:flex-row xl:items-center xl:gap-5">
+        <div className="flex shrink-0 items-center gap-3 xl:border-r xl:border-slate-200 xl:pr-5 dark:xl:border-slate-800">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+            <UsersRound className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{dict.nav.parties}</h1>
+        </div>
         <AddPartyDialog partyOptions={partyOptions} productOptions={productOptions} />
         <PartySearchForm
           search={search}
           partyType={partyType}
           status={status}
         />
-      </div>
-
-      <PartyToast success={success} error={error} />
+      </header>
 
       {/* Parties Table */}
       <div className="overflow-visible rounded-2xl border-0 sm:border bg-card shadow-sm">
-        <div className="border-1 sm:border-b px-4 py-4 bg-muted/20">
+        <div className="border-b px-4 py-4 bg-muted/20">
           <h2 className="text-lg font-semibold">{dict.nav.parties}</h2>
         </div>
         <ResponsiveTable stickyLastColumn minWidth="980px">

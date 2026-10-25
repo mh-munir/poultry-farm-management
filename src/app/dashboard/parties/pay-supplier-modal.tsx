@@ -10,6 +10,7 @@ import { useLocale } from '@/i18n/provider';
 import { getPartyAccountSummary, getSupplierOptions, paySupplierPayment } from '@/features/parties/actions';
 import { DateInput } from '@/components/ui/date-input';
 import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
+import { formatLocalizedCurrency } from '@/lib/localized-formatters';
 
 type PaySupplierModalProps = {
   open: boolean;
@@ -17,7 +18,7 @@ type PaySupplierModalProps = {
 };
 
 export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) {
-  const { dict } = useLocale();
+  const { dict, locale } = useLocale();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partyOptions, setPartyOptions] = useState<ComboboxOption[]>([]);
   const [selectedPartyId, setSelectedPartyId] = useState<number | null>(null);
@@ -156,20 +157,20 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
         <div className="md:col-span-2 grid gap-3 md:grid-cols-2 lg:grid-cols-4 bg-slate-50 rounded-[20px] p-4">
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-xs font-medium text-slate-500">Customer Due</p>
-            <p className="mt-3 text-right text-lg font-semibold text-slate-950">à§³ {customerDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="mt-3 text-right text-lg font-semibold text-slate-950">{formatLocalizedCurrency(customerDue, locale)}</p>
             <p className="mt-2 text-xs text-slate-500">This party owes you</p>
           </div>
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-xs font-medium text-slate-500">Supplier Payable Settlement</p>
-            <p className="mt-3 text-right text-lg font-semibold text-slate-950">à§³ {payableSettlement.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="mt-3 text-right text-lg font-semibold text-slate-950">{formatLocalizedCurrency(payableSettlement, locale)}</p>
           </div>
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-xs font-medium text-slate-500">Supplier Advance</p>
-            <p className="mt-3 text-right text-lg font-semibold text-slate-950">à§³ {supplierAdvance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="mt-3 text-right text-lg font-semibold text-slate-950">{formatLocalizedCurrency(supplierAdvance, locale)}</p>
           </div>
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-xs font-medium text-slate-500">Remaining Supplier Payable</p>
-            <p className="mt-3 text-right text-lg font-semibold text-slate-950">à§³ {remainingPayable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="mt-3 text-right text-lg font-semibold text-slate-950">{formatLocalizedCurrency(remainingPayable, locale)}</p>
           </div>
         </div>
 

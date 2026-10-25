@@ -11,6 +11,10 @@ export type AnalyticsFilterState = {
 export type AnalyticsMetric = {
   title: string;
   value: string;
+  valueClassName?: string;
+  titleClassName?: string;
+  cardClassName?: string;
+  hideDecoration?: boolean;
   subtitle?: string;
   trend?: string;
   tone?: 'neutral' | 'positive' | 'negative' | 'accent';

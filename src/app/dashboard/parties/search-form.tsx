@@ -13,6 +13,7 @@ interface SearchFormProps {
 export function PartySearchForm({ search, partyType, status }: SearchFormProps) {
   const router = useRouter();
   const [searchValue, setSearchValue] = useState(search);
+  const inputRef = useRef<HTMLInputElement>(null);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -25,6 +26,18 @@ export function PartySearchForm({ search, partyType, status }: SearchFormProps) 
         clearTimeout(debounceTimeout.current);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', focusSearch);
+    return () => window.removeEventListener('keydown', focusSearch);
   }, []);
 
   const handleChange = (value: string) => {
@@ -55,17 +68,23 @@ export function PartySearchForm({ search, partyType, status }: SearchFormProps) 
   };
 
   return (
-    <div className="relative w-full max-w-lg md:w-96">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    <div className="relative w-full xl:ml-auto xl:max-w-[360px]">
+      <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
       <input
+        ref={inputRef}
         type="search"
         name="search"
         value={searchValue}
         onChange={(event) => handleChange(event.target.value)}
         placeholder={"Search party name..."}
+        aria-label="Search party name"
+        title="Search parties (Ctrl+K)"
         autoComplete="off"
-        className="w-full rounded-md border bg-background px-10 py-2 text-sm"
+        className="h-[52px] w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-24 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
       />
+      <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+        Ctrl + K
+      </kbd>
     </div>
   );
 }

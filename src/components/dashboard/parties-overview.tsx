@@ -18,27 +18,11 @@ type PartiesOverviewProps = {
 };
 
 const metrics = [
-  { key: 'total', label: 'totalParties', detail: 'partyDirectoryDescription', icon: Users, tone: 'text-violet-600 bg-violet-50 dark:bg-violet-500/10', stroke: '#7c3aed' },
-  { key: 'active', label: 'activeParties', detail: 'activeAccountsDescription', icon: ChartNoAxesColumnIncreasing, tone: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10', stroke: '#10b981' },
-  { key: 'customers', label: 'customers', detail: 'customerAccountsDescription', icon: ReceiptText, tone: 'text-sky-600 bg-sky-50 dark:bg-sky-500/10', stroke: '#0284c7' },
-  { key: 'suppliers', label: 'partySuppliers', detail: 'supplierAccountsDescription', icon: BriefcaseBusiness, tone: 'text-amber-600 bg-amber-50 dark:bg-amber-500/10', stroke: '#d97706' }
+  { key: 'total', label: 'totalParties', detail: 'partyDirectoryDescription', icon: Users, tone: 'text-violet-600 bg-violet-50 dark:bg-violet-500/10' },
+  { key: 'active', label: 'activeParties', detail: 'activeAccountsDescription', icon: ChartNoAxesColumnIncreasing, tone: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10' },
+  { key: 'customers', label: 'customers', detail: 'customerAccountsDescription', icon: ReceiptText, tone: 'text-sky-600 bg-sky-50 dark:bg-sky-500/10' },
+  { key: 'suppliers', label: 'partySuppliers', detail: 'supplierAccountsDescription', icon: BriefcaseBusiness, tone: 'text-amber-600 bg-amber-50 dark:bg-amber-500/10' }
 ] as const;
-
-function MiniTrend({ stroke }: { stroke: string }) {
-  const gradientId = `fill-${stroke.replace('#', '')}`;
-  return (
-    <svg aria-hidden="true" className="h-8 w-full" viewBox="0 0 120 32" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor={stroke} stopOpacity=".2" />
-          <stop offset="1" stopColor={stroke} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d="M0 25C11 16 17 19 27 21S44 11 54 16s14 9 25 3 19-6 28-1 10 5 13 3V32H0Z" fill={`url(#${gradientId})`} />
-      <path d="M0 25C11 16 17 19 27 21S44 11 54 16s14 9 25 3 19-6 28-1 10 5 13 3" fill="none" stroke={stroke} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-}
 
 export function PartiesOverview({ stats, period }: PartiesOverviewProps) {
   const router = useRouter();
@@ -69,7 +53,7 @@ export function PartiesOverview({ stats, period }: PartiesOverviewProps) {
         </div>
       </div>
       <div className="grid divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
-        {metrics.map(({ key, label, detail, icon: Icon, tone, stroke }) => (
+        {metrics.map(({ key, label, detail, icon: Icon, tone }) => (
           <div key={key} className="min-w-0 px-4 py-4 sm:px-5">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -79,7 +63,6 @@ export function PartiesOverview({ stats, period }: PartiesOverviewProps) {
               <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon className="h-5 w-5" /></span>
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">{dict.common[detail]}</p>
-            <div className="mt-3"><MiniTrend stroke={stroke} /></div>
           </div>
         ))}
       </div>

@@ -10,10 +10,10 @@ export function AnalyticsKpiCard({ metric }: Props) {
   const isMargin = metric.title.toLowerCase().includes("margin");
 
   return (
-    <div className="group h-full rounded-lg border border-border bg-card p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-6">
+    <div className={`group h-full rounded-lg border border-border bg-card p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-6 ${metric.cardClassName ?? ""}`}>
       <div className="flex items-start justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:text-sm sm:tracking-[0.18em]">{metric.title}</p>
+          <p className={`font-semibold uppercase text-muted-foreground ${metric.titleClassName ?? "text-xs tracking-[0.12em] sm:text-sm sm:tracking-[0.18em]"}`}>{metric.title}</p>
           <div className="mt-3 flex min-w-0 items-center gap-2 sm:mt-4 sm:gap-3">
             {Icon ? (
               <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-border bg-muted/10 text-foreground shadow-sm sm:h-11 sm:w-11">
@@ -24,12 +24,12 @@ export function AnalyticsKpiCard({ metric }: Props) {
               {metric.loading ? (
                 <div className="h-10 w-28 max-w-full animate-pulse rounded-xl bg-muted/20" />
               ) : (
-                <p className={`whitespace-nowrap text-lg font-semibold tracking-tight text-foreground sm:text-2xl`}>{metric.value}</p>
+                <p className={`whitespace-nowrap font-semibold tracking-tight ${metric.valueClassName ?? "text-lg text-foreground sm:text-2xl"}`}>{metric.value}</p>
               )}
             </div>
           </div>
         </div>
-        {isMargin ? (
+        {metric.hideDecoration ? null : isMargin ? (
           <div className="relative hidden h-16 w-16 shrink-0 items-center justify-center rounded-full border border-border bg-muted/10 sm:flex">
             <span className={`absolute inset-1 rounded-full ${metric.trend?.startsWith("-") ? "bg-rose-500/10" : "bg-emerald-500/10"}`} />
             <div className="relative flex h-full w-full items-center justify-center rounded-full">
@@ -49,10 +49,12 @@ export function AnalyticsKpiCard({ metric }: Props) {
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs font-medium sm:mt-5 sm:text-sm">
-        <span className={`inline-flex items-center gap-2 ${metric.trend?.startsWith("-") ? "text-rose-600" : "text-emerald-600"}`}>
-          {metric.trend?.startsWith("-") ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
-          {metric.trend}
-        </span>
+        {metric.trend ? (
+          <span className={`inline-flex items-center gap-2 ${metric.trend.startsWith("-") ? "text-rose-600" : "text-emerald-600"}`}>
+            {metric.trend.startsWith("-") ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
+            {metric.trend}
+          </span>
+        ) : null}
         <span className="min-w-0 text-muted-foreground">{metric.subtitle}</span>
       </div>
     </div>

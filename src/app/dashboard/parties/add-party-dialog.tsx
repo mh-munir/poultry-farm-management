@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import imageCompression from 'browser-image-compression';
+import { ChartNoAxesColumnIncreasing, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { createOrUpdateParty } from '@/features/parties/actions';
@@ -109,14 +110,24 @@ export function AddPartyDialog({ partyOptions, productOptions }: AddPartyDialogP
 
   return (
     <>
-      <div className="flex items-center gap-3 flex-wrap">
-        <Button type="button" onClick={() => setIsAddOpen(true)} className="px-6 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all">
-          + {dict.forms.addParties}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button
+          type="button"
+          onClick={() => setIsAddOpen(true)}
+          className="!w-auto min-h-[52px] rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 px-5 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-700 hover:shadow-lg"
+        >
+          <Plus className="h-5 w-5" aria-hidden="true" />
+          {dict.forms.addParties}
         </Button>
-        <SalesEntryPopup partyOptions={partyOptions} productOptions={productOptions} buttonClassName="px-6 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all" />
-        <SupplierPurchaseButton buttonClassName="px-6 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all" />
-        <ReceivePaymentButton buttonClassName="px-6 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all" />
-        <PaySupplierButton buttonClassName="px-6 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all" />
+        <SalesEntryPopup
+          partyOptions={partyOptions}
+          productOptions={productOptions}
+          buttonClassName="!w-auto min-h-[52px] rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          buttonChildren={<><ChartNoAxesColumnIncreasing className="h-5 w-5" aria-hidden="true" />{dict.common.salesEntry}</>}
+        />
+        <SupplierPurchaseButton buttonClassName="!w-auto min-h-[52px] rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 px-5 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-700 hover:shadow-lg" />
+        <ReceivePaymentButton buttonClassName="!w-auto min-h-[52px] rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 px-5 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-700 hover:shadow-lg" />
+        <PaySupplierButton buttonClassName="!w-auto min-h-[52px] rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 px-5 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-700 hover:shadow-lg" />
       </div>
 
       <Dialog

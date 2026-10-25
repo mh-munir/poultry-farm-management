@@ -160,6 +160,25 @@ input, select, textarea {
   @apply font-sans text-foreground;
 }
 
+:where(input, select, textarea, [role="combobox"], [contenteditable="true"]):focus,
+:where(input, select, textarea, [role="combobox"], [contenteditable="true"]):focus-visible,
+.date-input-field:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: hsl(var(--input)) !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+}
+
+:is(input, select, textarea, [role="combobox"], [contenteditable="true"])[class]:is(:focus, :focus-visible),
+.date-input-field:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: hsl(var(--input)) !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -194,8 +213,48 @@ input[type="number"] {
 }
 
 @layer components {
-  .text-page-title {
-    @apply text-[30px] font-[700] leading-tight tracking-tight;
+  .dashboard-date-calendar {
+    overflow: hidden;
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem;
+    background: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+    box-shadow: 0 16px 40px rgb(15 23 42 / 0.16);
+    font-family: inherit;
+  }
+
+  .dashboard-date-calendar .react-datepicker__header {
+    border-bottom: 1px solid hsl(var(--border));
+    border-radius: 0;
+    background: hsl(var(--muted) / 0.45);
+  }
+
+  .dashboard-date-calendar .react-datepicker__day-name {
+    color: hsl(var(--muted-foreground));
+    font-weight: 600;
+  }
+
+  .dashboard-date-calendar .react-datepicker__day {
+    border-radius: 0.625rem;
+    color: hsl(var(--foreground));
+    transition: background-color 120ms ease, color 120ms ease;
+  }
+
+  .dashboard-date-calendar .react-datepicker__day:hover {
+    border-radius: 0.625rem;
+    background: hsl(var(--primary) / 0.12);
+  }
+
+  .dashboard-date-calendar .react-datepicker__day--selected,
+  .dashboard-date-calendar .react-datepicker__day--keyboard-selected {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+
+  .dashboard-date-calendar .react-datepicker__day--today {
+    font-weight: 700;
+    outline: 1px solid hsl(var(--primary) / 0.45);
+    outline-offset: -1px;
   }
 
   .data-table {
@@ -368,10 +427,6 @@ input[type="number"] {
     }
   }
 
-  .text-section-title {
-    @apply text-[22px] font-[600] leading-tight;
-  }
-
   .text-card-title {
     @apply text-[16px] font-[600] leading-snug;
   }
@@ -392,28 +447,12 @@ input[type="number"] {
     @apply text-[13px] font-[500] leading-snug;
   }
 
-  .text-input {
-    @apply text-[15px] font-[400] leading-snug text-foreground;
-  }
-
   .text-button {
     @apply text-[15px] font-[600] leading-snug;
   }
 
-  .text-badge {
-    @apply text-[13px] font-[600] leading-snug;
-  }
-
-  .text-sidebar-menu {
-    @apply text-[15px] font-[500] leading-snug;
-  }
-
-  .text-sidebar-group {
-    @apply text-[12px] font-[700] uppercase tracking-[0.08em];
-  }
-
   .form-select {
-    @apply h-[42px] rounded-xl border bg-background px-3.5 pr-10 text-sm text-foreground shadow-sm transition-all duration-200 outline-none appearance-none hover:border-border focus:border-ring focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background;
+    @apply h-[42px] rounded-xl border bg-background px-3.5 pr-10 text-sm text-foreground shadow-sm transition-all duration-200 outline-none appearance-none hover:border-border;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.75rem center;
@@ -421,36 +460,6 @@ input[type="number"] {
   }
 }
 
-@layer utilities {
-  .space-system {
-    & > * + * {
-      @apply mt-4;
-    }
-  }
-
-  .space-system-sm {
-    & > * + * {
-      @apply mt-2;
-    }
-  }
-
-  .space-system-lg {
-    & > * + * {
-      @apply mt-6;
-    }
-  }
-
-  .space-system-xl {
-    & > * + * {
-      @apply mt-8;
-    }
-  }
-}
-
-[data-sheet], .financial, .mono {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
-}
 @media print {
   @page {
     size: A4 portrait;

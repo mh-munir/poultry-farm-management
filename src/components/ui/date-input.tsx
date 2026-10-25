@@ -32,7 +32,7 @@ export function DateInput({ value, className, ...props }: Props) {
   const { name, disabled, required, "aria-label": ariaLabel, ...inputProps } = props;
 
   return (
-    <div className={`relative min-h-10 ${className ?? "w-full"}`}>
+    <div className={`date-input-field relative min-h-10 ${className ?? "w-full"}`}>
       <span
         aria-hidden="true"
         className={`pointer-events-none absolute inset-0 flex items-center px-3 text-sm ${localizedDisplayValue ? "font-semibold text-slate-900" : "text-slate-400"}`}
@@ -75,6 +75,7 @@ export function DateInput({ value, className, ...props }: Props) {
         ariaLabelClose={dict.common.close}
         showPopperArrow={false}
         popperClassName="z-50"
+        calendarClassName="dashboard-date-calendar"
         wrapperClassName="block w-full"
         disabled={disabled}
         customInput={
@@ -85,7 +86,7 @@ export function DateInput({ value, className, ...props }: Props) {
             readOnly
             required={required}
             disabled={disabled}
-            className="relative z-10 block min-h-10 w-full cursor-pointer bg-transparent text-transparent caret-transparent outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="relative z-10 block min-h-10 w-full cursor-pointer bg-transparent text-transparent caret-transparent outline-none focus-visible:ring-0"
           />
         }
       />

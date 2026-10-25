@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Package2, Percent, TrendingDown, TrendingUp } from 'lucide-react';
-import type { TopProductRow } from '@/features/dashboard/actions';
+import { ArrowDownRight, ArrowUpRight, Building2, CircleDollarSign, Package2, Percent, TrendingDown, TrendingUp, UsersRound, Wheat } from 'lucide-react';
+import type { DashboardBalanceSummary, ProfitTrendPoint, TopProductRow } from '@/features/dashboard/actions';
 import { getProductTypeLabel } from '@/lib/product-types';
 import { AnalyticsEmptyState } from './analytics/analytics-empty-state';
 import { AnalyticsFilterBar } from './analytics/analytics-filter-bar';
@@ -12,6 +12,7 @@ import { AnalyticsSection } from './analytics/analytics-section';
 import type { AnalyticsFilterState, AnalyticsMetric, AnalyticsPresetValue } from './analytics/analytics-types';
 import { useLocalizedFormat } from '@/i18n/use-localized-format';
 import { useLocale } from '@/i18n/provider';
+import { formatDateBD, toDateInputValueBD } from '@/lib/dates';
 
 type Summary = {
   totalSales: number;
@@ -24,6 +25,7 @@ type ApiResponse = {
   summary: Summary;
   pieChart: { profit: number; cost: number };
   topProducts: TopProductRow[];
+  trendSeries: ProfitTrendPoint[];
   unavailable?: boolean;
 };
 
@@ -95,22 +97,21 @@ function getInitialPreset(start: string, end: string): PresetValue {
   return 'custom';
 }
 
-function buildTrendSeries(value: number, maxValue: number) {
-  const safeMax = Math.max(maxValue, 1);
-  const base = Math.max(Math.abs(value), 1) / safeMax;
-  return [0.2, 0.4, 0.58, 0.75, 0.95].map((ratio, index) => {
-    const wave = index % 2 === 0 ? 0.04 : -0.03;
-    return 100 - ((base * ratio) + wave) * 80;
-  });
-}
-
-function buildSparkBars(value: number, maxValue: number) {
-  const safeMax = Math.max(maxValue, 1);
-  const normalized = Math.max(Math.abs(value), 1) / safeMax;
-  return [24, 38, 52, 64, 72].map((base) => Math.max(10, Math.round(base * normalized)));
-}
-
-export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = '', initialData, initialLoadError }: { initialStart?: string; initialEnd?: string; initialData: ApiResponse; initialLoadError?: boolean }) {
+export default function ProfitAnalyticsClient({
+  initialStart = '',
+  initialEnd = '',
+  initialData,
+  initialLoadError,
+  initialBalances,
+  balanceLoadError = false,
+}: {
+  initialStart?: string;
+  initialEnd?: string;
+  initialData: ApiResponse;
+  initialLoadError?: boolean;
+  initialBalances: DashboardBalanceSummary;
+  balanceLoadError?: boolean;
+}) {
   const { dict } = useLocale();
   const { formatCurrency, formatNumber, formatPercentage, toBanglaDigits, locale } = useLocalizedFormat();
   
@@ -126,10 +127,31 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
   const [selectedPreset, setSelectedPreset] = useState<PresetValue>(getInitialPreset(initialStart, initialEnd));
 
   const filters: AnalyticsFilterState = {
-    start,
-    end,
+    start: start ? toDateInputValueBD(start) : '',
+    end: end ? toDateInputValueBD(new Date(new Date(end).getTime() - 1)) : '',
     preset: selectedPreset,
   };
+  const formatTrendDate = (value: string) => {
+    const formatted = formatDateBD(value);
+    return locale === 'bn' ? toBanglaDigits(formatted) : formatted;
+  };
+  const selectedRangeLabel = filters.preset === 'none'
+    ? dict.common.allTime
+    : filters.preset === 'custom'
+      ? `${filters.start ? formatTrendDate(filters.start) : '—'} – ${filters.end ? formatTrendDate(filters.end) : '—'}`
+      : filters.preset === 'today'
+        ? dict.common.today
+        : filters.preset === 'yesterday'
+          ? dict.common.yesterday
+          : filters.preset === '7'
+            ? dict.analytics.last7Days
+            : filters.preset === '30'
+              ? dict.analytics.last30Days
+              : filters.preset === 'month'
+                ? dict.analytics.thisMonth
+                : filters.preset === 'lastMonth'
+                  ? dict.analytics.lastMonth
+                  : dict.analytics.dateRange;
 
   useEffect(() => {
     setData(initialData ?? null);
@@ -150,7 +172,7 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
     } catch (err) {
       console.error('Profit analytics fetch failed', err);
       setFetchError(true);
-      setData({ summary: { totalSales: 0, totalCost: 0, grossProfit: 0, profitMargin: 0 }, pieChart: { profit: 0, cost: 0 }, topProducts: [], unavailable: true });
+      setData({ summary: { totalSales: 0, totalCost: 0, grossProfit: 0, profitMargin: 0 }, pieChart: { profit: 0, cost: 0 }, topProducts: [], trendSeries: [], unavailable: true });
     } finally {
       setLoading(false);
     }
@@ -170,7 +192,7 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
     } catch (err) {
       console.error('Profit analytics fetch failed', err);
       setFetchError(true);
-      setData({ summary: { totalSales: 0, totalCost: 0, grossProfit: 0, profitMargin: 0 }, pieChart: { profit: 0, cost: 0 }, topProducts: [], unavailable: true });
+      setData({ summary: { totalSales: 0, totalCost: 0, grossProfit: 0, profitMargin: 0 }, pieChart: { profit: 0, cost: 0 }, topProducts: [], trendSeries: [], unavailable: true });
     } finally {
       setLoading(false);
     }
@@ -337,11 +359,19 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
   const cost = summary.totalCost;
   const sales = summary.totalSales;
   const products = data?.topProducts ?? [];
+  const trendSeries = data?.trendSeries ?? [];
   const emptyState = !loading && products.length === 0 && sales === 0 && cost === 0 && profit === 0;
-  const maxMetric = Math.max(sales, cost, Math.abs(profit), 1);
-  const salesSeries = buildTrendSeries(sales, maxMetric);
-  const costSeries = buildTrendSeries(cost, maxMetric);
-  const profitSeries = buildTrendSeries(profit, maxMetric);
+  const trendValues = trendSeries.flatMap((point) => [point.totalSales, point.totalCost, point.grossProfit]);
+  const trendMin = Math.min(0, ...trendValues);
+  const trendMax = Math.max(1, ...trendValues);
+  const trendRange = trendMax - trendMin || 1;
+  const getTrendY = (value: number) => 130 - ((value - trendMin) / trendRange) * 110;
+  const getTrendPoints = (value: (point: ProfitTrendPoint) => number) =>
+    trendSeries.map((point, index) => {
+      const x = trendSeries.length <= 1 ? 160 : 30 + (index / (trendSeries.length - 1)) * 270;
+      const y = getTrendY(value(point));
+      return `${x},${y}`;
+    }).join(' ');
   const topProduct = products[0];
   const bestSellingProduct = [...products].sort((a, b) => b.quantitySold - a.quantitySold)[0];
   const profitColor = profit >= 0 ? '#10b981' : '#ef4444';
@@ -363,6 +393,10 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
     {
       title: dict.analytics.totalSales,
       value: formatCompactCurrency(sales),
+      valueClassName: 'text-base sm:text-xl text-blue-600',
+      titleClassName: 'text-[0.7rem] tracking-[0.1em] sm:text-[0.8125rem] sm:tracking-[0.14em]',
+      cardClassName: 'bg-gradient-to-br from-blue-50/80 via-card to-card dark:from-blue-950/20',
+      hideDecoration: true,
       subtitle: dict.analytics.totalSales,
       trend: '—',
       tone: 'accent',
@@ -372,6 +406,10 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
     {
       title: dict.analytics.totalCost,
       value: formatCompactCurrency(cost),
+      valueClassName: 'text-base sm:text-xl text-amber-600',
+      titleClassName: 'text-[0.7rem] tracking-[0.1em] sm:text-[0.8125rem] sm:tracking-[0.14em]',
+      cardClassName: 'bg-gradient-to-br from-amber-50/80 via-card to-card dark:from-amber-950/20',
+      hideDecoration: true,
       subtitle: dict.analytics.totalCost,
       trend: '—',
       tone: 'neutral',
@@ -381,6 +419,10 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
     {
       title: dict.analytics.grossProfit,
       value: formatCompactCurrency(profit),
+      valueClassName: `text-base sm:text-xl ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`,
+      titleClassName: 'text-[0.7rem] tracking-[0.1em] sm:text-[0.8125rem] sm:tracking-[0.14em]',
+      cardClassName: `bg-gradient-to-br ${profit >= 0 ? 'from-emerald-50/80 dark:from-emerald-950/20' : 'from-rose-50/80 dark:from-rose-950/20'} via-card to-card`,
+      hideDecoration: true,
       subtitle: dict.analytics.grossProfit,
       trend: '—',
       tone: profit >= 0 ? 'positive' : 'negative',
@@ -390,6 +432,10 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
     {
       title: dict.analytics.margin,
       value: formatPercent(summary.profitMargin),
+      valueClassName: `text-base sm:text-xl ${summary.profitMargin >= 0 ? 'text-violet-600' : 'text-rose-600'}`,
+      titleClassName: 'text-[0.7rem] tracking-[0.1em] sm:text-[0.8125rem] sm:tracking-[0.14em]',
+      cardClassName: `bg-gradient-to-br ${summary.profitMargin >= 0 ? 'from-violet-50/80 dark:from-violet-950/20' : 'from-rose-50/80 dark:from-rose-950/20'} via-card to-card`,
+      hideDecoration: true,
       subtitle: dict.analytics.margin,
       trend: '—',
       tone: summary.profitMargin >= 0 ? 'positive' : 'negative',
@@ -430,6 +476,48 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
         {metrics.map((metric) => (
           <AnalyticsKpiCard key={metric.title} metric={metric} />
         ))}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <AnalyticsKpiCard
+          metric={{
+            title: dict.analytics.companiesPayable,
+            value: balanceLoadError ? '—' : formatCurrency(initialBalances.companiesPayable),
+            valueClassName: 'text-base sm:text-xl text-rose-600',
+            titleClassName: 'text-[0.7rem] tracking-[0.1em] sm:text-[0.8125rem] sm:tracking-[0.14em]',
+            cardClassName: 'bg-gradient-to-br from-rose-50/80 via-card to-card dark:from-rose-950/20',
+            hideDecoration: true,
+            subtitle: balanceLoadError ? dict.analytics.balanceUnavailable : dict.analytics.allTimeBalance,
+            tone: 'negative',
+            icon: Building2,
+          }}
+        />
+        <AnalyticsKpiCard
+          metric={{
+            title: dict.analytics.partiesReceivable,
+            value: balanceLoadError ? '—' : formatCurrency(initialBalances.partiesReceivable),
+            valueClassName: 'text-base sm:text-xl',
+            titleClassName: 'text-[0.7rem] tracking-[0.1em] sm:text-[0.8125rem] sm:tracking-[0.14em]',
+            cardClassName: 'bg-gradient-to-br from-emerald-50/80 via-card to-card dark:from-emerald-950/20',
+            hideDecoration: true,
+            subtitle: balanceLoadError ? dict.analytics.balanceUnavailable : dict.analytics.allTimeBalance,
+            tone: 'positive',
+            icon: UsersRound,
+          }}
+        />
+        <AnalyticsKpiCard
+          metric={{
+            title: dict.analytics.partySuppliersPayable,
+            value: balanceLoadError ? '—' : formatCurrency(initialBalances.partySuppliersPayable),
+            valueClassName: 'text-base sm:text-xl text-amber-600',
+            titleClassName: 'text-[0.7rem] tracking-[0.1em] sm:text-[0.8125rem] sm:tracking-[0.14em]',
+            cardClassName: 'bg-gradient-to-br from-amber-50/80 via-card to-card dark:from-amber-950/20',
+            hideDecoration: true,
+            subtitle: balanceLoadError ? dict.analytics.balanceUnavailable : dict.analytics.allTimeBalance,
+            tone: 'negative',
+            icon: Wheat,
+          }}
+        />
       </div>
 
       {fetchError ? (
@@ -482,7 +570,7 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
           )}
         </AnalyticsSection>
 
-        <AnalyticsSection title={dict.analytics.profitTrend} subtitle={dict.analytics.last30Days}>
+        <AnalyticsSection title={dict.analytics.profitTrend} subtitle={selectedRangeLabel}>
           {emptyState ? (
             <AnalyticsEmptyState title={dict.analytics.noTrendData} description={dict.analytics.noTrendDataDescription} />
           ) : (
@@ -492,7 +580,9 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
                   <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">{dict.analytics.profitTrend}</p>
                   <p className="mt-2 text-sm text-muted-foreground">{dict.analytics.salesCostProfitTrajectory}</p>
                 </div>
-                <button className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-muted/10 px-3 text-sm font-semibold text-foreground shadow-sm transition hover:border-border hover:bg-muted/20">{dict.analytics.last30Days}</button>
+                <span className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-muted/10 px-3 text-sm font-semibold text-foreground">
+                  {selectedRangeLabel}
+                </span>
               </div>
               <div className="mt-6 overflow-hidden rounded-[20px] bg-muted/10 p-4">
                 <svg viewBox="0 0 320 160" className="h-72 w-full" role="img" aria-label={dict.analytics.profitTrend}>
@@ -501,10 +591,23 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
                   {[0, 1, 2, 3].map((value) => (
                     <line key={value} x1="20" y1={30 + value * 25} x2="300" y2={30 + value * 25} stroke="#f1f5f9" strokeWidth="1" />
                   ))}
-                  <polyline fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={salesSeries.map((value, index) => `${30 + index * 67},${value}`).join(' ')} />
-                  <polyline fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={costSeries.map((value, index) => `${30 + index * 67},${value}`).join(' ')} />
-                  <polyline fill="none" stroke={profit >= 0 ? '#10b981' : '#ef4444'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={profitSeries.map((value, index) => `${30 + index * 67},${value}`).join(' ')} />
+                  <polyline fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={getTrendPoints((point) => point.totalSales)} />
+                  <polyline fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={getTrendPoints((point) => point.totalCost)} />
+                  <polyline fill="none" stroke={profit >= 0 ? '#10b981' : '#ef4444'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={getTrendPoints((point) => point.grossProfit)} />
+                  {trendSeries.length === 1 ? (
+                    <>
+                      <circle cx="160" cy={getTrendY(trendSeries[0].totalSales)} r="4" fill="#2563eb" />
+                      <circle cx="160" cy={getTrendY(trendSeries[0].totalCost)} r="4" fill="#f59e0b" />
+                      <circle cx="160" cy={getTrendY(trendSeries[0].grossProfit)} r="4" fill={profit >= 0 ? '#10b981' : '#ef4444'} />
+                    </>
+                  ) : null}
                 </svg>
+                {trendSeries.length > 0 ? (
+                  <div className="flex justify-between px-2 text-xs text-muted-foreground">
+                    <span>{formatTrendDate(trendSeries[0].bucket)}</span>
+                    <span>{formatTrendDate(trendSeries[trendSeries.length - 1].bucket)}</span>
+                  </div>
+                ) : null}
                 <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600">
                   <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> {dict.analytics.totalSales}</div>
                   <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> {dict.analytics.totalCost}</div>
@@ -618,27 +721,25 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
                 <th className="px-5 py-4">{dict.analytics.totalCostTable}</th>
                 <th className="px-5 py-4">{dict.analytics.grossProfit}</th>
                 <th className="px-5 py-4">{dict.analytics.marginPercent}</th>
-                <th className="px-5 py-4">{dict.analytics.profitTrendTable}</th>
               </tr>
             </thead>
             <tbody className="text-sm text-foreground">
               {loading ? (
                 Array.from({ length: 4 }).map((_, index) => (
                   <tr key={index} className="border-t border-border">
-                    {Array.from({ length: 11 }).map((__, cellIndex) => (
+                    {Array.from({ length: 10 }).map((__, cellIndex) => (
                       <td key={cellIndex} className="px-5 py-4"><div className="h-3 animate-pulse rounded-full bg-muted/30" /></td>
                     ))}
                   </tr>
                 ))
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-5 py-12 text-center text-sm text-muted-foreground">{dict.analytics.noProfitDataTable}</td>
+                  <td colSpan={10} className="px-5 py-12 text-center text-sm text-muted-foreground">{dict.analytics.noProfitDataTable}</td>
                 </tr>
               ) : (
                 products.map((product, index) => {
                   const avgBuy = product.quantitySold > 0 ? product.totalCost / product.quantitySold : 0;
                   const avgSale = product.quantitySold > 0 ? product.totalSales / product.quantitySold : 0;
-                  const bars = buildSparkBars(product.grossProfit, Math.max(1, Math.abs(products[0]?.grossProfit ?? 1)));
                   return (
                     <tr key={product.productId} className="border-t border-border transition hover:bg-muted/20">
                       <td className="px-5 py-4 font-medium text-foreground">{index + 1}</td>
@@ -651,13 +752,6 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
                       <td className="px-5 py-4">{formatCurrency(product.totalCost)}</td>
                       <td className="px-5 py-4 font-semibold text-rose-600">{formatCurrency(product.grossProfit)}</td>
                       <td className="px-5 py-4 font-semibold text-foreground">{formatPercent(product.profitMargin)}</td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-end gap-1">
-                          {bars.map((height, barIndex) => (
-                            <div key={barIndex} className="w-2 rounded-full bg-rose-500" style={{ height: `${height}px` }} />
-                          ))}
-                        </div>
-                      </td>
                     </tr>
                   );
                 })
@@ -675,7 +769,6 @@ export default function ProfitAnalyticsClient({ initialStart = '', initialEnd = 
                   <td className="px-5 py-4 font-semibold text-foreground">{formatCurrency(totals.totalSales)}</td>
                   <td className="px-5 py-4 font-semibold text-foreground">{formatCurrency(totals.totalCost)}</td>
                   <td className="px-5 py-4 font-semibold text-rose-600">{formatCurrency(totals.totalProfit)}</td>
-                  <td className="px-5 py-4" />
                   <td className="px-5 py-4" />
                 </tr>
               </tfoot>

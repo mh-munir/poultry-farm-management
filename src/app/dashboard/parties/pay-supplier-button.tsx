@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Wallet } from 'lucide-react';
+import { HandCoins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PaySupplierModal } from './pay-supplier-modal';
 import { useLocale } from '@/i18n/provider';
@@ -17,7 +17,7 @@ export function PaySupplierButton({ buttonClassName }: PaySupplierButtonProps) {
   return (
     <>
       <Button type="button" onClick={() => setOpen(true)} className={buttonClassName}>
-        <Wallet className="mr-2 h-4 w-4" />
+        <HandCoins className="h-4 w-4" />
         {dict.common.paySupplier}
       </Button>
       <PaySupplierModal open={open} onOpenChange={setOpen} />

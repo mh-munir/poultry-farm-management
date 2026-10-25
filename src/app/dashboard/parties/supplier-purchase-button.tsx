@@ -17,7 +17,7 @@ export function SupplierPurchaseButton({ buttonClassName }: SupplierPurchaseButt
   return (
     <>
       <Button type="button" onClick={() => setOpen(true)} className={buttonClassName}>
-        <ShoppingCart className="mr-2 h-4 w-4" />
+        <ShoppingCart className="h-4 w-4" />
         {dict.common.supplierPurchase}
       </Button>
       <SupplierPurchaseModal open={open} onOpenChange={setOpen} />
