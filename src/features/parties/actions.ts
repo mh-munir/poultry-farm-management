@@ -9,6 +9,7 @@ import { rebuildLedgerRunningBalancesForAccount } from '@/features/purchases/act
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 import { CACHE_TAGS, revalidateInventoryData, revalidatePartyData, revalidatePurchaseData } from '@/lib/cache';
 import { getInvoiceNumber, isUniqueConstraintError } from '@/lib/invoice';
+import { getNextProductCode } from '@/lib/product-code';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
 import { createPaymentPaidSmsMessage, createPaymentReceivedSmsMessage } from '@/lib/sms/templates';
@@ -1450,12 +1451,9 @@ export async function createSupplierPurchase(formData: FormData) {
       if (existingProduct) {
         productId = existingProduct.id;
       } else {
-        const count = await tx.product.count({
-          where: { productType: productCategory }
-        });
         const newProduct = await tx.product.create({
           data: {
-            code: `${productCategory}-${String(count + 1).padStart(3, '0')}`,
+            code: await getNextProductCode(tx, productCategory),
             name: productName.trim(),
             productType: productCategory,
             unit: unit,

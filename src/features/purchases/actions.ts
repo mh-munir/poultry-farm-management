@@ -9,6 +9,7 @@ import { requireUser } from '@/lib/auth';
 import { prisma } from '@/server/db';
 import { CACHE_TAGS, revalidatePartyData, revalidatePurchaseData, revalidateTransactionData } from '@/lib/cache';
 import { getInvoiceNumber, isUniqueConstraintError } from '@/lib/invoice';
+import { getNextProductCode } from '@/lib/product-code';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 
@@ -253,14 +254,12 @@ async function createPurchaseTransactionInternal(formData: FormData): Promise<Pu
               if (existingProduct) {
                 productId = existingProduct.id;
               } else {
-                const existingCount = await tx.product.count({
-                  where: { productType: item.productType || 'FEED' }
-                });
+                const productType = item.productType || 'FEED';
                 const newProduct = await tx.product.create({
                   data: {
-                    code: `${item.productType || 'FEED'}-${String(existingCount + 1).padStart(3, '0')}`,
+                    code: await getNextProductCode(tx, productType),
                     name: item.productName.trim(),
-                    productType: item.productType || 'FEED',
+                    productType,
                     unit: item.unit || 'pcs',
                     isActive: true
                   }
@@ -1250,10 +1249,9 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
          if (eggProduct) {
            resolvedEggProductId = eggProduct.id;
          } else {
-           const eggCount = await tx.product.count({ where: { productType: 'EGG' } });
            const newProduct = await tx.product.create({
              data: {
-               code: `EGG-${String(eggCount + 1).padStart(3, '0')}`,
+               code: await getNextProductCode(tx, 'EGG'),
                name: 'Eggs',
                productType: 'EGG',
                unit: 'pcs',
@@ -1269,10 +1267,9 @@ const party = await prisma.party.findUnique({ where: { id: partyId } });
          if (chickenProduct) {
            resolvedChickenProductId = chickenProduct.id;
          } else {
-           const chickenCount = await tx.product.count({ where: { productType: 'CHICKEN' } });
            const newProduct = await tx.product.create({
              data: {
-               code: `CHICKEN-${String(chickenCount + 1).padStart(3, '0')}`,
+               code: await getNextProductCode(tx, 'CHICKEN'),
                name: 'Chicken',
                productType: 'CHICKEN',
                unit: 'kg',

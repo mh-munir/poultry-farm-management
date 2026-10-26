@@ -45,6 +45,17 @@ function normalizeProductInput(formData: FormData) {
   };
 }
 
+function isProductCodeUniqueConstraintError(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+    return false;
+  }
+
+  const target = error.meta?.target;
+  return Array.isArray(target)
+    ? target.includes('code')
+    : typeof target === 'string' && target.includes('code');
+}
+
 export async function createOrUpdateProduct(formData: FormData) {
   await requireUser();
   const parsed = productSchema.safeParse(normalizeProductInput(formData));
@@ -77,6 +88,20 @@ export async function createOrUpdateProduct(formData: FormData) {
     } : undefined
   };
 
+  const existingProduct = await prisma.product.findFirst({
+    where: {
+      code: payload.code,
+      ...(data.id ? { id: { not: data.id } } : {})
+    },
+    select: { id: true }
+  });
+
+  if (existingProduct) {
+    const url = new URL('/dashboard/products', 'http://localhost');
+    url.searchParams.set('error', 'Product code already exists. Use a different code or add stock to the existing product.');
+    redirect(url.toString() as never);
+  }
+
   try {
     if (data.id) {
       // Opening stock is created only with a new product. Re-creating this
@@ -90,9 +115,14 @@ export async function createOrUpdateProduct(formData: FormData) {
     } else {
       await prisma.product.create({ data: payload });
     }
-  } catch {
+  } catch (error) {
     const url = new URL('/dashboard/products', 'http://localhost');
-    url.searchParams.set('error', 'Product save failed. Please verify the data and try again.');
+    url.searchParams.set(
+      'error',
+      isProductCodeUniqueConstraintError(error)
+        ? 'Product code already exists. Use a different code or add stock to the existing product.'
+        : 'Product save failed. Please verify the data and try again.'
+    );
     redirect(url.toString() as never);
   }
 
