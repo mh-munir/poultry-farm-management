@@ -205,21 +205,19 @@ export function SalesEntryPopup({
 
     if (result.success) {
       success(result.message);
+      setOpen(false);
+      setSalesFormValues({
+        name: defaultPartyName ?? '',
+        mediaName: ''
+      });
+      setSalesProductRows([createSalesProductRow()]);
+      setSalesPartyId(defaultPartyId ?? null);
+      setSalesPaymentAmount('');
+      setSalesDiscount('');
+      setPreviousDue(0);
+      setIsSalesLoading(false);
+      onSuccess?.();
       router.refresh();
-      setTimeout(() => {
-        setOpen(false);
-        setSalesFormValues({
-          name: defaultPartyName ?? '',
-          mediaName: ''
-        });
-        setSalesProductRows([createSalesProductRow()]);
-        setSalesPartyId(defaultPartyId ?? null);
-        setSalesPaymentAmount('');
-        setSalesDiscount('');
-        setPreviousDue(0);
-        setIsSalesLoading(false);
-        onSuccess?.();
-      }, 500);
     } else {
       setSalesError(result.message);
       showToastError(result.message);

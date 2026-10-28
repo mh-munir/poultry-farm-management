@@ -8,9 +8,11 @@ import { useLocale } from '@/i18n/provider';
 
 type SupplierPurchaseButtonProps = {
   buttonClassName?: string;
+  defaultPartyId?: number;
+  defaultPartyName?: string;
 };
 
-export function SupplierPurchaseButton({ buttonClassName }: SupplierPurchaseButtonProps) {
+export function SupplierPurchaseButton({ buttonClassName, defaultPartyId, defaultPartyName }: SupplierPurchaseButtonProps) {
   const [open, setOpen] = useState(false);
   const { dict } = useLocale();
 
@@ -20,7 +22,12 @@ export function SupplierPurchaseButton({ buttonClassName }: SupplierPurchaseButt
         <ShoppingCart className="h-4 w-4" />
         {dict.common.supplierPurchase}
       </Button>
-      <SupplierPurchaseModal open={open} onOpenChange={setOpen} />
+      <SupplierPurchaseModal
+        open={open}
+        onOpenChange={setOpen}
+        defaultPartyId={defaultPartyId}
+        defaultPartyName={defaultPartyName}
+      />
     </>
   );
 }

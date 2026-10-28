@@ -13,6 +13,8 @@ import { todayDateInputValueBD as todayDateStr } from '@/lib/dates';
 type SupplierPurchaseModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultPartyId?: number;
+  defaultPartyName?: string;
 };
 
 type PurchaseLine = {
@@ -75,11 +77,11 @@ function formatCurrency(cents: bigint) {
   return `৳ ${Number(integerPart).toLocaleString('en-US')}.${fractionPart}`;
 }
 
-export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseModalProps) {
+export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defaultPartyName }: SupplierPurchaseModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partyOptions, setPartyOptions] = useState<ComboboxOption[]>([]);
-  const [selectedPartyId, setSelectedPartyId] = useState<number | null>(null);
-  const [partyName, setPartyName] = useState('');
+  const [selectedPartyId, setSelectedPartyId] = useState<number | null>(defaultPartyId ?? null);
+  const [partyName, setPartyName] = useState(defaultPartyName ?? '');
   const [purchaseDate, setPurchaseDate] = useState(() => todayDateStr());
   const [productCategory, setProductCategory] = useState<'EGG' | 'CHICKEN'>('EGG');
   const [eggQuantity, setEggQuantity] = useState('');
@@ -149,11 +151,21 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
     }
 
     getSupplierOptions().then((options: Array<{ id: number; name: string }>) => {
-      setPartyOptions(options.map((option) => ({ value: String(option.id), label: option.name })));
+      const mappedOptions = options.map((option) => ({ value: String(option.id), label: option.name }));
+      setPartyOptions(mappedOptions);
+
+      if (defaultPartyId) {
+        const matchedDefaultOption = mappedOptions.find((option) => Number(option.value) === defaultPartyId);
+        setSelectedPartyId(defaultPartyId);
+        setPartyName(matchedDefaultOption?.label ?? defaultPartyName ?? '');
+        getSupplierCurrentPayable(defaultPartyId).then((payable) => setPreviousDue(payable));
+      } else {
+        setSelectedPartyId(null);
+        setPartyName('');
+        setPreviousDue(0);
+      }
     });
 
-    setSelectedPartyId(null);
-    setPartyName('');
     setPurchaseDate(todayDateStr());
     setProductCategory('EGG');
     setEggQuantity('');
@@ -162,9 +174,9 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
     setChickenTotalKg('');
     setChickenUnitPrice('');
     setPaidAmount('');
-    setPreviousDue(0);
+    setDiscount('');
     setFormError('');
-  }, [open]);
+  }, [open, defaultPartyId, defaultPartyName]);
 
   const buildPurchaseLines = (): PurchaseLine[] => {
     const lines: PurchaseLine[] = [];
@@ -311,9 +323,10 @@ export function SupplierPurchaseModal({ open, onOpenChange }: SupplierPurchaseMo
     }
 
     success('Supplier purchase recorded successfully.');
-    router.refresh();
     setIsSubmitting(false);
+    setFormError('');
     onOpenChange(false);
+    router.refresh();
   };
 
   const isSubmitDisabled =

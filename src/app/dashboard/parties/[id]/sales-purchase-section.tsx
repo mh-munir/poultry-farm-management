@@ -14,6 +14,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { toDateInputValueBD as toDateInputValue } from '@/lib/dates';
 import { useLocale } from '@/i18n/provider';
 import { deletePartyTransaction, updatePurchaseItem } from '@/features/purchases/actions';
+import { updateSaleItem } from '@/features/sales/actions';
 import { formatLocalizedCurrency, formatLocalizedDate, formatLocalizedNumber } from '@/lib/localized-formatters';
 import { localizeProductText } from '@/i18n/display';
 import { useToast } from '@/hooks/use-toast';
@@ -309,7 +310,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
   const computedLineDiscount = Math.max(0, Math.min(Number(itemForm.discount || 0), computedLineSubtotal));
   const computedLineTotal = Math.max(0, computedLineSubtotal - computedLineDiscount);
 
-  const handleSavePurchaseItem = async () => {
+  const handleSaveItem = async () => {
     if (!editingRow) return;
 
     const quantity = Number(itemForm.quantity);
@@ -358,7 +359,9 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
     setItemError('');
 
     try {
-      const result = await updatePurchaseItem(formData);
+      const result = editingRow.transactionType === 'SALE'
+        ? await updateSaleItem(formData)
+        : await updatePurchaseItem(formData);
       if (!result.success) {
         setItemError(result.message);
         return;
@@ -462,6 +465,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
             </>
           )}
           showTotalKg={false}
+          onEdit={openEditDialog}
           onDelete={setDeletingRow}
           onPrint={(row) => openTransactionPrint(row.transactionId)}
         />
@@ -537,13 +541,13 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
         <Dialog
           open={Boolean(editingRow)}
           onOpenChange={(open) => !open && setEditingRow(null)}
-          title={`${dict.common.edit} ${dict.common.purchases} ${dict.common.product}`}
+          title={`${dict.common.edit} ${editingRow.transactionType === 'SALE' ? dict.common.sales : dict.common.purchases} ${dict.common.product}`}
           footer={(
             <>
               <Button type="button" variant="outline" onClick={() => setEditingRow(null)} disabled={isSavingItem}>
                 {dict.common.cancel}
               </Button>
-              <Button type="button" onClick={handleSavePurchaseItem} disabled={isSavingItem}>
+              <Button type="button" onClick={handleSaveItem} disabled={isSavingItem}>
                 {isSavingItem ? dict.common.processing : dict.stock.saveChanges}
               </Button>
             </>
@@ -605,27 +609,31 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
               />
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium">{dict.forms.discount ?? 'Discount'}</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={itemForm.discount}
-                onChange={(event) => setItemForm((prev) => ({ ...prev, discount: event.target.value }))}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
+            {editingRow.transactionType !== 'SALE' && (
+              <div>
+                <label className="mb-2 block text-sm font-medium">{dict.forms.discount ?? 'Discount'}</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={itemForm.discount}
+                  onChange={(event) => setItemForm((prev) => ({ ...prev, discount: event.target.value }))}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+            )}
 
             <div className="md:col-span-2 rounded-lg border border-border bg-muted/20 p-3">
               <div className="flex items-center justify-between text-sm">
                 <span>{dict.tableHeaders.lineTotal ?? 'Line Total'}</span>
                 <span className="font-semibold tabular-nums">{formatCurrency(computedLineTotal)}</span>
               </div>
-              <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
-                <span>{dict.forms.discount ?? 'Discount'}</span>
-                <span className="tabular-nums">{formatCurrency(computedLineDiscount)}</span>
-              </div>
+              {editingRow.transactionType !== 'SALE' && (
+                <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
+                  <span>{dict.forms.discount ?? 'Discount'}</span>
+                  <span className="tabular-nums">{formatCurrency(computedLineDiscount)}</span>
+                </div>
+              )}
             </div>
 
             {itemError ? (

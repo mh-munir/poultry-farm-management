@@ -11,6 +11,8 @@ import { getInvoiceNumber, isUniqueConstraintError } from '@/lib/invoice';
 import { getSaleSmsSuccessMessage, queueSaleSmsNotification } from '@/lib/sms/service';
 import type { SmsSaleType } from '@/lib/sms/types';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
+import { parseDateInputValueBD } from '@/lib/dates';
+import { rebuildLedgerRunningBalancesForAccount } from '@/features/purchases/actions';
 
 const SALE_TRANSACTION_TYPE = 'SALE' as const;
 const PENDING_TRANSACTION_STATUS = 'PENDING' as const;
@@ -352,6 +354,207 @@ export async function createSaleTransactionWithToast(formData: FormData): Promis
     return { success: true, message: getSaleSmsSuccessMessage(result.sms.status) };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : 'Sale creation failed.' };
+  }
+}
+
+export async function updateSaleItem(formData: FormData): Promise<{ success: boolean; message: string }> {
+  await requireUser();
+
+  const itemId = Number(formData.get('itemId'));
+  const quantity = Number(formData.get('quantity'));
+  const unitPrice = Number(formData.get('unitPrice'));
+  const transactionDate = formData.get('transactionDate')?.toString() ?? '';
+  const parsedTransactionDate = parseDateInputValueBD(transactionDate);
+
+  if (!Number.isInteger(itemId) || itemId <= 0) {
+    return { success: false, message: 'Invalid sales item.' };
+  }
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return { success: false, message: 'Quantity must be greater than zero.' };
+  }
+
+  if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+    return { success: false, message: 'Unit price cannot be negative.' };
+  }
+
+  if (!parsedTransactionDate) {
+    return { success: false, message: 'Enter a valid transaction date.' };
+  }
+
+  try {
+    const updatedSale = await prisma.$transaction(async (tx) => {
+      const item = await tx.transactionItem.findUnique({
+        where: { id: itemId },
+        select: {
+          id: true,
+          transactionId: true,
+          productId: true,
+          quantity: true,
+          unitPrice: true,
+          lineTotal: true,
+          product: { select: { productType: true } },
+          transaction: {
+            select: {
+              transactionType: true,
+              partyId: true,
+              companyId: true,
+              transactionDate: true,
+              invoiceNumber: true,
+              subtotal: true,
+              discount: true,
+              totalAmount: true
+            }
+          }
+        }
+      });
+
+      if (!item || item.transaction.transactionType !== SALE_TRANSACTION_TYPE || !item.transaction.partyId) {
+        throw new Error('Sales item not found.');
+      }
+
+      if (!['FEED', 'MEDICINE', 'CHICK'].includes(item.product.productType)) {
+        throw new Error('This product type cannot be edited from a sale.');
+      }
+
+      const movement = await tx.stockMovement.findFirst({
+        where: {
+          transactionId: item.transactionId,
+          productId: item.productId,
+          movementType: SALE_STOCK_MOVEMENT_TYPE
+        },
+        orderBy: { id: 'asc' }
+      });
+
+      if (!movement) {
+        throw new Error('Sale stock movement is missing; this item cannot be updated safely.');
+      }
+
+      const oldQuantity = new Prisma.Decimal(item.quantity.toString());
+      const newQuantity = new Prisma.Decimal(quantity);
+      const oldUnitPrice = new Prisma.Decimal(item.unitPrice.toString());
+      const newUnitPrice = new Prisma.Decimal(unitPrice);
+      const oldGrossTotal = oldQuantity.times(oldUnitPrice);
+      const newGrossTotal = newQuantity.times(newUnitPrice);
+      const nextSubtotal = new Prisma.Decimal(item.transaction.subtotal.toString())
+        .plus(newGrossTotal)
+        .minus(oldGrossTotal);
+      if (nextSubtotal.lt(0)) {
+        throw new Error('Updated sale subtotal cannot be negative.');
+      }
+
+      const previousDiscount = new Prisma.Decimal(item.transaction.discount.toString());
+      const nextDiscount = previousDiscount.gt(nextSubtotal)
+        ? nextSubtotal
+        : previousDiscount;
+      const nextTotal = nextSubtotal.minus(nextDiscount);
+      const paymentSummary = await tx.paymentAllocation.aggregate({
+        where: { transactionId: item.transactionId },
+        _sum: { amount: true }
+      });
+      const paidAmount = new Prisma.Decimal(paymentSummary._sum.amount?.toString() ?? '0');
+      const dueAmount = nextTotal.minus(paidAmount);
+      const nextStatus = dueAmount.gt(0) ? PENDING_TRANSACTION_STATUS : COMPLETED_TRANSACTION_STATUS;
+      const previousBalance = await tx.stockBalance.findUnique({ where: { productId: item.productId } });
+
+      if (!previousBalance) {
+        throw new Error('Stock balance is missing; this sale item cannot be updated safely.');
+      }
+
+      const stockDelta = oldQuantity.minus(newQuantity);
+      const nextStockQuantity = new Prisma.Decimal(previousBalance.quantityOnHand.toString()).plus(stockDelta);
+      if (nextStockQuantity.lt(0)) {
+        throw new Error('Stock cannot go below zero for this sale item.');
+      }
+
+      await tx.transaction.update({
+        where: { id: item.transactionId },
+        data: {
+          transactionDate: parsedTransactionDate,
+          subtotal: nextSubtotal,
+          discount: nextDiscount,
+          totalAmount: nextTotal,
+          paidAmount,
+          dueAmount,
+          status: nextStatus
+        }
+      });
+
+      await tx.transactionItem.update({
+        where: { id: item.id },
+        data: {
+          quantity: newQuantity,
+          unitPrice: newUnitPrice,
+          lineTotal: newGrossTotal,
+          taxAmount: new Prisma.Decimal(0)
+        }
+      });
+
+      await tx.stockBalance.update({
+        where: { productId: item.productId },
+        data: { quantityOnHand: nextStockQuantity }
+      });
+
+      await tx.stockMovement.update({
+        where: { id: movement.id },
+        data: {
+          quantity: new Prisma.Decimal(movement.quantity.toString()).plus(stockDelta),
+          notes: `Sale invoice ${item.transaction.invoiceNumber}`
+        }
+      });
+
+      const saleLedger = await tx.ledgerEntry.findFirst({
+        where: { transactionId: item.transactionId, entryType: SALE_LEDGER_ENTRY_TYPE },
+        orderBy: { id: 'desc' }
+      });
+
+      if (saleLedger) {
+        await tx.ledgerEntry.create({
+          data: {
+            partyId: saleLedger.partyId,
+            companyId: saleLedger.companyId,
+            transactionId: saleLedger.transactionId,
+            paymentId: null,
+            entryDate: new Date(),
+            entryType: 'SALE_REVERSAL',
+            amount: new Prisma.Decimal(saleLedger.amount.toString()).negated(),
+            runningBalance: new Prisma.Decimal(0),
+            description: `Reversal of sale item edit ${item.transaction.invoiceNumber}`,
+            referenceNumber: saleLedger.referenceNumber
+          }
+        });
+      }
+
+      await tx.ledgerEntry.create({
+        data: {
+          partyId: item.transaction.partyId,
+          companyId: item.transaction.companyId,
+          transactionId: item.transactionId,
+          paymentId: null,
+          entryDate: parsedTransactionDate,
+          entryType: SALE_LEDGER_ENTRY_TYPE,
+          amount: nextTotal,
+          runningBalance: new Prisma.Decimal(0),
+          description: saleLedger?.description ?? `Sale invoice ${item.transaction.invoiceNumber}`,
+          referenceNumber: saleLedger?.referenceNumber ?? item.transaction.invoiceNumber
+        }
+      });
+
+      await rebuildLedgerRunningBalancesForAccount(tx, {
+        partyId: item.transaction.partyId,
+        companyId: item.transaction.companyId
+      });
+
+      return { partyId: item.transaction.partyId };
+    });
+
+    revalidateSalesData(updatedSale.partyId);
+    return { success: true, message: 'Sales item updated successfully.' };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to update the sales item.'
+    };
   }
 }
 

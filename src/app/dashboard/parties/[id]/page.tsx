@@ -32,6 +32,7 @@ import { Button } from '@/components/ui/button';
 import PaymentFormDialog from './payment-form-dialog';
 import { PartyRowActions } from '../party-row-actions';
 import { SalesEntryPopup } from '@/components/dashboard/sales-entry-popup';
+import { SupplierPurchaseButton } from '../supplier-purchase-button';
 import { TransactionTabs } from './transaction-tabs';
 import { SalesPurchaseSection } from './sales-purchase-section';
 import ToastRedirect from '../toast-redirect';
@@ -447,6 +448,13 @@ export default async function PartyProfilePage({
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
+                />
+              ) : null}
+              {isSupplier ? (
+                <SupplierPurchaseButton
+                  defaultPartyId={party.id}
+                  defaultPartyName={party.name}
+                  buttonClassName="h-14 w-full min-w-[190px] justify-between rounded-xl bg-emerald-600 px-4 text-sm text-white shadow-[0_10px_20px_-14px_rgba(16,185,129,0.9)] hover:bg-emerald-700 sm:w-auto"
                 />
               ) : null}
               {isCustomer ? (

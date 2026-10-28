@@ -12,6 +12,7 @@ import { getInvoiceNumber, isUniqueConstraintError } from '@/lib/invoice';
 import { getNextProductCode } from '@/lib/product-code';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
+import { parseDateInputValueBD } from '@/lib/dates';
 
 const PURCHASE_TRANSACTION_TYPE = 'PURCHASE' as const;
 const PENDING_TRANSACTION_STATUS = 'PENDING' as const;
@@ -844,6 +845,7 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
   const unitPrice = Number(formData.get('unitPrice'));
   const discount = Number(formData.get('discount') ?? 0);
   const transactionDate = formData.get('transactionDate')?.toString();
+  const parsedTransactionDate = transactionDate ? parseDateInputValueBD(transactionDate) : null;
 
   if (!Number.isFinite(itemId) || itemId <= 0) {
     return { success: false, message: 'Invalid purchase item.' };
@@ -865,6 +867,10 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
     return { success: false, message: 'Total KG cannot be negative.' };
   }
 
+  if (transactionDate && !parsedTransactionDate) {
+    return { success: false, message: 'Enter a valid transaction date.' };
+  }
+
   try {
     const transactionResult = await prisma.$transaction(async (tx) => {
       const currentItem = await tx.transactionItem.findUnique({
@@ -883,6 +889,7 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
             select: {
               partyId: true,
               companyId: true,
+              transactionType: true,
               transactionDate: true,
               invoiceNumber: true,
               subtotal: true,
@@ -894,6 +901,10 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
       });
 
       if (!currentItem) {
+        throw new Error('Purchase item not found.');
+      }
+
+      if (currentItem.transaction.transactionType !== PURCHASE_TRANSACTION_TYPE) {
         throw new Error('Purchase item not found.');
       }
 
@@ -947,11 +958,12 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
 
       const nextDue = nextTransactionTotal.minus(totalPaid);
       const nextStatus = nextDue.gt(0) ? 'PENDING' : 'COMPLETED';
+      const effectiveTransactionDate = parsedTransactionDate ?? item.transaction.transactionDate;
 
       await tx.transaction.update({
         where: { id: item.transactionId },
         data: {
-          transactionDate: transactionDate ? new Date(transactionDate) : item.transaction.transactionDate,
+          transactionDate: effectiveTransactionDate,
           subtotal: nextTransactionSubtotal,
           discount: nextTransactionDiscount,
           totalAmount: nextTransactionTotal,
@@ -1060,7 +1072,7 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
           transactionId: item.transactionId,
           entryType: 'PURCHASE'
         },
-        orderBy: { id: 'asc' }
+        orderBy: { id: 'desc' }
       });
       // Create reversal and new entry instead of modifying in-place (preserves audit trail)
       if (purchaseLedger) {
@@ -1086,7 +1098,7 @@ export async function updatePurchaseItem(formData: FormData): Promise<{ success:
             companyId: purchaseLedger.companyId,
             transactionId: purchaseLedger.transactionId,
             paymentId: null,
-            entryDate: new Date(),
+            entryDate: effectiveTransactionDate,
             entryType: 'PURCHASE',
             amount: nextTransactionTotal,
             runningBalance: new Prisma.Decimal(0),

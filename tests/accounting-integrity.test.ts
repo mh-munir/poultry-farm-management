@@ -8,6 +8,7 @@
  */
 
 import { Prisma } from '@prisma/client';
+import { parseDateInputValueBD, toDateInputValueBD } from '@/lib/dates';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -21,6 +22,21 @@ function expect<T>(received: T) {
     }
   };
 }
+
+describe('transaction date input persistence', () => {
+  it('round-trips valid Bangladesh date input as the same calendar date', () => {
+    const storedDate = parseDateInputValueBD('2026-10-28');
+
+    assert.ok(storedDate);
+    assert.strictEqual(storedDate.toISOString(), '2026-10-28T00:00:00.000Z');
+    assert.strictEqual(toDateInputValueBD(storedDate), '2026-10-28');
+  });
+
+  it('rejects malformed or impossible date input', () => {
+    assert.strictEqual(parseDateInputValueBD('2026-02-30'), null);
+    assert.strictEqual(parseDateInputValueBD('28-10-2026'), null);
+  });
+});
 
 // Mock verification tests - these demonstrate the expected behavior
 
