@@ -143,9 +143,39 @@
 
 body {
   @apply min-h-screen bg-background text-foreground antialiased font-sans;
+  min-width: 0;
+  overflow-x: hidden;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+main,
+section,
+article,
+form,
+fieldset,
+header,
+footer {
+  min-width: 0;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
 }
 
 * {
@@ -275,6 +305,22 @@ button:disabled,
     @apply px-4 py-3 align-top text-left text-sm text-foreground;
   }
 
+  .data-table th,
+  .data-table td {
+    white-space: nowrap;
+  }
+
+  .responsive-data-table > div {
+    width: max-content;
+    min-width: max(100%, var(--data-table-min-width));
+    max-width: none;
+  }
+
+  .responsive-data-table .data-table {
+    width: max-content;
+    min-width: max(100%, var(--data-table-min-width)) !important;
+  }
+
   .data-table tbody tr:nth-child(odd) {
     @apply bg-background;
   }
@@ -309,124 +355,12 @@ button:disabled,
     z-index: 3;
   }
 
-  @media (max-width: 1279px) {
-    .data-table {
-      @apply overflow-x-auto;
-    }
-  }
-
   @media (max-width: 639px) {
     .responsive-data-table {
       max-width: 100%;
-      overflow-x: visible;
       scrollbar-gutter: auto;
     }
 
-    .responsive-data-table > div {
-      min-width: 0;
-    }
-
-    .data-table {
-      display: block;
-      min-width: 0 !important;
-      width: 100%;
-      border-spacing: 0;
-    }
-
-    .data-table thead {
-      display: none;
-    }
-
-    .data-table tbody,
-    .data-table tfoot {
-      display: block;
-      width: 100%;
-    }
-
-    .data-table tr {
-      display: block;
-      width: 100%;
-      overflow: hidden;
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius-md);
-      background: hsl(var(--card));
-      box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
-    }
-
-    .data-table tbody tr + tr,
-    .data-table tfoot tr {
-      margin-top: 0.75rem;
-    }
-
-    .data-table tbody tr:nth-child(odd),
-    .data-table tbody tr:nth-child(even),
-    .data-table tbody tr:hover {
-      background: hsl(var(--card));
-    }
-
-    .data-table td {
-      display: grid;
-      grid-template-columns: minmax(6.5rem, 38%) minmax(0, 1fr);
-      gap: 0.75rem;
-      align-items: start;
-      width: 100%;
-      min-width: 0;
-      padding: 0.75rem 0.9rem;
-      border-top: 1px solid hsl(var(--border));
-      text-align: right;
-      white-space: normal;
-      vertical-align: top;
-    }
-
-    .data-table td:first-child {
-      border-top: 0;
-    }
-
-    .data-table td[data-label]::before {
-      content: attr(data-label);
-      display: block;
-      min-width: 0;
-      line-height: 1.25;
-      font-size: 0.68rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: rgb(100 116 139);
-      text-align: left;
-      overflow-wrap: anywhere;
-    }
-
-    .data-table td > * {
-      min-width: 0;
-      justify-self: end;
-      text-align: right;
-    }
-
-    .data-table td[data-full-row="true"] {
-      display: block;
-      text-align: center;
-    }
-
-    .data-table td[data-full-row="true"]::before,
-    .data-table td[data-label=""]::before {
-      display: none;
-    }
-
-    .data-table td:last-child {
-      position: static;
-      right: auto;
-      background: transparent;
-    }
-
-    .data-table td:last-child > * {
-      width: 100%;
-      justify-content: flex-end;
-    }
-
-    .data-table tfoot tr {
-      background: hsl(var(--muted) / 0.35);
-      font-weight: 700;
-    }
   }
 
   .text-card-title {
@@ -494,6 +428,31 @@ button:disabled,
 
   table {
     break-inside: auto;
+  }
+
+  .responsive-data-table {
+    overflow: visible !important;
+  }
+
+  .responsive-data-table > div,
+  .responsive-data-table .data-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .responsive-data-table .data-table th,
+  .responsive-data-table .data-table td {
+    white-space: normal;
+  }
+
+  .invoice-table-scroll {
+    overflow: visible !important;
+  }
+
+  .invoice-table-scroll table {
+    min-width: 0 !important;
+    white-space: normal;
   }
 
   thead {

@@ -31,7 +31,7 @@ export function Dialog({
 
   return createPortal(
     <div
-      className={`fixed inset-0 z-[110] flex min-h-screen items-end justify-center overflow-hidden px-4 py-4 text-left transition-all duration-200 sm:items-center ${
+      className={`fixed inset-0 z-[110] flex min-h-screen items-end justify-center overflow-hidden px-2 py-2 text-left transition-all duration-200 sm:items-center sm:px-4 sm:py-4 ${
         open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
       }`}
       aria-modal="true"
@@ -42,7 +42,7 @@ export function Dialog({
         onClick={() => onOpenChange(false)}
       />
       <div
-        className={`relative z-10 flex max-h-[90vh] w-full max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[20px] border border-border bg-card/95 shadow-2xl transition-all duration-200 sm:max-w-3xl ${
+        className={`relative z-10 flex max-h-[calc(100dvh-1rem)] w-full min-w-0 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-[20px] border border-border bg-card/95 shadow-2xl transition-all duration-200 sm:max-h-[90vh] sm:max-w-3xl ${
           open ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
         }`}
       >

@@ -9,6 +9,7 @@ import { PartyPaymentsSection } from './party-payments-section';
 import { DEFAULT_PAGE_SIZE } from '@/config/pagination';
 import { DateInput } from '@/components/ui/date-input';
 import { formatDateBD as formatDate, toDateInputValueBD as toDateInputValue } from '@/lib/dates';
+import { useLocale } from '@/i18n/provider';
 
 type PaymentRow = {
   id: number;
@@ -56,11 +57,11 @@ type HistoryRow = {
   transactionId?: number;
 };
 
-const tabs: Array<{ value: HistoryTab; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'payments', label: 'Payments' },
-  { value: 'adjustments', label: 'Adjustments' },
-  { value: 'ledger', label: 'Ledger' }
+const tabs: Array<{ value: HistoryTab }> = [
+  { value: 'all' },
+  { value: 'payments' },
+  { value: 'adjustments' },
+  { value: 'ledger' }
 ];
 
 function formatCurrency(value: number | string | null | undefined) {
@@ -90,34 +91,37 @@ function getLedgerCategory(entryType: string): HistoryRow['category'] {
 }
 
 function getStatus(row: Pick<HistoryRow, 'category' | 'runningBalance'>) {
-  if (row.runningBalance === 0) return 'Cleared';
-  if (row.category === 'payments') return 'Posted';
-  if (row.runningBalance > 0) return 'Open';
-  return 'Settled';
+  if (row.runningBalance === 0) return 'CLEARED';
+  if (row.category === 'payments') return 'POSTED';
+  if (row.runningBalance > 0) return 'OPEN';
+  return 'SETTLED';
 }
 
 function statusClass(status: string) {
-  if (status === 'Cleared') return 'bg-emerald-100 text-emerald-700';
-  if (status === 'Posted') return 'bg-sky-100 text-sky-700';
-  if (status === 'Settled') return 'bg-slate-100 text-slate-700';
+  if (status === 'CLEARED') return 'bg-emerald-100 text-emerald-700';
+  if (status === 'POSTED') return 'bg-sky-100 text-sky-700';
+  if (status === 'SETTLED') return 'bg-slate-100 text-slate-700';
   return 'bg-amber-100 text-amber-700';
 }
 
-function buildExportCsv(rows: HistoryRow[]) {
-  const header = ['Date', 'Type', 'Category', 'Description', 'Debit', 'Credit', 'Running Balance', 'Status', 'Reference'];
+function buildExportCsv(
+  rows: HistoryRow[],
+  labels: { headers: string[]; type: (value: string) => string; category: (value: HistoryRow['category']) => string; status: (value: string) => string }
+) {
+  const { headers, type, category, status } = labels;
   const body = rows.map((row) => [
     formatDate(row.date),
-    titleCase(row.type),
-    titleCase(row.category),
+    type(row.type),
+    category(row.category),
     row.description,
     row.debit.toFixed(2),
     row.credit.toFixed(2),
     row.runningBalance.toFixed(2),
-    row.status,
+    status(row.status),
     row.referenceNumber ?? ''
   ]);
 
-  return [header, ...body]
+  return [headers, ...body]
     .map((cells) => cells.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     .join('\n');
 }
@@ -135,6 +139,30 @@ export function TransactionTabs({
   const [dateTo, setDateTo] = useState('');
   const [showPaymentTools, setShowPaymentTools] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const { dict } = useLocale();
+
+  const getCategoryLabel = (category: HistoryRow['category']) => {
+    if (category === 'sales') return dict.common.sales;
+    if (category === 'purchase') return dict.common.purchases;
+    if (category === 'payments') return dict.common.payments;
+    if (category === 'adjustments') return dict.common.adjustments;
+    return dict.common.ledger;
+  };
+  const getStatusLabel = (status: string) => {
+    if (status === 'CLEARED') return dict.common.cleared;
+    if (status === 'POSTED') return dict.paymentStatus.completed;
+    if (status === 'SETTLED') return dict.common.settled;
+    return dict.common.open;
+  };
+  const getTypeLabel = (type: string) => {
+    if (type === 'SALE' || type === 'SALE_REVERSAL') return dict.common.sales;
+    if (type === 'PURCHASE' || type === 'PURCHASE_REVERSAL') return dict.common.purchases;
+    if (type === 'PAYMENT_RECEIVED') return dict.common.customerPayment;
+    if (type === 'PAYMENT_PAID') return dict.common.paySupplier;
+    if (type === 'PAYMENT_REVERSAL') return dict.common.payment;
+    if (type === 'OPENING_BALANCE') return dict.common.openingBalanceLabel;
+    return titleCase(type);
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -176,14 +204,29 @@ export function TransactionTabs({
   const currentPageSafe = Math.min(Math.max(currentPage, 1), pageCount);
   const visibleRows = filteredRows.slice((currentPageSafe - 1) * DEFAULT_PAGE_SIZE, currentPageSafe * DEFAULT_PAGE_SIZE);
 
-  const csvHref = `data:text/csv;charset=utf-8,${encodeURIComponent(buildExportCsv(filteredRows))}`;
+  const csvHref = `data:text/csv;charset=utf-8,${encodeURIComponent(buildExportCsv(filteredRows, {
+    headers: [
+      dict.common.date,
+      dict.common.type,
+      dict.common.category,
+      dict.tableHeaders.description,
+      dict.common.debit,
+      dict.common.credit,
+      dict.common.runningBalance,
+      dict.common.status,
+      dict.common.referenceNumber
+    ],
+    type: getTypeLabel,
+    category: getCategoryLabel,
+    status: getStatusLabel
+  }))}`;
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm">
       <div className="flex flex-col gap-4 border-b border-border p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-foreground">Transaction History</h2>
-          <p className="mt-1 text-card-subtitle">Ledger-backed activity with running balance</p>
+          <h2 className="text-xl font-bold text-foreground">{dict.common.transactionHistory}</h2>
+          <p className="mt-1 text-card-subtitle">{dict.common.ledgerBackedActivityWithRunningBalance}</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -192,7 +235,7 @@ export function TransactionTabs({
                 value={dateFrom}
                 onChange={(event) => setDateFrom(event.target.value)}
                 className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Start date"
+                aria-label={dict.common.startDate}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -200,17 +243,17 @@ export function TransactionTabs({
                 value={dateTo}
                 onChange={(event) => setDateTo(event.target.value)}
                 className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="End date"
+                aria-label={dict.common.endDate}
               />
             </div>
           </div>
           <Button type="button" variant="outline" className="h-[42px]" onClick={() => { setDateFrom(''); setDateTo(''); }}>
-            Clear
+            {dict.common.clear}
           </Button>
           <Button asChild variant="outline" className="h-[42px]">
             <a href={csvHref} download={`party-${partyId}-transactions.csv`}>
               <Download className="h-4 w-4" />
-              Export
+              {dict.common.export}
             </a>
           </Button>
         </div>
@@ -227,7 +270,10 @@ export function TransactionTabs({
                 ? 'inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm'
                 : 'inline-flex h-10 items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground'}
             >
-              {tab.label}
+              {tab.value === 'all' ? dict.common.allTab
+                : tab.value === 'payments' ? dict.common.payments
+                  : tab.value === 'adjustments' ? dict.common.adjustments
+                    : dict.common.ledger}
             </button>
           ))}
         </div>
@@ -239,30 +285,30 @@ export function TransactionTabs({
             <table className="min-w-[980px] w-full text-table-body">
               <thead className="bg-muted/30 text-left text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3 text-table-header">Date</th>
-                  <th className="px-4 py-3 text-table-header">Type</th>
-                  <th className="px-4 py-3 text-table-header">Category</th>
-                  <th className="px-4 py-3 text-table-header">Description</th>
-                  <th className="px-4 py-3 text-right text-table-header">Debit</th>
-                  <th className="px-4 py-3 text-right text-table-header">Credit</th>
-                  <th className="px-4 py-3 text-right text-table-header">Running Balance</th>
-                  <th className="px-4 py-3 text-table-header">Status</th>
-                  <th className="px-4 py-3 text-table-header">Action</th>
+                  <th className="px-4 py-3 text-table-header">{dict.common.date}</th>
+                  <th className="px-4 py-3 text-table-header">{dict.common.type}</th>
+                  <th className="px-4 py-3 text-table-header">{dict.common.category}</th>
+                  <th className="px-4 py-3 text-table-header">{dict.common.partyDescription}</th>
+                  <th className="px-4 py-3 text-right text-table-header">{dict.common.debit}</th>
+                  <th className="px-4 py-3 text-right text-table-header">{dict.common.credit}</th>
+                  <th className="px-4 py-3 text-right text-table-header">{dict.common.runningBalance}</th>
+                  <th className="px-4 py-3 text-table-header">{dict.common.status}</th>
+                  <th className="px-4 py-3 text-table-header">{dict.common.actions}</th>
                 </tr>
               </thead>
               <tbody className="bg-card">
                 {visibleRows.length > 0 ? visibleRows.map((row) => (
                   <tr key={row.id} className="border-t border-border hover:bg-muted/20">
                     <td className="whitespace-nowrap px-4 py-3">{formatDate(row.date)}</td>
-                    <td className="whitespace-nowrap px-4 py-3 font-semibold">{titleCase(row.type)}</td>
-                    <td className="px-4 py-3">{titleCase(row.category)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 font-semibold">{getTypeLabel(row.type)}</td>
+                    <td className="px-4 py-3">{getCategoryLabel(row.category)}</td>
                     <td className="min-w-64 px-4 py-3 text-muted-foreground">{row.description}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{row.debit > 0 ? formatCurrency(row.debit) : '-'}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{row.credit > 0 ? formatCurrency(row.credit) : '-'}</td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.runningBalance)}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(row.status)}`}>
-                        {row.status}
+                        {getStatusLabel(row.status)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -272,8 +318,8 @@ export function TransactionTabs({
                             href={`/dashboard/transactions/${row.transactionId}/print`}
                             target="_blank"
                             rel="noreferrer"
-                            aria-label="Print invoice"
-                            title="Print invoice"
+                            aria-label={dict.common.printInvoice}
+                            title={dict.common.printInvoice}
                           >
                             <Printer className="h-4 w-4" />
                           </a>
@@ -286,7 +332,7 @@ export function TransactionTabs({
                 )) : (
                   <tr>
                     <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
-                      No transaction history found for this filter.
+                      {dict.common.noTransactionHistoryForFilter}
                     </td>
                   </tr>
                 )}
@@ -297,11 +343,9 @@ export function TransactionTabs({
         {pageCount > 1 && (
           <div className="mt-6 flex flex-col gap-4 rounded-xl border border-border bg-gradient-to-r from-background to-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Showing</span>
-              <span className="font-semibold text-foreground">{visibleRows.length}</span>
-              <span className="text-muted-foreground">of</span>
-              <span className="font-semibold text-foreground">{filteredRows.length}</span>
-              <span className="text-muted-foreground">transactions</span>
+              {dict.common.showingTransactions
+                .replace('{shown}', String(visibleRows.length))
+                .replace('{total}', String(filteredRows.length))}
             </div>
             <Pagination currentPage={currentPageSafe} totalPages={pageCount} onPageChange={setCurrentPage} className="justify-center sm:justify-end" />
           </div>
@@ -310,11 +354,11 @@ export function TransactionTabs({
           <div className="mt-5 rounded-2xl border border-border bg-background p-4">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-card-title">Payment Tools</h3>
-                <p className="text-card-subtitle">Edit existing payment records</p>
+                <h3 className="text-card-title">{dict.common.paymentTools}</h3>
+                <p className="text-card-subtitle">{dict.common.editExistingPaymentRecords}</p>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={() => setShowPaymentTools(false)}>
-                Hide
+                {dict.common.hide}
               </Button>
             </div>
             <PartyPaymentsSection

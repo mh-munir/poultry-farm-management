@@ -147,10 +147,10 @@ export default function LayoutShell({ children, branding }: { children: React.Re
 
       {open && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setOpen(false)} />}
 
-      <div className="min-w-0 flex-1 min-h-screen md:pl-[260px]">
+      <div className="min-w-0 flex-1 min-h-screen overflow-x-clip md:pl-[260px]">
         <header className="sticky top-0 z-40 border-b border-border bg-surface/95 shadow-sm backdrop-blur-lg">
-          <div className="mx-auto flex max-w-screen-3xl gap-3 px-3 py-3 items-center justify-between md:px-8">
-            <div className="flex min-w-0 items-center gap-3">
+          <div className="mx-auto flex min-w-0 max-w-screen-3xl items-center justify-between gap-2 px-3 py-3 md:gap-3 md:px-8">
+            <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
               <button className="md:hidden p-2 rounded-lg hover:bg-muted/60 transition-colors" onClick={() => setOpen(!open)} aria-label={dict.common.toggleMenu}>
                 {open ? <X size={18} /> : <Menu size={18} />}
               </button>
@@ -175,7 +175,7 @@ export default function LayoutShell({ children, branding }: { children: React.Re
               </nav>
             </div>
 
-            <div className="flex shrink-0 items-center gap-3">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
               <button
                 type="button"
                 onClick={() => setLocale(locale === 'en' ? 'bn' : 'en')}
@@ -184,7 +184,7 @@ export default function LayoutShell({ children, branding }: { children: React.Re
                 className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-2.5 py-2 text-xs font-medium text-foreground transition hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
               >
                 <Languages className="h-4 w-4" />
-                <span>{languageText}</span>
+                <span className="hidden sm:inline">{languageText}</span>
               </button>
 
               <button

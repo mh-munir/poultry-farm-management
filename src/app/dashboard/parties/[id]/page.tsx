@@ -358,18 +358,18 @@ export default async function PartyProfilePage({
   const netSupplierDue = Number(summary.netSupplierDue);
   const netBalance = netCustomerDue - netSupplierDue;
   const netBalanceTitle = netBalance > 0
-    ? 'Customer Due'
+    ? dict.common.customerDue
     : netBalance < 0
-      ? 'Supplier Due'
-      : 'Net Balance';
+      ? dict.common.supplierDue
+      : dict.common.netBalance;
   const dueStatus = netBalance === 0
     ? dict.common.clear
     : netBalance > 0
       ? dict.common.customerDue
-      : 'Supplier Due';
+      : dict.common.supplierDue;
   const dueBadgeClass = dueStatus === dict.common.clear
     ? 'bg-emerald-100 text-emerald-700'
-    : dueStatus === 'Supplier Due'
+    : dueStatus === dict.common.supplierDue
       ? 'bg-rose-100 text-rose-700'
       : 'bg-emerald-100 text-emerald-700';
   const partyTypeBadgeClass = party.partyType === 'CUSTOMER'
@@ -480,7 +480,7 @@ export default async function PartyProfilePage({
                   buttonLabel={dict.common.customerPayment}
                   dueLabel={dict.common.customerDue}
                   dueAmount={Number(summary.netCustomerDue)}
-                  toastSuccessMessage={dict.common.customerPayment + ' recorded successfully.'}
+                  toastSuccessMessage={dict.common.customerPaymentRecordedSuccessfully}
                   recordPaymentForParty={receiveCustomerPayment}
                   buttonClassName="h-14 w-full min-w-[190px] justify-between rounded-xl bg-blue-600 px-4 text-sm text-white shadow-[0_10px_20px_-14px_rgba(37,99,235,0.9)] hover:bg-blue-700 sm:w-auto"
                   buttonLeading={(
@@ -497,9 +497,9 @@ export default async function PartyProfilePage({
                   partyName={party.name}
                   title={dict.common.paySupplier}
                   buttonLabel={dict.common.paySupplier}
-                  dueLabel={dict.common.supplierPayable}
+                  dueLabel={dict.common.supplierDue}
                   dueAmount={Number(summary.netSupplierDue)}
-                  toastSuccessMessage={dict.common.paySupplier + ' recorded successfully.'}
+                  toastSuccessMessage={dict.common.supplierPaymentRecordedSuccessfully}
                   recordPaymentForParty={paySupplierPayment}
                   buttonClassName="h-14 w-full min-w-[190px] justify-between rounded-xl bg-orange-500 px-4 text-sm text-white shadow-[0_10px_20px_-14px_rgba(249,115,22,0.9)] hover:bg-orange-600 sm:w-auto"
                   buttonLeading={(
@@ -576,20 +576,20 @@ export default async function PartyProfilePage({
 
       <section className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <KpiCard
-          title={party.openingBalanceType === 'CUSTOMER_ADVANCE' ? 'Opening Advance' : 'Opening Due'}
+          title={party.openingBalanceType === 'CUSTOMER_ADVANCE' ? dict.common.profileOpeningAdvance : dict.common.profileOpeningDue}
           value={formatCurrency(summary.originalOpeningAmount)}
-          description="Opening amount included in the net balance"
+          description={dict.common.openingAmountIncludedInNetBalance}
           icon={Wallet}
           accent="bg-violet-50 text-violet-600"
         />
-        <KpiCard title="Total Feed / Medicine Sales" value={formatCurrency(summary.customerSales)} description="Sold to this party" icon={TrendingUp} accent="bg-sky-50 text-sky-600" />
-        <KpiCard title="Total Paid by Customer" value={formatCurrency(summary.customerPayments)} description="Received from this party" icon={CircleDollarSign} accent="bg-emerald-50 text-emerald-600" />
-        <KpiCard title="Total Egg / Chicken Purchases" value={formatCurrency(summary.supplierPurchases)} description="Bought from this party" icon={ShoppingCart} accent="bg-sky-50 text-sky-600" />
-        <KpiCard title="Total Paid to Supplier" value={formatCurrency(summary.supplierPayments)} description="Paid to this party" icon={BadgeDollarSign} accent="bg-amber-50 text-amber-600" />
+        <KpiCard title={dict.common.totalFeedMedicineSales} value={formatCurrency(summary.customerSales)} description={dict.common.soldToThisParty} icon={TrendingUp} accent="bg-sky-50 text-sky-600" />
+        <KpiCard title={dict.common.totalPaidByCustomer} value={formatCurrency(summary.customerPayments)} description={dict.common.receivedFromThisParty} icon={CircleDollarSign} accent="bg-emerald-50 text-emerald-600" />
+        <KpiCard title={dict.common.totalEggChickenPurchases} value={formatCurrency(summary.supplierPurchases)} description={dict.common.boughtFromThisParty} icon={ShoppingCart} accent="bg-sky-50 text-sky-600" />
+        <KpiCard title={dict.common.totalPaidToSupplier} value={formatCurrency(summary.supplierPayments)} description={dict.common.paidToThisParty} icon={BadgeDollarSign} accent="bg-amber-50 text-amber-600" />
         <KpiCard
           title={netBalanceTitle}
           value={formatCurrency(Math.abs(netBalance))}
-          description={netBalance === 0 ? 'All accounts are settled' : 'Final balance after all opening amounts, sales, purchases, and payments'}
+          description={netBalance === 0 ? dict.common.allAccountsSettled : dict.common.finalBalanceAfterAllTransactions}
           icon={netBalance < 0 ? Wallet : CreditCard}
           accent={netBalance < 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}
           valueClassName={netBalance < 0 ? 'text-rose-700' : 'text-emerald-700'}
@@ -600,19 +600,19 @@ export default async function PartyProfilePage({
         <details className="group">
           <summary className="flex cursor-pointer items-center justify-between gap-4 p-6 text-base font-semibold text-foreground transition hover:bg-slate-50">
             <div>
-              <p className="text-lg font-semibold">Opening Balance Information</p>
-              <p className="mt-1 text-sm text-muted-foreground">Initial customer balance snapshot</p>
+              <p className="text-lg font-semibold">{dict.common.openingBalanceInformation}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{dict.common.initialCustomerBalanceSnapshot}</p>
             </div>
             <span className="rounded-full border border-border bg-slate-100 px-3 py-1 text-sm text-muted-foreground transition group-open:bg-slate-200">
-              Show Details
+              {dict.common.showDetails}
             </span>
           </summary>
           <div className="border-t border-border px-6 pb-6 pt-4">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <SummaryMiniCard label="Opening Balance Amount" value={formatCurrency(openingBalanceLedger?.amount ?? party.openingBalance)} />
-              <SummaryMiniCard label="Balance Type" value={party.openingBalanceType === 'CUSTOMER_ADVANCE' ? 'Customer Advance' : 'Customer Due'} />
-              <SummaryMiniCard label="Created Date" value={formatDate(openingBalanceLedger?.entryDate ?? party.createdAt)} />
-              <SummaryMiniCard label="Description" value={openingBalanceLedger?.description ?? party.openingBalanceDescription ?? '—'} />
+              <SummaryMiniCard label={dict.common.openingBalanceAmount} value={formatCurrency(openingBalanceLedger?.amount ?? party.openingBalance)} />
+              <SummaryMiniCard label={dict.common.balanceType} value={party.openingBalanceType === 'CUSTOMER_ADVANCE' ? dict.common.profileOpeningAdvance : dict.common.customerDue} />
+              <SummaryMiniCard label={dict.common.createdDate} value={formatDate(openingBalanceLedger?.entryDate ?? party.createdAt)} />
+              <SummaryMiniCard label={dict.common.partyDescription} value={openingBalanceLedger?.description ?? party.openingBalanceDescription ?? '—'} />
             </div>
           </div>
         </details>

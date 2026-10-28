@@ -13,6 +13,7 @@ import type { AnalyticsFilterState, AnalyticsMetric, AnalyticsPresetValue } from
 import { useLocalizedFormat } from '@/i18n/use-localized-format';
 import { useLocale } from '@/i18n/provider';
 import { formatDateBD, toDateInputValueBD } from '@/lib/dates';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 
 type Summary = {
   totalSales: number;
@@ -707,7 +708,8 @@ export default function ProfitAnalyticsClient({
       </div>
 
       <AnalyticsSection title={dict.analytics.productProfitAnalysis} subtitle={dict.analytics.productProfitAnalysisSubtitle}>
-        <div className="overflow-x-auto rounded-[24px] border border-border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-[24px] border border-border bg-card shadow-sm">
+          <ResponsiveTable minWidth="1120px">
           <table className="min-w-full text-left">
             <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur">
               <tr className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
@@ -774,6 +776,7 @@ export default function ProfitAnalyticsClient({
               </tfoot>
             ) : null}
           </table>
+          </ResponsiveTable>
         </div>
       </AnalyticsSection>
     </div>

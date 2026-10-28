@@ -84,8 +84,8 @@ export function AnalyticsFilterBar({ filters, onChange }: Props) {
   return (
     <div className="rounded-[24px] border border-border bg-gradient-to-br from-emerald-50/50 via-card to-card p-4 shadow-sm dark:from-emerald-950/10">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex w-full flex-wrap items-center justify-between gap-3">
-          <div className="relative min-w-[220px]" ref={dropdownRef}>
+        <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3">
+          <div className="relative w-full min-w-0 sm:min-w-[220px] sm:flex-1 xl:flex-none" ref={dropdownRef}>
             <div className={`group flex items-center gap-3 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-white via-emerald-50/70 to-teal-50/70 p-2 shadow-sm shadow-emerald-950/[0.04] transition hover:border-emerald-300 hover:shadow-md hover:shadow-emerald-950/[0.07] dark:border-emerald-900/70 dark:from-slate-950 dark:via-emerald-950/30 dark:to-teal-950/30 ${isPresetMenuOpen ? "border-emerald-400" : ""}`}>
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-sm shadow-emerald-600/20">
               <SlidersHorizontal aria-hidden="true" size={17} />
@@ -144,7 +144,7 @@ export function AnalyticsFilterBar({ filters, onChange }: Props) {
             ) : null}
           </div>
 
-          <div className="ml-auto flex flex-wrap items-center gap-3 rounded-[20px] border border-border/80 bg-card/90 px-3 py-2.5 shadow-sm">
+          <div className="ml-0 flex w-full min-w-0 flex-wrap items-center gap-2 rounded-[20px] border border-border/80 bg-card/90 px-3 py-2.5 shadow-sm sm:ml-auto sm:w-auto sm:flex-nowrap sm:gap-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
               <CalendarDays size={18} />
             </span>
@@ -152,14 +152,14 @@ export function AnalyticsFilterBar({ filters, onChange }: Props) {
               value={filters.start}
               onChange={(event) => onChange({ ...filters, start: event.target.value, preset: "custom" })}
               aria-label={dict.analytics.dateRangeStart}
-              className="min-w-[130px] rounded-xl border border-border bg-background px-1 transition hover:border-emerald-300"
+              className="min-w-0 flex-1 rounded-xl border border-border bg-background px-1 transition hover:border-emerald-300 sm:min-w-[130px]"
             />
             <span className="text-sm font-medium text-muted-foreground">—</span>
             <DateInput
               value={filters.end}
               onChange={(event) => onChange({ ...filters, end: event.target.value, preset: "custom" })}
               aria-label={dict.analytics.dateRangeEnd}
-              className="min-w-[130px] rounded-xl border border-border bg-background px-1 transition hover:border-emerald-300"
+              className="min-w-0 flex-1 rounded-xl border border-border bg-background px-1 transition hover:border-emerald-300 sm:min-w-[130px]"
             />
           </div>
         </div>

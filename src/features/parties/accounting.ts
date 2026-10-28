@@ -125,3 +125,12 @@ const getPartyFinancialSummaryCached = unstable_cache(
 export async function getPartyFinancialSummary(partyId: number) {
   return getPartyFinancialSummaryCached(partyId);
 }
+
+/**
+ * Interactive forms need the latest balance immediately after a transaction
+ * or payment. Keep the cached version for read-heavy pages, but expose the
+ * uncached calculation for real-time selectors.
+ */
+export async function getPartyFinancialSummaryFresh(partyId: number) {
+  return getPartyFinancialSummaryUncached(partyId);
+}

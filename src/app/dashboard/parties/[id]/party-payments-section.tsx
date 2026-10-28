@@ -52,6 +52,20 @@ export function PartyPaymentsSection({
   const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
   const [drafts, setDrafts] = useState<Record<number, Partial<InitialPayment>>>({});
 
+  const formatPaymentMethod = (method: string) => {
+    if (method === 'Cash') return dict.paymentMethods.cash;
+    if (method === 'Bank') return dict.paymentMethods.bank;
+    if (method === 'Mobile') return dict.paymentMethods.mobile;
+    if (method === 'Cheque') return dict.paymentMethods.cheque;
+    return method;
+  };
+  const formatPaymentStatus = (status: string) => {
+    if (status === 'COMPLETED') return dict.paymentStatus.completed;
+    if (status === 'PENDING') return dict.paymentStatus.pending;
+    if (status === 'CANCELLED') return dict.paymentStatus.cancelled;
+    return status;
+  };
+
   const handleDraftChange = (paymentId: number, field: keyof InitialPayment, value: string) => {
     setDrafts((current) => ({
       ...current,
@@ -119,7 +133,7 @@ export function PartyPaymentsSection({
       )}
 
       <div className="mt-6 overflow-visible rounded-xl border bg-card">
-        <div className="bg-muted/40 px-4 py-3 text-sm font-semibold">Payments</div>
+        <div className="bg-muted/40 px-4 py-3 text-sm font-semibold">{dict.common.payments}</div>
         <ResponsiveTable stickyLastColumn minWidth="980px">
         <table className="min-w-full text-table-body">
           <thead className="bg-muted/20 text-left">
@@ -215,9 +229,9 @@ export function PartyPaymentsSection({
                     <>
                       <td className="px-4 py-3">{formatDate(payment.paymentDate)}</td>
                       <td className="px-4 py-3">{formatCurrency(payment.amount)}</td>
-                      <td className="px-4 py-3">{payment.paymentMethod}</td>
+                      <td className="px-4 py-3">{formatPaymentMethod(payment.paymentMethod)}</td>
                       <td className="px-4 py-3">{payment.referenceNumber ?? '—'}</td>
-                      <td className="px-4 py-3">{payment.status}</td>
+                      <td className="px-4 py-3">{formatPaymentStatus(payment.status)}</td>
                       <td className="px-4 py-3">{payment.notes ?? '—'}</td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2">
@@ -245,7 +259,7 @@ export function PartyPaymentsSection({
               ))
             ) : (
               <tr className="border-t">
-                <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">No payment history available yet.</td>
+                <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">{dict.common.noPaymentHistoryAvailableYet}</td>
               </tr>
             )}
           </tbody>

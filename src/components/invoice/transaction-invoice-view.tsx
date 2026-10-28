@@ -96,7 +96,7 @@ export function TransactionInvoiceView({
   return (
     <article className="invoice-print-area mx-auto w-full max-w-[190mm] bg-white text-slate-800">
       <div className="overflow-hidden border border-slate-200">
-        <header className="invoice-brand-header flex items-center justify-between gap-5 px-7 pt-6 pb-4">
+        <header className="invoice-brand-header flex flex-wrap items-center justify-between gap-4 px-3 pb-4 pt-5 sm:flex-nowrap sm:gap-5 sm:px-7 sm:pt-6">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded border border-slate-300 text-sm font-bold text-slate-700">
               {company.logo ? <img src={company.logo} alt={brandName} className="h-full w-full object-contain" /> : brandInitials}
@@ -107,19 +107,19 @@ export function TransactionInvoiceView({
               <p className="text-[10px] leading-tight text-slate-500">{copy.phone} {companyPhone}</p>
             </div>
           </div>
-          <h2 className="text-3xl font-light tracking-wide text-slate-900 sm:text-4xl">{copy.invoice}</h2>
+          <h2 className="shrink-0 text-3xl font-light tracking-wide text-slate-900 sm:text-4xl">{copy.invoice}</h2>
         </header>
         <div className="h-2.5 bg-amber-400" />
 
-        <div className="px-7 py-5">
-          <section className="grid grid-cols-2 gap-8 pb-6 text-xs">
+        <div className="px-3 py-4 sm:px-7 sm:py-5">
+          <section className="grid grid-cols-1 gap-5 pb-6 text-xs sm:grid-cols-2 sm:gap-8">
             <div>
               <p className="font-semibold text-slate-600">{copy.invoiceTo}</p>
               <p className="mt-1 font-bold text-slate-900">{party.name}</p>
               {party.address ? <p className="mt-1 whitespace-pre-line text-slate-600">{party.address}</p> : null}
               {party.phone ? <p className="text-slate-600">{party.phone}</p> : null}
             </div>
-            <dl className="grid grid-cols-[auto_1fr] justify-self-end gap-x-5 gap-y-1 text-right">
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-left sm:justify-self-end sm:gap-x-5 sm:text-right">
               <dt className="font-semibold text-slate-600">{copy.invoiceNumber}</dt><dd>{invoiceNumber}</dd>
               <dt className="font-semibold text-slate-600">{copy.date}</dt><dd>{formatLocalizedDate(transactionDate, currentLocale)}</dd>
               {mediaName ? <><dt className="font-semibold text-slate-600">{copy.media}</dt><dd>{mediaName}</dd></> : null}
@@ -127,7 +127,8 @@ export function TransactionInvoiceView({
             </dl>
           </section>
 
-          <table className="w-full border-collapse text-xs">
+          <div className="invoice-table-scroll overflow-x-auto">
+          <table className="min-w-[620px] w-full whitespace-nowrap border-collapse text-xs">
             <thead className="bg-slate-800 text-left text-white">
               <tr>
                 <th className="px-2 py-2 font-semibold">{copy.itemDescription}</th><th className="px-2 py-2 text-center font-semibold">{copy.qty}</th>
@@ -149,8 +150,9 @@ export function TransactionInvoiceView({
               })}
             </tbody>
           </table>
+          </div>
 
-          <section className="mt-5 grid grid-cols-[1fr_190px] gap-8 text-xs">
+          <section className="mt-5 grid grid-cols-1 gap-6 text-xs sm:grid-cols-[minmax(0,1fr)_190px] sm:gap-8">
             <div className="text-slate-600"><p className="font-semibold">{copy.thankYou}</p>{notes ? <div className="mt-5"><p className="font-semibold text-slate-700">{copy.notes}</p><p className="mt-1 whitespace-pre-line">{notes}</p></div> : null}</div>
             <dl className="space-y-1.5">
               <div className="flex justify-between"><dt>{copy.subTotal}</dt><dd>{formatLocalizedCurrency(subtotal, currentLocale)}</dd></div>
@@ -161,8 +163,8 @@ export function TransactionInvoiceView({
             </dl>
           </section>
         </div>
-        <footer className="flex items-end justify-between border-t-2 border-amber-400 px-7 py-4 text-[10px] text-slate-600">
-          <p>{[`${copy.phone} ${companyPhone}`, `${copy.address}: ${companyAddress}`, company.website].filter(Boolean).join('  |  ')}</p>
+        <footer className="flex flex-col items-stretch gap-4 border-t-2 border-amber-400 px-3 py-4 text-[10px] text-slate-600 sm:flex-row sm:items-end sm:justify-between sm:px-7">
+          <p className="break-words">{[`${copy.phone} ${companyPhone}`, `${copy.address}: ${companyAddress}`, company.website].filter(Boolean).join('  |  ')}</p>
           <div className="w-28 text-center"><div className="h-7 border-b border-slate-400" /><p className="mt-1 font-semibold">{copy.authorizedSign}</p></div>
         </footer>
       </div>

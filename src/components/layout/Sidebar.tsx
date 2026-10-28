@@ -23,7 +23,7 @@ export function Sidebar({ open, onClose, branding }: { open?: boolean; onClose?:
   };
 
   return (
-    <aside className={`fixed inset-y-0 left-0 top-0 z-40 w-[260px] min-h-screen overflow-y-auto rounded-[16px] border border-border bg-card text-foreground shadow-sm transition-transform duration-200 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+    <aside className={`fixed inset-y-0 left-0 top-0 z-40 min-h-screen w-[min(260px,calc(100vw-1rem))] max-w-full overflow-y-auto rounded-[16px] border border-border bg-card text-foreground shadow-sm transition-transform duration-200 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
       <div className="flex h-full flex-col justify-between px-4 py-6">
         <div className="space-y-6">
           <div className="flex flex-col items-center gap-3 pt-6">

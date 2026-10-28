@@ -13,7 +13,7 @@ import { getNextProductCode } from '@/lib/product-code';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
 import { createPaymentPaidSmsMessage, createPaymentReceivedSmsMessage } from '@/lib/sms/templates';
-import { getPartyFinancialSummary } from './accounting';
+import { getPartyFinancialSummary, getPartyFinancialSummaryFresh } from './accounting';
 import { calculatePartyNetBalances } from './balance-calculation';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
@@ -878,7 +878,7 @@ export async function getSupplierOptions() {
 
 export async function getCustomerCurrentDue(partyId: number) {
   await requireUser();
-  const summary = await getPartyFinancialSummary(partyId);
+  const summary = await getPartyFinancialSummaryFresh(partyId);
   return new Prisma.Decimal(summary.customerDue).toNumber();
 }
 
@@ -897,7 +897,7 @@ export async function getSupplierCurrentPayable(partyId: number) {
     return 0;
   }
 
-  const summary = await getPartyFinancialSummary(partyId);
+  const summary = await getPartyFinancialSummaryFresh(partyId);
   return new Prisma.Decimal(summary.supplierPayable).toNumber();
 }
 
@@ -1388,6 +1388,26 @@ export async function createSupplierPurchase(formData: FormData) {
   }
 
   const { partyId, purchaseDate, productCategory, productName, quantity, chickenQuantity, unit, unitPrice, totalAmount, discount, paidAmount, paymentMethod, referenceNumber, notes } = parsed.data;
+
+  // Validate the client-side total for eggs as well as chicken. Chicken uses
+  // total KG, while eggs use piece quantity; discount is applied once here.
+  const expectedGrossForValidation = new Prisma.Decimal(unitPrice).times(
+    new Prisma.Decimal(productCategory === 'CHICKEN' ? chickenQuantity : quantity)
+  );
+  if (new Prisma.Decimal(discount).gt(expectedGrossForValidation)) {
+    return { success: false, message: 'Discount cannot exceed the purchase amount.' };
+  }
+
+  if (productCategory === 'EGG') {
+    const expectedEggTotal = expectedGrossForValidation.minus(new Prisma.Decimal(discount));
+    const receivedEggTotal = new Prisma.Decimal(totalAmount);
+    if (receivedEggTotal.minus(expectedEggTotal).abs().gt(new Prisma.Decimal('0.01'))) {
+      return {
+        success: false,
+        message: `Purchase total calculation error. Expected: à§³${expectedEggTotal.toFixed(2)}, Received: à§³${receivedEggTotal.toFixed(2)}`
+      };
+    }
+  }
 
   // Server-side validation: For Chicken products, verify line total is calculated using totalKg (chickenQuantity), not quantity
   if (productCategory === 'CHICKEN') {

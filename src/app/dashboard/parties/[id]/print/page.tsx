@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { requireUser } from '@/lib/auth';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { prisma } from '@/server/db';
@@ -7,6 +8,8 @@ import { getBranding } from '@/lib/branding';
 import { getPartyFinancialSummary } from '@/features/parties/accounting';
 import { Receipt, BadgeCheck, Wallet, Package, CircleDollarSign, UserRound } from 'lucide-react';
 import { formatDateBD as formatDate, formatDateTimeBD as formatDateTime } from '@/lib/dates';
+import { getDictionary } from '@/i18n';
+import { getLocaleFromValue, LOCALE_COOKIE } from '@/i18n/config';
 
 function formatCurrency(value: number | string | { toString(): string } | null | undefined) {
   const number = Number(value?.toString() ?? 0);
@@ -59,6 +62,8 @@ function EmptyState({ label }: { label: string }) {
 
 export default async function PartyPrintPage({ params }: { params: Promise<{ id: string }> }) {
   await requireUser();
+  const cookieStore = await cookies();
+  const dict = getDictionary(getLocaleFromValue(cookieStore.get(LOCALE_COOKIE)?.value));
   const { id } = await params;
   const partyId = Number(id);
 
@@ -99,6 +104,13 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
   const openingBalance = Number(party.openingBalance ?? 0);
   const netBalance = currentDue - supplierPayable;
   const printDate = new Date();
+  const formatPaymentMethod = (method: string) => {
+    if (method === 'Cash') return dict.paymentMethods.cash;
+    if (method === 'Bank') return dict.paymentMethods.bank;
+    if (method === 'Mobile') return dict.paymentMethods.mobile;
+    if (method === 'Cheque') return dict.paymentMethods.cheque;
+    return method;
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 px-4 py-6 print:bg-white print:px-0 print:py-0">
@@ -112,7 +124,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                   {branding.logo ? (
                     <img src={branding.logo} alt={branding.name ?? 'Brand logo'} className="h-full w-full object-contain" />
                   ) : (
-                    <div className="w-12 h-12 bg-slate-100 flex items-center justify-center rounded text-slate-500 font-semibold">LOGO</div>
+                    <div className="w-12 h-12 bg-slate-100 flex items-center justify-center rounded text-slate-500 font-semibold">{dict.common.partyPrintLogo}</div>
                   )}
                 </div>
                 <div>
@@ -126,7 +138,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
               </div>
 
               <div className="text-right">
-                <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">STATEMENT</div>
+                <div className="text-4xl md:text-5xl font-extrabold tracking-wider text-slate-950">{dict.forms.statement}</div>
               </div>
             </div>
           </header>
@@ -136,15 +148,15 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
           <main className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6 items-start">
               <div>
-                <div className="text-xs text-slate-500">Party</div>
+                <div className="text-xs text-slate-500">{dict.common.partyPrintPartyLabel}</div>
                 <div className="font-medium text-slate-900 text-lg">{party.name}</div>
                 <div className="mt-1 text-sm text-slate-600">{party.address ?? '—'}</div>
               </div>
 
               <div className="text-right">
-                <div className="text-xs text-slate-500">Printed</div>
+                <div className="text-xs text-slate-500">{dict.common.partyPrintPrinted}</div>
                 <div className="font-medium text-slate-900">{formatDate(printDate)}</div>
-                <div className="mt-2 text-xs text-slate-500">Statement No</div>
+                <div className="mt-2 text-xs text-slate-500">{dict.common.partyPrintStatementNumber}</div>
                 <div className="font-medium text-slate-900">{party.id.toString().padStart(4, '0')}</div>
               </div>
             </div>
@@ -154,32 +166,32 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                 <UserRound className="h-4 w-4" />
-                <span>Party Information</span>
+                <span>{dict.common.partyInformation}</span>
               </div>
               <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
                 <div>
-                  <p className="font-medium text-slate-800">Party Name</p>
+                  <p className="font-medium text-slate-800">{dict.common.partyPrintPartyName}</p>
                   <p>{party.name}</p>
                 </div>
                 <div>
-                  <p className="font-medium text-slate-800">Mobile</p>
+                  <p className="font-medium text-slate-800">{dict.forms.mobileLabel}</p>
                   <p>{party.phone ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="font-medium text-slate-800">Address</p>
+                  <p className="font-medium text-slate-800">{dict.common.address}</p>
                   <p>{party.address ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="font-medium text-slate-800">Farm Name</p>
+                  <p className="font-medium text-slate-800">{dict.forms.farmNameLabel}</p>
                   <p>{party.farmName ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="font-medium text-slate-800">Opening Balance</p>
+                  <p className="font-medium text-slate-800">{dict.common.openingBalanceLabel}</p>
                   <p>{formatCurrency(openingBalance)}</p>
                 </div>
                 <div>
-                  <p className="font-medium text-slate-800">Current Status</p>
-                  <p>{party.isActive ? 'Active' : 'Inactive'}</p>
+                  <p className="font-medium text-slate-800">{dict.common.partyPrintCurrentStatus}</p>
+                  <p>{party.isActive ? dict.common.active : dict.common.inactive}</p>
                 </div>
               </div>
             </div>
@@ -187,33 +199,33 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 print:bg-white">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                 <BadgeCheck className="h-4 w-4" />
-                <span>Statement Summary</span>
+                <span>{dict.common.partyPrintStatementSummary}</span>
               </div>
               <div className="mt-3 space-y-2 text-sm text-slate-600">
                 <div className="flex items-center justify-between">
-                  <span>{party.openingBalanceType === 'CUSTOMER_ADVANCE' ? 'Opening Advance' : 'Opening Due'}</span>
+                  <span>{party.openingBalanceType === 'CUSTOMER_ADVANCE' ? dict.common.profileOpeningAdvance : dict.common.profileOpeningDue}</span>
                   <span className="font-medium text-slate-900">{formatCurrency(Math.abs(openingBalance))}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Total Feed / Medicine Sales</span>
+                  <span>{dict.common.totalFeedMedicineSales}</span>
                   <span className="font-medium text-slate-900">{formatCurrency(financialSummary.customerSales)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Total Paid by Customer</span>
+                  <span>{dict.common.totalPaidByCustomer}</span>
                   <span className="font-medium text-slate-900">{formatCurrency(financialSummary.customerPayments)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Total Egg / Chicken Purchases</span>
+                  <span>{dict.common.totalEggChickenPurchases}</span>
                   <span className="font-medium text-slate-900">{formatCurrency(financialSummary.supplierPurchases)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Total Paid to Supplier</span>
+                  <span>{dict.common.totalPaidToSupplier}</span>
                   <span className="font-medium text-slate-900">{formatCurrency(financialSummary.supplierPayments)}</span>
                 </div>
                 <div className="mt-3">
                   <div className={`flex items-center justify-between px-4 py-3 ${netBalance > 0 ? 'bg-emerald-100' : netBalance < 0 ? 'bg-rose-100' : 'bg-slate-100'}`}>
                     <div className={`text-sm font-semibold ${netBalance > 0 ? 'text-emerald-800' : netBalance < 0 ? 'text-rose-800' : 'text-slate-900'}`}>
-                      {netBalance > 0 ? 'Customer Due' : netBalance < 0 ? 'Supplier Due' : 'Net Balance'}
+                      {netBalance > 0 ? dict.common.customerDue : netBalance < 0 ? dict.common.supplierDue : dict.common.netBalance}
                     </div>
                     <div className={`text-xl font-extrabold ${netBalance > 0 ? 'text-emerald-700' : netBalance < 0 ? 'text-rose-700' : 'text-slate-900'}`}>{formatCurrency(Math.abs(netBalance))}</div>
                   </div>
@@ -223,14 +235,14 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
           </div>
 
           <div className="mt-8 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
-            <StatementCard title="Customer" value={formatCurrency(financialSummary.customerSales)} subtext="Total Feed / Medicine Sales" icon={Receipt} />
-            <StatementCard title="Customer" value={formatCurrency(financialSummary.customerPayments)} subtext="Total Paid" icon={Wallet} />
-            <StatementCard title="Party Supplier" value={formatCurrency(financialSummary.supplierPurchases)} subtext="Total Egg / Chicken Purchases" icon={Package} />
-            <StatementCard title="Supplier" value={formatCurrency(financialSummary.supplierPayments)} subtext="Total Paid" icon={CircleDollarSign} />
+            <StatementCard title={dict.common.customerAccount} value={formatCurrency(financialSummary.customerSales)} subtext={dict.common.totalFeedMedicineSales} icon={Receipt} />
+            <StatementCard title={dict.common.customerAccount} value={formatCurrency(financialSummary.customerPayments)} subtext={dict.common.totalPaid} icon={Wallet} />
+            <StatementCard title={dict.common.supplierAccount} value={formatCurrency(financialSummary.supplierPurchases)} subtext={dict.common.totalEggChickenPurchases} icon={Package} />
+            <StatementCard title={dict.common.supplierAccount} value={formatCurrency(financialSummary.supplierPayments)} subtext={dict.common.totalPaid} icon={CircleDollarSign} />
             <StatementCard
-              title={netBalance > 0 ? 'Customer Due' : netBalance < 0 ? 'Supplier Due' : 'Net Balance'}
+              title={netBalance > 0 ? dict.common.customerDue : netBalance < 0 ? dict.common.supplierDue : dict.common.netBalance}
               value={formatCurrency(Math.abs(netBalance))}
-              subtext="Final Balance"
+              subtext={dict.common.netBalance}
               icon={CircleDollarSign}
               valueClassName={netBalance > 0 ? 'text-emerald-700' : netBalance < 0 ? 'text-rose-700' : 'text-slate-900'}
             />
@@ -239,20 +251,20 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
           <div className="mt-8 space-y-8">
             <section className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-base font-semibold text-slate-900">Sales History</h3>
-                <span className="text-sm text-slate-500">{customerRows.length} entries</span>
+                <h3 className="text-base font-semibold text-slate-900">{dict.common.partyPrintSalesHistory}</h3>
+                <span className="text-sm text-slate-500">{customerRows.length} {dict.forms.entries}</span>
               </div>
               <div className="overflow-visible rounded-xl border border-slate-200">
                 <ResponsiveTable minWidth="900px">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-900 text-white">
                     <tr>
-                      <th className="px-3 py-3 text-left">Date</th>
-                      <th className="px-3 py-3 text-left">Invoice</th>
-                      <th className="px-3 py-3 text-left">Product</th>
-                      <th className="px-3 py-3 text-left">Qty</th>
-                      <th className="px-3 py-3 text-left">Rate</th>
-                      <th className="px-3 py-3 text-left">Amount</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.date}</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.invoice}</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.product}</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.quantity}</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.unitPrice}</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.amount}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
@@ -265,7 +277,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                         <td className="px-3 py-3 whitespace-nowrap text-slate-600">{formatCurrency(row.unitPrice)}</td>
                         <td className="px-3 py-3 whitespace-nowrap font-medium text-slate-900">{formatCurrency(row.lineTotal)}</td>
                       </tr>
-                    )) : <EmptyState label="No sales found" />}
+                    )) : <EmptyState label={dict.common.partyPrintNoSalesFound} />}
                   </tbody>
                 </table>
                 </ResponsiveTable>
@@ -274,20 +286,20 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-base font-semibold text-slate-900">Supply History</h3>
-                <span className="text-sm text-slate-500">{supplierRows.length} entries</span>
+                <h3 className="text-base font-semibold text-slate-900">{dict.common.partyPrintSupplyHistory}</h3>
+                <span className="text-sm text-slate-500">{supplierRows.length} {dict.forms.entries}</span>
               </div>
               <div className="overflow-visible rounded-xl border border-slate-200">
                 <ResponsiveTable minWidth="900px">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-900 text-white">
                     <tr>
-                      <th className="px-3 py-3 text-left">Date</th>
-                      <th className="px-3 py-3 text-left">Invoice</th>
-                      <th className="px-3 py-3 text-left">Product</th>
-                      <th className="px-3 py-3 text-left">Qty</th>
-                      <th className="px-3 py-3 text-left">Rate</th>
-                      <th className="px-3 py-3 text-left">Amount</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.date}</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.invoice}</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.product}</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.quantity}</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.unitPrice}</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.amount}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
@@ -300,7 +312,7 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
                         <td className="px-3 py-3 whitespace-nowrap text-slate-600">{formatCurrency(row.unitPrice)}</td>
                         <td className="px-3 py-3 whitespace-nowrap font-medium text-slate-900">{formatCurrency(row.lineTotal)}</td>
                       </tr>
-                    )) : <EmptyState label="No supplies found" />}
+                    )) : <EmptyState label={dict.common.partyPrintNoSuppliesFound} />}
                   </tbody>
                 </table>
                 </ResponsiveTable>
@@ -309,33 +321,33 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-base font-semibold text-slate-900">Payment History</h3>
-                <span className="text-sm text-slate-500">{payments.length} entries</span>
+                <h3 className="text-base font-semibold text-slate-900">{dict.common.partyPrintPaymentHistory}</h3>
+                <span className="text-sm text-slate-500">{payments.length} {dict.forms.entries}</span>
               </div>
               <div className="overflow-hidden rounded-xl border border-slate-200">
                 <ResponsiveTable minWidth="820px">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-900 text-white">
                     <tr>
-                      <th className="px-3 py-3 text-left">Date</th>
-                      <th className="px-3 py-3 text-left">Type</th>
-                      <th className="px-3 py-3 text-left">Amount</th>
-                      <th className="px-3 py-3 text-left">Method</th>
-                      <th className="px-3 py-3 text-left">Reference</th>
-                      <th className="px-3 py-3 text-left">Remarks</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.date}</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.type}</th>
+                      <th className="px-3 py-3 text-left">{dict.tableHeaders.amount}</th>
+                      <th className="px-3 py-3 text-left">{dict.common.partyPrintPaymentMethod}</th>
+                      <th className="px-3 py-3 text-left">{dict.common.referenceNumber}</th>
+                      <th className="px-3 py-3 text-left">{dict.common.partyPrintRemarks}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
                     {payments.length > 0 ? payments.map((payment) => (
                       <tr key={payment.id} className="align-top">
                         <td className="px-3 py-3 whitespace-nowrap text-slate-600">{formatDate(payment.paymentDate)}</td>
-                        <td className="px-3 py-3 whitespace-nowrap text-slate-600">{payment.paymentMethod}</td>
+                        <td className="px-3 py-3 whitespace-nowrap text-slate-600">{formatPaymentMethod(payment.paymentMethod)}</td>
                         <td className="px-3 py-3 whitespace-nowrap font-medium text-slate-900">{formatCurrency(payment.amount)}</td>
-                        <td className="px-3 py-3 whitespace-nowrap text-slate-600">{payment.paymentMethod}</td>
+                        <td className="px-3 py-3 whitespace-nowrap text-slate-600">{formatPaymentMethod(payment.paymentMethod)}</td>
                         <td className="px-3 py-3 whitespace-nowrap text-slate-600">{payment.referenceNumber ?? '—'}</td>
                         <td className="px-3 py-3 text-slate-600">{payment.notes ?? '—'}</td>
                       </tr>
-                    )) : <EmptyState label="No payments found" />}
+                    )) : <EmptyState label={dict.common.partyPrintNoPaymentsFound} />}
                   </tbody>
                 </table>
                 </ResponsiveTable>
@@ -346,19 +358,19 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
           <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-4 print:bg-white">
             <div className="flex flex-col gap-4 border-t border-slate-200 pt-4 md:flex-row md:items-end md:justify-between">
               <div className="space-y-2 text-sm text-slate-600">
-                <p className="font-semibold text-slate-900">Generated by</p>
-                <p>Islamabad Poultry Management System</p>
-                <p>Generated Date & Time: {formatDateTime(printDate)}</p>
-                <p>Printed By: {party.name}</p>
+                <p className="font-semibold text-slate-900">{dict.common.partyPrintGeneratedBy}</p>
+                <p>{dict.common.partyPrintSystemName}</p>
+                <p>{dict.common.partyPrintGeneratedDateTime}: {formatDateTime(printDate)}</p>
+                <p>{dict.common.partyPrintPrintedBy}: {party.name}</p>
               </div>
               <div className="text-sm text-slate-600">
-                <p className="font-semibold text-slate-900">Authorized Signature</p>
+                <p className="font-semibold text-slate-900">{dict.common.partyPrintAuthorizedSignature}</p>
                 <div className="mt-3 h-12 w-40 border-b border-slate-400" />
               </div>
             </div>
             <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-3 text-xs uppercase tracking-[0.2em] text-slate-500">
-              <span>Confidential statement</span>
-              <span>Page 1</span>
+              <span>{dict.common.partyPrintConfidentialStatement}</span>
+              <span>{dict.common.page} 1</span>
             </div>
           </div>
         </div>

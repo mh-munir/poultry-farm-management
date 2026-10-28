@@ -92,6 +92,7 @@ export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defa
   const [discount, setDiscount] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [previousDue, setPreviousDue] = useState(0);
+  const [isLoadingPreviousDue, setIsLoadingPreviousDue] = useState(false);
   const [formError, setFormError] = useState('');
   const router = useRouter();
   const { success, error: showError } = useToast();
@@ -116,31 +117,33 @@ export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defa
     return eggTotalCents + chickenTotalCents;
   }, [productCategory, eggTotalCents, chickenTotalCents]);
 
+  const enteredDiscountCents = useMemo(() => toCents(discount), [discount]);
   const discountCents = useMemo(() => {
-    const cents = toCents(discount);
-    if (cents < 0n) return 0n;
-    return cents > subtotalCents ? subtotalCents : cents;
-  }, [discount, subtotalCents]);
+    if (enteredDiscountCents < 0n) return 0n;
+    return enteredDiscountCents > subtotalCents ? subtotalCents : enteredDiscountCents;
+  }, [enteredDiscountCents, subtotalCents]);
 
   const supplierPurchaseTotalCents = useMemo(() => {
     const result = subtotalCents - discountCents;
     return result < 0n ? 0n : result;
   }, [subtotalCents, discountCents]);
 
-  const paidAmountCents = useMemo(() => {
-    const cents = toCents(paidAmount);
-    return cents < 0n ? 0n : cents;
-  }, [paidAmount]);
+  const enteredPaidAmountCents = useMemo(() => toCents(paidAmount), [paidAmount]);
+  const paidAmountCents = useMemo(
+    () => enteredPaidAmountCents < 0n ? 0n : enteredPaidAmountCents,
+    [enteredPaidAmountCents]
+  );
 
   const dueAmountCents = useMemo(() => {
     const result = supplierPurchaseTotalCents - paidAmountCents;
     return result;
   }, [supplierPurchaseTotalCents, paidAmountCents]);
 
-  const finalDueCents = useMemo(() => {
-    const prevDueCents = toCents(previousDue.toFixed(2));
-    return prevDueCents + dueAmountCents;
-  }, [previousDue, dueAmountCents]);
+  const previousDueCents = useMemo(() => toCents(previousDue.toFixed(2)), [previousDue]);
+  const finalDueCents = useMemo(
+    () => previousDueCents + dueAmountCents,
+    [previousDueCents, dueAmountCents]
+  );
 
   const showEgg = productCategory === 'EGG';
   const showChicken = productCategory === 'CHICKEN';
@@ -150,7 +153,22 @@ export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defa
       return;
     }
 
+    let cancelled = false;
+
+    const loadPreviousDue = async (partyId: number) => {
+      setIsLoadingPreviousDue(true);
+      try {
+        const payable = await getSupplierCurrentPayable(partyId);
+        if (!cancelled) setPreviousDue(Math.max(0, Number(payable) || 0));
+      } catch {
+        if (!cancelled) setPreviousDue(0);
+      } finally {
+        if (!cancelled) setIsLoadingPreviousDue(false);
+      }
+    };
+
     getSupplierOptions().then((options: Array<{ id: number; name: string }>) => {
+      if (cancelled) return;
       const mappedOptions = options.map((option) => ({ value: String(option.id), label: option.name }));
 
       if (defaultPartyId) {
@@ -158,12 +176,19 @@ export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defa
         setPartyOptions(matchedDefaultOption ? [matchedDefaultOption] : []);
         setSelectedPartyId(defaultPartyId);
         setPartyName(matchedDefaultOption?.label ?? defaultPartyName ?? '');
-        getSupplierCurrentPayable(defaultPartyId).then((payable) => setPreviousDue(payable));
+        void loadPreviousDue(defaultPartyId);
       } else {
         setPartyOptions(mappedOptions);
         setSelectedPartyId(null);
         setPartyName('');
         setPreviousDue(0);
+        setIsLoadingPreviousDue(false);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setPartyOptions([]);
+        setPreviousDue(0);
+        setIsLoadingPreviousDue(false);
       }
     });
 
@@ -177,6 +202,10 @@ export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defa
     setPaidAmount('');
     setDiscount('');
     setFormError('');
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, defaultPartyId, defaultPartyName]);
 
   const buildPurchaseLines = (): PurchaseLine[] => {
@@ -258,15 +287,15 @@ export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defa
       return 'Supplier purchase total must be greater than zero.';
     }
 
-    if (toCents(discount) < 0n) {
+    if (enteredDiscountCents < 0n) {
       return 'Discount cannot be negative.';
     }
 
-    if (discountCents > subtotalCents) {
+    if (enteredDiscountCents > subtotalCents) {
       return 'Discount cannot exceed subtotal.';
     }
 
-    if (paidAmountCents < 0n) {
+    if (enteredPaidAmountCents < 0n) {
       return 'Paid amount cannot be negative.';
     }
 
@@ -332,6 +361,7 @@ export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defa
 
   const isSubmitDisabled =
     isSubmitting ||
+    isLoadingPreviousDue ||
     !selectedPartyId ||
     supplierPurchaseTotalCents <= 0n ||
     paidAmountCents > supplierPurchaseTotalCents ||
@@ -367,8 +397,13 @@ export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defa
                 if (numericMatch) {
                   const id = Number(value);
                   setSelectedPartyId(id);
-                  const payable = await getSupplierCurrentPayable(id);
-                  setPreviousDue(payable);
+                  setIsLoadingPreviousDue(true);
+                  try {
+                    const payable = await getSupplierCurrentPayable(id);
+                    setPreviousDue(Math.max(0, Number(payable) || 0));
+                  } finally {
+                    setIsLoadingPreviousDue(false);
+                  }
                   const opt = partyOptions.find((o) => o.value === String(id));
                   setPartyName(opt ? opt.label : '');
                 } else {
@@ -381,8 +416,13 @@ export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defa
                 const id = Number(option.value);
                 setSelectedPartyId(id);
                 setPartyName(option.label);
-                const payable = await getSupplierCurrentPayable(id);
-                setPreviousDue(payable);
+                setIsLoadingPreviousDue(true);
+                try {
+                  const payable = await getSupplierCurrentPayable(id);
+                  setPreviousDue(Math.max(0, Number(payable) || 0));
+                } finally {
+                  setIsLoadingPreviousDue(false);
+                }
               }}
               placeholder="Search supplier..."
               emptyText="No supplier found"
@@ -549,7 +589,7 @@ export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defa
             <input
               type="text"
               readOnly
-              value={formatCurrency(toCents(previousDue.toFixed(2)))}
+              value={isLoadingPreviousDue ? 'Loading...' : formatCurrency(previousDueCents)}
               className="mt-3 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-3 text-right text-lg font-semibold text-slate-950"
             />
           </div>

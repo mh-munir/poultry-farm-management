@@ -81,7 +81,7 @@ function RowActionsMenu({ row, onEdit, onDelete, onPrint }: { row: ProductRow; o
           type="button"
           variant="outline"
           size="icon"
-          aria-label="Row actions"
+          aria-label={dict.common.rowActions}
           className="h-8 w-8 rounded-md border border-slate-200 bg-white p-0 text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-ring dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"
         >
           <MoreHorizontal className="h-4 w-4" />
@@ -153,16 +153,16 @@ function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg
           <thead className="bg-muted/20 text-left text-muted-foreground">
             <tr>
               <th className="px-4 py-3 text-table-header">{dict.common.date}</th>
-              <th className="px-4 py-3 text-table-header">{dict.tableHeaders.media ?? 'Media'}</th>
+              <th className="px-4 py-3 text-table-header">{dict.tableHeaders.media}</th>
               <th className="px-4 py-3 text-table-header">{dict.common.productName}</th>
               <th className="px-4 py-3 text-table-header text-right">{dict.common.quantity}</th>
               {showTotalKg && (
-                <th className="px-4 py-3 text-table-header text-right">{dict.tableHeaders.totalKg ?? 'Total Kg'}</th>
+                <th className="px-4 py-3 text-table-header text-right">{dict.tableHeaders.totalKg}</th>
               )}
-              <th className="px-4 py-3 text-table-header text-right">{dict.tableHeaders.unitPrice ?? 'Unit Price'}</th>
+              <th className="px-4 py-3 text-table-header text-right">{dict.tableHeaders.unitPrice}</th>
               <th className="px-4 py-3 text-table-header text-right">{dict.common.paid}</th>
               <th className="px-4 py-3 text-table-header text-right">{dict.common.due}</th>
-              <th className="px-4 py-3 text-table-header text-right">{dict.tableHeaders.lineTotal ?? 'Line Total'}</th>
+              <th className="px-4 py-3 text-table-header text-right">{dict.tableHeaders.lineTotal}</th>
               <th className="px-4 py-3 text-table-header text-right">{dict.common.actions}</th>
             </tr>
           </thead>
@@ -337,22 +337,22 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
     const discount = Number(itemForm.discount);
 
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      setItemError('Quantity must be greater than zero.');
+      setItemError(dict.common.quantityMustBeGreaterThanZero);
       return;
     }
 
     if (!Number.isFinite(totalKg) || totalKg < 0) {
-      setItemError('Total Kg cannot be negative.');
+      setItemError(dict.common.totalKgCannotBeNegative);
       return;
     }
 
     if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-      setItemError('Per Kg Price cannot be negative.');
+      setItemError(dict.common.perKgPriceCannotBeNegative);
       return;
     }
 
     if (!Number.isFinite(discount) || discount < 0) {
-      setItemError('Discount cannot be negative.');
+      setItemError(dict.common.discountCannotBeNegative);
       return;
     }
 
@@ -360,7 +360,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
       ? (totalKg > 0 ? totalKg * unitPrice : 0)
       : quantity * unitPrice;
     if (discount > gross) {
-      setItemError('Discount cannot exceed the item subtotal.');
+      setItemError(dict.common.discountCannotExceedItemSubtotal);
       return;
     }
 
@@ -387,7 +387,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
       setEditingRow(null);
       router.refresh();
     } catch (error) {
-      setItemError(error instanceof Error ? error.message : 'Failed to update purchase item.');
+      setItemError(error instanceof Error ? error.message : dict.common.failedToUpdatePurchaseItem);
     } finally {
       setIsSavingItem(false);
     }
@@ -414,7 +414,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
       setDeletingRow(null);
       router.refresh();
     } catch (error) {
-      showToastError(error instanceof Error ? error.message : 'Failed to delete the transaction.');
+      showToastError(error instanceof Error ? error.message : dict.common.failedToDeleteTransaction);
     } finally {
       setIsDeletingTransaction(false);
     }
@@ -445,7 +445,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
                   value={dateFrom}
                   onChange={(event) => setDateFrom(event.target.value)}
                   className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Sales start date"
+                  aria-label={dict.common.salesStartDate}
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -453,7 +453,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
                   value={dateTo}
                   onChange={(event) => setDateTo(event.target.value)}
                   className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Sales end date"
+                  aria-label={dict.common.salesEndDate}
                 />
               </div>
               <label htmlFor="salesProductTypeFilter" className="text-sm font-medium text-muted-foreground">
@@ -507,7 +507,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
                   value={dateFrom}
                   onChange={(event) => setDateFrom(event.target.value)}
                   className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Purchase start date"
+                  aria-label={dict.common.purchaseStartDate}
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -515,7 +515,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
                   value={dateTo}
                   onChange={(event) => setDateTo(event.target.value)}
                   className="h-[42px] rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Purchase end date"
+                  aria-label={dict.common.purchaseEndDate}
                 />
               </div>
               <label htmlFor="purchaseProductTypeFilter" className="text-sm font-medium text-muted-foreground">
@@ -605,7 +605,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium">{dict.tableHeaders.totalKg ?? 'Total Kg'}</label>
+              <label className="mb-2 block text-sm font-medium">{dict.tableHeaders.totalKg}</label>
               <input
                 type="number"
                 min="0"
@@ -617,7 +617,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium">{dict.tableHeaders.unitPrice ?? 'Per Kg Price'}</label>
+              <label className="mb-2 block text-sm font-medium">{dict.tableHeaders.unitPrice}</label>
               <input
                 type="number"
                 min="0"
@@ -630,7 +630,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
 
             {editingRow.transactionType !== 'SALE' && (
               <div>
-                <label className="mb-2 block text-sm font-medium">{dict.forms.discount ?? 'Discount'}</label>
+                <label className="mb-2 block text-sm font-medium">{dict.forms.discount}</label>
                 <input
                   type="number"
                   min="0"
@@ -644,12 +644,12 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
 
             <div className="md:col-span-2 rounded-lg border border-border bg-muted/20 p-3">
               <div className="flex items-center justify-between text-sm">
-                <span>{dict.tableHeaders.lineTotal ?? 'Line Total'}</span>
+                <span>{dict.tableHeaders.lineTotal}</span>
                 <span className="font-semibold tabular-nums">{formatCurrency(computedLineTotal)}</span>
               </div>
               {editingRow.transactionType !== 'SALE' && (
                 <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
-                  <span>{dict.forms.discount ?? 'Discount'}</span>
+                  <span>{dict.forms.discount}</span>
                   <span className="tabular-nums">{formatCurrency(computedLineDiscount)}</span>
                 </div>
               )}
