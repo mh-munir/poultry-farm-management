@@ -14,6 +14,7 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 import { queueTransactionSmsNotification } from '@/lib/sms/service';
 import { createPaymentPaidSmsMessage, createPaymentReceivedSmsMessage } from '@/lib/sms/templates';
 import { getPartyFinancialSummary } from './accounting';
+import { calculatePartyNetBalances } from './balance-calculation';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 
@@ -155,6 +156,8 @@ function summarizePartyAccount(
   let partySupplierInvoiced = new Prisma.Decimal(0);
   let partySupplierPaid = new Prisma.Decimal(0);
   let partySupplierDue = new Prisma.Decimal(0);
+  let standaloneCustomerPayments = new Prisma.Decimal(0);
+  let standaloneSupplierPayments = new Prisma.Decimal(0);
   const standalonePayments = payments.filter((payment) => payment.allocations.length === 0);
 
   for (const transaction of transactions) {
@@ -179,13 +182,6 @@ function summarizePartyAccount(
     }
   }
 
-  const openingAmount = new Prisma.Decimal(Math.abs(openingBalance));
-  if (openingBalanceType === 'CUSTOMER_ADVANCE') {
-    customerDue = Prisma.Decimal.max(new Prisma.Decimal(0), customerDue.minus(openingAmount));
-  } else {
-    customerDue = customerDue.plus(openingAmount);
-  }
-
   for (const payment of standalonePayments) {
     const amount = toDecimal(payment.amount);
     const isSupplierPayment = payment.paymentDirection === 'SUPPLIER_PAYMENT'
@@ -193,24 +189,30 @@ function summarizePartyAccount(
 
     if (isSupplierPayment && partyType !== 'CUSTOMER') {
       partySupplierPaid = partySupplierPaid.plus(amount);
-      partySupplierDue = Prisma.Decimal.max(new Prisma.Decimal(0), partySupplierDue.minus(amount));
+      standaloneSupplierPayments = standaloneSupplierPayments.plus(amount);
     } else if (partyType !== 'PARTY') {
       customerPaid = customerPaid.plus(amount);
-      customerDue = Prisma.Decimal.max(new Prisma.Decimal(0), customerDue.minus(amount));
+      standaloneCustomerPayments = standaloneCustomerPayments.plus(amount);
     }
   }
 
+  const { customerDue: netCustomerDue, supplierPayable: netPartySupplierDue } = calculatePartyNetBalances({
+    openingBalance,
+    openingBalanceType,
+    customerSales: customerDue,
+    customerPayments: standaloneCustomerPayments,
+    supplierPurchases: partySupplierDue,
+    supplierPayments: standaloneSupplierPayments
+  });
   const offsetApplied = Prisma.Decimal.min(customerDue, partySupplierDue);
-  const netCustomerDue = Prisma.Decimal.max(new Prisma.Decimal(0), customerDue.minus(offsetApplied));
-  const netPartySupplierDue = Prisma.Decimal.max(new Prisma.Decimal(0), partySupplierDue.minus(offsetApplied));
 
   return {
     customerInvoiced: customerInvoiced.toNumber(),
     customerPaid: customerPaid.toNumber(),
-    customerDue: customerDue.toNumber(),
+    customerDue: netCustomerDue.toNumber(),
     supplierInvoiced: partySupplierInvoiced.toNumber(),
     supplierPaid: partySupplierPaid.toNumber(),
-    supplierDue: partySupplierDue.toNumber(),
+    supplierDue: netPartySupplierDue.toNumber(),
     offsetApplied: offsetApplied.toNumber(),
     netCustomerDue: netCustomerDue.toNumber(),
     netSupplierDue: netPartySupplierDue.toNumber(),

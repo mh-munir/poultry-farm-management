@@ -34,6 +34,8 @@ type ProductRow = {
   unitPrice: number;
   discount: number;
   lineTotal: number;
+  paid: number;
+  due: number;
   details: string | null;
   totalKg: number;
   productId: number;
@@ -130,9 +132,9 @@ function RowActionsMenu({ row, onEdit, onDelete, onPrint }: { row: ProductRow; o
   );
 }
 
-function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg = false, summary, onEdit, onDelete, onPrint }: { title: string; rows: ProductRow[]; totalItems?: number; headerActions?: ReactNode; showTotalKg?: boolean; summary?: { quantity: number; totalKg: number; lineTotal: number }; onEdit?: (row: ProductRow) => void; onDelete?: (row: ProductRow) => void; onPrint?: (row: ProductRow) => void; }) {
+function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg = false, summary, onEdit, onDelete, onPrint }: { title: string; rows: ProductRow[]; totalItems?: number; headerActions?: ReactNode; showTotalKg?: boolean; summary?: { quantity: number; totalKg: number; lineTotal: number; paid: number; due: number }; onEdit?: (row: ProductRow) => void; onDelete?: (row: ProductRow) => void; onPrint?: (row: ProductRow) => void; }) {
   const itemCount = totalItems ?? rows.length;
-  const colSpan = showTotalKg ? 8 : 7;
+  const colSpan = showTotalKg ? 10 : 9;
   const { dict, locale } = useLocale();
 
   return (
@@ -158,6 +160,8 @@ function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg
                 <th className="px-4 py-3 text-table-header text-right">{dict.tableHeaders.totalKg ?? 'Total Kg'}</th>
               )}
               <th className="px-4 py-3 text-table-header text-right">{dict.tableHeaders.unitPrice ?? 'Unit Price'}</th>
+              <th className="px-4 py-3 text-table-header text-right">{dict.common.paid}</th>
+              <th className="px-4 py-3 text-table-header text-right">{dict.common.due}</th>
               <th className="px-4 py-3 text-table-header text-right">{dict.tableHeaders.lineTotal ?? 'Line Total'}</th>
               <th className="px-4 py-3 text-table-header text-right">{dict.common.actions}</th>
             </tr>
@@ -175,6 +179,8 @@ function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg
                   </td>
                 )}
                 <td className="px-4 py-3 text-right tabular-nums">{formatLocalizedCurrency(row.unitPrice, locale)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatLocalizedCurrency(row.paid, locale)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatLocalizedCurrency(row.due, locale)}</td>
                 <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatLocalizedCurrency(row.lineTotal, locale)}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end">
@@ -193,12 +199,14 @@ function ProductItemsTable({ title, rows, totalItems, headerActions, showTotalKg
           {summary && rows.length > 0 && (
             <tfoot>
               <tr className="border-t border-border bg-muted/20 font-semibold">
-                <td className="px-4 py-3 text-left" colSpan={showTotalKg ? 3 : 2}>{dict.common.total}</td>
+                <td className="px-4 py-3 text-left" colSpan={3}>{dict.common.total}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{summary.quantity}</td>
                 {showTotalKg && (
                   <td className="px-4 py-3 text-right tabular-nums">{summary.totalKg.toFixed(2)} kg</td>
                 )}
                 <td className="px-4 py-3 text-right">&nbsp;</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(summary.paid)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(summary.due)}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(summary.lineTotal)}</td>
                 <td className="px-4 py-3 text-right">&nbsp;</td>
               </tr>
@@ -279,8 +287,18 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
   const purchaseSummary = useMemo(() => filteredBuyRows.reduce((summary, row) => ({
     quantity: summary.quantity + Number(row.quantity ?? 0),
     totalKg: summary.totalKg + Number(row.totalKg ?? 0),
-    lineTotal: summary.lineTotal + Number(row.lineTotal ?? 0)
-  }), { quantity: 0, totalKg: 0, lineTotal: 0 }), [filteredBuyRows]);
+    lineTotal: summary.lineTotal + Number(row.lineTotal ?? 0),
+    paid: summary.paid + Number(row.paid ?? 0),
+    due: summary.due + Number(row.due ?? 0)
+  }), { quantity: 0, totalKg: 0, lineTotal: 0, paid: 0, due: 0 }), [filteredBuyRows]);
+
+  const salesSummary = useMemo(() => filteredSaleRows.reduce((summary, row) => ({
+    quantity: summary.quantity + Number(row.quantity ?? 0),
+    totalKg: summary.totalKg + Number(row.totalKg ?? 0),
+    lineTotal: summary.lineTotal + Number(row.lineTotal ?? 0),
+    paid: summary.paid + Number(row.paid ?? 0),
+    due: summary.due + Number(row.due ?? 0)
+  }), { quantity: 0, totalKg: 0, lineTotal: 0, paid: 0, due: 0 }), [filteredSaleRows]);
 
   const salePageCount = Math.max(1, Math.ceil(filteredSaleRows.length / DEFAULT_PAGE_SIZE));
   const salesPageSafe = Math.min(Math.max(salesPage, 1), salePageCount);
@@ -465,6 +483,7 @@ export function SalesPurchaseSection({ partyId, saleRows, buyRows }: SalesPurcha
             </>
           )}
           showTotalKg={false}
+          summary={salesSummary}
           onEdit={openEditDialog}
           onDelete={setDeletingRow}
           onPrint={(row) => openTransactionPrint(row.transactionId)}

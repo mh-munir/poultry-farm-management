@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { unstable_cache } from 'next/cache';
 import { prisma } from '@/server/db';
 import { CACHE_TAGS } from '@/lib/cache';
+import { calculatePartyNetBalances } from './balance-calculation';
 
 const ZERO = new Prisma.Decimal(0);
 const VALID_TRANSACTION_STATUSES = ['PENDING', 'COMPLETED'];
@@ -21,7 +22,7 @@ const nonNegative = (value: Prisma.Decimal) => Prisma.Decimal.max(ZERO, value);
 async function getPartyFinancialSummaryUncached(partyId: number) {
   const party = await prisma.party.findUnique({
     where: { id: partyId },
-    select: { id: true, openingBalance: true, openingBalanceType: true }
+    select: { id: true, openingBalance: true, openingBalanceType: true, partyType: true }
   });
 
   if (!party) throw new Error('Party not found.');
@@ -32,7 +33,14 @@ async function getPartyFinancialSummaryUncached(partyId: number) {
       select: { id: true, createdAt: true, transactionDate: true, transactionType: true, totalAmount: true }
     }),
     prisma.payment.findMany({
-      where: { partyId, status: { in: VALID_PAYMENT_STATUSES }, paymentDirection: { in: ['CUSTOMER_PAYMENT', 'SUPPLIER_PAYMENT'] } },
+      where: {
+        partyId,
+        status: { in: VALID_PAYMENT_STATUSES },
+        OR: [
+          { paymentDirection: { in: ['CUSTOMER_PAYMENT', 'SUPPLIER_PAYMENT'] } },
+          { paymentDirection: null }
+        ]
+      },
       select: { amount: true, paymentDirection: true }
     })
   ]);
@@ -54,35 +62,41 @@ async function getPartyFinancialSummaryUncached(partyId: number) {
 
   let remainingOpeningAdvance = openingAdvance;
   let customerOpeningOffset = ZERO;
-  let supplierOpeningOffset = ZERO;
   let customerSales = ZERO;
   let supplierPurchases = ZERO;
 
   for (const obligation of obligations) {
-    const offset = Prisma.Decimal.min(remainingOpeningAdvance, obligation.amount);
-    remainingOpeningAdvance = remainingOpeningAdvance.minus(offset);
     if (obligation.transactionType === 'SALE') {
+      const offset = Prisma.Decimal.min(remainingOpeningAdvance, obligation.amount);
+      remainingOpeningAdvance = remainingOpeningAdvance.minus(offset);
       customerSales = customerSales.plus(obligation.amount);
       customerOpeningOffset = customerOpeningOffset.plus(offset);
     } else {
       supplierPurchases = supplierPurchases.plus(obligation.amount);
-      supplierOpeningOffset = supplierOpeningOffset.plus(offset);
     }
   }
 
   let customerPayments = ZERO;
   let supplierPayments = ZERO;
   for (const payment of payments) {
-    if (payment.paymentDirection === 'CUSTOMER_PAYMENT') customerPayments = customerPayments.plus(decimal(payment.amount));
-    if (payment.paymentDirection === 'SUPPLIER_PAYMENT') supplierPayments = supplierPayments.plus(decimal(payment.amount));
+    if (payment.paymentDirection === 'CUSTOMER_PAYMENT' || (!payment.paymentDirection && party.partyType !== 'PARTY')) {
+      customerPayments = customerPayments.plus(decimal(payment.amount));
+    }
+    if (payment.paymentDirection === 'SUPPLIER_PAYMENT' || (!payment.paymentDirection && party.partyType === 'PARTY')) {
+      supplierPayments = supplierPayments.plus(decimal(payment.amount));
+    }
   }
 
   const remainingOpeningDue = nonNegative(openingDue.minus(customerPayments));
-  const customerPaymentAgainstSales = nonNegative(customerPayments.minus(openingDue));
-  const customerDue = nonNegative(customerSales.minus(customerOpeningOffset).minus(customerPaymentAgainstSales).plus(remainingOpeningDue));
-  const supplierObligation = supplierPurchases.minus(supplierOpeningOffset);
-  const supplierPayable = nonNegative(supplierObligation.minus(supplierPayments));
-  const supplierAdvance = nonNegative(supplierPayments.minus(supplierObligation));
+  const supplierAdvance = nonNegative(supplierPayments.minus(supplierPurchases));
+  const { customerDue, supplierPayable } = calculatePartyNetBalances({
+    openingBalance: party.openingBalance,
+    openingBalanceType: party.openingBalanceType,
+    customerSales,
+    customerPayments,
+    supplierPurchases,
+    supplierPayments
+  });
 
   return {
     originalOpeningAmount: openingAmount.toString(),
@@ -97,7 +111,6 @@ async function getPartyFinancialSummaryUncached(partyId: number) {
     customerDue: customerDue.toString(),
     supplierPurchases: supplierPurchases.toString(),
     supplierPayments: supplierPayments.toString(),
-    supplierOpeningOffset: supplierOpeningOffset.toString(),
     supplierAdvance: supplierAdvance.toString(),
     supplierPayable: supplierPayable.toString()
   };

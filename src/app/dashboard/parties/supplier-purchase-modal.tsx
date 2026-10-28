@@ -152,14 +152,15 @@ export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defa
 
     getSupplierOptions().then((options: Array<{ id: number; name: string }>) => {
       const mappedOptions = options.map((option) => ({ value: String(option.id), label: option.name }));
-      setPartyOptions(mappedOptions);
 
       if (defaultPartyId) {
         const matchedDefaultOption = mappedOptions.find((option) => Number(option.value) === defaultPartyId);
+        setPartyOptions(matchedDefaultOption ? [matchedDefaultOption] : []);
         setSelectedPartyId(defaultPartyId);
         setPartyName(matchedDefaultOption?.label ?? defaultPartyName ?? '');
         getSupplierCurrentPayable(defaultPartyId).then((payable) => setPreviousDue(payable));
       } else {
+        setPartyOptions(mappedOptions);
         setSelectedPartyId(null);
         setPartyName('');
         setPreviousDue(0);
@@ -349,35 +350,45 @@ export function SupplierPurchaseModal({ open, onOpenChange, defaultPartyId, defa
 
         <div className="md:col-span-2">
           <label className="mb-2 block text-sm font-medium">Supplier *</label>
-          <SearchableCombobox
-            options={partyOptions}
-            value={selectedPartyId ? String(selectedPartyId) : partyName}
-            onValueChange={async (value) => {
-              const numericMatch = /^\d+$/.test(value);
-              if (numericMatch) {
-                const id = Number(value);
+          {defaultPartyId ? (
+            <input
+              type="text"
+              value={partyName}
+              readOnly
+              required
+              className="form-select w-full max-w-full cursor-not-allowed bg-slate-50"
+            />
+          ) : (
+            <SearchableCombobox
+              options={partyOptions}
+              value={selectedPartyId ? String(selectedPartyId) : partyName}
+              onValueChange={async (value) => {
+                const numericMatch = /^\d+$/.test(value);
+                if (numericMatch) {
+                  const id = Number(value);
+                  setSelectedPartyId(id);
+                  const payable = await getSupplierCurrentPayable(id);
+                  setPreviousDue(payable);
+                  const opt = partyOptions.find((o) => o.value === String(id));
+                  setPartyName(opt ? opt.label : '');
+                } else {
+                  setSelectedPartyId(null);
+                  setPreviousDue(0);
+                  setPartyName(value);
+                }
+              }}
+              onOptionSelect={async (option) => {
+                const id = Number(option.value);
                 setSelectedPartyId(id);
+                setPartyName(option.label);
                 const payable = await getSupplierCurrentPayable(id);
                 setPreviousDue(payable);
-                const opt = partyOptions.find((o) => o.value === String(id));
-                setPartyName(opt ? opt.label : '');
-              } else {
-                setSelectedPartyId(null);
-                setPreviousDue(0);
-                setPartyName(value);
-              }
-            }}
-            onOptionSelect={async (option) => {
-              const id = Number(option.value);
-              setSelectedPartyId(id);
-              setPartyName(option.label);
-              const payable = await getSupplierCurrentPayable(id);
-              setPreviousDue(payable);
-            }}
-            placeholder="Search supplier..."
-            emptyText="No supplier found"
-            required
-          />
+              }}
+              placeholder="Search supplier..."
+              emptyText="No supplier found"
+              required
+            />
+          )}
           <input type="hidden" name="partyId" value={String(selectedPartyId ?? '')} />
         </div>
 

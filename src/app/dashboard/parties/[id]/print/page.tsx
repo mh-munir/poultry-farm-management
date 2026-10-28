@@ -4,6 +4,7 @@ import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { prisma } from '@/server/db';
 import PrintTrigger from './print-trigger';
 import { getBranding } from '@/lib/branding';
+import { getPartyFinancialSummary } from '@/features/parties/accounting';
 import { Receipt, BadgeCheck, Wallet, Package, CircleDollarSign, UserRound } from 'lucide-react';
 import { formatDateBD as formatDate, formatDateTimeBD as formatDateTime } from '@/lib/dates';
 
@@ -21,19 +22,21 @@ function StatementCard({
   title,
   value,
   subtext,
-  icon: Icon
+  icon: Icon,
+  valueClassName
 }: {
   title: string;
   value: string;
   subtext: string;
   icon: React.ElementType;
+  valueClassName?: string;
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm print:border-slate-300 print:shadow-none">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{title}</p>
-          <p className="mt-2 text-xl font-semibold text-slate-900">{value}</p>
+          <p className={`mt-2 text-xl font-semibold ${valueClassName ?? 'text-slate-900'}`}>{value}</p>
           <p className="mt-1 text-xs text-slate-500">{subtext}</p>
         </div>
         <div className="rounded-lg bg-slate-50 p-2 text-slate-700 print:bg-white">
@@ -72,12 +75,6 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
     prisma.payment.findMany({ where: { partyId }, orderBy: { paymentDate: 'desc' } })
   ]);
 
-  const latestLedger = await prisma.ledgerEntry.findFirst({
-    where: { partyId },
-    orderBy: [{ entryDate: 'desc' }, { id: 'desc' }],
-    select: { runningBalance: true }
-  });
-
   const productRows = transactions.flatMap((transaction) =>
     transaction.transactionItems.map((item) => ({
       id: `${transaction.id}-${item.id}`,
@@ -96,13 +93,11 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
   const customerRows = productRows.filter((r) => r.transactionType === 'SALE');
   const supplierRows = productRows.filter((r) => r.transactionType === 'PURCHASE');
 
-  const totalSales = customerRows.reduce((s, r) => s + (r.lineTotal ?? 0), 0);
-  const totalSupplies = supplierRows.reduce((s, r) => s + (r.lineTotal ?? 0), 0);
-  const totalPayments = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
-  const currentDue = totalSales - totalPayments;
-  const supplierPayable = totalSupplies - totalPayments;
+  const financialSummary = await getPartyFinancialSummary(partyId);
+  const currentDue = Number(financialSummary.customerDue);
+  const supplierPayable = Number(financialSummary.supplierPayable);
   const openingBalance = Number(party.openingBalance ?? 0);
-  const netBalance = Number(latestLedger?.runningBalance?.toString?.() ?? openingBalance);
+  const netBalance = currentDue - supplierPayable;
   const printDate = new Date();
 
   return (
@@ -196,32 +191,49 @@ export default async function PartyPrintPage({ params }: { params: Promise<{ id:
               </div>
               <div className="mt-3 space-y-2 text-sm text-slate-600">
                 <div className="flex items-center justify-between">
-                  <span>Opening Balance</span>
-                  <span className="font-medium text-slate-900">{formatCurrency(openingBalance)}</span>
+                  <span>{party.openingBalanceType === 'CUSTOMER_ADVANCE' ? 'Opening Advance' : 'Opening Due'}</span>
+                  <span className="font-medium text-slate-900">{formatCurrency(Math.abs(openingBalance))}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Current Due</span>
-                  <span className="font-medium text-slate-900">{formatCurrency(currentDue)}</span>
+                  <span>Total Feed / Medicine Sales</span>
+                  <span className="font-medium text-slate-900">{formatCurrency(financialSummary.customerSales)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Party Supplier Payable</span>
-                  <span className="font-medium text-slate-900">{formatCurrency(supplierPayable)}</span>
+                  <span>Total Paid by Customer</span>
+                  <span className="font-medium text-slate-900">{formatCurrency(financialSummary.customerPayments)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Total Egg / Chicken Purchases</span>
+                  <span className="font-medium text-slate-900">{formatCurrency(financialSummary.supplierPurchases)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Total Paid to Supplier</span>
+                  <span className="font-medium text-slate-900">{formatCurrency(financialSummary.supplierPayments)}</span>
                 </div>
                 <div className="mt-3">
-                  <div className="flex items-center justify-between bg-yellow-400 px-4 py-3">
-                    <div className="text-sm font-semibold text-slate-900">Net Balance</div>
-                    <div className="text-xl font-extrabold text-slate-900">{formatCurrency(netBalance)}</div>
+                  <div className={`flex items-center justify-between px-4 py-3 ${netBalance > 0 ? 'bg-emerald-100' : netBalance < 0 ? 'bg-rose-100' : 'bg-slate-100'}`}>
+                    <div className={`text-sm font-semibold ${netBalance > 0 ? 'text-emerald-800' : netBalance < 0 ? 'text-rose-800' : 'text-slate-900'}`}>
+                      {netBalance > 0 ? 'Customer Due' : netBalance < 0 ? 'Supplier Due' : 'Net Balance'}
+                    </div>
+                    <div className={`text-xl font-extrabold ${netBalance > 0 ? 'text-emerald-700' : netBalance < 0 ? 'text-rose-700' : 'text-slate-900'}`}>{formatCurrency(Math.abs(netBalance))}</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-            <StatementCard title="Customer" value={formatCurrency(totalSales)} subtext="Total Sales" icon={Receipt} />
-            <StatementCard title="Customer" value={formatCurrency(totalPayments)} subtext="Total Paid" icon={Wallet} />
-            <StatementCard title="Party Supplier" value={formatCurrency(totalSupplies)} subtext="Total Supplies" icon={Package} />
-            <StatementCard title="Balance" value={formatCurrency(netBalance)} subtext="Net Balance" icon={CircleDollarSign} />
+          <div className="mt-8 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
+            <StatementCard title="Customer" value={formatCurrency(financialSummary.customerSales)} subtext="Total Feed / Medicine Sales" icon={Receipt} />
+            <StatementCard title="Customer" value={formatCurrency(financialSummary.customerPayments)} subtext="Total Paid" icon={Wallet} />
+            <StatementCard title="Party Supplier" value={formatCurrency(financialSummary.supplierPurchases)} subtext="Total Egg / Chicken Purchases" icon={Package} />
+            <StatementCard title="Supplier" value={formatCurrency(financialSummary.supplierPayments)} subtext="Total Paid" icon={CircleDollarSign} />
+            <StatementCard
+              title={netBalance > 0 ? 'Customer Due' : netBalance < 0 ? 'Supplier Due' : 'Net Balance'}
+              value={formatCurrency(Math.abs(netBalance))}
+              subtext="Final Balance"
+              icon={CircleDollarSign}
+              valueClassName={netBalance > 0 ? 'text-emerald-700' : netBalance < 0 ? 'text-rose-700' : 'text-slate-900'}
+            />
           </div>
 
           <div className="mt-8 space-y-8">

@@ -28,6 +28,7 @@ import {
   updatePaymentForParty
 } from '@/features/parties/actions';
 import { getCustomersForSales, getProductsForSales } from '@/features/sales/actions';
+import { allocateTransactionPayment } from '@/features/parties/item-payment-allocation';
 import { Button } from '@/components/ui/button';
 import PaymentFormDialog from './payment-form-dialog';
 import { PartyRowActions } from '../party-row-actions';
@@ -155,20 +156,22 @@ function KpiCard({
   value,
   description,
   icon: Icon,
-  accent
+  accent,
+  valueClassName
 }: {
   title: string;
   value: string;
   description: string;
   icon: typeof Wallet;
   accent: string;
+  valueClassName?: string;
 }) {
   return (
     <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-form-label font-semibold text-muted-foreground">{title}</p>
-          <p className="mt-3 break-words text-2xl font-bold leading-tight text-foreground tabular-nums">{value}</p>
+          <p className={`mt-3 break-words text-2xl font-bold leading-tight tabular-nums ${valueClassName ?? 'text-foreground'}`}>{value}</p>
           <p className="mt-2 text-card-subtitle">{description}</p>
         </div>
         <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${accent}`}>
@@ -317,8 +320,14 @@ export default async function PartyProfilePage({
   const isCustomer = party.partyType === 'CUSTOMER' || party.partyType === 'BOTH';
   const isSupplier = party.partyType === 'PARTY' || party.partyType === 'BOTH';
 
-  const productRows = transactions.flatMap((transaction) =>
-    transaction.transactionItems.map((item) => ({
+  const productRows = transactions.flatMap((transaction) => {
+    const allocations = allocateTransactionPayment({
+      lineTotals: transaction.transactionItems.map((item) => item.lineTotal.toString()),
+      paidAmount: transaction.paidAmount.toString(),
+      dueAmount: transaction.dueAmount.toString()
+    });
+
+    return transaction.transactionItems.map((item, index) => ({
       id: `${transaction.id}-${item.id}`,
       itemId: item.id,
       transactionId: transaction.id,
@@ -333,11 +342,13 @@ export default async function PartyProfilePage({
       unitPrice: Number(item.unitPrice ?? 0),
       discount: 0,
       lineTotal: Number(item.lineTotal ?? 0),
+      paid: allocations[index].paid,
+      due: allocations[index].due,
       details: item.description ?? null,
       totalKg: Number(item.chickenQuantity ?? 0),
       productId: item.product?.id ?? 0
-    }))
-  );
+    }));
+  });
 
   const customerProductRows = productRows.filter((row) => row.transactionType === 'SALE');
   const supplierProductRows = productRows.filter((row) => row.transactionType === 'PURCHASE');
@@ -345,18 +356,22 @@ export default async function PartyProfilePage({
   const openingBalanceLedger = ledgerEntries.find((entry) => entry.entryType === 'OPENING_BALANCE');
   const netCustomerDue = Number(summary.netCustomerDue);
   const netSupplierDue = Number(summary.netSupplierDue);
-  const dueStatus = netCustomerDue <= 0 && netSupplierDue <= 0
+  const netBalance = netCustomerDue - netSupplierDue;
+  const netBalanceTitle = netBalance > 0
+    ? 'Customer Due'
+    : netBalance < 0
+      ? 'Supplier Due'
+      : 'Net Balance';
+  const dueStatus = netBalance === 0
     ? dict.common.clear
-    : netCustomerDue > 0 && netSupplierDue > 0
-      ? dict.common.open
-      : netCustomerDue > 0
-        ? dict.common.customerDue
-        : dict.common.supplierPayable;
+    : netBalance > 0
+      ? dict.common.customerDue
+      : 'Supplier Due';
   const dueBadgeClass = dueStatus === dict.common.clear
     ? 'bg-emerald-100 text-emerald-700'
-    : dueStatus === dict.common.supplierPayable
-      ? 'bg-amber-100 text-amber-700'
-      : 'bg-rose-100 text-rose-700';
+    : dueStatus === 'Supplier Due'
+      ? 'bg-rose-100 text-rose-700'
+      : 'bg-emerald-100 text-emerald-700';
   const partyTypeBadgeClass = party.partyType === 'CUSTOMER'
     ? 'bg-sky-100 text-sky-800'
     : party.partyType === 'PARTY'
@@ -561,24 +576,23 @@ export default async function PartyProfilePage({
 
       <section className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <KpiCard
-          title={party.openingBalanceType === 'CUSTOMER_ADVANCE' ? 'Party Credit Balance (Advance)' : 'Party Owes You Money (Due)'}
-          value={formatCurrency(party.openingBalanceType === 'CUSTOMER_ADVANCE' ? summary.remainingOpeningAdvance : summary.remainingOpeningDue)}
-          description={party.openingBalanceType === 'CUSTOMER_ADVANCE'
-            ? `Opening: ${formatCurrency(summary.originalOpeningAdvance)} · Used: ${formatCurrency(summary.usedOpeningAdvance)}`
-            : `Opening: ${formatCurrency(summary.originalOpeningAmount)} · Received: ${formatCurrency(summary.customerPayments)}`}
+          title={party.openingBalanceType === 'CUSTOMER_ADVANCE' ? 'Opening Advance' : 'Opening Due'}
+          value={formatCurrency(summary.originalOpeningAmount)}
+          description="Opening amount included in the net balance"
           icon={Wallet}
           accent="bg-violet-50 text-violet-600"
         />
-        <KpiCard title="Customer Due" value={formatCurrency(summary.customerDue)} description="Party → You" icon={CreditCard} accent="bg-rose-50 text-rose-600" />
-        <KpiCard title="Paid by Party" value={formatCurrency(summary.customerPayments)} description="Party → You" icon={CircleDollarSign} accent="bg-emerald-50 text-emerald-600" />
-        <KpiCard title="Total Purchase" value={formatCurrency(summary.supplierPurchases)} description="You ← Party" icon={ShoppingCart} accent="bg-sky-50 text-sky-600" />
-        <KpiCard title="Total Paid" value={formatCurrency(summary.supplierPayments)} description="You → Party" icon={BadgeDollarSign} accent="bg-amber-50 text-amber-600" />
+        <KpiCard title="Total Feed / Medicine Sales" value={formatCurrency(summary.customerSales)} description="Sold to this party" icon={TrendingUp} accent="bg-sky-50 text-sky-600" />
+        <KpiCard title="Total Paid by Customer" value={formatCurrency(summary.customerPayments)} description="Received from this party" icon={CircleDollarSign} accent="bg-emerald-50 text-emerald-600" />
+        <KpiCard title="Total Egg / Chicken Purchases" value={formatCurrency(summary.supplierPurchases)} description="Bought from this party" icon={ShoppingCart} accent="bg-sky-50 text-sky-600" />
+        <KpiCard title="Total Paid to Supplier" value={formatCurrency(summary.supplierPayments)} description="Paid to this party" icon={BadgeDollarSign} accent="bg-amber-50 text-amber-600" />
         <KpiCard
-          title="Supplier Payable"
-          value={formatCurrency(summary.supplierPayable)}
-          description={`You owe this party · Advance: ${formatCurrency(summary.supplierAdvance)}`}
-          icon={Wallet}
-          accent="bg-amber-50 text-amber-600"
+          title={netBalanceTitle}
+          value={formatCurrency(Math.abs(netBalance))}
+          description={netBalance === 0 ? 'All accounts are settled' : 'Final balance after all opening amounts, sales, purchases, and payments'}
+          icon={netBalance < 0 ? Wallet : CreditCard}
+          accent={netBalance < 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}
+          valueClassName={netBalance < 0 ? 'text-rose-700' : 'text-emerald-700'}
         />
       </section>
 

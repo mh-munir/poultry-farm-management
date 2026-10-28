@@ -281,16 +281,17 @@ export function SalesEntryPopup({
               name="name"
               autoComplete="off"
               value={salesFormValues.name}
+              readOnly={Boolean(defaultPartyId)}
               onChange={(event) => handleSalesChange('name', event.target.value)}
-              onFocus={handlePartyNameFocus}
-              onClick={handlePartyNameClick}
+              onFocus={defaultPartyId ? undefined : handlePartyNameFocus}
+              onClick={defaultPartyId ? undefined : handlePartyNameClick}
               onBlur={handlePartyNameBlur}
               required
-              className="w-full rounded-md border bg-background px-3 py-2"
+              className={`w-full rounded-md border bg-background px-3 py-2 ${defaultPartyId ? 'cursor-not-allowed bg-slate-50' : ''}`}
               placeholder={dict.forms.clickOrTypePartyName}
             />
             <input type="hidden" name="partyId" value={salesPartyId ?? ''} />
-            {showPartySuggestions && (
+            {!defaultPartyId && showPartySuggestions && (
               <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl border bg-white shadow-xl">
                 {matchingPartyOptions.length > 0 ? matchingPartyOptions.map((party) => (
                   <button

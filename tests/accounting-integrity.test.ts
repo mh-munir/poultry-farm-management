@@ -9,6 +9,8 @@
 
 import { Prisma } from '@prisma/client';
 import { parseDateInputValueBD, toDateInputValueBD } from '@/lib/dates';
+import { calculatePartyNetBalances } from '@/features/parties/balance-calculation';
+import { allocateTransactionPayment } from '@/features/parties/item-payment-allocation';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -35,6 +37,113 @@ describe('transaction date input persistence', () => {
   it('rejects malformed or impossible date input', () => {
     assert.strictEqual(parseDateInputValueBD('2026-02-30'), null);
     assert.strictEqual(parseDateInputValueBD('28-10-2026'), null);
+  });
+});
+
+describe('party profile net balance calculation', () => {
+  const balances = (input: {
+    openingBalance?: string;
+    openingBalanceType?: string;
+    customerSales?: string;
+    customerPayments?: string;
+    supplierPurchases?: string;
+    supplierPayments?: string;
+  }) => calculatePartyNetBalances({
+    openingBalance: input.openingBalance ?? '0',
+    openingBalanceType: input.openingBalanceType ?? 'CUSTOMER_DUE',
+    customerSales: input.customerSales ?? '0',
+    customerPayments: input.customerPayments ?? '0',
+    supplierPurchases: input.supplierPurchases ?? '0',
+    supplierPayments: input.supplierPayments ?? '0'
+  });
+
+  it('uses an opening advance against sales and retains any unused amount in the net payable', () => {
+    const result = balances({
+      openingBalance: '1000',
+      openingBalanceType: 'CUSTOMER_ADVANCE',
+      customerSales: '700'
+    });
+
+    assert.strictEqual(result.customerDue.toString(), '0');
+    assert.strictEqual(result.supplierPayable.toString(), '300');
+  });
+
+  it('shows only the remaining customer due when sales exceed an opening advance', () => {
+    const result = balances({
+      openingBalance: '1000',
+      openingBalanceType: 'CUSTOMER_ADVANCE',
+      customerSales: '1200'
+    });
+
+    assert.strictEqual(result.customerDue.toString(), '200');
+    assert.strictEqual(result.supplierPayable.toString(), '0');
+  });
+
+  it('nets egg/chicken purchases against customer receivable', () => {
+    const result = balances({ openingBalance: '1000', supplierPurchases: '700' });
+
+    assert.strictEqual(result.customerDue.toString(), '300');
+    assert.strictEqual(result.supplierPayable.toString(), '0');
+  });
+
+  it('shows payable only when supplier purchases exceed customer receivable', () => {
+    const result = balances({ openingBalance: '1000', supplierPurchases: '1200' });
+
+    assert.strictEqual(result.customerDue.toString(), '0');
+    assert.strictEqual(result.supplierPayable.toString(), '200');
+  });
+
+  it('moves supplier overpayment into customer due', () => {
+    const result = balances({ supplierPurchases: '1000', supplierPayments: '1200' });
+
+    assert.strictEqual(result.customerDue.toString(), '200');
+    assert.strictEqual(result.supplierPayable.toString(), '0');
+  });
+
+  it('calculates the final balance from opening amount, sales, both payment directions, and purchases', () => {
+    const result = balances({
+      openingBalance: '1000',
+      customerSales: '500',
+      customerPayments: '200',
+      supplierPurchases: '800',
+      supplierPayments: '100'
+    });
+
+    assert.strictEqual(result.customerDue.toString(), '600');
+    assert.strictEqual(result.supplierPayable.toString(), '0');
+  });
+});
+
+describe('transaction paid and due allocation by product', () => {
+  it('distributes invoice paid and due amounts by product line value with exact totals', () => {
+    const rows = allocateTransactionPayment({
+      lineTotals: ['60.00', '40.00'],
+      paidAmount: '50.00',
+      dueAmount: '50.00'
+    });
+
+    assert.deepStrictEqual(rows, [
+      { paid: 30, due: 30 },
+      { paid: 20, due: 20 }
+    ]);
+    assert.strictEqual(rows.reduce((sum, row) => sum + row.paid, 0), 50);
+    assert.strictEqual(rows.reduce((sum, row) => sum + row.due, 0), 50);
+  });
+
+  it('assigns rounding cents deterministically while preserving invoice totals', () => {
+    const rows = allocateTransactionPayment({
+      lineTotals: ['1.00', '1.00', '1.00'],
+      paidAmount: '0.01',
+      dueAmount: '0.02'
+    });
+
+    assert.deepStrictEqual(rows, [
+      { paid: 0.01, due: 0.01 },
+      { paid: 0, due: 0.01 },
+      { paid: 0, due: 0 }
+    ]);
+    assert.strictEqual(rows.reduce((sum, row) => sum + row.paid, 0), 0.01);
+    assert.strictEqual(rows.reduce((sum, row) => sum + row.due, 0), 0.02);
   });
 });
 

@@ -60,6 +60,7 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
   const payableSettlement = Math.min(currentPayable, enteredAmount);
   const supplierAdvance = Math.max(0, enteredAmount - currentPayable);
   const remainingPayable = Math.max(0, currentPayable - enteredAmount);
+  const customerDueAfterPayment = customerDue + supplierAdvance;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -165,8 +166,8 @@ export function PaySupplierModal({ open, onOpenChange }: PaySupplierModalProps) 
             <p className="mt-3 text-right text-lg font-semibold text-slate-950">{formatLocalizedCurrency(payableSettlement, locale)}</p>
           </div>
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <p className="text-xs font-medium text-slate-500">Supplier Advance</p>
-            <p className="mt-3 text-right text-lg font-semibold text-slate-950">{formatLocalizedCurrency(supplierAdvance, locale)}</p>
+            <p className="text-xs font-medium text-slate-500">Customer Due After Payment</p>
+            <p className="mt-3 text-right text-lg font-semibold text-slate-950">{formatLocalizedCurrency(customerDueAfterPayment, locale)}</p>
           </div>
           <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-xs font-medium text-slate-500">Remaining Supplier Payable</p>
